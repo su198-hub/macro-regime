@@ -19,10 +19,16 @@ driver_salience:           # how much each driver matters when measuring distanc
   policy: 0.7
   investment: 0.9
 
+# `short` is the code shown on the signpost chart. `color` follows the regime
+# everywhere it appears; the four were checked together for colour-blind
+# separation on a white page, so re-check if you change one.
+
 regimes:
 
   goldilocks:
     label: Goldilocks
+    short: GLD
+    color: "#008300"
     description: Demand grows into expanding supply. Expectations stay anchored.
     archetype:
       demand: 0.40
@@ -34,6 +40,8 @@ regimes:
 
   high_growth_high_inflation:
     label: High growth, high inflation
+    short: HGHI
+    color: "#2a78d6"
     description: Demand outruns supply. Policy has not yet caught up.
     archetype:
       demand: 0.80
@@ -45,6 +53,8 @@ regimes:
 
   stagflation:
     label: Stagflation
+    short: STF
+    color: "#e34948"
     description: Supply binds while demand fades. Expectations drift up anyway.
     archetype:
       demand: -0.30
@@ -56,6 +66,8 @@ regimes:
 
   hard_landing:
     label: Hard landing
+    short: HL
+    color: "#eda100"
     description: Policy restriction bites. Demand and investment break together.
     archetype:
       demand: -0.80

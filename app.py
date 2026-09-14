@@ -2,9 +2,9 @@
 
     streamlit run app.py
 
-The vintage selector in the sidebar is the point of the whole thing. Move it
-back a year and the dashboard shows what you would have seen then, not what
-you know now.
+The "data as known on" control is the point of the whole thing. Move it back a
+year and the dashboard shows what you would have seen then, not what you know
+now.
 """
 
 from __future__ import annotations
@@ -12,23 +12,22 @@ from __future__ import annotations
 import datetime as dt
 import os
 
-import altair as alt
 import pandas as pd
 import streamlit as st
+from matplotlib.colors import LinearSegmentedColormap
 
+from src import ui
 from src.drivers import compute, load_config
 from src.regimes import contributions, load_regimes, run
 from src.store import Store
 
-st.set_page_config(page_title="Macro regime", layout="wide")
+st.set_page_config(page_title="Macro regime monitor", layout="wide",
+                   initial_sidebar_state="collapsed")
+st.html(ui.CSS)
 
-PALETTE = {
-    "goldilocks": "#3f7d5a",
-    "high_growth_high_inflation": "#b8792b",
-    "stagflation": "#9c4a34",
-    "hard_landing": "#3a5a80",
-    "transitional": "#8a8880",
-}
+# Diverging blue to red through a neutral grey, for signed indicator scores.
+DIVERGING = LinearSegmentedColormap.from_list(
+    "signed", ["#2a78d6", "#f0efec", "#e34948"])
 
 
 @st.cache_resource
@@ -57,16 +56,24 @@ def get_results(vintage: dt.date):
 
 store = get_store()
 
-st.sidebar.header("View")
-vintage = st.sidebar.date_input(
-    "Data as known on", value=dt.date.today(),
-    help="Rewind to see the call you would have made at the time.",
-)
-results = get_results(vintage)
+# ---------- masthead ----------
 
+head_left, head_right = st.columns([3, 1], vertical_alignment="bottom")
+head_left.html(
+    '<p class="mr-eyebrow">United States</p>'
+    '<h1 class="mr-title">Macro regime monitor</h1>'
+    '<p class="mr-sub">Five drivers scored monthly from point-in-time data and '
+    'mapped to four regimes.</p>')
+vintage = head_right.date_input(
+    "Data as known on", value=dt.date.today(), format="DD/MM/YYYY",
+    help="Rewind to see the call you would have made at the time, using only "
+         "data published by that date.")
+st.html('<hr class="mr-rule">')
+
+results = get_results(vintage)
 if results is None:
-    st.title("No data yet")
-    st.write("Load something first:")
+    st.html('<h2 class="mr-h2">No data yet</h2>'
+            '<p class="mr-caption">Load something first, then refresh.</p>')
     st.code("python ingest.py demo        # synthetic, runs immediately\n"
             "python ingest.py backfill    # real vintages, needs FRED_API_KEY")
     st.stop()
@@ -75,88 +82,121 @@ drivers = results["drivers"]
 probs = results["probabilities"].dropna(how="all")
 calls = results["calls"]
 reg = results["regimes"]
+cfg = results["config"]
+settings = reg["settings"]
 driver_cols = [c for c in drivers.columns if not c.endswith("__coverage")]
+driver_label = {n: cfg["drivers"].get(n, {}).get("label", n) for n in driver_cols}
+regime_label = {n: s["label"] for n, s in reg["regimes"].items()}
 
 if probs.empty:
     st.warning("Not enough overlapping coverage to score a regime at this "
-               "vintage. Check the Coverage tab.")
+               "vintage. Check the coverage table below.")
     st.stop()
 
 latest = probs.index[-1]
 call = calls.loc[latest]
-label = reg["regimes"].get(call["called"], {}).get("label", "Transitional")
-
-st.title(label)
-st.caption(f"As of {latest:%B %Y} · data known on {vintage} · "
-           f"config {results.get('config_hash', 'n/a')}")
-
+called = call["called"]
+leading = call["leading"]
+year_ago = drivers.index[drivers.index <= latest - pd.DateOffset(months=12)]
+then = year_ago[-1] if len(year_ago) else None
 is_demo = store.con.execute(
-    "SELECT COUNT(*) FROM series_meta WHERE source = 'demo'").fetchone()[0]
-if is_demo:
-    st.warning("Demo data. These series are synthetic, so the call and the "
-               "numbers mean nothing yet.")
+    "SELECT COUNT(*) FROM series_meta WHERE source = 'demo'").fetchone()[0] > 0
 
-cols = st.columns(len(probs.columns))
-for col, name in zip(cols, probs.columns):
-    col.metric(reg["regimes"][name]["label"], f"{probs[name].iloc[-1]:.0%}")
+# ---------- headline ----------
 
-if call["called"] != call["leading"]:
-    lead = reg["regimes"][call["leading"]]["label"]
-    st.info(f"{lead} is leading this month but has not held long enough to "
-            f"change the call. It needs "
-            f"{reg['settings']['persistence_months']} consecutive months.")
+called_rows = calls.loc[:latest, "called"]
+held = ui.run_length(called_rows)
+since = called_rows.index[-held] if held else latest
+ranked = probs.loc[latest].sort_values(ascending=False)
+runner_up = ranked.index[1] if len(ranked) > 1 else None
 
-tab_now, tab_drivers, tab_ind, tab_judge, tab_cov = st.tabs(
-    ["Regime history", "Drivers", "Indicators", "Judgement", "Coverage"]
-)
+if called == "transitional":
+    call_name, swatch = "Transitional", ui.TRANSITIONAL
+    lede = (f"No regime clears the {settings['min_confidence']:.0%} confidence "
+            f"floor. {regime_label[leading]} leads with {ranked.iloc[0]:.0%}.")
+else:
+    call_name, swatch = regime_label[called], reg["regimes"][called]["color"]
+    lede = f"{regime_label[leading]} leads with {ranked.iloc[0]:.0%} probability"
+    if runner_up is not None:
+        gap = (ranked.iloc[0] - ranked.iloc[1]) * 100
+        lede += f", {gap:.0f} points ahead of {regime_label[runner_up]}"
+    lede += f". Called since {since:%B %Y}."
 
-with tab_now:
-    recent = probs.tail(180).reset_index().melt(
-        id_vars="observation_date", var_name="regime", value_name="probability")
-    recent["label"] = recent["regime"].map(
-        lambda r: reg["regimes"][r]["label"])
-    st.altair_chart(
-        alt.Chart(recent).mark_area().encode(
-            x=alt.X("observation_date:T", title=None),
-            y=alt.Y("probability:Q", stack="normalize", title=None,
-                    axis=alt.Axis(format="%")),
-            color=alt.Color("label:N", title=None,
-                            scale=alt.Scale(
-                                domain=[reg["regimes"][r]["label"]
-                                        for r in probs.columns],
-                                range=[PALETTE[r] for r in probs.columns])),
-            tooltip=["observation_date:T", "label:N",
-                     alt.Tooltip("probability:Q", format=".0%")],
-        ).properties(height=300),
-        width="stretch",
-    )
-    st.subheader("What is pulling the call")
-    st.caption("Squared distance from each archetype, per driver. "
-               "Lower means closer. The biggest number in the called row is "
-               "the driver arguing against the call.")
-    st.dataframe(contributions(drivers, reg, latest), width="stretch")
+if called not in ("transitional", leading):
+    streak = ui.run_length(calls.loc[:latest, "leading"])
+    lede += (f" {regime_label[leading]} has led for {streak} of the "
+             f"{settings['persistence_months']} consecutive months needed to "
+             f"change the call.")
+
+call_col, prob_col = st.columns([1.15, 1], gap="large")
+call_col.html(
+    f'<p class="mr-eyebrow">Regime call for {latest:%B %Y}</p>'
+    f'<div class="mr-call"><span class="mr-call-swatch" '
+    f'style="background:{swatch}"></span>{ui.esc(call_name)}</div>'
+    f'<p class="mr-lede">{ui.esc(lede)}</p>'
+    f'<p class="mr-lede-muted">Data as known on {vintage:%d %B %Y}. Latest month '
+    f'with every driver scored: {latest:%B %Y}.</p>'
+    + ('<div class="mr-demo">Demo data. These series are synthetic, so the call '
+       'and the numbers mean nothing yet.</div>' if is_demo else ""))
+prob_col.html(ui.probability_panel(probs.loc[latest], reg, called))
+
+# ---------- signposts ----------
+
+st.html('<hr class="mr-rule"><h2 class="mr-h2">Scenario drivers and signposts</h2>'
+        '<p class="mr-caption">Each driver runs from one extreme to the other. '
+        'Regime codes sit where that regime expects the driver to be; the star '
+        'is where it is now. Hover any mark for the exact score.</p>')
+st.html(ui.signpost_html(drivers, cfg, reg, latest, then))
+
+# ---------- history ----------
+
+st.html('<hr class="mr-rule"><h2 class="mr-h2">Regime probabilities over time</h2>'
+        '<p class="mr-caption">The band on top shows the regime actually called '
+        f'after the {settings["persistence_months"]}-month persistence rule. '
+        'Hover the chart for each month.</p>')
+span = st.segmented_control("Range", ["5 years", "15 years", "All"],
+                            default="15 years", label_visibility="collapsed")
+months = {"5 years": 60, "15 years": 180}.get(span or "15 years")
+window = probs if months is None else probs.tail(months)
+st.altair_chart(ui.history_chart(window, calls, reg), width="stretch")
+with st.expander("Show as a table"):
+    table = window.iloc[::-1].rename(columns=regime_label)
+    table.insert(0, "Called", calls["called"].reindex(window.index).iloc[::-1]
+                 .map(lambda c: regime_label.get(c, "Transitional")))
+    table.index = table.index.strftime("%b %Y")
+    st.dataframe(table.style.format("{:.0%}", subset=list(regime_label.values())),
+                 width="stretch", height=320)
+
+# ---------- detail ----------
+
+st.html('<hr class="mr-rule"><h2 class="mr-h2">Behind the call</h2>')
+tab_pull, tab_drivers, tab_ind, tab_judge, tab_cov = st.tabs(
+    ["What is pulling the call", "Driver history", "Indicators", "Judgement",
+     "Coverage"])
+
+with tab_pull:
+    st.caption("Weighted squared distance from each regime's archetype, per "
+               "driver, this month. Lower means closer. In the called regime's "
+               "row, the largest number is the driver arguing against the call.")
+    contrib = contributions(drivers, reg, latest)
+    contrib = contrib.rename(index=regime_label, columns=driver_label)
+    contrib["Total"] = contrib.sum(axis=1)
+    st.dataframe(contrib.style.format("{:.2f}").background_gradient(
+        cmap=LinearSegmentedColormap.from_list("seq", ["#ffffff", "#86b6ef"]),
+        subset=list(driver_label.values()), axis=None, vmin=0),
+        width="stretch")
 
 with tab_drivers:
-    hist = drivers[driver_cols].tail(180).reset_index().melt(
-        id_vars="observation_date", var_name="driver", value_name="score")
-    hist["driver"] = hist["driver"].str.replace("_", " ").str.capitalize()
-    st.altair_chart(
-        alt.Chart(hist).mark_line().encode(
-            x=alt.X("observation_date:T", title=None),
-            y=alt.Y("score:Q", title=None, scale=alt.Scale(domain=[-1, 1])),
-            color=alt.Color("driver:N", title=None),
-        ).properties(height=300),
-        width="stretch",
-    )
-    st.caption("Positive means hot, tight or restrictive depending on the "
-               "driver. See config/indicators.yml for the sign convention.")
+    st.caption("Scores run from −1 to +1. Positive means hot, tight or "
+               "restrictive depending on the driver.")
+    st.altair_chart(ui.drivers_chart(drivers.tail(180), cfg), width="content")
     cov_cols = [f"{c}__coverage" for c in driver_cols
                 if f"{c}__coverage" in drivers.columns]
     if cov_cols:
         thin = drivers[cov_cols].loc[latest]
         thin = thin[thin < 0.75]
         if not thin.empty:
-            names = ", ".join(i.replace("__coverage", "").replace("_", " ")
+            names = ", ".join(driver_label[i.replace("__coverage", "")].lower()
                               for i in thin.index)
             st.warning(f"Running on partial inputs this month: {names}. "
                        "Weights were renormalised over what was available.")
@@ -164,24 +204,27 @@ with tab_drivers:
 with tab_ind:
     ind = results["indicators"]
     driver_pick = st.selectbox("Driver", driver_cols,
-                               format_func=lambda d: d.replace("_", " ").capitalize())
+                               format_func=lambda d: driver_label[d])
     cols_for = [c for c in ind.columns if c.startswith(f"{driver_pick}::")]
-    block = ind[cols_for].tail(120)
-    block.columns = [c.split("::")[1].replace("_", " ") for c in block.columns]
+    block = ind[cols_for].tail(18).iloc[::-1]
+    block.columns = [c.split("::")[1].replace("_", " ").capitalize()
+                     for c in block.columns]
+    block.index = block.index.strftime("%b %Y")
     st.dataframe(
-        block.tail(18).iloc[::-1].style.background_gradient(
-            cmap="RdYlBu_r", vmin=-2, vmax=2).format("{:.2f}"),
-        width="stretch",
-    )
-    st.caption("Direction already applied, so positive always means the "
-               "indicator is pushing its driver up.")
+        block.style.background_gradient(cmap=DIVERGING, vmin=-2, vmax=2)
+        .format("{:+.2f}", na_rep="–"),
+        width="stretch")
+    st.caption("Normalised score with direction applied, so positive always "
+               "means the indicator is pushing its driver up. Blue pulls down, "
+               "red pushes up.")
 
 with tab_judge:
     st.caption("Analyst observations sit in the same database as the series, "
                "so you can ask later whether judgement led or lagged the data.")
     with st.form("judgement", clear_on_submit=True):
         c1, c2, c3 = st.columns(3)
-        j_driver = c1.selectbox("Driver", driver_cols)
+        j_driver = c1.selectbox("Driver", driver_cols,
+                                format_func=lambda d: driver_label[d])
         j_dir = c2.selectbox("Direction", [1, 0, -1],
                              format_func={1: "Pushing up", 0: "Neutral",
                                           -1: "Pushing down"}.get)
@@ -212,3 +255,20 @@ with tab_cov:
     if thin:
         st.warning("Single vintage only, so any backtest using these is "
                    "as-revised rather than point-in-time: " + ", ".join(thin))
+
+# ---------- sources ----------
+
+source = ("Synthetic demo series generated by <code>ingest.py demo</code>."
+          if is_demo else
+          "FRED and ALFRED, Federal Reserve Bank of St. Louis. Each value is "
+          "the latest vintage published on or before the chosen date.")
+st.html(
+    f'<div class="mr-foot"><b>Sources:</b> {source}<br>'
+    f'<b>Method:</b> each driver is a weighted mean of normalised indicators '
+    f'(<code>config/indicators.yml</code>). Regime probabilities come from '
+    f'distance to each archetype (<code>config/regimes.yml</code>), softmaxed at '
+    f'temperature {settings["temperature"]}, with a '
+    f'{settings["persistence_months"]}-month persistence rule before a call '
+    f'changes. The archetypes have not yet been validated against a labelled '
+    f'regime history.<br>'
+    f'<b>Config:</b> {results.get("config_hash", "n/a")}</div>')

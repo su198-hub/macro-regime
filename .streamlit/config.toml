@@ -1,0 +1,17 @@
+# Sabon Next LT is a licensed face and is not bundled. It renders where it is
+# installed; everyone else falls back to Georgia.
+
+[theme]
+base = "light"
+font = "Arial, Helvetica, sans-serif"
+headingFont = "'Sabon Next LT', 'Sabon LT Pro', 'Sabon LT Std', Sabon, Georgia, 'Times New Roman', serif"
+primaryColor = "#12203f"
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f4f3ef"
+textColor = "#0b0b0b"
+borderColor = "#e1e0d9"
+linkColor = "#2a78d6"
+baseRadius = "6px"
+
+[client]
+toolbarMode = "viewer"
