@@ -1,0 +1,66 @@
+# Each regime is a point in five-dimensional driver space. The engine scores
+# the current driver vector by distance to each archetype and softmaxes.
+#
+# Driver scales run -1 (cold / loose / slack) to +1 (hot / tight / restrictive).
+#
+# These numbers are opinions. Argue with them, change them, and let the diff
+# explain why the regime call moved. That is the whole point of keeping them
+# in a config file rather than in code.
+
+settings:
+  temperature: 0.30        # lower = sharper calls, higher = flatter probabilities
+  persistence_months: 3    # consecutive months a new leader needs before it is called
+  min_confidence: 0.35     # below this, report "transitional" rather than a regime
+
+driver_salience:           # how much each driver matters when measuring distance
+  demand: 1.0
+  inflation_expectations: 1.2
+  supply: 1.0
+  policy: 0.7
+  investment: 0.9
+
+regimes:
+
+  goldilocks:
+    label: Goldilocks
+    description: Demand grows into expanding supply. Expectations stay anchored.
+    archetype:
+      demand: 0.40
+      inflation_expectations: 0.00
+      supply: -0.40
+      policy: 0.00
+      investment: 0.50
+    tell: Capex growth running ahead of demand growth with breakevens flat.
+
+  high_growth_high_inflation:
+    label: High growth, high inflation
+    description: Demand outruns supply. Policy has not yet caught up.
+    archetype:
+      demand: 0.80
+      inflation_expectations: 0.60
+      supply: 0.55
+      policy: -0.30
+      investment: 0.60
+    tell: Utilisation above average and rising while the real policy rate is negative.
+
+  stagflation:
+    label: Stagflation
+    description: Supply binds while demand fades. Expectations drift up anyway.
+    archetype:
+      demand: -0.30
+      inflation_expectations: 0.70
+      supply: 0.80
+      policy: 0.30
+      investment: -0.40
+    tell: Unit labour costs accelerating while capex orders contract.
+
+  hard_landing:
+    label: Hard landing
+    description: Policy restriction bites. Demand and investment break together.
+    archetype:
+      demand: -0.80
+      inflation_expectations: -0.40
+      supply: -0.60
+      policy: 0.60
+      investment: -0.80
+    tell: Lending standards tightening sharply with the unemployment gap opening.

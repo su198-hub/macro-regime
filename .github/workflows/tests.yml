@@ -1,0 +1,34 @@
+# Runs on every push: the unit tests, then the whole dashboard headlessly on
+# demo data, so a missing dependency or a pandas/Streamlit API change fails
+# here instead of on the hosted app.
+
+name: tests
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: python -m pytest tests/ -q
+      - name: Dashboard renders on demo data
+        env:
+          MACRO_REGIME_DB: ${{ runner.temp }}/ci.duckdb
+          MACRO_REGIME_SEED_DEMO: "1"
+        run: |
+          python - <<'EOF'
+          from streamlit.testing.v1 import AppTest
+          at = AppTest.from_file("app.py", default_timeout=120).run()
+          errors = [e.value for e in at.exception]
+          assert not errors, errors
+          assert at.metric, "no regime probabilities rendered"
+          print("Rendered:", at.title[0].value)
+          EOF

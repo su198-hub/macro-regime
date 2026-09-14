@@ -1,0 +1,30 @@
+# Sync of current values from FRED.
+#
+# Manual only for now. The runner's disk is thrown away after each run, so the
+# synced database goes with it; the schedule stays off until the store has
+# somewhere persistent to live (release asset, data branch, object storage).
+# It also needs a FRED_API_KEY repository secret. Restore the schedule with:
+#   schedule:
+#     - cron: "30 12 * * 1-5"
+#
+# FRED is a public REST API, so this runs here. Macrobond via the COM client
+# will NOT: it needs Windows with the desktop app installed. If you move to
+# Macrobond COM, replace this with Windows Task Scheduler or a self-hosted
+# Windows runner. Macrobond Web API would run here fine.
+
+name: sync
+on:
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - run: python ingest.py sync
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}

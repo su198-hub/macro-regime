@@ -1,0 +1,199 @@
+# US indicator set, v0.1
+#
+# Every indicator belongs to exactly one driver and carries an explicit weight
+# and a reason. If you can't write the reason, the indicator doesn't belong.
+#
+# normalize methods:
+#   zscore  - rolling z-score over `window` months. Use when "unusual" is the
+#             thing you care about and there is no economically meaningful level.
+#   gap     - (value - center) / scale, clipped by the engine. Use whenever a
+#             level has meaning: 2% target, long-run average utilisation, r*.
+#             Prefer this. A z-score tells you rare; a gap tells you tight.
+#
+# direction: +1 if a high value means the driver is "hot", -1 if inverted.
+
+meta:
+  region: US
+  base_frequency: M
+  history_start: "1970-01-01"
+
+drivers:
+
+  demand:
+    label: Demand
+    description: Strength of final demand relative to trend.
+    indicators:
+      - id: real_pce_yoy
+        source: {fred: PCEC96}
+        transform: yoy_pct
+        normalize: {method: gap, center: 2.4, scale: 1.6}
+        direction: 1
+        weight: 0.30
+        why: Consumption is two thirds of GDP and revises less than GDP itself.
+
+      - id: retail_control_yoy
+        source: {fred: RSAFS}
+        transform: yoy_pct
+        normalize: {method: gap, center: 4.0, scale: 2.5}
+        direction: 1
+        weight: 0.15
+        why: Timeliest read on goods demand, three weeks after month end.
+
+      - id: payrolls_3m_ann
+        source: {fred: PAYEMS}
+        transform: pct_change_3m_ann
+        normalize: {method: gap, center: 1.0, scale: 1.0}
+        direction: 1
+        weight: 0.25
+        why: Labour demand, monthly, with a long and clean vintage record.
+
+      - id: unemployment_gap
+        source:
+          expr: "UNRATE - NROU"
+          fred: [UNRATE, NROU]
+        transform: level
+        normalize: {method: gap, center: 0.0, scale: 0.8}
+        direction: -1
+        weight: 0.30
+        why: Slack relative to CBO's estimate of the noncyclical rate.
+
+  inflation_expectations:
+    label: Inflation expectations
+    description: Where expectations sit relative to the 2% target.
+    indicators:
+      - id: breakeven_5y5y
+        source: {fred: T5YIFR}
+        transform: level
+        normalize: {method: gap, center: 2.3, scale: 0.35}
+        direction: 1
+        weight: 0.30
+        why: Market-implied long-run expectations. Daily, never revised.
+
+      - id: breakeven_10y
+        source: {fred: T10YIE}
+        transform: level
+        normalize: {method: gap, center: 2.3, scale: 0.35}
+        direction: 1
+        weight: 0.15
+        why: Cross-check on 5y5y, more sensitive to near-term prints.
+
+      - id: umich_1y
+        source: {fred: MICH}
+        transform: level
+        normalize: {method: gap, center: 3.0, scale: 1.2}
+        direction: 1
+        weight: 0.25
+        why: Household expectations. Noisy, but it is what the Fed watches.
+
+      - id: cleveland_10y
+        source: {fred: EXPINF10YR}
+        transform: level
+        normalize: {method: gap, center: 2.0, scale: 0.4}
+        direction: 1
+        weight: 0.30
+        why: Model-based, blends surveys and markets, no liquidity premium.
+
+  supply:
+    label: Supply constraint
+    description: How binding are capacity, labour and input constraints.
+    indicators:
+      - id: capacity_utilisation
+        source: {fred: TCU}
+        transform: level
+        normalize: {method: gap, center: 79.6, scale: 2.5}
+        direction: 1
+        weight: 0.30
+        why: Long-run average utilisation is the natural centre here.
+
+      - id: vacancies_per_unemployed
+        source:
+          expr: "JTSJOL / UNEMPLOY"
+          fred: [JTSJOL, UNEMPLOY]
+        transform: level
+        normalize: {method: gap, center: 0.95, scale: 0.35}
+        direction: 1
+        weight: 0.30
+        why: Cleanest single measure of labour market tightness.
+
+      - id: unit_labour_costs_yoy
+        source: {fred: ULCNFB}
+        transform: yoy_pct
+        normalize: {method: gap, center: 2.2, scale: 1.5}
+        direction: 1
+        weight: 0.25
+        why: Where wage pressure turns into price pressure.
+
+      - id: prime_age_epop
+        source: {fred: LNS12300060}
+        transform: level
+        normalize: {method: zscore, window: 240}
+        direction: -1
+        weight: 0.15
+        why: Rising participation relieves the constraint. Inverted.
+
+  policy:
+    label: Policy stance
+    description: Combined monetary and fiscal restrictiveness.
+    indicators:
+      - id: real_fed_funds
+        source:
+          expr: "FEDFUNDS - core_pce_yoy"
+          fred: [FEDFUNDS, PCEPILFE]
+          derived: {core_pce_yoy: {fred: PCEPILFE, transform: yoy_pct}}
+        transform: level
+        normalize: {method: gap, center: 0.5, scale: 1.2}
+        direction: 1
+        weight: 0.45
+        why: Nominal rates say nothing. Real rate vs r* is the stance.
+
+      - id: financial_conditions
+        source: {fred: NFCI}
+        transform: level
+        normalize: {method: gap, center: 0.0, scale: 0.5}
+        direction: 1
+        weight: 0.30
+        why: Captures credit spreads and leverage the funds rate misses.
+
+      - id: federal_deficit_gdp
+        source: {fred: FYFSGDA188S}
+        transform: level
+        normalize: {method: gap, center: -3.0, scale: 2.5}
+        direction: -1
+        weight: 0.25
+        why: Wider deficit loosens the overall stance. Annual, so it lags.
+
+  investment:
+    label: Investment spending
+    description: Capex momentum and the credit conditions behind it.
+    indicators:
+      - id: core_capex_orders_yoy
+        source: {fred: NEWORDER}
+        transform: yoy_pct
+        normalize: {method: gap, center: 3.5, scale: 3.0}
+        direction: 1
+        weight: 0.30
+        why: Leading edge of business investment, monthly.
+
+      - id: real_nonres_investment_yoy
+        source: {fred: PNFIC1}
+        transform: yoy_pct
+        normalize: {method: gap, center: 3.5, scale: 3.0}
+        direction: 1
+        weight: 0.25
+        why: The actual spend. Quarterly and heavily revised, hence vintages.
+
+      - id: manufacturing_construction_yoy
+        source: {fred: TLMFGCONS}
+        transform: yoy_pct
+        normalize: {method: gap, center: 5.0, scale: 12.0}
+        direction: 1
+        weight: 0.20
+        why: Picks up reshoring and subsidy-driven building directly.
+
+      - id: ci_lending_standards
+        source: {fred: DRTSCILM}
+        transform: level
+        normalize: {method: gap, center: 5.0, scale: 20.0}
+        direction: -1
+        weight: 0.25
+        why: Net tightening chokes capex with roughly two quarters of lag.
