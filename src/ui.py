@@ -141,7 +141,41 @@ CSS = f"""
   margin-top: 2.4rem; padding-top: 0.9rem; }}
 .mr-foot b {{ color: {INK}; }}
 
+.m-body p, .m-body li {{ font: 0.98rem/1.62 {BODY_FONT}; color: {INK}; max-width: 48rem; }}
+.m-body p {{ margin: 0 0 0.75rem; }}
+.m-body ul, .m-body ol {{ margin: 0 0 0.9rem; padding-left: 1.3rem; }}
+.m-body li {{ margin: 0 0 0.35rem; }}
+.m-body code {{ font-size: 0.86em; background: #f4f3ef; padding: 0.05rem 0.25rem; border-radius: 3px; }}
+.m-body a, .mr-caption a, .m-toc a, .m-table a, .mr-foot a {{ color: {NAVY}; text-decoration: underline;
+  text-decoration-color: {AXIS}; text-underline-offset: 2px; }}
+.m-section {{ scroll-margin-top: 5rem; }}
+.m-h3 {{ font-family: {HEADING_FONT}; font-weight: 700; font-size: 1.18rem; color: {NAVY};
+  margin: 1.4rem 0 0.35rem; }}
+.m-toc {{ list-style: none; padding: 0; margin: 0.4rem 0 0; columns: 2; column-gap: 2.5rem;
+  font: 0.95rem/1.5 {BODY_FONT}; max-width: 44rem; }}
+.m-toc li {{ margin: 0 0 0.35rem; break-inside: avoid; }}
+.m-toc span {{ color: {MUTED}; display: inline-block; width: 1.6rem; font-variant-numeric: tabular-nums; }}
+.m-callout {{ background: #f4f3ef; border-left: 3px solid {NAVY}; padding: 0.75rem 1rem;
+  margin: 0.6rem 0 1rem; max-width: 48rem; }}
+.m-callout p:last-child {{ margin-bottom: 0; }}
+.m-steps {{ counter-reset: step; list-style: none; padding-left: 0 !important; }}
+.m-steps li {{ counter-increment: step; position: relative; padding-left: 2.2rem; }}
+.m-steps li::before {{ content: counter(step); position: absolute; left: 0; top: 0.1rem;
+  width: 1.45rem; height: 1.45rem; border-radius: 50%; background: {NAVY}; color: #fff;
+  font: 700 0.78rem/1.45rem {BODY_FONT}; text-align: center; }}
+.m-wrap {{ overflow-x: auto; margin: 0.3rem 0 1rem; }}
+.m-table {{ width: 100%; border-collapse: collapse; font: 0.87rem/1.45 {BODY_FONT}; color: {INK}; }}
+.m-table th {{ text-align: left; font-weight: 600; color: {INK_2}; border-bottom: 1px solid {AXIS};
+  padding: 0.45rem 0.9rem 0.45rem 0; white-space: nowrap; vertical-align: bottom; }}
+.m-table td {{ border-bottom: 1px solid {GRID}; padding: 0.5rem 0.9rem 0.5rem 0; vertical-align: top; }}
+.m-table td.num, .m-table th.num {{ text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }}
+.m-table td.muted {{ color: {INK_2}; }}
+.m-table tr.group td {{ font-weight: 700; color: {NAVY}; border-bottom: 1px solid {AXIS}; padding-top: 1rem; }}
+.m-dl dt {{ font: 700 0.95rem {BODY_FONT}; color: {INK}; margin-top: 0.7rem; }}
+.m-dl dd {{ font: 0.95rem/1.55 {BODY_FONT}; color: {INK_2}; margin: 0.15rem 0 0; max-width: 48rem; }}
+
 @media (max-width: 760px) {{
+  .m-toc {{ columns: 1; }}
   .sp-row {{ grid-template-columns: 1fr; gap: 0.4rem; }}
   .sp-end {{ font-size: 0.66rem; padding: 0.15rem; overflow-wrap: anywhere; }}
   .sp-scale {{ grid-template-columns: 3.9rem 1fr 3.9rem; }}
@@ -156,6 +190,35 @@ CSS = f"""
 
 def esc(s) -> str:
     return html.escape(str(s))
+
+
+def table(header: list[str], rows: list[list], numeric: set[int] = frozenset()) -> str:
+    """A plain HTML table that wraps long text, unlike st.dataframe.
+
+    Cells are escaped unless passed as ui.Raw. A row given as a single string
+    renders as a full-width group heading.
+    """
+    def cell(v):
+        return v.html if isinstance(v, Raw) else esc(v)
+
+    head = "".join(f'<th class="num">{esc(h)}</th>' if i in numeric else f"<th>{esc(h)}</th>"
+                   for i, h in enumerate(header))
+    body = []
+    for r in rows:
+        if isinstance(r, str):
+            body.append(f'<tr class="group"><td colspan="{len(header)}">{esc(r)}</td></tr>')
+            continue
+        body.append("<tr>" + "".join(
+            f'<td class="num">{cell(v)}</td>' if i in numeric else f"<td>{cell(v)}</td>"
+            for i, v in enumerate(r)) + "</tr>")
+    return (f'<div class="m-wrap"><table class="m-table"><thead><tr>{head}</tr></thead>'
+            f'<tbody>{"".join(body)}</tbody></table></div>')
+
+
+class Raw:
+    """Marks trusted markup for ui.table."""
+    def __init__(self, html_: str):
+        self.html = html_
 
 
 # ---------- headline ----------

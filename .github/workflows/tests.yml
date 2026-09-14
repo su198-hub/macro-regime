@@ -33,5 +33,10 @@ jobs:
           assert any("sp-row" in b for b in html), "signpost chart missing"
           assert any("mr-prob" in b for b in html), "regime probabilities missing"
           assert len(at.tabs) == 5, "detail tabs missing"
-          print("Rendered the full dashboard")
+          at.switch_page("views/methodology.py").run()
+          errors = [e.value for e in at.exception]
+          assert not errors, errors
+          body = "".join(h.proto.body for h in at.get("html"))
+          assert "m-example" in body and "m-table" in body, "methodology incomplete"
+          print("Rendered the dashboard and methodology")
           EOF

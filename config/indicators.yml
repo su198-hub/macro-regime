@@ -31,6 +31,7 @@ drivers:
       high: {label: Strong, tone: good}
     indicators:
       - id: real_pce_yoy
+        label: Real consumer spending, year on year
         source: {fred: PCEC96}
         transform: yoy_pct
         normalize: {method: gap, center: 2.4, scale: 1.6}
@@ -39,6 +40,7 @@ drivers:
         why: Consumption is two thirds of GDP and revises less than GDP itself.
 
       - id: retail_control_yoy
+        label: Retail sales, year on year
         source: {fred: RSAFS}
         transform: yoy_pct
         normalize: {method: gap, center: 4.0, scale: 2.5}
@@ -47,6 +49,7 @@ drivers:
         why: Timeliest read on goods demand, three weeks after month end.
 
       - id: payrolls_3m_ann
+        label: Payroll growth, 3 months annualised
         source: {fred: PAYEMS}
         transform: pct_change_3m_ann
         normalize: {method: gap, center: 1.0, scale: 1.0}
@@ -55,6 +58,7 @@ drivers:
         why: Labour demand, monthly, with a long and clean vintage record.
 
       - id: unemployment_gap
+        label: Unemployment rate less its long-run level
         source:
           expr: "UNRATE - NROU"
           fred: [UNRATE, NROU]
@@ -72,6 +76,7 @@ drivers:
       high: {label: De-anchored higher, tone: risk}
     indicators:
       - id: breakeven_5y5y
+        label: 5-year inflation expectations, 5 years ahead
         source: {fred: T5YIFR}
         transform: level
         normalize: {method: gap, center: 2.3, scale: 0.35}
@@ -80,6 +85,7 @@ drivers:
         why: Market-implied long-run expectations. Daily, never revised.
 
       - id: breakeven_10y
+        label: 10-year breakeven inflation
         source: {fred: T10YIE}
         transform: level
         normalize: {method: gap, center: 2.3, scale: 0.35}
@@ -88,6 +94,7 @@ drivers:
         why: Cross-check on 5y5y, more sensitive to near-term prints.
 
       - id: umich_1y
+        label: Household inflation expectations, 1 year
         source: {fred: MICH}
         transform: level
         normalize: {method: gap, center: 3.0, scale: 1.2}
@@ -96,6 +103,7 @@ drivers:
         why: Household expectations. Noisy, but it is what the Fed watches.
 
       - id: cleveland_10y
+        label: Cleveland Fed 10-year expected inflation
         source: {fred: EXPINF10YR}
         transform: level
         normalize: {method: gap, center: 2.0, scale: 0.4}
@@ -111,6 +119,7 @@ drivers:
       high: {label: Under-capacity, tone: risk}
     indicators:
       - id: capacity_utilisation
+        label: Capacity utilisation
         source: {fred: TCU}
         transform: level
         normalize: {method: gap, center: 79.6, scale: 2.5}
@@ -119,6 +128,7 @@ drivers:
         why: Long-run average utilisation is the natural centre here.
 
       - id: vacancies_per_unemployed
+        label: Job openings per unemployed person
         source:
           expr: "JTSJOL / UNEMPLOY"
           fred: [JTSJOL, UNEMPLOY]
@@ -129,6 +139,7 @@ drivers:
         why: Cleanest single measure of labour market tightness.
 
       - id: unit_labour_costs_yoy
+        label: Unit labour costs, year on year
         source: {fred: ULCNFB}
         transform: yoy_pct
         normalize: {method: gap, center: 2.2, scale: 1.5}
@@ -137,6 +148,7 @@ drivers:
         why: Where wage pressure turns into price pressure.
 
       - id: prime_age_epop
+        label: Prime-age employment rate
         source: {fred: LNS12300060}
         transform: level
         normalize: {method: zscore, window: 240}
@@ -153,6 +165,7 @@ drivers:
       reverse: true
     indicators:
       - id: real_fed_funds
+        label: Real fed funds rate
         source:
           expr: "FEDFUNDS - core_pce_yoy"
           fred: [FEDFUNDS, PCEPILFE]
@@ -164,6 +177,7 @@ drivers:
         why: Nominal rates say nothing. Real rate vs r* is the stance.
 
       - id: financial_conditions
+        label: Financial conditions index
         source: {fred: NFCI}
         transform: level
         normalize: {method: gap, center: 0.0, scale: 0.5}
@@ -172,6 +186,7 @@ drivers:
         why: Captures credit spreads and leverage the funds rate misses.
 
       - id: federal_deficit_gdp
+        label: Federal budget balance, % of GDP
         source: {fred: FYFSGDA188S}
         transform: level
         normalize: {method: gap, center: -3.0, scale: 2.5}
@@ -187,6 +202,7 @@ drivers:
       high: {label: High investment, tone: good}
     indicators:
       - id: core_capex_orders_yoy
+        label: Core capital goods orders, year on year
         source: {fred: NEWORDER}
         transform: yoy_pct
         normalize: {method: gap, center: 3.5, scale: 3.0}
@@ -195,6 +211,7 @@ drivers:
         why: Leading edge of business investment, monthly.
 
       - id: real_nonres_investment_yoy
+        label: Real business investment, year on year
         source: {fred: PNFIC1}
         transform: yoy_pct
         normalize: {method: gap, center: 3.5, scale: 3.0}
@@ -203,6 +220,7 @@ drivers:
         why: The actual spend. Quarterly and heavily revised, hence vintages.
 
       - id: manufacturing_construction_yoy
+        label: Manufacturing construction spending, year on year
         source: {fred: TLMFGCONS}
         transform: yoy_pct
         normalize: {method: gap, center: 5.0, scale: 12.0}
@@ -211,6 +229,7 @@ drivers:
         why: Picks up reshoring and subsidy-driven building directly.
 
       - id: ci_lending_standards
+        label: Banks tightening business lending standards, net %
         source: {fred: DRTSCILM}
         transform: level
         normalize: {method: gap, center: 5.0, scale: 20.0}

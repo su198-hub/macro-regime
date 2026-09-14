@@ -91,9 +91,13 @@ src/sources/macrobond.py  Macrobond adapter, needs Data+ (see below)
 src/transform.py        transforms and normalisation, pure functions
 src/drivers.py          config to five driver scores
 src/regimes.py          archetype distance, softmax, persistence
-app.py                  Streamlit dashboard
+src/ui.py               signpost geometry, HTML fragments, chart styling
+app.py                  Streamlit entry point: page setup and navigation
+views/dashboard.py      the dashboard page
+views/methodology.py    methodology page, generated from the live config
+.streamlit/config.toml  theme: Sabon Next LT headings, Arial body
 ingest.py               backfill / sync / coverage / demo
-tests/                  the transforms and persistence logic
+tests/                  transforms, persistence logic, signpost geometry
 ```
 
 ## Swapping FRED for Macrobond
