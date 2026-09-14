@@ -29,6 +29,9 @@ jobs:
           at = AppTest.from_file("app.py", default_timeout=120).run()
           errors = [e.value for e in at.exception]
           assert not errors, errors
-          assert at.metric, "no regime probabilities rendered"
-          print("Rendered:", at.title[0].value)
+          html = [h.proto.body for h in at.get("html")]
+          assert any("sp-row" in b for b in html), "signpost chart missing"
+          assert any("mr-prob" in b for b in html), "regime probabilities missing"
+          assert len(at.tabs) == 5, "detail tabs missing"
+          print("Rendered the full dashboard")
           EOF
