@@ -77,8 +77,7 @@ def signed(x: float) -> str:
 CSS = f"""
 <style>
 [data-testid="stMainBlockContainer"] {{ max-width: 1180px; padding-top: 4rem; }}
-.mr-eyebrow {{ font: 600 0.78rem {BODY_FONT}; color: {INK_2};
-  letter-spacing: 0.04em; text-transform: uppercase; margin: 0 0 0.25rem; }}
+.mr-eyebrow {{ font: 600 0.88rem {BODY_FONT}; color: {INK_2}; margin: 0 0 0.25rem; }}
 .mr-title {{ font-family: {HEADING_FONT}; font-weight: 700; font-size: 2.3rem;
   color: {NAVY}; line-height: 1.1; margin: 0; }}
 .mr-sub {{ font: 0.95rem/1.45 {BODY_FONT}; color: {INK_2}; margin: 0.35rem 0 0; }}
@@ -97,8 +96,7 @@ CSS = f"""
   border-left: 3px solid #eda100; padding: 0.45rem 0.7rem; margin: 0.9rem 0 0; max-width: 36rem; }}
 
 .mr-probs {{ font-family: {BODY_FONT}; }}
-.mr-probs-head {{ font: 600 0.78rem {BODY_FONT}; color: {INK_2}; letter-spacing: 0.04em;
-  text-transform: uppercase; margin: 0.35rem 0 0.7rem; }}
+.mr-probs-head {{ font: 600 0.88rem {BODY_FONT}; color: {INK_2}; margin: 0.35rem 0 0.7rem; }}
 .mr-prob {{ display: grid; grid-template-columns: minmax(9rem, 13rem) 1fr 3rem;
   align-items: center; gap: 0.75rem; padding: 0.42rem 0; border-bottom: 1px solid {GRID}; }}
 .mr-prob:last-child {{ border-bottom: 0; }}
