@@ -127,6 +127,31 @@ CSS = f"""
 .sp-zero {{ position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: {AXIS}; }}
 .sp-star {{ position: absolute; top: 0.2rem; transform: translateX(-50%);
   font-size: 1.45rem; line-height: 1; color: {NAVY}; z-index: 3; }}
+.sp-star-prov {{ color: {NAVY}; z-index: 4; }}
+.sp-prov-key {{ color: {NAVY}; font-size: 1.2rem; line-height: 1; }}
+.mr-prov {{ margin: 1rem 0 0; padding: 0.8rem 1rem; max-width: 36rem; background: #f4f3ef;
+  border-left: 3px solid {MUTED}; font-family: {BODY_FONT}; }}
+.mr-prov p {{ margin: 0; }}
+.mr-prov-head {{ font-weight: 600; font-size: 0.88rem; color: {INK_2}; }}
+.mr-badge {{ display: inline-block; font-size: 0.72rem; font-weight: 700; color: {INK};
+  border: 1px solid {INK_2}; border-radius: 3px; padding: 0 0.3rem; margin-right: 0.35rem;
+  vertical-align: 0.05em; }}
+.mr-prov-main {{ font-size: 1.12rem; font-weight: 700; color: {INK}; margin: 0.3rem 0 0.35rem !important; }}
+.mr-prov-body {{ font-size: 0.9rem; line-height: 1.5; color: {INK}; }}
+.mr-prov-next {{ font-size: 0.84rem; line-height: 1.5; color: {INK_2}; margin-top: 0.45rem !important; }}
+.mr-prob.two {{ grid-template-columns: minmax(9rem, 13rem) 1fr 2.8rem 2.8rem; }}
+.mr-prob-cols {{ border-bottom: 1px solid {AXIS}; align-items: end; padding-bottom: 0.45rem; }}
+.mr-prob-legend {{ font-size: 0.78rem; color: {INK_2}; display: flex; flex-wrap: wrap; gap: 0.2rem 0.6rem;
+  align-items: center; }}
+.mr-prob-colhead {{ font-size: 0.78rem; font-weight: 600; color: {INK_2}; text-align: right; }}
+.mr-prob-track {{ position: relative; }}
+.mr-prob-tick {{ position: absolute; top: -4px; bottom: -4px; width: 2px; background: {INK};
+  box-shadow: 0 0 0 1px #fff; }}
+.mr-prob-prov {{ color: {INK_2}; }}
+.mr-key-bar {{ display: inline-block; width: 16px; height: 8px; background: {MUTED}; border-radius: 0 3px 3px 0; }}
+.mr-key-tick {{ display: inline-block; width: 2px; height: 11px; background: {INK};
+  margin: 0 0.2rem 0 0.1rem; vertical-align: -1px; }}
+.mr-prob-note {{ font-size: 0.78rem; color: {INK_2}; margin: 0.5rem 0 0; }}
 .sp-then {{ position: absolute; top: 0.45rem; width: 12px; height: 12px; border-radius: 50%;
   transform: translateX(-50%); border: 2px solid {MUTED}; background: {TRACK}; z-index: 2; }}
 .sp-group {{ position: absolute; bottom: 0.45rem; transform: translateX(-50%);
@@ -180,6 +205,8 @@ CSS = f"""
   .sp-chip {{ font-size: 0.6rem; padding: 0.1rem 0.2rem; }}
   .sp-group {{ gap: 1px; }}
   .mr-prob {{ grid-template-columns: 8rem 1fr 2.6rem; }}
+  .mr-prob.two {{ grid-template-columns: 7rem 1fr 2.4rem 2.4rem; gap: 0.5rem; }}
+  .mr-prob-legend {{ display: none; }}
   .mr-call {{ font-size: 2rem; }}
 }}
 </style>
@@ -221,23 +248,127 @@ class Raw:
 
 # ---------- headline ----------
 
-def probability_panel(probs_row: pd.Series, reg_cfg: dict, called: str) -> str:
-    """One thin bar per regime in config order, so a regime never changes place."""
+def probability_panel(probs_row: pd.Series, reg_cfg: dict, called: str,
+                      confirmed_label: str = "", provisional: pd.Series | None = None,
+                      provisional_label: str = "") -> str:
+    """One thin bar per regime in config order, so a regime never changes place.
+
+    Bars are the confirmed month. A provisional month, if any, shows as a thin
+    outlined tick on the same track and its own column of numbers, so the two
+    can be compared without the provisional one looking settled.
+    """
+    has_prov = provisional is not None
     rows = []
     for name, spec in reg_cfg["regimes"].items():
         p = float(probs_row.get(name, float("nan")))
         width = 0 if pd.isna(p) else max(0.0, min(1.0, p)) * 100
         label = f"<b>{esc(spec['label'])}</b>" if name == called else esc(spec["label"])
+        tick = prov_val = ""
+        title = f"{esc(spec['label'])}: {p:.0%} in {esc(confirmed_label)}"
+        if has_prov:
+            q = float(provisional.get(name, float("nan")))
+            tick = (f'<div class="mr-prob-tick" style="left:calc({max(0.0, min(1.0, q)) * 100:.1f}% - 1px)"></div>'
+                    if not pd.isna(q) else "")
+            prov_val = f'<div class="mr-prob-val mr-prob-prov">{q:.0%}</div>'
+            title += f", {q:.0%} provisional in {esc(provisional_label)}"
         rows.append(
-            f'<div class="mr-prob" title="{esc(spec["label"])}: {p:.0%}">'
+            f'<div class="mr-prob{" two" if has_prov else ""}" title="{title}">'
             f'<div class="mr-prob-label">{label}'
             f'<span class="mr-prob-code">{esc(spec.get("short", ""))}</span></div>'
             f'<div class="mr-prob-track"><div class="mr-prob-bar" '
-            f'style="width:{width:.1f}%;background:{spec["color"]}"></div></div>'
-            f'<div class="mr-prob-val">{p:.0%}</div></div>'
+            f'style="width:{width:.1f}%;background:{spec["color"]}"></div>{tick}</div>'
+            f'<div class="mr-prob-val">{p:.0%}</div>{prov_val}</div>'
         )
-    return ('<div class="mr-probs"><div class="mr-probs-head">Probability this month</div>'
-            + "".join(rows) + "</div>")
+    head = '<div class="mr-probs-head">Probability</div>'
+    note = ""
+    if has_prov:
+        head = (f'<div class="mr-prob two mr-prob-cols"><div class="mr-probs-head" style="margin:0">'
+                f'Probability</div><div></div>'
+                f'<div class="mr-prob-colhead">{esc(confirmed_label)}</div>'
+                f'<div class="mr-prob-colhead">{esc(provisional_label)}*</div></div>')
+        note = (f'<p class="mr-prob-note">Bars are {esc(confirmed_label)}, confirmed. '
+                f'<span class="mr-key-tick"></span> Ticks are {esc(provisional_label)}, '
+                f'provisional.<br>* Provisional: not a call, and can change as data arrives.</p>')
+    return '<div class="mr-probs">' + head + "".join(rows) + note + "</div>"
+
+
+def provisional_box(reading: dict, reg_cfg: dict, called: str, confirm_by, confirm_with: list[str],
+                    upcoming: list[tuple[str, pd.Timestamp]]) -> str:
+    """The provisional reading, framed so it cannot be mistaken for the call."""
+    month = f"{reading['month']:%B %Y}"
+    lead = reading["leading"]
+    spec = reg_cfg["regimes"][lead]
+    p = float(reading["probabilities"][lead])
+    if lead == called:
+        verdict = f"Leaning {esc(spec['label'])}, {p:.0%}, in line with the call"
+    else:
+        call_label = reg_cfg["regimes"].get(called, {}).get("label", "the call")
+        verdict = f"Leaning {esc(spec['label'])}, {p:.0%}, away from {esc(call_label)}"
+    confirm = ""
+    if confirm_by is not None and not pd.isna(confirm_by):
+        confirm = f" {reading['month']:%B} should be confirmed around {day_month(confirm_by)}"
+        if confirm_with:
+            confirm += f", once the {esc(join_words(confirm_with))} {'is' if len(confirm_with) == 1 else 'are'} out"
+        confirm += "."
+    next_up = ""
+    if upcoming:
+        items = " · ".join(f"{esc(name)} ~{day_month(when, short=True)}" for name, when in upcoming)
+        next_up = f'<p class="mr-prov-next">Next releases: {items}</p>'
+    return (
+        f'<div class="mr-prov">'
+        f'<p class="mr-prov-head"><span class="mr-badge">Provisional</span> Reading for {esc(month)}</p>'
+        f'<p class="mr-prov-main"><span class="mr-call-swatch" style="background:{spec["color"]}"></span>'
+        f'{verdict}</p>'
+        f'<p class="mr-prov-body">Based on {reading["share"]:.0%} of {esc(month.split()[0])}\'s data. '
+        f'Inputs not yet released carry their latest value. This is not a call and can change as '
+        f'releases arrive.{confirm}</p>{next_up}</div>'
+    )
+
+
+def day_month(when, short: bool = False) -> str:
+    """'16 September' or '16 Sep', without platform-specific strftime flags."""
+    return f"{when.day} {when:%b}" if short else f"{when.day} {when:%B}"
+
+
+def join_words(items: list[str]) -> str:
+    items = [i for i in items if i]
+    if len(items) <= 1:
+        return "".join(items)
+    return ", ".join(items[:-1]) + " and " + items[-1]
+
+
+STATUS_TEXT = {"reported": "Released", "carried": "Carried forward", "pending": "Not yet released",
+               "not_started": "Not available"}
+LATEST_PERIOD = {"Quarterly": "quarter", "Annual": "year"}
+
+
+def status_table(schedule: pd.DataFrame, ind_cfg: dict, month: pd.Timestamp) -> str:
+    """Per-indicator status for the provisional month, grouped by driver."""
+    labels = {f"{d}::{i['id']}": i.get("label") or i["id"]
+              for d, spec in ind_cfg["drivers"].items() for i in spec["indicators"]}
+    order = {"pending": 0, "carried": 1, "reported": 2, "not_started": 3}
+    rows = []
+    for driver, block in schedule.groupby("driver", sort=False):
+        spec = ind_cfg["drivers"][driver]
+        started = block[block["status"] != "not_started"]["weight"].sum()
+        rep = block[block["status"] == "reported"]["weight"].sum()
+        share = rep / started if started else 0
+        rows.append(f"{spec.get('label', driver)}: {share:.0%} released")
+        block = block.assign(o=block["status"].map(order)).sort_values(["o", "weight"], ascending=[True, False])
+        for r in block.itertuples():
+            name = esc(labels.get(r.key, r.id))
+            if r.anchor:
+                name += (f'<br><span style="color:{INK_2};font-size:0.8rem">'
+                         f'Needed to confirm the month</span>')
+            status = STATUS_TEXT.get(r.status, r.status)
+            if r.status == "carried" and not pd.isna(r.last_month):
+                status = f"Carried from {r.last_month:%B}"
+            if r.status == "reported" and r.frequency in LATEST_PERIOD:
+                status = f"Released, latest {LATEST_PERIOD[r.frequency]} held"
+            expected = "–" if pd.isna(r.expected) else f"~{day_month(r.expected, short=True)}"
+            rows.append([Raw(name), r.frequency, status, expected, f"{r.weight:.0%}"])
+    return table(["Indicator", "Frequency", f"Status for {month:%B}", "Expected", "Weight"],
+                 rows, numeric={4})
 
 
 def run_length(series: pd.Series) -> int:
@@ -257,13 +388,19 @@ def run_length(series: pd.Series) -> int:
 # ---------- signpost chart ----------
 
 def signpost_html(drivers: pd.DataFrame, ind_cfg: dict, reg_cfg: dict,
-                  as_of: pd.Timestamp, then: pd.Timestamp | None) -> str:
+                  as_of: pd.Timestamp, then: pd.Timestamp | None,
+                  provisional: dict | None = None) -> str:
     regimes = reg_cfg["regimes"]
     then_label = f"{then:%B %Y}" if then is not None else ""
     legend = [
         f'<span><span style="color:{NAVY};font-size:1.2rem;line-height:1">&#9733;</span>'
-        f'Reading for {as_of:%B %Y}</span>',
+        f'{as_of:%B %Y}, confirmed</span>',
     ]
+    prov_scores = provisional["drivers"] if provisional else None
+    if provisional:
+        legend.append(
+            f'<span><span class="sp-prov-key">&#9734;</span>'
+            f'{provisional["month"]:%B %Y}, provisional</span>')
     if then is not None:
         legend.append(
             f'<span><span class="sp-then" style="position:static;transform:none;'
@@ -293,7 +430,12 @@ def signpost_html(drivers: pd.DataFrame, ind_cfg: dict, reg_cfg: dict,
                          f'title="{esc(then_label)}: {signed(prior)}"></div>')
         if not pd.isna(now):
             marks.append(f'<div class="sp-star" style="left:{track_position(now, reverse):.2f}%" '
-                         f'title="{as_of:%B %Y}: {signed(now)}">&#9733;</div>')
+                         f'title="{as_of:%B %Y}, confirmed: {signed(now)}">&#9733;</div>')
+        prov = prov_scores.get(name, float("nan")) if prov_scores is not None else float("nan")
+        if not pd.isna(prov):
+            marks.append(f'<div class="sp-star sp-star-prov" '
+                         f'style="left:{track_position(prov, reverse):.2f}%" '
+                         f'title="{provisional["month"]:%B %Y}, provisional: {signed(prov)}">&#9734;</div>')
 
         points = [(track_position(spec["archetype"][name], reverse), key)
                   for key, spec in regimes.items() if name in spec.get("archetype", {})]
@@ -313,7 +455,9 @@ def signpost_html(drivers: pd.DataFrame, ind_cfg: dict, reg_cfg: dict,
             return (f'<div class="sp-end {side}" style="background:{fill};color:{fg}">'
                     f'{esc(spec["label"])}</div>')
 
-        read = "No reading" if pd.isna(now) else f"Now {signed(now)}"
+        read = "No reading" if pd.isna(now) else f"{as_of:%b} {signed(now)}"
+        if not pd.isna(prov):
+            read += f" · {provisional['month']:%b}* {signed(prov)}"
         if not pd.isna(prior):
             read += f" · a year ago {signed(prior)}"
         rows.append(

@@ -32,7 +32,7 @@ jobs:
           html = [h.proto.body for h in at.get("html")]
           assert any("sp-row" in b for b in html), "signpost chart missing"
           assert any("mr-prob" in b for b in html), "regime probabilities missing"
-          assert len(at.tabs) == 4, "detail tabs missing"
+          assert len(at.tabs) == 5, "detail tabs missing"
           assert any("Contribution to driver" in b for b in html), "drill-down missing"
           at.switch_page("views/methodology.py").run()
           errors = [e.value for e in at.exception]

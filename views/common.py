@@ -14,10 +14,12 @@ import os
 import tempfile
 from pathlib import Path
 
+import numpy as np
+import pandas as pd
 import streamlit as st
 
-from src.drivers import compute, load_config
-from src.regimes import load_regimes, run
+from src.drivers import compute, expected_release, indicator_inputs, load_config
+from src.regimes import load_regimes, probabilities, run
 from src.store import Store
 
 INDICATORS = "config/indicators.yml"
@@ -83,7 +85,43 @@ def _results_for(vintage: dt.date, version: str):
     if res["drivers"].empty:
         return None
     res.update(run(res["drivers"], reg), config=cfg, regimes=reg)
+    for reading in res["provisional"]:
+        p = probabilities(pd.DataFrame([reading["drivers"]], index=[reading["month"]]), reg).iloc[0]
+        reading["probabilities"] = p
+        reading["leading"] = p.idxmax()
+        reading["schedule"] = release_schedule(res, reading, vintage)
     return res
+
+
+FREQ_LABEL = {252: "Daily", 52: "Weekly", 12: "Monthly", 4: "Quarterly", 1: "Annual"}
+
+
+def release_schedule(res: dict, reading: dict, vintage: dt.date) -> pd.DataFrame:
+    """The provisional month's status table, with frequency and expected release.
+
+    Expected release is each source series' usual lag after the period ends,
+    taken from its own recent vintages; for an indicator built from several
+    series, the latest of them.
+    """
+    inputs = indicator_inputs(res["config"])
+    freq, lags = res["frequency"], res["release_lags"]
+    status = reading["status"].copy()
+    expected, frequency = [], []
+    today = pd.Timestamp(vintage)
+    for row in status.itertuples():
+        series = inputs.get(row.key, [])
+        fastest = max((freq.get(s, 12) for s in series), default=12)
+        frequency.append(FREQ_LABEL.get(fastest, "Monthly"))
+        if row.status in ("carried", "pending") and series:
+            dates = [expected_release(reading["month"], freq.get(s, 12), lags.get(s, np.nan))
+                     for s in series if not pd.isna(lags.get(s, np.nan))]
+            when = max(dates) if dates else pd.NaT
+            expected.append(when if pd.isna(when) or when > today else today)
+        else:
+            expected.append(pd.NaT)
+    status["frequency"] = frequency
+    status["expected"] = expected
+    return status
 
 
 def get_results(vintage: dt.date):

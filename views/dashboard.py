@@ -70,6 +70,24 @@ year_ago = drivers.index[drivers.index <= latest - pd.DateOffset(months=12)]
 then = year_ago[-1] if len(year_ago) else None
 is_demo = store_is_demo(store)
 
+# The newest month not yet confirmed, read from what has been released so far.
+prov = results["provisional"][-1] if results.get("provisional") else None
+prov_box = ""
+if prov is not None:
+    ind_label = {f"{d}::{i['id']}": i.get("label") or i["id"]
+                 for d, spec in cfg["drivers"].items() for i in spec["indicators"]}
+    sched = prov["schedule"]
+    waiting = sched[sched["status"].isin(["carried", "pending"])]
+    anchors = waiting[waiting["anchor"]]
+    confirm_by = anchors["expected"].max() if len(anchors) else waiting["expected"].max()
+    upcoming = [(ind_label[r.key].split(",")[0], r.expected)
+                for r in waiting.dropna(subset=["expected"]).sort_values("expected").head(4).itertuples()]
+    # Name the releases users watch for, such as "PCE report", not the indicators.
+    release_of = {f"{d}::{i['id']}": i.get("release") or (i.get("label") or i["id"]).lower()
+                  for d, spec in cfg["drivers"].items() for i in spec["indicators"]}
+    confirm_with = list(dict.fromkeys(release_of[k] for k in anchors["key"]))
+    prov_box = ui.provisional_box(prov, reg, called, confirm_by, confirm_with, upcoming)
+
 # ---------- headline ----------
 
 called_rows = calls.loc[:latest, "called"]
@@ -98,24 +116,29 @@ if called not in ("transitional", leading):
 
 call_col, prob_col = st.columns([1.15, 1], gap="large")
 call_col.html(
-    f'<p class="mr-eyebrow">Regime call for {latest:%B %Y}</p>'
+    f'<p class="mr-eyebrow">Regime call for {latest:%B %Y}, confirmed</p>'
     f'<div class="mr-call"><span class="mr-call-swatch" '
     f'style="background:{swatch}"></span>{ui.esc(call_name)}</div>'
     f'<p class="mr-lede">{ui.esc(lede)}</p>'
-    f'<p class="mr-lede-muted">Data as known on {vintage:%d %B %Y}. Latest month '
-    f'with every driver scored: {latest:%B %Y}. {ui.esc(published_note())}</p>'
+    f'<p class="mr-lede-muted">Data as known on {vintage:%d %B %Y}. {latest:%B %Y} is the '
+    f'latest month with its core data released. {ui.esc(published_note())}</p>'
+    + prov_box
     + ('<div class="mr-demo">Demo data. These series are synthetic, so the call '
        'and the numbers mean nothing yet.</div>' if is_demo else ""))
-prob_col.html(ui.probability_panel(probs.loc[latest], reg, called))
+prob_col.html(ui.probability_panel(
+    probs.loc[latest], reg, called, f"{latest:%b}",
+    prov["probabilities"] if prov is not None else None,
+    f"{prov['month']:%b}" if prov is not None else ""))
 
 # ---------- signposts ----------
 
 st.html('<hr class="mr-rule"><h2 class="mr-h2">Scenario drivers and signposts</h2>'
         '<p class="mr-caption">Each driver runs from one extreme to the other. '
-        'Regime codes sit where that regime expects the driver to be; the star '
-        'is where it is now. Hover any mark for the exact score. '
+        'Regime codes sit where that regime expects the driver to be; the solid star '
+        'is the confirmed month' + (', the outlined star the provisional one' if prov is not None else '')
+        + '. Hover any mark for the exact score. '
         '<a href="/methodology#m-signposts" target="_self">How to read this chart</a>.</p>')
-st.html(ui.signpost_html(drivers, cfg, reg, latest, then))
+st.html(ui.signpost_html(drivers, cfg, reg, latest, then, prov))
 
 # ---------- history ----------
 
@@ -139,8 +162,20 @@ with st.expander("Show as a table"):
 # ---------- detail ----------
 
 st.html('<hr class="mr-rule"><h2 class="mr-h2">Behind the call</h2>')
-tab_pull, tab_drivers, tab_judge, tab_cov = st.tabs(
-    ["What is pulling the call", "Driver history", "Judgement", "Coverage"])
+tab_pull, tab_status, tab_drivers, tab_judge, tab_cov = st.tabs(
+    ["What is pulling the call", "Data status", "Driver history", "Judgement", "Coverage"])
+
+with tab_status:
+    if prov is None:
+        st.caption(f"Every driver's core data for {latest:%B %Y} is in, and too little has "
+                   f"been released for the following month to read it provisionally.")
+    else:
+        st.caption(
+            f"Where each input stands for {prov['month']:%B %Y}, the provisional month. Released "
+            f"data is used as published. Anything not released yet carries its latest value, for "
+            f"up to {cfg['meta'].get('provisional', {}).get('fill_months', 2)} months. Expected dates "
+            f"come from each series' own recent release timing, so treat them as estimates.")
+        st.html(ui.status_table(prov["schedule"], cfg, prov["month"]))
 
 ORDINAL = ["largest", "second largest", "third largest", "fourth largest", "smallest"]
 

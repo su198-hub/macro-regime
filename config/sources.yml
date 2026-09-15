@@ -61,3 +61,24 @@ series:
     macrobond: uscons2437
   DRTSCILM:
     macrobond: ussurv4106
+
+  # Timely indicators. Names without a FRED equivalent are internal names and
+  # can only come from Macrobond.
+  WEI:
+    macrobond: ussurv01117
+    note: Weekly Economic Index, now published by the Dallas Fed. Scaled to four-quarter GDP growth.
+  IC4WSA:
+    macrobond: uslama4575
+    note: Initial jobless claims, 4-week moving average, SA. Weekly, released Thursdays.
+  GSCPI:
+    macrobond: wotrad0027
+    note: NY Fed Global Supply Chain Pressure Index, standard deviations from average.
+  PHILCAPEX:
+    macrobond: ussurv1133
+    note: Philadelphia Fed manufacturing survey, future capital expenditures, SA diffusion index.
+  EMPIRECAPEX:
+    macrobond: ussurv1020
+    note: NY Fed Empire State manufacturing survey, future capital expenditures, SA index.
+  EXPINF1YR:
+    macrobond: usfcst0101
+    note: Cleveland Fed model-based expected inflation, 1 year.

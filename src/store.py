@@ -159,6 +159,25 @@ class Store:
         wide.index = pd.to_datetime(wide.index)
         return wide.sort_index()
 
+    def first_published(self, series_id: str, vintage: dt.date, last_n: int = 24) -> pd.DataFrame:
+        """When each of a series' latest observations first appeared.
+
+        Used to estimate when the next release is due. Only vintages on or
+        before `vintage` count, so a rewound view estimates from what was
+        known then.
+        """
+        return self.con.execute(
+            """
+            SELECT observation_date, MIN(vintage_date) AS published
+            FROM observations
+            WHERE series_id = ? AND vintage_date <= ?
+            GROUP BY observation_date
+            ORDER BY observation_date DESC
+            LIMIT ?
+            """,
+            [series_id, vintage, last_n],
+        ).df()
+
     def latest(self, series_ids: list[str]) -> pd.DataFrame:
         return self.as_of(series_ids, dt.date.today())
 

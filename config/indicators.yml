@@ -1,4 +1,4 @@
-# US indicator set, v0.1
+# US indicator set, v0.2
 #
 # Every indicator belongs to exactly one driver and carries an explicit weight
 # and a reason. If you can't write the reason, the indicator doesn't belong.
@@ -12,9 +12,21 @@
 #
 # direction: +1 if a high value means the driver is "hot", -1 if inverted.
 #
+# anchor: true marks hard data a month cannot be confirmed without. Until an
+# anchor has reported, the month can only be read provisionally. `release`
+# names the publication users wait for, shown on the dashboard.
+#
+# carry_forward_periods on an indicator overrides the meta default for its
+# inputs, for estimates that are revised rarely.
+#
 # signpost: display only, for the signpost chart. `low` and `high` name the
 # ends of the -1 and +1 scale; tone is risk or good. `reverse: true` draws +1
 # on the left without touching the score itself.
+#
+# v0.2 added timely indicators (weekly economic index, jobless claims, supply
+# chain pressure, regional capex plans, an ex-ante real rate) at small weights,
+# so the latest month can be read before the slow releases. Centres and scales
+# for these are their 2000-2019 averages and standard deviations.
 
 meta:
   region: US
@@ -25,10 +37,17 @@ meta:
   # two years for annual). Beyond that the input counts as missing, so a
   # discontinued series drops out rather than freezing a driver.
   carry_forward_periods: 2
-  # Ragged edge. A driver is scored in a month only if at least this share of
-  # the weight of its already-started indicators has reported. Stops the
-  # latest month resting on whichever release came first.
+  # Ragged edge. A driver is confirmed in a month only if at least this share
+  # of the weight of its already-started indicators has reported, and every
+  # started anchor has reported.
   min_reported_share: 0.6
+  # Provisional reading for months not yet confirmed. Indicators not yet
+  # released for the month carry their latest score for at most `fill_months`,
+  # and a month is shown only once at least `min_reported_share` of the weight
+  # across all drivers has reported for it.
+  provisional:
+    fill_months: 2
+    min_reported_share: 0.5
 
 drivers:
 
@@ -45,7 +64,9 @@ drivers:
         transform: yoy_pct
         normalize: {method: gap, center: 2.4, scale: 1.6}
         direction: 1
-        weight: 0.30
+        weight: 0.25
+        anchor: true
+        release: PCE report
         why: Consumption is two thirds of GDP and revises less than GDP itself.
 
       - id: retail_control_yoy
@@ -54,8 +75,8 @@ drivers:
         transform: yoy_pct
         normalize: {method: gap, center: 4.0, scale: 2.5}
         direction: 1
-        weight: 0.15
-        why: Timeliest read on goods demand, three weeks after month end.
+        weight: 0.10
+        why: Timeliest hard read on goods demand, two weeks after month end.
 
       - id: payrolls_3m_ann
         label: Payroll growth, 3 months annualised
@@ -63,7 +84,7 @@ drivers:
         transform: pct_change_3m_ann
         normalize: {method: gap, center: 1.0, scale: 1.0}
         direction: 1
-        weight: 0.25
+        weight: 0.20
         why: Labour demand, monthly, with a long and clean vintage record.
 
       - id: unemployment_gap
@@ -74,8 +95,29 @@ drivers:
         transform: level
         normalize: {method: gap, center: 0.0, scale: 0.8}
         direction: -1
-        weight: 0.30
+        weight: 0.25
+        # CBO revises its noncyclical rate once or twice a year and it moves
+        # slowly, so hold it for up to six quarters rather than two.
+        carry_forward_periods: 6
         why: Slack relative to CBO's estimate of the noncyclical rate.
+
+      - id: weekly_economic_index
+        label: Weekly economic index
+        source: {fred: WEI}
+        transform: level
+        normalize: {method: gap, center: 2.0, scale: 1.5}
+        direction: 1
+        weight: 0.10
+        why: Weekly activity scaled to GDP growth. First read on the month, days after it ends.
+
+      - id: jobless_claims_yoy
+        label: Initial jobless claims, year on year
+        source: {fred: IC4WSA}
+        transform: yoy_pct
+        normalize: {method: gap, center: 0.0, scale: 20.0}
+        direction: -1
+        weight: 0.10
+        why: Weekly and early at turning points. Rising claims mean weakening demand.
 
   inflation_expectations:
     label: Inflation expectations
@@ -133,7 +175,7 @@ drivers:
         transform: level
         normalize: {method: gap, center: 79.6, scale: 2.5}
         direction: 1
-        weight: 0.30
+        weight: 0.25
         why: Long-run average utilisation is the natural centre here.
 
       - id: vacancies_per_unemployed
@@ -144,7 +186,7 @@ drivers:
         transform: level
         normalize: {method: gap, center: 0.95, scale: 0.35}
         direction: 1
-        weight: 0.30
+        weight: 0.25
         why: Cleanest single measure of labour market tightness.
 
       - id: unit_labour_costs_yoy
@@ -153,7 +195,7 @@ drivers:
         transform: yoy_pct
         normalize: {method: gap, center: 2.2, scale: 1.5}
         direction: 1
-        weight: 0.25
+        weight: 0.20
         why: Where wage pressure turns into price pressure.
 
       - id: prime_age_epop
@@ -162,8 +204,17 @@ drivers:
         transform: level
         normalize: {method: zscore, window: 240}
         direction: -1
-        weight: 0.15
+        weight: 0.10
         why: Rising participation relieves the constraint. Inverted.
+
+      - id: supply_chain_pressure
+        label: Global supply chain pressure
+        source: {fred: GSCPI}
+        transform: level
+        normalize: {method: gap, center: 0.0, scale: 1.0}
+        direction: 1
+        weight: 0.20
+        why: Input bottlenecks from shipping, delivery times and backlogs, out days after month end.
 
   policy:
     label: Policy stance
@@ -182,8 +233,21 @@ drivers:
         transform: level
         normalize: {method: gap, center: 0.5, scale: 1.2}
         direction: 1
-        weight: 0.45
+        weight: 0.35
+        anchor: true
+        release: PCE report
         why: Nominal rates say nothing. Real rate vs r* is the stance.
+
+      - id: ex_ante_real_rate
+        label: Fed funds rate less 1-year expected inflation
+        source:
+          expr: "FEDFUNDS - EXPINF1YR"
+          fred: [FEDFUNDS, EXPINF1YR]
+        transform: level
+        normalize: {method: gap, center: 0.5, scale: 1.2}
+        direction: 1
+        weight: 0.15
+        why: Forward-looking real rate, available weeks before core PCE.
 
       - id: financial_conditions
         label: Financial conditions index
@@ -200,7 +264,7 @@ drivers:
         transform: level
         normalize: {method: gap, center: -3.0, scale: 2.5}
         direction: -1
-        weight: 0.25
+        weight: 0.20
         why: Wider deficit loosens the overall stance. Annual, so it lags.
 
   investment:
@@ -216,7 +280,7 @@ drivers:
         transform: yoy_pct
         normalize: {method: gap, center: 3.5, scale: 3.0}
         direction: 1
-        weight: 0.30
+        weight: 0.25
         why: Leading edge of business investment, monthly.
 
       - id: real_nonres_investment_yoy
@@ -225,7 +289,7 @@ drivers:
         transform: yoy_pct
         normalize: {method: gap, center: 3.5, scale: 3.0}
         direction: 1
-        weight: 0.25
+        weight: 0.20
         why: The actual spend. Quarterly and heavily revised, hence vintages.
 
       - id: manufacturing_construction_yoy
@@ -234,7 +298,7 @@ drivers:
         transform: yoy_pct
         normalize: {method: gap, center: 5.0, scale: 12.0}
         direction: 1
-        weight: 0.20
+        weight: 0.15
         why: Picks up reshoring and subsidy-driven building directly.
 
       - id: ci_lending_standards
@@ -243,5 +307,23 @@ drivers:
         transform: level
         normalize: {method: gap, center: 5.0, scale: 20.0}
         direction: -1
-        weight: 0.25
+        weight: 0.20
         why: Net tightening chokes capex with roughly two quarters of lag.
+
+      - id: capex_plans_philadelphia
+        label: Philadelphia Fed capital spending plans
+        source: {fred: PHILCAPEX}
+        transform: level
+        normalize: {method: gap, center: 17.0, scale: 11.0}
+        direction: 1
+        weight: 0.10
+        why: Manufacturers' own plans for the next six months, published in the same month.
+
+      - id: capex_plans_empire
+        label: Empire State capital spending plans
+        source: {fred: EMPIRECAPEX}
+        transform: level
+        normalize: {method: gap, center: 20.0, scale: 10.0}
+        direction: 1
+        weight: 0.10
+        why: Second regional read on capex intentions, released mid-month.

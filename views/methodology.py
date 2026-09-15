@@ -41,8 +41,13 @@ TRANSFORM_TEXT = ui.TRANSFORM_TEXT
 
 
 def section(anchor: str, number: int, title: str) -> None:
+    number = num(anchor)  # numbered from SECTIONS, so inserting one renumbers the rest
     st.html(f'<hr class="mr-rule"><h2 class="mr-h2 m-section" id="{anchor}">'
             f'<span style="color:{ui.MUTED};font-weight:400">{number}.</span> {ui.esc(title)}</h2>')
+
+
+def num(anchor: str) -> int:
+    return [a for a, _ in SECTIONS].index(anchor) + 1
 
 
 def prose(markup: str) -> None:
@@ -68,6 +73,7 @@ SECTIONS = [
     ("m-indicators", "From series to indicator scores"),
     ("m-drivers", "From indicators to driver scores"),
     ("m-regimes", "From drivers to a regime call"),
+    ("m-provisional", "Confirmed call and provisional reading"),
     ("m-example", "Worked example"),
     ("m-validation", "Validation and track record"),
     ("m-limits", "Limitations"),
@@ -93,7 +99,7 @@ st.html(
 section("m-summary", 1, "Summary")
 prose(
     '<p>The monitor answers one question: <b>which macro regime do current conditions '
-    'most resemble?</b> It does so in five steps.</p>'
+    'most resemble?</b> It does so in six steps.</p>'
     '<ol class="m-steps">'
     '<li><b>Read the data as it was known.</b> Every series is taken as published on the '
     'chosen date, before later revisions.</li>'
@@ -105,12 +111,15 @@ prose(
     '<li><b>Compare with four regimes.</b> Each regime is a point in driver space. The '
     'closer today\'s five scores sit to a regime, the higher its probability.</li>'
     f'<li><b>Hold the call steady.</b> A new regime is called only after it has led for '
-    f'{settings["persistence_months"]} consecutive months.</li></ol>'
+    f'{settings["persistence_months"]} consecutive months.</li>'
+    f'<li><b>Read the newest month early.</b> The call is confirmed only once a month\'s core '
+    f'data, including consumer spending, is out. Until then the month gets a provisional '
+    f'reading from faster indicators, labelled as such (section {num("m-provisional")}).</li></ol>'
     '<div class="m-callout"><p><b>What it is not.</b> The monitor describes current '
     'conditions; it is not a forecast. There are no subjective adjustments: analyst '
     'observations logged on the dashboard are stored alongside the data but never change '
     'a score or the call. The regime archetypes are judgements that have not yet been '
-    'validated against history (section 9).</p></div>')
+    f'validated against history (section {num("m-validation")}).</p></div>')
 
 # ---------- 2. framework ----------
 
@@ -148,7 +157,7 @@ prose(
     '<li><b>Each row is one driver</b>, drawn from one extreme to the other. Red end boxes '
     'mark outcomes that are a risk; green marks outcomes that are good for growth.</li>'
     '<li><b>Regime codes</b> sit where that regime expects the driver to be, taken from '
-    'the archetype table in section 7. Codes close together share a slot.</li>'
+    f'the archetype table in section {num("m-regimes")}. Codes close together share a slot.</li>'
     '<li><b>The star</b> is the latest month\'s score. <b>The hollow circle</b> is the '
     'score twelve months earlier, as the data is known today.</li>'
     '<li><b>The thin centre line</b> is zero, the neutral reading.</li>'
@@ -256,7 +265,10 @@ for n in driver_names:
         else:
             norm_text = f'Z-score, {int(norm.get("window", 240))}-month window'
         rows.append([
-            i.get("label") or i["id"].replace("_", " ").capitalize(), ui.Raw(source),
+            ui.Raw(ui.esc(i.get("label") or i["id"].replace("_", " ").capitalize())
+                   + (f'<br><span style="color:{ui.INK_2};font-size:0.8rem">Anchor: needed to '
+                      f'confirm a month</span>' if i.get("anchor") else "")),
+            ui.Raw(source),
             TRANSFORM_TEXT.get(i.get("transform", "level"), i.get("transform", "")),
             norm_text, "+1" if int(i["direction"]) > 0 else "−1",
             f'{float(i["weight"]):.2f}', f'{float(i["weight"]) / total:.0%}',
@@ -315,6 +327,50 @@ prose(f'<p>A month with any driver missing gets no probabilities rather than a g
 
 # ---------- 8. worked example ----------
 
+section("m-provisional", 0, "Confirmed call and provisional reading")
+prov_cfg = meta_cfg.get("provisional") or {}
+anchor_names = [i.get("label") or i["id"] for spec in cfg["drivers"].values()
+                for i in spec["indicators"] if i.get("anchor")]
+timely = ["weekly_economic_index", "jobless_claims_yoy", "supply_chain_pressure",
+          "ex_ante_real_rate", "capex_plans_philadelphia", "capex_plans_empire"]
+timely_names = [i.get("label") or i["id"] for spec in cfg["drivers"].values()
+                for i in spec["indicators"] if i["id"] in timely]
+prose(
+    '<p>Releases arrive weeks apart. Consumer spending and core PCE inflation come about four '
+    'weeks after a month ends; jobless claims, surveys and market prices come within days. The '
+    'monitor separates what is settled from what is early, and never mixes the two.</p>'
+    '<h3 class="m-h3">The confirmed call</h3>'
+    f'<p>A month is confirmed only when, for every driver, at least {reported:.0%} of the '
+    f'weight of its already-started indicators has reported <b>and</b> every anchor has '
+    f'reported. Anchors are the hard data the call should never go without:</p><ul>'
+    + "".join(f"<li>{ui.esc(n)}</li>" for n in anchor_names)
+    + '</ul><p>The persistence rule and confidence floor apply only to confirmed months, and '
+    'the history chart shows only confirmed months.</p>'
+    '<h3 class="m-h3">The provisional reading</h3>'
+    f'<p>For months after the latest confirmed one, the same model runs on whatever has been '
+    f'released. An indicator not yet released carries its latest score for up to '
+    f'{int(prov_cfg.get("fill_months", 2))} months, so a driver keeps its usual mix of inputs '
+    f'rather than resting on whichever arrived first. A month is shown only once at least '
+    f'{float(prov_cfg.get("min_reported_share", 0.5)):.0%} of its data, averaged across drivers, '
+    f'has been released. It gets probabilities but no call: no persistence rule, no floor.</p>'
+    '<p>Faster indicators were added at small weights so the provisional reading has something '
+    'real to read. They also enter confirmed months, where they are a minority of each '
+    'driver\'s weight:</p><ul>'
+    + "".join(f"<li>{ui.esc(n)}</li>" for n in timely_names)
+    + '</ul>'
+    '<h3 class="m-h3">How users are kept informed</h3><ul>'
+    '<li>The dashboard headline is always the confirmed call. The provisional reading sits '
+    'beneath it, marked provisional, with the share of data behind it and when the month '
+    'should be confirmed.</li>'
+    '<li>Probabilities show the confirmed month as bars and the provisional month as a thin '
+    'tick and a separate column. On the signpost chart the confirmed reading is a solid star, '
+    'the provisional one an outlined star.</li>'
+    '<li>The Data status tab lists every input for the provisional month: released, carried '
+    'forward, or not yet released, with an expected release date.</li></ul>'
+    '<p><b>Expected release dates</b> are estimates: the median time between the end of a '
+    'period and first publication over each series\' last 24 releases, measured from its own '
+    'vintages. Holidays and schedule changes can move them by days.</p>')
+
 section("m-example", 8, "Worked example")
 contrib = contributions(drivers, reg, latest)
 dist = np.sqrt(contrib.sum(axis=1))
@@ -322,7 +378,7 @@ call = results["calls"].loc[latest]
 leader = call["leading"]
 pull = contrib.loc[leader].idxmax()
 prose(f'<p>The latest month, {latest:%B %Y}, using data as known today. Driver scores are '
-      f'in section 6. Each cell below is that driver\'s weighted squared gap to the '
+      f'in section {num("m-drivers")}. Each cell below is that driver\'s weighted squared gap to the '
       f'regime; the distance is the square root of the row total.</p>')
 st.html(ui.table(
     ["Regime"] + [dlabel[n] for n in driver_names] + ["Distance", "Probability"],
@@ -349,7 +405,7 @@ st.html(ui.table(["Check", "Status", "Notes"], [
     ["Unit tests on transforms, normalisation and the persistence rule", "In place",
      "Run on every change to the code."],
     ["Point-in-time data", "In place" if not demo else "Built, not yet loaded",
-     "Full vintage histories; how far back each goes is in section 4."],
+     f"Full vintage histories; how far back each goes is in section {num('m-data')}."],
     ["Hand-labelled regime history, 1970 to present", "Not yet",
      "Labelled from what was knowable at the time, not with hindsight. The priority."],
     ["Compare the calls with the labelled history", "Not yet",
@@ -366,7 +422,7 @@ section("m-limits", 10, "Limitations")
 prose(
     '<ul>'
     '<li><b>Unvalidated archetypes.</b> Where each regime sits in driver space is a '
-    'judgement (section 9).</li>'
+    f'judgement (section {num("m-validation")}).</li>'
     '<li><b>Stepwise inputs.</b> Quarterly and annual series are carried forward, so their '
     'drivers move in steps. The annual federal deficit adds almost no timely signal.</li>'
     '<li><b>Lagging inputs.</b> Senior Loan Officer lending standards (quarterly) and '
@@ -408,6 +464,12 @@ terms = [
     ("Temperature", "Sets how sharply distances turn into probabilities."),
     ("Transitional", "Reported when no regime clears the confidence floor."),
     ("Vintage", "The date a value was published. Revisions create new vintages."),
+    ("Anchor", "An indicator a month cannot be confirmed without, such as consumer spending."),
+    ("Confirmed", "A month whose core data is in. Only confirmed months get a regime call."),
+    ("Provisional reading", "An early read of a month not yet confirmed, from the data released "
+                            "so far. It has probabilities but no call."),
+    ("Carried forward", "An input not yet released for a month, held at its latest value in a "
+                        "provisional reading until it arrives."),
 ] + [(reg["regimes"][n].get("short", n), rlabel[n]) for n in regime_names]
 st.html('<dl class="m-dl">' + "".join(
     f"<dt>{ui.esc(t)}</dt><dd>{ui.esc(d)}</dd>" for t, d in terms) + "</dl>")

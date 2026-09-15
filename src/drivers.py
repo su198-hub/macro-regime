@@ -18,7 +18,7 @@ import numpy as np
 import pandas as pd
 import yaml
 
-from .transform import TRANSFORMS, normalise, to_monthly
+from .transform import TRANSFORMS, _periods_per_year, normalise, to_monthly
 
 DRIVER_SCALE = 2.0  # weighted clipped scores divided by this to land near ±1
 
@@ -102,7 +102,7 @@ def indicator_frames(cfg: dict, wide: pd.DataFrame) -> tuple[pd.DataFrame, pd.Da
     carry = int((cfg.get("meta") or {}).get("carry_forward_periods", 0))
     for driver_name, driver in cfg["drivers"].items():
         for ind in driver["indicators"]:
-            raw = _build_input(ind, wide, carry)
+            raw = _build_input(ind, wide, int(ind.get("carry_forward_periods", carry)))
             if raw is None or raw.dropna().empty:
                 continue
             transformed = TRANSFORMS[ind.get("transform", "level")](raw)
@@ -119,15 +119,19 @@ def indicator_scores(cfg: dict, wide: pd.DataFrame) -> pd.DataFrame:
     return indicator_frames(cfg, wide)[1]
 
 
-def driver_scores(cfg: dict, wide: pd.DataFrame) -> pd.DataFrame:
+def driver_scores(cfg: dict, wide: pd.DataFrame, scores: pd.DataFrame | None = None) -> pd.DataFrame:
     """Weighted mean of available indicators, renormalised for coverage.
 
     Weights are renormalised over whatever is actually present each month, so
     a driver does not silently collapse toward zero in early history when only
     two of its four indicators exist. It does mean early driver scores rest on
     fewer inputs, which the coverage column reports.
+
+    These are confirmed scores. The latest months, where releases are still
+    arriving, are left unscored and read by provisional_reading instead.
     """
-    scores = indicator_scores(cfg, wide)
+    if scores is None:
+        scores = indicator_scores(cfg, wide)
     if scores.empty:
         return pd.DataFrame()
     # Ragged edge: in the latest months some inputs have not been released yet.
@@ -139,12 +143,14 @@ def driver_scores(cfg: dict, wide: pd.DataFrame) -> pd.DataFrame:
 
     frames = {}
     for driver_name, driver in cfg["drivers"].items():
-        cols, weights = [], []
+        cols, weights, anchors = [], [], []
         for ind in driver["indicators"]:
             col = f"{driver_name}::{ind['id']}"
             if col in scores.columns:
                 cols.append(col)
                 weights.append(float(ind["weight"]))
+                if ind.get("anchor"):
+                    anchors.append(col)
         if not cols:
             continue
 
@@ -158,6 +164,11 @@ def driver_scores(cfg: dict, wide: pd.DataFrame) -> pd.DataFrame:
             value = np.where(denom > 0, numer / denom, np.nan)
             reported = np.where(started > 0, denom / started, 0.0)
         value = np.where(reported >= min_reported, value, np.nan)
+        # An anchor that has started but not reported this month holds the
+        # month back from confirmation, however much else has arrived.
+        for col in anchors:
+            missing = (block[col].notna().cummax() & block[col].isna()).to_numpy()
+            value = np.where(missing, np.nan, value)
 
         frames[driver_name] = pd.Series(
             np.clip(value / DRIVER_SCALE, -1, 1), index=block.index
@@ -194,18 +205,141 @@ def driver_breakdown(cfg: dict, driver_name: str, inputs: pd.DataFrame,
     return out
 
 
+# ---------- provisional reading ----------
+
+def indicator_inputs(cfg: dict) -> dict[str, list[str]]:
+    """Source series behind each indicator, keyed "driver::indicator"."""
+    out = {}
+    for driver_name, driver in cfg["drivers"].items():
+        for ind in driver["indicators"]:
+            fred = ind["source"].get("fred")
+            out[f"{driver_name}::{ind['id']}"] = [fred] if isinstance(fred, str) else list(fred or [])
+    return out
+
+
+def series_frequency(wide: pd.DataFrame) -> dict[str, int]:
+    """Native periods per year of each raw series, inferred from its dates."""
+    return {c: _periods_per_year(wide[c].dropna()) for c in wide.columns}
+
+
+def provisional_reading(cfg: dict, scores: pd.DataFrame, month: pd.Timestamp) -> dict:
+    """Read one not-yet-confirmed month from what has been released so far.
+
+    An indicator released for the month uses its own score. One not released
+    yet carries its latest score, for at most `provisional.fill_months`, and is
+    marked as carried. Weights are renormalised over released and carried
+    indicators, as for confirmed scores.
+
+    Returns drivers (score per driver), reported (share of each driver's
+    started weight released for the month), share (mean of those) and status,
+    one row per indicator: reported, carried or pending.
+    """
+    prov = (cfg.get("meta") or {}).get("provisional") or {}
+    fill = int(prov.get("fill_months", 2))
+    history = scores.loc[:month]
+    rows, drivers, reported = [], {}, {}
+    for driver_name, driver in cfg["drivers"].items():
+        num = den = rep = started = 0.0
+        for ind in driver["indicators"]:
+            key = f"{driver_name}::{ind['id']}"
+            w = float(ind["weight"])
+            s = history[key].dropna() if key in history.columns else pd.Series(dtype=float)
+            row = {"driver": driver_name, "key": key, "id": ind["id"], "weight": w,
+                   "anchor": bool(ind.get("anchor")), "score": np.nan, "last_month": pd.NaT}
+            if s.empty:
+                row["status"] = "not_started"
+            else:
+                started += w
+                row["last_month"] = s.index[-1]
+                lag = (month.year - s.index[-1].year) * 12 + month.month - s.index[-1].month
+                if lag == 0:
+                    row.update(status="reported", score=s.iloc[-1])
+                    rep += w
+                elif lag <= fill:
+                    row.update(status="carried", score=s.iloc[-1])
+                else:
+                    row["status"] = "pending"
+                if not np.isnan(row["score"]):
+                    num += w * row["score"]
+                    den += w
+            rows.append(row)
+        drivers[driver_name] = np.clip(num / den / DRIVER_SCALE, -1, 1) if den else np.nan
+        reported[driver_name] = rep / started if started else np.nan
+    reported = pd.Series(reported)
+    return {"month": month, "drivers": pd.Series(drivers), "reported": reported,
+            "share": float(reported.mean()), "status": pd.DataFrame(rows)}
+
+
+def provisional_months(cfg: dict, drivers: pd.DataFrame, scores: pd.DataFrame) -> list[dict]:
+    """Provisional readings for months after the latest fully confirmed one."""
+    names = [n for n in cfg["drivers"] if n in drivers.columns]
+    if not names or scores.empty:
+        return []
+    confirmed = drivers[names].dropna()
+    after = confirmed.index[-1] if len(confirmed) else scores.index[0]
+    threshold = float(((cfg.get("meta") or {}).get("provisional") or {}).get("min_reported_share", 0.5))
+    out = []
+    for month in scores.index[scores.index > after]:
+        reading = provisional_reading(cfg, scores, month)
+        if reading["share"] >= threshold and reading["drivers"].notna().all():
+            out.append(reading)
+    return out
+
+
+def expected_release(month: pd.Timestamp, periods_per_year: int, lag_days: float) -> pd.Timestamp:
+    """When a series' value covering `month` should appear, from its usual lag.
+
+    Monthly values are complete at month end, quarterly at quarter end; weekly
+    and daily series count as complete at month end too, because the monthly
+    reading takes the month's last value.
+    """
+    end = month + pd.offsets.MonthEnd(0)
+    if periods_per_year == 4:
+        end = month + pd.offsets.QuarterEnd(0)
+    elif periods_per_year == 1:
+        end = month + pd.offsets.YearEnd(0)
+    return (end + pd.Timedelta(days=float(lag_days))).normalize()
+
+
+def median_release_lag(first_published: pd.DataFrame, periods_per_year: int) -> float:
+    """Median days from period end to first publication.
+
+    first_published: columns observation_date, published, one row per recent
+    observation. Observation dates are period starts.
+    """
+    if first_published.empty:
+        return np.nan
+    obs = pd.to_datetime(first_published["observation_date"])
+    if periods_per_year >= 12:
+        ends = obs + pd.offsets.MonthEnd(0) if periods_per_year == 12 else obs
+    elif periods_per_year == 4:
+        ends = obs + pd.offsets.QuarterEnd(0)
+    else:
+        ends = obs + pd.offsets.YearEnd(0)
+    lags = (pd.to_datetime(first_published["published"]) - ends).dt.days
+    return float(lags.median())
+
+
 def compute(store, cfg: dict, vintage: dt.date | None = None) -> dict:
     """Everything the dashboard needs for one point in time."""
     vintage = vintage or dt.date.today()
-    wide = store.as_of(required_series(cfg), vintage)
+    series = required_series(cfg)
+    wide = store.as_of(series, vintage)
     if wide.empty:
         return {"drivers": pd.DataFrame(), "indicators": pd.DataFrame(),
-                "inputs": pd.DataFrame(), "vintage": vintage}
+                "inputs": pd.DataFrame(), "provisional": [], "vintage": vintage}
     inputs, scores = indicator_frames(cfg, wide)
+    drivers = driver_scores(cfg, wide, scores)
+    freq = series_frequency(wide)
+    lags = {sid: median_release_lag(store.first_published(sid, vintage), freq.get(sid, 12))
+            for sid in freq}
     return {
-        "drivers": driver_scores(cfg, wide),
+        "drivers": drivers,
         "indicators": scores,
         "inputs": inputs,
+        "provisional": provisional_months(cfg, drivers, scores),
+        "frequency": freq,
+        "release_lags": lags,
         "vintage": vintage,
         "config_hash": config_hash(cfg),
     }

@@ -57,12 +57,27 @@ class MacrobondSource:
             return self.fetch_current(series_id)
 
         stamps = [v.revision_time_stamp for v in vintages]
-        frames = []
+        # Every vintage is a full copy of the series, so keep only values that
+        # are new or changed against the last kept value as each one arrives.
+        # Concatenating first would build (observations x vintages) rows, which
+        # for a long daily series runs to tens of millions.
+        last = pd.Series(dtype=float)
+        changes = []
         for i, v in enumerate(vintages):
             stamp = stamps[i] or next((s for s in stamps[i + 1:] if s), None)
             vintage = stamp.date() if stamp else dt.date.today()
-            frames.append(self._flatten(series_id, v, vintage))
-        out = tidy_vintages(pd.concat(frames, ignore_index=True))
+            frame = self._flatten(series_id, v, vintage)
+            frame = frame[frame["observation_date"] <= vintage]
+            cur = frame.set_index("observation_date")["value"]
+            cur = cur[~cur.index.duplicated(keep="last")]
+            prev = last.reindex(cur.index)
+            changed = prev.isna() | (cur != prev)
+            if changed.any():
+                changes.append(frame[frame["observation_date"].isin(cur.index[changed])])
+                last = pd.concat([last.drop(cur.index[changed], errors="ignore"), cur[changed]])
+        if not changes:
+            return pd.DataFrame(columns=["series_id", "observation_date", "vintage_date", "value"])
+        out = tidy_vintages(pd.concat(changes, ignore_index=True))
         if start:
             out = out[out["observation_date"] >= start]
         return out
