@@ -145,26 +145,39 @@ if prov_box:
 
 # ---------- signposts ----------
 
-st.html('<h2 class="mr-h2">Scenario drivers and signposts</h2>'
-        '<p class="mr-caption">Each driver runs from one extreme to the other. Regime codes sit '
-        'where that regime expects the driver to be; the solid star is the confirmed month'
-        + (', the outlined star the provisional one' if prov is not None else '')
-        + '. Hover any mark for the exact score. '
-        '<a href="/methodology#m-signposts" target="_self">How to read this chart</a></p>')
-st.html(ui.signpost_html(drivers, cfg, reg, latest, then, prov) + source_line)
+sp_meta = f"Monthly · {latest:%b %Y} confirmed" + (
+    f" · {prov['month']:%b %Y} provisional" if prov is not None else "")
+st.html(ui.section_head(
+    "Scenario drivers and signposts", sp_meta,
+    "Each driver runs from one extreme to the other. Regime codes sit where that regime expects "
+    "the driver to be; the solid star is the confirmed month"
+    + (", the outlined star the provisional one" if prov is not None else "")
+    + ". Hover any mark for the exact score."))
+st.html(ui.signpost_html(drivers, cfg, reg, latest, then, prov)
+        + source_line.replace("</p>", ' · <a href="/methodology#m-signposts" target="_self">'
+                                      'How to read this chart</a></p>'))
 
 # ---------- history ----------
 
-st.html('<h2 class="mr-h2">Regime probabilities over time</h2>'
-        '<p class="mr-caption">Probability of each regime, % of total, confirmed months. The band '
-        f'on top is the regime called after the {settings["persistence_months"]}-month '
-        'persistence rule.</p>')
-span = st.segmented_control("Range", ["5 years", "15 years", "All"],
-                            default="15 years", label_visibility="collapsed")
-months = {"5 years": 60, "15 years": 180}.get(span or "15 years")
+span = st.session_state.get("history_span") or "15 years"
+months = {"5 years": 60, "15 years": 180}.get(span)
 window = probs if months is None else probs.tail(months)
+st.html(ui.section_head(
+    "Regime probabilities over time",
+    f"Monthly · {window.index[0]:%b %Y} to {latest:%b %Y}",
+    "Probability of each regime, % of total, confirmed months. The band on top is the regime "
+    f"called after the {settings['persistence_months']}-month persistence rule."))
+st.segmented_control("Range", ["5 years", "15 years", "All"], default="15 years",
+                     label_visibility="collapsed", key="history_span")
 st.altair_chart(ui.history_chart(window, calls, reg), width="stretch")
 st.html(source_line)
+export = probs.rename(columns=regime_label).assign(
+    Called=calls["called"].reindex(probs.index).map(lambda c: regime_label.get(c, "Transitional")))
+export.index = export.index.strftime("%Y-%m")
+export.index.name = "Month"
+st.download_button("Download full history (CSV)", export.to_csv().encode(),
+                   file_name=f"regime_probabilities_{latest:%Y%m}.csv", mime="text/csv",
+                   type="tertiary", icon=":material/download:")
 with st.expander("Show as a table"):
     table = window.iloc[::-1].rename(columns=regime_label)
     table.insert(0, "Called", calls["called"].reindex(window.index).iloc[::-1]
@@ -175,7 +188,8 @@ with st.expander("Show as a table"):
 
 # ---------- detail ----------
 
-st.html('<h2 class="mr-h2">Behind the call</h2>')
+st.html(ui.section_head("Behind the call", f"{latest:%B %Y}"
+                        + (f" · {prov['month']:%B} provisional" if prov is not None else "")))
 tab_pull, tab_status, tab_drivers, tab_judge, tab_cov = st.tabs(
     ["What is pulling the call", "Data status", "Driver history", "Judgment", "Coverage"])
 

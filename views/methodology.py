@@ -43,7 +43,8 @@ TRANSFORM_TEXT = ui.TRANSFORM_TEXT
 def section(anchor: str, number: int, title: str) -> None:
     number = num(anchor)  # numbered from SECTIONS, so inserting one renumbers the rest
     st.html(f'<h2 class="mr-h2 m-section" id="{anchor}">'
-            f'<span style="color:{ui.MUTED};font-weight:400">{number}.</span> {ui.esc(title)}</h2>')
+            f'<span><span style="color:{ui.MUTED};font-weight:400">{number}.</span> '
+            f'{ui.esc(title)}</span></h2>')
 
 
 def num(anchor: str) -> int:

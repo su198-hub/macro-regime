@@ -88,7 +88,12 @@ CSS = f"""
 .mr-sub {{ font: 0.92rem/1.45 {BODY_FONT}; color: {INK_2}; margin: 0.3rem 0 0; }}
 .mr-rule {{ border: 0; border-top: 1px solid {GRID}; margin: 0.9rem 0 1.1rem; }}
 .mr-h2 {{ font-family: {HEADING_FONT}; font-weight: 700; font-size: 1.45rem; color: {INK};
-  margin: 2.2rem 0 0.15rem; padding-top: 0.55rem; border-top: 2px solid {INK}; }}
+  margin: 2.2rem 0 0.15rem; padding-top: 0.55rem; border-top: 2px solid {INK};
+  display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; flex-wrap: wrap; }}
+.mr-h2-meta {{ font: 0.8rem {BODY_FONT}; color: {INK_2}; font-variant-numeric: tabular-nums; }}
+.mr-links {{ font: 0.8rem/1.5 {BODY_FONT}; color: {MUTED}; margin: 0.35rem 0 0; }}
+.mr-links a, .mr-source a {{ color: {INK_2}; text-decoration: underline; text-decoration-color: {AXIS};
+  text-underline-offset: 2px; }}
 .mr-caption {{ font: 0.88rem/1.45 {BODY_FONT}; color: {INK_2}; margin: 0 0 0.9rem; max-width: 60rem; }}
 .mr-source {{ font: 0.76rem/1.4 {BODY_FONT}; color: {MUTED}; margin: 0.35rem 0 0; }}
 
@@ -144,6 +149,7 @@ CSS = f"""
 .sp-legend {{ display: flex; flex-wrap: wrap; gap: 0.45rem 1.1rem; align-items: center;
   font-size: 0.82rem; color: {INK_2}; margin: 0 0 0.8rem; }}
 .sp-legend span {{ display: inline-flex; align-items: center; gap: 0.35rem; }}
+.sp-legend:has(+ .sp-legend-regimes) {{ margin-bottom: 0.4rem; }}
 .sp-row {{ display: grid; grid-template-columns: 13.5rem 1fr; gap: 1rem;
   align-items: center; padding: 0.4rem 0; }}
 .sp-pill {{ background: {NAVY}; color: #fff; border-radius: 3px; padding: 0.62rem 0.7rem;
@@ -218,6 +224,13 @@ CSS = f"""
 
 def esc(s) -> str:
     return html.escape(str(s))
+
+
+def section_head(title: str, meta: str = "", caption: str = "") -> str:
+    """Section title on a strong rule, with frequency and dates right-aligned on the same line."""
+    meta_html = f'<span class="mr-h2-meta">{esc(meta)}</span>' if meta else ""
+    cap = f'<p class="mr-caption">{caption}</p>' if caption else ""
+    return f'<h2 class="mr-h2"><span>{esc(title)}</span>{meta_html}</h2>{cap}'
 
 
 def table(header: list[str], rows: list[list], numeric: set[int] = frozenset()) -> str:
@@ -332,8 +345,7 @@ def provisional_box(reading: dict, reg_cfg: dict, called: str, confirm_by, confi
                f'<p class="mr-source">Dates estimated from each series\' recent release timing.</p></div>')
     return (
         f'<div class="mr-prov"><div>'
-        f'<h3 class="mr-prov-title">Provisional reading, {month:%B %Y}'
-        f'<span>not a call</span></h3>'
+        f'<h3 class="mr-prov-title">Provisional reading, {month:%B %Y}</h3>'
         f'<p class="mr-prov-main"><span class="mr-call-swatch" style="background:{spec["color"]}"></span>'
         f'{verdict}</p>'
         f'<p class="mr-prov-body">Based on {reading["share"]:.0%} of {month:%B} data released so far. '
@@ -427,11 +439,12 @@ def signpost_html(drivers: pd.DataFrame, ind_cfg: dict, reg_cfg: dict,
         legend.append(
             f'<span><span class="sp-then" style="position:static;transform:none;'
             f'display:inline-block;background:#fff"></span>A year earlier, {then_label}</span>')
-    for spec in regimes.values():
-        legend.append(
-            f'<span><span class="sp-chip" style="background:{spec["color"]};'
-            f'color:{text_on(spec["color"])}">{esc(spec.get("short", ""))}</span>'
-            f'{esc(spec["label"])}</span>')
+    # Markers on the first row, regime codes on the second, so neither wraps mid-set.
+    regime_key = [
+        f'<span><span class="sp-chip" style="background:{spec["color"]};'
+        f'color:{text_on(spec["color"])}">{esc(spec.get("short", ""))}</span>'
+        f'{esc(spec["label"])}</span>'
+        for spec in regimes.values()]
 
     rows = []
     for name, driver in ind_cfg["drivers"].items():
@@ -497,6 +510,7 @@ def signpost_html(drivers: pd.DataFrame, ind_cfg: dict, reg_cfg: dict,
                 f'{"is" if len(reversed_names) == 1 else "are"} drawn with the '
                 f'tighter end on the left. Scores still count restrictive as positive.</div>')
     return (f'<div class="sp"><div class="sp-legend">{"".join(legend)}</div>'
+            f'<div class="sp-legend sp-legend-regimes">{"".join(regime_key)}</div>'
             + "".join(rows) + note + "</div>")
 
 
