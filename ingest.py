@@ -5,6 +5,7 @@
     python ingest.py backfill             # full vintage history
     python ingest.py sync                 # refresh, for scheduled runs
     python ingest.py coverage             # what you actually have
+    python ingest.py publish              # push a snapshot for the hosted app
 
 Which vendor each series comes from is set in config/sources.yml; pass
 --source to override for a run. Point --db (or MACRO_REGIME_DB) at a file that
@@ -131,6 +132,67 @@ def cmd_coverage(args):
     store.close()
 
 
+DATA_BRANCH = "data"
+DATA_README = """# Data snapshot
+
+Published by `python ingest.py publish` from the machine that holds the
+Macrobond connection. The hosted app reads it via MACRO_REGIME_DATA_URL.
+This branch is replaced on every publish, so it never accumulates history.
+
+- observations.parquet: series_id, observation_date, vintage_date, value
+- series_meta.parquet: source, vendor code, title, units, frequency
+- manifest.json: when it was published and what it holds
+"""
+
+
+def cmd_publish(args):
+    """Export the store and force-push it to the repository's data branch."""
+    import shutil
+    import subprocess
+    import tempfile
+
+    from src.snapshot import export_snapshot
+
+    store = Store(args.db)
+    if store.coverage().empty:
+        sys.exit(f"{args.db} is empty. Run backfill first.")
+    if "demo" in store.sources():
+        sys.exit(f"{args.db} holds demo data; refusing to publish it as real data.")
+
+    git = shutil.which("git") or r"C:\Program Files\Git\cmd\git.exe"
+    root = os.path.dirname(os.path.abspath(__file__))
+
+    def repo_git(*a):
+        return subprocess.run([git, "-C", root, *a], capture_output=True, text=True,
+                              check=True).stdout.strip()
+
+    remote = repo_git("remote", "get-url", "origin")
+    name, email = repo_git("config", "user.name"), repo_git("config", "user.email")
+
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        manifest = export_snapshot(store, tmp)
+        store.close()
+        with open(os.path.join(tmp, "README.md"), "w") as f:
+            f.write(DATA_README)
+
+        def run(*a):
+            subprocess.run([git, "-C", tmp, *a], check=True)
+
+        run("init", "-q", "-b", DATA_BRANCH)
+        run("config", "user.name", name)
+        run("config", "user.email", email)
+        run("add", "-A")
+        run("commit", "-q", "-m", f"Data snapshot {manifest['published_at']}")
+        print(f"Publishing {manifest['rows']:,} observations across {manifest['series']} "
+              f"series (latest vintage {manifest['latest_vintage']}) to {remote} "
+              f"branch '{DATA_BRANCH}'.")
+        run("push", "-q", "--force", remote, f"HEAD:{DATA_BRANCH}")
+
+    slug = remote.removesuffix(".git").split("github.com")[-1].strip("/:")
+    print(f"Done. The hosted app reads it from:\n  "
+          f"https://raw.githubusercontent.com/{slug}/{DATA_BRANCH}")
+
+
 def cmd_demo(args):
     store = Store(args.db)
     n, series = load_demo(store, load_config(args.config))
@@ -198,7 +260,8 @@ def main():
                                                   "data/regime.duckdb"))
     sub = p.add_subparsers(dest="cmd", required=True)
     for name, fn in [("backfill", cmd_backfill), ("sync", cmd_sync),
-                     ("coverage", cmd_coverage), ("demo", cmd_demo)]:
+                     ("coverage", cmd_coverage), ("publish", cmd_publish),
+                     ("demo", cmd_demo)]:
         sub.add_parser(name).set_defaults(func=fn)
     args = p.parse_args()
     args.func(args)

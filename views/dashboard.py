@@ -16,7 +16,8 @@ from matplotlib.colors import LinearSegmentedColormap
 from src import ui
 from src.drivers import DRIVER_SCALE, driver_breakdown
 from src.regimes import contributions
-from views.common import get_results, get_store, is_demo as store_is_demo, source_sentence
+from views.common import (get_results, get_store, is_demo as store_is_demo, published_note,
+                          source_sentence)
 
 # Diverging blue to red through a neutral grey, for signed indicator scores.
 DIVERGING = LinearSegmentedColormap.from_list(
@@ -102,7 +103,7 @@ call_col.html(
     f'style="background:{swatch}"></span>{ui.esc(call_name)}</div>'
     f'<p class="mr-lede">{ui.esc(lede)}</p>'
     f'<p class="mr-lede-muted">Data as known on {vintage:%d %B %Y}. Latest month '
-    f'with every driver scored: {latest:%B %Y}.</p>'
+    f'with every driver scored: {latest:%B %Y}. {ui.esc(published_note())}</p>'
     + ('<div class="mr-demo">Demo data. These series are synthetic, so the call '
        'and the numbers mean nothing yet.</div>' if is_demo else ""))
 prob_col.html(ui.probability_panel(probs.loc[latest], reg, called))
@@ -270,6 +271,8 @@ with tab_cov:
 # ---------- sources ----------
 
 source = source_sentence(store.sources())
+if published_note():
+    source += " " + published_note()
 st.html(
     f'<div class="mr-foot"><b>Sources:</b> {source}<br>'
     f'<b>Method:</b> each driver is a weighted mean of normalised indicators '

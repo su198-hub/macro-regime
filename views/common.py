@@ -1,9 +1,18 @@
-"""Loaders shared by every page. Cached, so switching pages does not recompute."""
+"""Loaders shared by every page. Cached, so switching pages does not recompute.
+
+Where the data comes from, in order:
+  1. MACRO_REGIME_DATA_URL set: a snapshot published by `ingest.py publish`.
+     This is how the hosted app gets real data it cannot fetch itself.
+  2. Otherwise MACRO_REGIME_DB (default data/regime.duckdb), a local store,
+     seeded with demo data only if MACRO_REGIME_SEED_DEMO=1 and it is empty.
+"""
 
 from __future__ import annotations
 
 import datetime as dt
 import os
+import tempfile
+from pathlib import Path
 
 import streamlit as st
 
@@ -14,10 +23,43 @@ from src.store import Store
 INDICATORS = "config/indicators.yml"
 REGIMES = "config/regimes.yml"
 REPO_URL = "https://github.com/su198-hub/macro-regime"
+SNAPSHOT_CHECK_SECONDS = 600
 
 
-@st.cache_resource
-def get_store():
+def data_url() -> str | None:
+    return os.environ.get("MACRO_REGIME_DATA_URL") or None
+
+
+@st.cache_data(ttl=SNAPSHOT_CHECK_SECONDS, show_spinner=False)
+def snapshot_manifest() -> dict | None:
+    """The published snapshot's manifest, or None if not configured or unreachable."""
+    url = data_url()
+    if not url:
+        return None
+    from src.snapshot import read_manifest
+    try:
+        return read_manifest(url)
+    except Exception:
+        return None
+
+
+def data_version() -> str:
+    """Changes whenever a new snapshot is published, so caches rebuild."""
+    m = snapshot_manifest()
+    return m["published_at"] if m else "local"
+
+
+@st.cache_resource(show_spinner="Loading the latest published data…", max_entries=1)
+def _store_for(version: str):
+    if version != "local":
+        from src.snapshot import load_snapshot
+        safe = version.replace(":", "").replace("+", "_")
+        path = Path(tempfile.gettempdir()) / "macro-regime" / f"snapshot-{safe}.duckdb"
+        try:
+            return load_snapshot(data_url(), path)
+        except Exception as exc:
+            st.warning(f"Could not load the published data ({exc}). Showing local data instead.")
+
     # Point MACRO_REGIME_DB outside OneDrive; sync locks the file mid-write.
     store = Store(os.environ.get("MACRO_REGIME_DB", "data/regime.duckdb"))
     # Hosted deploys start from an empty disk. Opt-in only, so synthetic data
@@ -28,9 +70,13 @@ def get_store():
     return store
 
 
+def get_store():
+    return _store_for(data_version())
+
+
 @st.cache_data(ttl=900)
-def get_results(vintage: dt.date):
-    store = get_store()
+def _results_for(vintage: dt.date, version: str):
+    store = _store_for(version)
     cfg = load_config(INDICATORS)
     reg = load_regimes(REGIMES)
     res = compute(store, cfg, vintage)
@@ -40,8 +86,21 @@ def get_results(vintage: dt.date):
     return res
 
 
+def get_results(vintage: dt.date):
+    return _results_for(vintage, data_version())
+
+
 def is_demo(store) -> bool:
     return "demo" in store.sources()
+
+
+def published_note() -> str:
+    """'Data published 15 September 2026' for pages on a snapshot, else ''."""
+    m = snapshot_manifest()
+    if not m:
+        return ""
+    when = dt.datetime.fromisoformat(m["published_at"])
+    return f"Data published {when:%d %B %Y}, latest vintage {m['latest_vintage']}."
 
 
 def source_sentence(vendors: set[str]) -> str:

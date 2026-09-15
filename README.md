@@ -40,10 +40,29 @@ from the repo and redeploys on each push.
 1. Sign in at <https://share.streamlit.io> with GitHub.
 2. Create app → this repo, branch `main`, main file `app.py`.
 3. Advanced settings → Python 3.12, and under Secrets:
-   `MACRO_REGIME_SEED_DEMO = "1"`
 
-The hosted disk is temporary. The demo data is rebuilt whenever the app
-restarts, and anything saved in the Judgement tab there is lost with it.
+   ```toml
+   MACRO_REGIME_DATA_URL = "https://raw.githubusercontent.com/su198-hub/macro-regime/data"
+   MACRO_REGIME_SEED_DEMO = "1"
+   ```
+
+The hosted app cannot reach Macrobond, so real data is published to it from
+the desk machine:
+
+```powershell
+$env:MACRO_REGIME_DB = "$env:LOCALAPPDATA\macro-regime\macrobond.duckdb"
+python ingest.py sync       # refresh from Macrobond
+python ingest.py publish    # push the snapshot to the repo's data branch
+```
+
+`publish` force-pushes observations (with every vintage) and series metadata
+to the `data` branch, replacing the previous snapshot. It never includes the
+judgement log. The app checks for a new snapshot every ten minutes and shows
+when the data was published. Without `MACRO_REGIME_DATA_URL`, or if the
+snapshot cannot be fetched, it falls back to demo data.
+
+The hosted disk is temporary: anything saved in the Judgement tab there is
+lost when the app restarts or new data is published.
 
 For real data, get a free key at
 <https://fredaccount.stlouisfed.org/apikeys>:
@@ -129,8 +148,8 @@ Macrobond code, with notes where the match is not like-for-like with FRED. Set
 The COM client rules out hosted schedulers: a scheduled refresh has to run on
 this machine (Windows Task Scheduler). The Web API client runs anywhere but is
 a separate entitlement. Check your Macrobond licence before showing its data
-anywhere other than your own machine; the hosted Streamlit app runs on demo
-data.
+anywhere other than your own machine. `ingest.py publish` makes the data
+public if the repository is public.
 
 ## Known limitations
 
