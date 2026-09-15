@@ -90,6 +90,13 @@ series:
   DEBTPUB:
     macrobond: usflof_024008
     note: Treasury securities held by the public, USD (Fed Financial Accounts, Z.1). Quarterly.
+  # Neutral rate for the Taylor rule and the real-rate gap.
+  SEPLR:
+    macrobond: usfcst2433
+    note: FOMC Summary of Economic Projections, longer-run fed funds rate, median. Nominal; published quarterly since 2012.
+  HLWRSTAR:
+    macrobond: usfcst2428
+    note: NY Fed Holston-Laubach-Williams natural rate of interest, one-sided (real-time filter). Quarterly since 1961.
   EXPINF1YR:
     macrobond: usfcst0101
     note: Cleveland Fed model-based expected inflation, 1 year.

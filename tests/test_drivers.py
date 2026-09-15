@@ -21,6 +21,34 @@ def wide(b_values):
     return pd.DataFrame({"A": [0.5, 1.0, 1.5], "B": b_values}, index=idx)
 
 
+def test_taylor_style_derived_inputs_fall_back_and_floor():
+    """first_of fills gaps from a second estimate; floor stops a rule going below the lower bound."""
+    cfg = {"drivers": {"monetary": {"indicators": [{
+        "id": "taylor_gap", "transform": "level", "direction": 1, "weight": 1.0,
+        "normalize": {"method": "gap", "center": 0.0, "scale": 1.0},
+        "source": {
+            "expr": "FF - rule",
+            "fred": ["FF", "PI", "SEP", "HLW"],
+            "derived": {
+                "sep_real": {"expr": "SEP - 2"},
+                "neutral": {"first_of": ["sep_real", "HLW"]},
+                "rule": {"expr": "neutral + PI + 0.5 * (PI - 2)", "floor": 0.125},
+            },
+        },
+    }]}}}
+    idx = pd.date_range("2024-01-31", periods=3, freq="ME")
+    w = pd.DataFrame({"FF": [5.0, 5.0, 0.1], "PI": [3.0, 3.0, -2.0],
+                      "SEP": [np.nan, 3.0, 3.0], "HLW": [0.5, 0.5, 0.5]}, index=idx)
+    inputs, _ = indicator_frames(cfg, w)
+    gap = inputs["monetary::taylor_gap"]
+    # Month 1: no SEP, neutral from HLW 0.5: rule = 0.5 + 3 + 0.5 = 4.0, gap 1.0
+    assert gap.iloc[0] == pytest.approx(1.0)
+    # Month 2: SEP-implied neutral 1.0: rule = 1 + 3 + 0.5 = 4.5, gap 0.5
+    assert gap.iloc[1] == pytest.approx(0.5)
+    # Month 3: rule = 1 - 2 - 2 = -3, floored at 0.125: gap 0.1 - 0.125
+    assert gap.iloc[2] == pytest.approx(-0.025)
+
+
 def test_contributions_sum_to_the_driver_score():
     w = wide([1.2, 0.9, 1.4])
     inputs, scores = indicator_frames(CFG, w)

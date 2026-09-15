@@ -219,38 +219,80 @@ drivers:
   # Policy is split in two, as on the scenario slide. Monetary and fiscal
   # stance often move in opposite directions and regimes differ on each, so a
   # single combined score would let them cancel out.
+  # Monetary policy reads "too hawkish / too dovish" against what conditions
+  # call for, so its core is a Taylor-rule gap: the fed funds rate less the
+  # rate the rule recommends.
+  #
+  #   Taylor rate = r* + inflation + 0.5 x (inflation - 2) + 0.5 x output gap
+  #
+  # r* (real neutral rate) is the FOMC's longer-run fed funds median less the
+  # 2% target where published (2012 on), otherwise the NY Fed's one-sided
+  # Holston-Laubach-Williams estimate. The output gap is 2 x (CBO noncyclical
+  # unemployment rate - unemployment rate), an Okun's-law proxy that updates
+  # monthly. The recommended rate is floored at 0.125%, the middle of the zero
+  # lower-bound range, so years at zero do not read as too hawkish.
+  # Coefficients (0.5, 0.5, 2) and the floor are Taylor (1993) choices to argue with.
   monetary:
     label: Monetary policy
-    description: How restrictive monetary policy and financial conditions are.
+    description: How restrictive policy is against what inflation and slack call for, plus financial conditions.
     signpost:
       low: {label: Too dovish, tone: risk}
       high: {label: Too hawkish, tone: risk}
       reverse: true
     indicators:
-      - id: real_fed_funds
-        label: Real fed funds rate
+      - id: taylor_gap
+        label: Fed funds rate less Taylor rule rate
         source:
-          expr: "FEDFUNDS - core_pce_yoy"
-          fred: [FEDFUNDS, PCEPILFE]
-          derived: {core_pce_yoy: {fred: PCEPILFE, transform: yoy_pct}}
+          expr: "FEDFUNDS - taylor_rate"
+          fred: [FEDFUNDS, PCEPILFE, UNRATE, NROU, SEPLR, HLWRSTAR]
+          derived: &taylor_inputs
+            core_pce_yoy: {fred: PCEPILFE, transform: yoy_pct}
+            neutral_sep: {expr: "SEPLR - 2"}
+            neutral_rate: {first_of: [neutral_sep, HLWRSTAR]}
+            output_gap: {expr: "2 * (NROU - UNRATE)"}
+            taylor_rate:
+              expr: "neutral_rate + core_pce_yoy + 0.5 * (core_pce_yoy - 2) + 0.5 * output_gap"
+              floor: 0.125
         transform: level
-        normalize: {method: gap, center: 0.5, scale: 1.2}
+        normalize: {method: gap, center: 0.0, scale: 1.5}
         direction: 1
-        weight: 0.45
+        weight: 0.35
         anchor: true
         release: PCE report
-        why: Nominal rates say nothing. Real rate vs r* is the stance.
+        carry_forward_periods: 6
+        why: Policy against what inflation and slack call for. Below zero, the Fed is behind the curve.
 
-      - id: ex_ante_real_rate
-        label: Fed funds rate less 1-year expected inflation
+      - id: taylor_gap_expected
+        label: Fed funds rate less Taylor rule rate, using expected inflation
         source:
-          expr: "FEDFUNDS - EXPINF1YR"
-          fred: [FEDFUNDS, EXPINF1YR]
+          expr: "FEDFUNDS - taylor_rate_expected"
+          fred: [FEDFUNDS, EXPINF1YR, UNRATE, NROU, SEPLR, HLWRSTAR]
+          derived:
+            neutral_sep: {expr: "SEPLR - 2"}
+            neutral_rate: {first_of: [neutral_sep, HLWRSTAR]}
+            output_gap: {expr: "2 * (NROU - UNRATE)"}
+            taylor_rate_expected:
+              expr: "neutral_rate + EXPINF1YR + 0.5 * (EXPINF1YR - 2) + 0.5 * output_gap"
+              floor: 0.125
         transform: level
-        normalize: {method: gap, center: 0.5, scale: 1.2}
+        normalize: {method: gap, center: 0.0, scale: 1.5}
+        direction: 1
+        weight: 0.15
+        carry_forward_periods: 6
+        why: Forward-looking version of the rule, available weeks before core PCE.
+
+      - id: real_fed_funds
+        label: Real fed funds rate less neutral rate
+        source:
+          expr: "FEDFUNDS - core_pce_yoy - neutral_rate"
+          fred: [FEDFUNDS, PCEPILFE, UNRATE, NROU, SEPLR, HLWRSTAR]
+          derived: *taylor_inputs
+        transform: level
+        normalize: {method: gap, center: 0.0, scale: 1.5}
         direction: 1
         weight: 0.20
-        why: Forward-looking real rate, available weeks before core PCE.
+        carry_forward_periods: 6
+        why: Plain stance check with no rule coefficients. Guards against the Taylor rule's uncertain inputs.
 
       - id: financial_conditions
         label: Financial conditions index
@@ -258,7 +300,7 @@ drivers:
         transform: level
         normalize: {method: gap, center: 0.0, scale: 0.5}
         direction: 1
-        weight: 0.35
+        weight: 0.30
         why: Captures credit spreads and leverage the funds rate misses.
 
   # Fiscal: +1 is small or consolidating fiscal (tight), -1 large or expanding

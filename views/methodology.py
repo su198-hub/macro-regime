@@ -243,8 +243,33 @@ prose(f'<p><b>Rolling z-score</b> is used only where there is no meaningful cent
 st.latex(r"z_t \;=\; \dfrac{x_t - \operatorname{mean}_w(x)}{\operatorname{sd}_w(x)}")
 prose(f'<p>A gap says <i>tight</i>; a z-score only says <i>unusual</i>. That is why gaps '
       f'are preferred. Both are clipped to ±{CLIP:g} so a single extreme print cannot '
-      f'dominate a driver, then multiplied by the direction (+1 or −1).</p>'
-      '<h3 class="m-h3">Indicator set</h3>'
+      f'dominate a driver, then multiplied by the direction (+1 or −1).</p>')
+
+taylor = next((i for spec in cfg["drivers"].values() for i in spec["indicators"]
+               if i["id"] == "taylor_gap"), None)
+if taylor:
+    d = taylor["source"].get("derived") or {}
+    rule = d.get("taylor_rate", {})
+    prose(
+        '<h3 class="m-h3">Monetary policy: neutral rate and Taylor rule</h3>'
+        '<p>"Too hawkish" or "too dovish" is a judgment against what conditions call for, not '
+        'just whether rates are high. The core monetary indicator is therefore a <b>Taylor-rule '
+        'gap</b>: the fed funds rate less the rate a Taylor rule recommends given inflation and '
+        'slack. Below zero, policy is looser than the rule; above zero, tighter.</p>'
+        f'<p>As configured, the recommended rate is <code>{ui.esc(rule.get("expr", ""))}</code>'
+        + (f', floored at {float(rule["floor"]):g}% so that years at the zero lower bound do not '
+           f'read as too hawkish' if "floor" in rule else '')
+        + '. The output gap is proxied by twice the gap between CBO\'s noncyclical unemployment '
+        'rate and the actual rate, which updates monthly.</p>'
+        '<p><b>The neutral rate (r*)</b> cannot be observed and has to be estimated. The monitor '
+        'uses the FOMC\'s longer-run fed funds median less the 2% target where it has been '
+        'published (2012 on): what policymakers believed at the time, and never revised. Before '
+        'that, it uses the New York Fed\'s one-sided Holston-Laubach-Williams estimate, which only '
+        'uses data available at each date. Estimates of r* are uncertain by a point or more, '
+        'enough to flip the sign of the gap, so a plain real-rate-versus-neutral measure is kept '
+        'alongside at a lower weight.</p>')
+
+prose('<h3 class="m-h3">Indicator set</h3>'
       '<p>Weights are shown both as configured and as a share of their driver.</p>')
 
 rows = []
@@ -259,9 +284,17 @@ for n in driver_names:
             for sid in sorted(src.get("fred", []), key=len, reverse=True):
                 source = source.replace(sid, fred_link(sid))
             for alias, spec in (src.get("derived") or {}).items():
-                source += (f'<br><span style="color:{ui.INK_2}">{ui.esc(alias)} = '
-                           f'{ui.esc(TRANSFORM_TEXT.get(spec.get("transform", "level"), ""))} '
-                           f'of {fred_link(spec["fred"])}</span>')
+                if "first_of" in spec:
+                    what = (f'{ui.esc(spec["first_of"][0])}, or {ui.esc(", ".join(spec["first_of"][1:]))} '
+                            f'before it is available')
+                elif "expr" in spec:
+                    what = ui.esc(spec["expr"])
+                    if "floor" in spec:
+                        what += f', floored at {float(spec["floor"]):g}'
+                else:
+                    what = (f'{ui.esc(TRANSFORM_TEXT.get(spec.get("transform", "level"), ""))} '
+                            f'of {fred_link(spec["fred"])}')
+                source += f'<br><span style="color:{ui.INK_2}">{ui.esc(alias)} = {what}</span>'
         else:
             source = fred_link(src["fred"])
         norm = i["normalize"]
@@ -338,7 +371,7 @@ prov_cfg = meta_cfg.get("provisional") or {}
 anchor_names = [i.get("label") or i["id"] for spec in cfg["drivers"].values()
                 for i in spec["indicators"] if i.get("anchor")]
 timely = ["weekly_economic_index", "jobless_claims_yoy", "supply_chain_pressure",
-          "ex_ante_real_rate", "capex_plans_philadelphia", "capex_plans_empire"]
+          "taylor_gap_expected", "capex_plans_philadelphia", "capex_plans_empire"]
 timely_names = [i.get("label") or i["id"] for spec in cfg["drivers"].values()
                 for i in spec["indicators"] if i["id"] in timely]
 prose(
@@ -472,6 +505,10 @@ terms = [
     ("Transitional", "Reported when no regime clears the confidence floor."),
     ("Vintage", "The date a value was published. Revisions create new vintages."),
     ("Anchor", "An indicator a month cannot be confirmed without, such as consumer spending."),
+    ("Neutral rate (r*)", "The real interest rate that neither stimulates nor restrains the "
+                          "economy. Estimated, not observed."),
+    ("Taylor rule", "A benchmark policy rate set from the neutral rate, inflation's distance "
+                    "from target and the output gap. The Taylor gap is the actual rate less it."),
     ("Confirmed", "A month whose core data is in. Only confirmed months get a regime call."),
     ("Provisional reading", "An early read of a month not yet confirmed, from the data released "
                             "so far. It has probabilities but no call."),

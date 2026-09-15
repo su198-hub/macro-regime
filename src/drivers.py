@@ -49,7 +49,8 @@ def required_series(cfg: dict) -> list[str]:
             elif isinstance(fred, list):
                 ids.update(fred)
             for d in (src.get("derived") or {}).values():
-                ids.add(d["fred"])
+                if isinstance(d.get("fred"), str):
+                    ids.add(d["fred"])
     return sorted(ids)
 
 
@@ -75,11 +76,34 @@ def _build_input(ind: dict, wide: pd.DataFrame, carry: int = 0) -> pd.Series | N
             return None
         env[col] = to_monthly(wide[col].dropna(), end, carry)
 
+    # Derived inputs are built in order, so each can use the ones before it:
+    #   {fred: X, transform: t}      a transform of one source series
+    #   {expr: "...", floor: f}      a formula over inputs so far, optionally floored
+    #   {first_of: [a, b]}           a where available, otherwise b
     for alias, spec in (src.get("derived") or {}).items():
-        base = env.get(spec["fred"])
-        if base is None:
-            return None
-        env[alias] = TRANSFORMS[spec.get("transform", "level")](base)
+        if "first_of" in spec:
+            parts = [env.get(name) for name in spec["first_of"]]
+            if any(p is None for p in parts):
+                return None
+            combined = parts[0]
+            for p in parts[1:]:
+                combined = combined.combine_first(p)
+            env[alias] = combined
+        elif "expr" in spec:
+            frame = pd.DataFrame(env)
+            try:
+                value = frame.eval(spec["expr"])
+            except Exception as exc:
+                raise ValueError(f"bad derived expr {alias} for {ind['id']}: {spec['expr']}") from exc
+            if "floor" in spec:
+                value = value.where(value.isna() | (value >= float(spec["floor"])),
+                                    float(spec["floor"]))
+            env[alias] = value
+        else:
+            base = env.get(spec["fred"])
+            if base is None:
+                return None
+            env[alias] = TRANSFORMS[spec.get("transform", "level")](base)
 
     frame = pd.DataFrame(env).dropna(how="all")
     if frame.empty:
