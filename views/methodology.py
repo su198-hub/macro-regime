@@ -37,12 +37,7 @@ rlabel = {n: reg["regimes"][n]["label"] for n in regime_names}
 latest = probs.index[-1]
 chash = config_hash(cfg)
 
-TRANSFORM_TEXT = {
-    "level": "Level, as published",
-    "yoy_pct": "Change on a year earlier, %",
-    "pct_change_3m_ann": "Change over 3 months, annualised %",
-    "diff_12m": "Change on a year earlier, in units",
-}
+TRANSFORM_TEXT = ui.TRANSFORM_TEXT
 
 
 def section(anchor: str, number: int, title: str) -> None:
@@ -314,7 +309,10 @@ called_text = rlabel.get(call["called"], "transitional")
 prose(f'<p>{ui.esc(rlabel[leader])} is closest, at a distance of {dist[leader]:.2f}, '
       f'giving it {probs.at[latest, leader]:.0%}. The driver pulling hardest against it is '
       f'<b>{ui.esc(dlabel[pull].lower())}</b>. After the persistence rule and confidence '
-      f'floor, the call is <b>{ui.esc(called_text)}</b>.</p>')
+      f'floor, the call is <b>{ui.esc(called_text)}</b>.</p>'
+      f'<p>On the dashboard, click any number in "What is pulling the call" to trace it '
+      f'further: the driver\'s recent path against that regime, and each indicator\'s '
+      f'latest reading, score and contribution to the driver.</p>')
 
 # ---------- 9. validation ----------
 

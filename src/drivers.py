@@ -85,20 +85,32 @@ def _build_input(ind: dict, wide: pd.DataFrame) -> pd.Series | None:
         raise ValueError(f"bad expr for {ind['id']}: {expr}") from exc
 
 
-def indicator_scores(cfg: dict, wide: pd.DataFrame) -> pd.DataFrame:
-    """Normalised, direction-adjusted score per indicator, monthly."""
-    out: dict[str, pd.Series] = {}
+def indicator_frames(cfg: dict, wide: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """(transformed input before normalisation, normalised direction-adjusted score).
+
+    Both monthly, columns "driver::indicator". The first is the number an
+    analyst would recognise, such as consumption up 2.9% on a year earlier; the
+    second is what enters the driver.
+    """
+    inputs: dict[str, pd.Series] = {}
+    scores: dict[str, pd.Series] = {}
     for driver_name, driver in cfg["drivers"].items():
         for ind in driver["indicators"]:
             raw = _build_input(ind, wide)
             if raw is None or raw.dropna().empty:
                 continue
             transformed = TRANSFORMS[ind.get("transform", "level")](raw)
-            scored = normalise(transformed, ind["normalize"])
-            out[f"{driver_name}::{ind['id']}"] = scored * int(ind["direction"])
-    if not out:
-        return pd.DataFrame()
-    return pd.DataFrame(out).sort_index()
+            key = f"{driver_name}::{ind['id']}"
+            inputs[key] = transformed
+            scores[key] = normalise(transformed, ind["normalize"]) * int(ind["direction"])
+    if not scores:
+        return pd.DataFrame(), pd.DataFrame()
+    return pd.DataFrame(inputs).sort_index(), pd.DataFrame(scores).sort_index()
+
+
+def indicator_scores(cfg: dict, wide: pd.DataFrame) -> pd.DataFrame:
+    """Normalised, direction-adjusted score per indicator, monthly."""
+    return indicator_frames(cfg, wide)[1]
 
 
 def driver_scores(cfg: dict, wide: pd.DataFrame) -> pd.DataFrame:
@@ -142,16 +154,43 @@ def driver_scores(cfg: dict, wide: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(frames).sort_index()
 
 
+def driver_breakdown(cfg: dict, driver_name: str, inputs: pd.DataFrame,
+                     scores: pd.DataFrame, as_of) -> pd.DataFrame:
+    """Each indicator's part in one driver's score for one month.
+
+    contribution = weight share among available indicators × score / DRIVER_SCALE,
+    so the column sums to the driver score before it is clipped to ±1.
+    """
+    rows = []
+    for ind in cfg["drivers"][driver_name]["indicators"]:
+        key = f"{driver_name}::{ind['id']}"
+        has = key in scores.columns and as_of in scores.index
+        rows.append({
+            "id": ind["id"],
+            "value": inputs.at[as_of, key] if has else np.nan,
+            "score": scores.at[as_of, key] if has else np.nan,
+            "weight": float(ind["weight"]),
+        })
+    out = pd.DataFrame(rows)
+    present = out["score"].notna()
+    total = out.loc[present, "weight"].sum()
+    out["share"] = np.where(present & (total > 0), out["weight"] / (total or 1), np.nan)
+    out["contribution"] = out["share"] * out["score"] / DRIVER_SCALE
+    return out
+
+
 def compute(store, cfg: dict, vintage: dt.date | None = None) -> dict:
     """Everything the dashboard needs for one point in time."""
     vintage = vintage or dt.date.today()
     wide = store.as_of(required_series(cfg), vintage)
     if wide.empty:
         return {"drivers": pd.DataFrame(), "indicators": pd.DataFrame(),
-                "vintage": vintage}
+                "inputs": pd.DataFrame(), "vintage": vintage}
+    inputs, scores = indicator_frames(cfg, wide)
     return {
         "drivers": driver_scores(cfg, wide),
-        "indicators": indicator_scores(cfg, wide),
+        "indicators": scores,
+        "inputs": inputs,
         "vintage": vintage,
         "config_hash": config_hash(cfg),
     }

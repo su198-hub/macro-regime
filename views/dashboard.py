@@ -14,6 +14,7 @@ import streamlit as st
 from matplotlib.colors import LinearSegmentedColormap
 
 from src import ui
+from src.drivers import DRIVER_SCALE, driver_breakdown
 from src.regimes import contributions
 from views.common import get_results, get_store, is_demo as store_is_demo
 
@@ -119,8 +120,8 @@ st.html(ui.signpost_html(drivers, cfg, reg, latest, then))
 
 st.html('<hr class="mr-rule"><h2 class="mr-h2">Regime probabilities over time</h2>'
         '<p class="mr-caption">The band on top shows the regime actually called '
-        f'after the {settings["persistence_months"]}-month persistence rule. '
-        'Hover the chart for each month.</p>')
+        f'after the {settings["persistence_months"]}-month persistence rule. The '
+        'bands below stack to 100%. Hover the chart for each month.</p>')
 span = st.segmented_control("Range", ["5 years", "15 years", "All"],
                             default="15 years", label_visibility="collapsed")
 months = {"5 years": 60, "15 years": 180}.get(span or "15 years")
@@ -137,21 +138,81 @@ with st.expander("Show as a table"):
 # ---------- detail ----------
 
 st.html('<hr class="mr-rule"><h2 class="mr-h2">Behind the call</h2>')
-tab_pull, tab_drivers, tab_ind, tab_judge, tab_cov = st.tabs(
-    ["What is pulling the call", "Driver history", "Indicators", "Judgement",
-     "Coverage"])
+tab_pull, tab_drivers, tab_judge, tab_cov = st.tabs(
+    ["What is pulling the call", "Driver history", "Judgement", "Coverage"])
+
+ORDINAL = ["largest", "second largest", "third largest", "fourth largest", "smallest"]
 
 with tab_pull:
     st.caption("Weighted squared distance from each regime's archetype, per "
                "driver, this month. Lower means closer. In the called regime's "
-               "row, the largest number is the driver arguing against the call.")
-    contrib = contributions(drivers, reg, latest)
-    contrib = contrib.rename(index=regime_label, columns=driver_label)
+               "row, the largest number is the driver arguing against the call. "
+               "Click any number to see the data behind it.")
+    raw_contrib = contributions(drivers, reg, latest)
+    contrib = raw_contrib.rename(index=regime_label, columns=driver_label)
     contrib["Total"] = contrib.sum(axis=1)
-    st.dataframe(contrib.style.format("{:.2f}").background_gradient(
-        cmap=LinearSegmentedColormap.from_list("seq", ["#ffffff", "#86b6ef"]),
-        subset=list(driver_label.values()), axis=None, vmin=0),
-        width="stretch")
+    event = st.dataframe(
+        contrib.style.format("{:.2f}").background_gradient(
+            cmap=LinearSegmentedColormap.from_list("seq", ["#ffffff", "#86b6ef"]),
+            subset=list(driver_label.values()), axis=None, vmin=0),
+        width="stretch", on_select="rerun", selection_mode="single-cell", key="pull_cell")
+
+    # Resolve the clicked cell to (regime, driver). Nothing clicked, or the
+    # Total column, falls back to the biggest gap in that regime's row, which
+    # by default is the driver arguing hardest against the call.
+    label_to_driver = {v: k for k, v in driver_label.items()}
+    focus_regime = called if called in reg["regimes"] else leading
+    focus_driver = None
+    cells = event.selection.cells if event and event.selection else []
+    if cells:
+        row, col = cells[0]
+        focus_regime = raw_contrib.index[int(row)]
+        focus_driver = label_to_driver.get(col)
+    if focus_driver is None:
+        focus_driver = raw_contrib.loc[focus_regime].idxmax()
+
+    spec = reg["regimes"][focus_regime]
+    arche = float(spec["archetype"][focus_driver])
+    score = float(drivers.at[latest, focus_driver])
+    sal = float(reg["driver_salience"].get(focus_driver, 1.0))
+    cell = float(raw_contrib.at[focus_regime, focus_driver])
+    rank = int((raw_contrib.loc[focus_regime] > cell).sum())
+    st.html(
+        f'<div style="margin-top:1.2rem"><p class="mr-eyebrow">'
+        f'{"Selected" if cells else "Largest gap for the called regime"}</p>'
+        f'<h3 class="m-h3" style="margin-top:0">{ui.esc(spec["label"])} and '
+        f'{ui.esc(driver_label[focus_driver].lower())}: {cell:.2f}</h3>'
+        f'<p class="mr-lede">{ui.esc(driver_label[focus_driver])} scores '
+        f'{ui.signed(score)} in {latest:%B %Y}. {ui.esc(spec["label"])} expects '
+        f'{ui.signed(arche)}, a gap of {abs(score - arche):.2f}. Squared and weighted by '
+        f'salience {sal:g}, that adds {cell:.2f} to the distance, the '
+        f'{ORDINAL[min(rank, 4)]} of its five drivers.</p></div>')
+    st.altair_chart(ui.gap_chart(drivers, focus_driver, arche, spec["label"],
+                                 spec["color"]), width="stretch")
+
+    parts = driver_breakdown(cfg, focus_driver, results["inputs"],
+                             results["indicators"], latest)
+    st.html(f'<p class="mr-probs-head" style="margin-top:0.6rem">What makes up the '
+            f'{ui.esc(driver_label[focus_driver].lower())} score</p>'
+            + ui.breakdown_table(parts, cfg["drivers"][focus_driver]["indicators"], score)
+            + f'<p class="mr-caption">Score is the reading measured against its centre, '
+              f'with direction applied, so positive always pushes the driver up. '
+              f'Contribution is weight × score ÷ {DRIVER_SCALE:g}; the column sums to '
+              f'the driver score. Red pushes up, blue pulls down.</p>')
+
+    with st.expander(f"Indicator scores over the last 18 months: "
+                     f"{driver_label[focus_driver].lower()}"):
+        ind = results["indicators"]
+        cols_for = [c for c in ind.columns if c.startswith(f"{focus_driver}::")]
+        block = ind[cols_for].tail(18).iloc[::-1]
+        ind_label = {i["id"]: i.get("label") or i["id"].replace("_", " ").capitalize()
+                     for i in cfg["drivers"][focus_driver]["indicators"]}
+        block.columns = [ind_label.get(c.split("::")[1], c) for c in block.columns]
+        block.index = block.index.strftime("%b %Y")
+        st.dataframe(
+            block.style.background_gradient(cmap=DIVERGING, vmin=-2, vmax=2)
+            .format("{:+.2f}", na_rep="–"),
+            width="stretch")
 
 with tab_drivers:
     st.caption("Scores run from −1 to +1. Positive means hot, tight or "
@@ -167,24 +228,6 @@ with tab_drivers:
                               for i in thin.index)
             st.warning(f"Running on partial inputs this month: {names}. "
                        "Weights were renormalised over what was available.")
-
-with tab_ind:
-    ind = results["indicators"]
-    driver_pick = st.selectbox("Driver", driver_cols,
-                               format_func=lambda d: driver_label[d])
-    cols_for = [c for c in ind.columns if c.startswith(f"{driver_pick}::")]
-    block = ind[cols_for].tail(18).iloc[::-1]
-    ind_label = {i["id"]: i.get("label") or i["id"].replace("_", " ").capitalize()
-                 for i in cfg["drivers"][driver_pick]["indicators"]}
-    block.columns = [ind_label.get(c.split("::")[1], c) for c in block.columns]
-    block.index = block.index.strftime("%b %Y")
-    st.dataframe(
-        block.style.background_gradient(cmap=DIVERGING, vmin=-2, vmax=2)
-        .format("{:+.2f}", na_rep="–"),
-        width="stretch")
-    st.caption("Normalised score with direction applied, so positive always "
-               "means the indicator is pushing its driver up. Blue pulls down, "
-               "red pushes up.")
 
 with tab_judge:
     st.caption("Analyst observations sit in the same database as the series, "

@@ -381,28 +381,32 @@ def history_chart(probs: pd.DataFrame, calls: pd.DataFrame, reg_cfg: dict) -> al
     long = wide.melt(id_vars=["date", "called"], value_vars=names,
                      var_name="regime", value_name="probability")
     long["label"] = long["regime"].map(labels)
+    # Stack in config order with the first regime on top, so the legend reads
+    # in the same order as the bands.
+    long["stack"] = long["regime"].map({n: i for i, n in enumerate(names)})
 
     x = alt.X("date:T", title=None, axis=alt.Axis(format="%Y", tickCount=8, grid=False))
     color = alt.Color("label:N", scale=alt.Scale(domain=domain, range=colors),
                       legend=alt.Legend(values=[labels[n] for n in names],
-                                        orient="bottom", columns=2, offset=14))
+                                        orient="bottom", columns=2, offset=14,
+                                        symbolType="square"))
     hover = alt.selection_point(fields=["date"], nearest=True, on="pointerover",
                                 clear="pointerout", empty=False)
 
-    lines = alt.Chart(long).mark_line(strokeWidth=2, strokeCap="round",
-                                      strokeJoin="round").encode(
-        x=x, y=alt.Y("probability:Q", title=None,
-                     scale=alt.Scale(domain=[0, 1]),
-                     axis=alt.Axis(format="%", tickCount=5, domain=False, ticks=False)),
-        color=color)
-    dots = alt.Chart(long).mark_circle(size=64, stroke="#ffffff", strokeWidth=2).encode(
-        x="date:T", y="probability:Q", color=color,
-        opacity=alt.condition(hover, alt.value(1), alt.value(0)))
+    # Probabilities sum to one, so the bands are the whole: part-to-whole over
+    # time. A 1px surface-coloured edge separates neighbouring bands.
+    areas = alt.Chart(long).mark_area(opacity=0.9, stroke="#ffffff", strokeWidth=1).encode(
+        x=x,
+        y=alt.Y("probability:Q", title=None, stack="zero", scale=alt.Scale(domain=[0, 1]),
+                axis=alt.Axis(format="%", values=[0, 0.25, 0.5, 0.75, 1], domain=False,
+                              ticks=False)),
+        color=color,
+        order=alt.Order("stack:Q", sort="descending"))
     tooltip = [alt.Tooltip("date:T", title="Month", format="%B %Y"),
                alt.Tooltip("called:N", title="Called")] + [
         alt.Tooltip(f"{n}:Q", title=labels[n], format=".0%") for n in names]
-    rule = alt.Chart(wide).mark_rule(color=AXIS, strokeWidth=1).encode(
-        x="date:T", opacity=alt.condition(hover, alt.value(1), alt.value(0)),
+    rule = alt.Chart(wide).mark_rule(color=INK, strokeWidth=1).encode(
+        x="date:T", opacity=alt.condition(hover, alt.value(0.7), alt.value(0)),
         tooltip=tooltip).add_params(hover)
 
     # The called-regime band is drawn in pixel space above the plot, inside the
@@ -419,7 +423,7 @@ def history_chart(probs: pd.DataFrame, calls: pd.DataFrame, reg_cfg: dict) -> al
         align="left", baseline="bottom", fontSize=11, color=INK_2, font=BODY_FONT,
     ).encode(text="t:N", x=alt.value(0), y=alt.value(-30))
 
-    return style(alt.layer(ribbon, ribbon_label, lines, rule, dots).properties(
+    return style(alt.layer(ribbon, ribbon_label, areas, rule).properties(
         # At container width Vega fits the whole chart, legend and band
         # included, into this height; about 300px of it is plot.
         height=430, width="container", padding={"top": 38, "left": 5, "right": 10}))
@@ -444,3 +448,102 @@ def drivers_chart(drivers: pd.DataFrame, ind_cfg: dict) -> alt.Chart:
     return style(alt.layer(zero, line, data=long).properties(width=290, height=150).facet(
         facet=alt.Facet("driver:N", sort=[labels[n] for n in names], title=None),
         columns=3, spacing={"row": 22, "column": 26}))
+
+
+# ---------- drill-down: one regime x driver cell ----------
+
+TRANSFORM_TEXT = {
+    "level": "Level, as published",
+    "yoy_pct": "Change on a year earlier, %",
+    "pct_change_3m_ann": "Change over 3 months, annualised %",
+    "diff_12m": "Change on a year earlier, in units",
+}
+UP, DOWN = "#e34948", "#2a78d6"   # diverging poles: pushes the driver up / down
+
+
+def format_reading(value: float, transform: str) -> str:
+    if pd.isna(value):
+        return "–"
+    if transform in ("yoy_pct", "pct_change_3m_ann"):
+        return f"{value:.1f}%".replace("-", "−")
+    if transform == "diff_12m":
+        return signed(value)
+    return f"{value:,.2f}".replace("-", "−")
+
+
+def gap_chart(drivers: pd.DataFrame, driver: str, archetype: float, regime_label: str,
+              color: str, months: int = 36) -> alt.Chart:
+    """The driver's recent path against where one regime expects it to sit."""
+    df = drivers[[driver]].tail(months).rename(columns={driver: "score"})
+    df.index.name = "date"
+    df = df.reset_index()
+    df["archetype"] = archetype
+    df["gap"] = df["score"] - archetype
+    x = alt.X("date:T", title=None, axis=alt.Axis(format="%b %Y", tickCount=6, grid=False))
+    y = alt.Y("score:Q", title=None, scale=alt.Scale(domain=[-1, 1]),
+              axis=alt.Axis(values=[-1, -0.5, 0, 0.5, 1], domain=False, ticks=False))
+    wash = alt.Chart(df).mark_area(opacity=0.12, color=color).encode(
+        x=x, y=y, y2="archetype:Q")
+    zero = alt.Chart(df).mark_rule(color=AXIS).encode(y=alt.datum(0))
+    target = alt.Chart(df).mark_rule(color=color, strokeWidth=2).encode(y="archetype:Q")
+    label = alt.Chart(df.tail(1)).mark_text(
+        align="right", baseline="bottom", dy=-4, fontSize=11, color=INK_2, font=BODY_FONT,
+    ).encode(x="date:T", y="archetype:Q",
+             text=alt.value(f"{regime_label} expects {signed(archetype)}"))
+    line = alt.Chart(df).mark_line(strokeWidth=2, color=NAVY).encode(
+        x=x, y=y,
+        tooltip=[alt.Tooltip("date:T", title="Month", format="%B %Y"),
+                 alt.Tooltip("score:Q", title="Driver score", format="+.2f"),
+                 alt.Tooltip("gap:Q", title="Gap to regime", format="+.2f")])
+    end = alt.Chart(df.tail(1)).mark_circle(size=70, color=NAVY, stroke="#ffffff",
+                                            strokeWidth=2, opacity=1).encode(x=x, y=y)
+    return style(alt.layer(wash, zero, target, label, line, end).properties(
+        height=210, width="container"))
+
+
+def breakdown_table(parts: pd.DataFrame, indicators: list[dict], clipped_to: float | None) -> str:
+    """Indicators behind one driver this month, largest contribution first."""
+    spec = {i["id"]: i for i in indicators}
+    parts = parts.assign(order=parts["contribution"].abs().fillna(-1)).sort_values(
+        "order", ascending=False)
+    biggest = parts["contribution"].abs().max()
+    biggest = biggest if biggest and not pd.isna(biggest) else 1.0
+
+    rows = []
+    for r in parts.itertuples():
+        ind = spec[r.id]
+        label = esc(ind.get("label") or r.id)
+        if int(ind["direction"]) < 0:
+            label += f'<br><span style="color:{INK_2};font-size:0.8rem">Inverted: higher pulls down</span>'
+        transform = ind.get("transform", "level")
+        norm = ind["normalize"]
+        centre = (f'{float(norm["center"]):g}'.replace("-", "−")
+                  if norm.get("method") == "gap"
+                  else f'Own {int(norm.get("window", 240)) / 12:g}-year history')
+        reading = (f'{format_reading(r.value, transform)}<br><span style="color:{INK_2};'
+                   f'font-size:0.8rem">{esc(TRANSFORM_TEXT.get(transform, transform))}</span>')
+        if pd.isna(r.contribution):
+            bar, contrib = "", "No data"
+        else:
+            half = abs(r.contribution) / biggest * 50
+            side = "left:50%" if r.contribution >= 0 else f"left:{50 - half:.1f}%"
+            fill = UP if r.contribution >= 0 else DOWN
+            bar = (f'<div style="position:relative;height:10px;width:120px;background:{TRACK};'
+                   f'border-radius:2px;display:inline-block;vertical-align:middle;margin-right:8px">'
+                   f'<div style="position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:{AXIS}"></div>'
+                   f'<div style="position:absolute;{side};width:{half:.1f}%;top:0;bottom:0;'
+                   f'background:{fill}"></div></div>')
+            contrib = signed(r.contribution)
+        rows.append([Raw(label), Raw(reading), centre,
+                     "–" if pd.isna(r.score) else signed(r.score),
+                     "–" if pd.isna(r.share) else f"{r.share:.0%}",
+                     Raw(f'<span style="white-space:nowrap">{bar}{contrib}</span>')])
+
+    total = parts["contribution"].sum(min_count=1)
+    total_text = "–" if pd.isna(total) else signed(total)
+    if clipped_to is not None and not pd.isna(total) and abs(total) > 1:
+        total_text += f" → clipped to {signed(clipped_to)}"
+    rows.append([Raw("<b>Driver score</b>"), "", "", "", "100%",
+                 Raw(f'<b style="white-space:nowrap">{total_text}</b>')])
+    return table(["Indicator", "Latest reading", "Centre", "Score", "Weight",
+                  "Contribution to driver"], rows, numeric={3, 4})
