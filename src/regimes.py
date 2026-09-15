@@ -73,12 +73,55 @@ def probabilities(drivers: pd.DataFrame, reg_cfg: dict) -> pd.DataFrame:
     return pd.DataFrame(out, index=drivers.index, columns=names)
 
 
-def call_regime(probs: pd.DataFrame, reg_cfg: dict) -> pd.DataFrame:
-    """Apply persistence and the confidence floor.
+UNCLASSIFIED = "unclassified"
+
+
+def fit(drivers: pd.DataFrame, reg_cfg: dict) -> pd.DataFrame:
+    """Whether a month is close enough to its nearest regime to be called it.
+
+    Probabilities are relative: they sum to one whether or not any regime
+    describes the month. On their own they turn every middling month into
+    whichever archetype sits nearest the centre, which is how 2011-14 came out
+    as goldilocks. The fit gate asks an absolute question instead.
+
+    A month fits its nearest regime only if it is closer to that archetype than
+    a perfectly neutral economy (every driver at zero) would be. The threshold
+    is each archetype's own distance from neutral, so there is nothing to tune:
+    a regime far from neutral, like a hard landing, accepts months that are far
+    from neutral, and one near it, like goldilocks, demands a closer match.
+    """
+    driver_order = _driver_order(reg_cfg)
+    names, arche, salience = _matrix(reg_cfg, driver_order)
+    X = drivers.reindex(columns=driver_order).to_numpy(dtype=float)
+    valid = ~np.isnan(X).any(axis=1)
+    from_neutral = np.sqrt(((arche ** 2) * salience).sum(axis=1))
+
+    nearest = np.full(len(X), None, dtype=object)
+    distance = np.full(len(X), np.nan)
+    threshold = np.full(len(X), np.nan)
+    if valid.any():
+        diff = X[valid][:, None, :] - arche[None, :, :]
+        dist = np.sqrt(((diff ** 2) * salience).sum(axis=2))
+        k = dist.argmin(axis=1)
+        nearest[valid] = np.array(names, dtype=object)[k]
+        distance[valid] = dist[np.arange(len(k)), k]
+        threshold[valid] = from_neutral[k]
+    out = pd.DataFrame({"nearest": nearest, "distance": distance, "threshold": threshold},
+                       index=drivers.index)
+    out["fits"] = out["distance"] < out["threshold"]
+    return out
+
+
+def call_regime(probs: pd.DataFrame, reg_cfg: dict, fits: pd.Series | None = None) -> pd.DataFrame:
+    """Apply the fit gate, persistence and the confidence floor.
 
     The leading regime only becomes the called regime after it has led for
     `persistence_months` consecutive months. Without this the dashboard flips
     on noise and people stop opening it.
+
+    With the fit gate on, a month whose leader does not fit counts as
+    "unclassified" and goes through the same persistence rule, so the call
+    moves to and from "no clear regime" as deliberately as between regimes.
     """
     persistence = int(reg_cfg["settings"]["persistence_months"])
     floor = float(reg_cfg["settings"]["min_confidence"])
@@ -87,13 +130,17 @@ def call_regime(probs: pd.DataFrame, reg_cfg: dict) -> pd.DataFrame:
     # scored months only and leave unscored months as NaN for the loop below.
     leader = probs.dropna(how="all").idxmax(axis=1).reindex(probs.index)
     top = probs.max(axis=1)
+    state = leader.copy()
+    if fits is not None:
+        misfit = leader.notna() & ~fits.reindex(probs.index).fillna(False).astype(bool)
+        state = state.astype(object).where(~misfit, UNCLASSIFIED)
 
     called: list[str | None] = []
     current: str | None = None   # the regime we are currently calling
     previous: str | None = None  # last month's leader, for the run counter
     run = 0
 
-    for name in leader:
+    for name in state:
         if pd.isna(name):
             called.append(current)
             previous, run = None, 0
@@ -112,9 +159,11 @@ def call_regime(probs: pd.DataFrame, reg_cfg: dict) -> pd.DataFrame:
     result = pd.DataFrame({
         "leading": leader,
         "leading_probability": top,
+        "state": state,
         "called": called,
     }, index=probs.index)
-    result.loc[result["leading_probability"] < floor, "called"] = "transitional"
+    low = (result["leading_probability"] < floor) & (result["called"] != UNCLASSIFIED)
+    result.loc[low, "called"] = "transitional"
     return result
 
 
@@ -133,4 +182,9 @@ def contributions(drivers: pd.DataFrame, reg_cfg: dict, as_of) -> pd.DataFrame:
 
 def run(drivers: pd.DataFrame, reg_cfg: dict) -> dict:
     probs = probabilities(drivers, reg_cfg)
-    return {"probabilities": probs, "calls": call_regime(probs, reg_cfg)}
+    gate = str(reg_cfg["settings"].get("fit_gate", "none"))
+    fitted = fit(drivers, reg_cfg)
+    fits = fitted["fits"] if gate == "closer_than_neutral" else None
+    calls = call_regime(probs, reg_cfg, fits)
+    calls = calls.join(fitted[["distance", "threshold", "fits"]])
+    return {"probabilities": probs, "calls": calls, "fit": fitted}

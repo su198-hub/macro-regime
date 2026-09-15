@@ -24,6 +24,22 @@ AXIS = "#bdbdbd"
 NAVY = "#12203f"      # driver labels on the signpost chart only, as in the deck
 TRACK = "#eeeeee"
 TRANSITIONAL = "#b3b3b3"
+UNCLASSIFIED_COLOR = "#d9d9d9"
+CALL_STATES = {"transitional": ("Transitional", TRANSITIONAL),
+               "unclassified": ("No clear regime", UNCLASSIFIED_COLOR)}
+
+
+def call_label(called, reg_cfg: dict) -> str:
+    """Display name for a call: a regime label, 'Transitional' or 'No clear regime'."""
+    if called in reg_cfg["regimes"]:
+        return reg_cfg["regimes"][called]["label"]
+    return CALL_STATES.get(called, ("No call", TRANSITIONAL))[0]
+
+
+def call_color(called, reg_cfg: dict) -> str:
+    if called in reg_cfg["regimes"]:
+        return reg_cfg["regimes"][called]["color"]
+    return CALL_STATES.get(called, ("", TRANSITIONAL))[1]
 TONES = {  # end-of-scale boxes: (fill, text)
     "risk": ("#b83232", "#ffffff"),
     "good": ("#1f8a1f", "#ffffff"),
@@ -320,11 +336,17 @@ def provisional_box(reading: dict, reg_cfg: dict, called: str, confirm_by, confi
     lead = reading["leading"]
     spec = reg_cfg["regimes"][lead]
     p = float(reading["probabilities"][lead])
-    if lead == called:
+    fits = bool(reading.get("fits", True))
+    called_name = call_label(called, reg_cfg)
+    if not fits:
+        verdict = (f"No clear regime. Nearest is {esc(spec['label'])} ({p:.0%}), but not close "
+                   f"enough to call it.")
+    elif lead == called:
         verdict = f"Leaning {esc(spec['label'])}, {p:.0%}, in line with the call."
+    elif called == "unclassified":
+        verdict = f"Leaning {esc(spec['label'])}, {p:.0%}, while the confirmed call is no clear regime."
     else:
-        call_label = reg_cfg["regimes"].get(called, {}).get("label", "the call")
-        verdict = f"Leaning {esc(spec['label'])}, {p:.0%}, away from the {esc(call_label)} call."
+        verdict = f"Leaning {esc(spec['label'])}, {p:.0%}, away from the {esc(called_name)} call."
     confirm = ""
     if confirm_by is not None and not pd.isna(confirm_by):
         confirm = f" {month:%B} should be confirmed around {day_month(confirm_by)}"
@@ -605,16 +627,18 @@ def regime_runs(called: pd.Series) -> pd.DataFrame:
 def history_chart(probs: pd.DataFrame, calls: pd.DataFrame, reg_cfg: dict) -> alt.Chart:
     names = [n for n in probs.columns]
     labels = {n: reg_cfg["regimes"][n]["label"] for n in names}
-    domain = [labels[n] for n in names] + ["Transitional"]
-    colors = [reg_cfg["regimes"][n]["color"] for n in names] + [TRANSITIONAL]
+    domain = [labels[n] for n in names] + [label for label, _ in CALL_STATES.values()]
+    colors = [reg_cfg["regimes"][n]["color"] for n in names] + [c for _, c in CALL_STATES.values()]
 
     wide = probs.copy()
     wide.index = month_mid(wide.index)
     wide.index.name = "date"
     wide = wide.reset_index()
     wide["called"] = calls["called"].reindex(probs.index).map(
-        lambda c: labels.get(c, "Transitional")).to_numpy()
-    long = wide.melt(id_vars=["date", "called"], value_vars=names,
+        lambda c: call_label(c, reg_cfg)).to_numpy()
+    fits = calls["fits"] if "fits" in calls else pd.Series(True, index=calls.index)
+    wide["fit"] = fits.reindex(probs.index).map({True: "Yes", False: "No"}).to_numpy()
+    long = wide.melt(id_vars=["date", "called", "fit"], value_vars=names,
                      var_name="regime", value_name="probability")
     long["label"] = long["regime"].map(labels)
     # Stack in config order with the first regime on top, so the legend reads
@@ -638,7 +662,8 @@ def history_chart(probs: pd.DataFrame, calls: pd.DataFrame, reg_cfg: dict) -> al
                               ticks=False)),
         color=color,
         order=alt.Order("stack:Q", sort="descending"))
-    tooltip = [month_tip("date"), alt.Tooltip("called:N", title="Called")] + [
+    tooltip = [month_tip("date"), alt.Tooltip("called:N", title="Called"),
+               alt.Tooltip("fit:N", title="Fits nearest regime")] + [
         alt.Tooltip(f"{n}:Q", title=labels[n], format=".0%") for n in names]
     rule = alt.Chart(wide).mark_rule(color=INK, strokeWidth=1).encode(
         x="date:T", opacity=alt.condition(hover, alt.value(0.7), alt.value(0)),
@@ -647,7 +672,7 @@ def history_chart(probs: pd.DataFrame, calls: pd.DataFrame, reg_cfg: dict) -> al
     # The called-regime band is drawn in pixel space above the plot, inside the
     # same layer, so it shares the x scale and the chart can fill its container.
     runs = regime_runs(calls["called"].reindex(probs.index))
-    runs["label"] = runs["regime"].map(lambda c: labels.get(c, "Transitional"))
+    runs["label"] = runs["regime"].map(lambda c: call_label(c, reg_cfg))
     # Runs cover whole months: from the first day of the first month to the
     # first day of the month after the last.
     runs["start"] = month_start(runs["start"])

@@ -364,6 +364,7 @@ def compute(store, cfg: dict, vintage: dt.date | None = None) -> dict:
         "provisional": provisional_months(cfg, drivers, scores),
         "frequency": freq,
         "release_lags": lags,
+        "last_obs": {c: wide[c].dropna().index.max() for c in wide.columns},
         "vintage": vintage,
         "config_hash": config_hash(cfg),
     }

@@ -109,21 +109,37 @@ since = called_rows.index[-held] if held else latest
 ranked = probs.loc[latest].sort_values(ascending=False)
 runner_up = ranked.index[1] if len(ranked) > 1 else None
 
+call_name, swatch = ui.call_label(called, reg), ui.call_color(called, reg)
+state = call.get("state", leading)
+fits_now = bool(call.get("fits", True))
+distance, threshold = call.get("distance"), call.get("threshold")
+fit_numbers = (f"distance {distance:.2f} against {threshold:.2f} for a neutral economy"
+               if pd.notna(distance) and pd.notna(threshold) else "")
+
 if called == "transitional":
-    call_name, swatch = "Transitional", ui.TRANSITIONAL
     lede = (f"No regime clears the {settings['min_confidence']:.0%} confidence "
             f"floor. {regime_label[leading]} leads with {ranked.iloc[0]:.0%}.")
+elif called == "unclassified" and fits_now:
+    lede = (f"{regime_label[leading]} fits this month ({ranked.iloc[0]:.0%}; {fit_numbers}), "
+            f"but has not fit for long enough to be called. No clear regime since {since:%B %Y}.")
+elif called == "unclassified":
+    lede = (f"Nearest is {regime_label[leading]} ({ranked.iloc[0]:.0%}), but conditions are "
+            f"no closer to it than a neutral economy would be, so no regime is called"
+            + (f" ({fit_numbers})" if fit_numbers else "") + f". No clear regime since {since:%B %Y}.")
 else:
-    call_name, swatch = regime_label[called], reg["regimes"][called]["color"]
     lede = f"{regime_label[leading]} leads with {ranked.iloc[0]:.0%} probability"
     if runner_up is not None:
         gap = (ranked.iloc[0] - ranked.iloc[1]) * 100
         lede += f", {gap:.0f} points ahead of {regime_label[runner_up]}"
     lede += f". Called since {since:%B %Y}."
+    if fit_numbers:
+        lede += (f" It fits: conditions sit closer to it than a neutral economy would ({fit_numbers})."
+                 if fits_now else
+                 f" This month it does not fit clearly ({fit_numbers}).")
 
-if called not in ("transitional", leading):
-    streak = ui.run_length(calls.loc[:latest, "leading"])
-    lede += (f" {regime_label[leading]} has led for {streak} of the "
+if called != "transitional" and state != called and pd.notna(state):
+    streak = ui.run_length(calls.loc[:latest, "state"])
+    lede += (f" {ui.call_label(state, reg)} for {streak} of the "
              f"{settings['persistence_months']} consecutive months needed to "
              f"change the call.")
 
@@ -167,13 +183,15 @@ st.html(ui.section_head(
     "Regime probabilities over time",
     f"Monthly · {window.index[0]:%b %Y} to {latest:%b %Y}",
     "Probability of each regime, % of total, confirmed months. The band on top is the regime "
-    f"called after the {settings['persistence_months']}-month persistence rule."))
+    f"called after the {settings['persistence_months']}-month persistence rule; light gray means "
+    "no clear regime, when conditions were no closer to any regime than a neutral economy."))
 st.segmented_control("Range", ["5 years", "15 years", "All"], default="15 years",
                      label_visibility="collapsed", key="history_span")
 st.altair_chart(ui.history_chart(window, calls, reg), width="stretch")
 st.html(source_line)
 export = probs.rename(columns=regime_label).assign(
-    Called=calls["called"].reindex(probs.index).map(lambda c: regime_label.get(c, "Transitional")))
+    Called=calls["called"].reindex(probs.index).map(lambda c: ui.call_label(c, reg)),
+    **{"Fits nearest regime": calls["fits"].reindex(probs.index)} if "fits" in calls else {})
 export.index = export.index.strftime("%Y-%m")
 export.index.name = "Month"
 st.download_button("Download full history (CSV)", export.to_csv().encode(),
@@ -182,7 +200,7 @@ st.download_button("Download full history (CSV)", export.to_csv().encode(),
 with st.expander("Show as a table"):
     table = window.iloc[::-1].rename(columns=regime_label)
     table.insert(0, "Called", calls["called"].reindex(window.index).iloc[::-1]
-                 .map(lambda c: regime_label.get(c, "Transitional")))
+                 .map(lambda c: ui.call_label(c, reg)))
     table.index = table.index.strftime("%b %Y")
     st.dataframe(table.style.format("{:.0%}", subset=list(regime_label.values())),
                  width="stretch", height=320)

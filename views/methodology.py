@@ -10,6 +10,7 @@ from __future__ import annotations
 import datetime as dt
 
 import numpy as np
+import pandas as pd
 import streamlit as st
 
 from src import ui
@@ -141,9 +142,10 @@ for n in driver_names:
 st.html(ui.table(["Driver", "What it measures", "At −1", "At +1", "Indicators"],
                  rows, numeric={4}))
 
-prose('<p>Four regimes are defined by where each expects the drivers to sit. A regime is '
-      'called only when one clears the confidence floor; otherwise the call is '
-      '<b>transitional</b>.</p>')
+prose(f'<p>{n_regimes.capitalize()} regimes are defined by where each expects the drivers to '
+      'sit. A month is called a regime only when it is genuinely close to one; otherwise the call '
+      f'is <b>no clear regime</b> (section {num("m-regimes")}). Middling months are common, and '
+      'the monitor says so rather than forcing them into the nearest regime.</p>')
 chip = lambda n: ui.Raw(
     f'<span class="sp-chip" style="background:{reg["regimes"][n]["color"]};'
     f'color:{ui.text_on(reg["regimes"][n]["color"])}">{ui.esc(reg["regimes"][n].get("short", n))}</span>')
@@ -363,6 +365,25 @@ prose(f'<p>A month with any driver missing gets no probabilities rather than a g
       f'on noise.</li>'
       f'<li><b>Confidence floor.</b> If no regime reaches {settings["min_confidence"]:.0%}, '
       f'the call is reported as transitional.</li></ul>')
+if str(settings.get("fit_gate", "none")) == "closer_than_neutral":
+    thresholds = ", ".join(
+        f'{rlabel[r]} {np.sqrt(sum(float(salience.get(n, 1.0)) * float(reg["regimes"][r]["archetype"][n]) ** 2 for n in driver_names)):.2f}'
+        for r in regime_names)
+    prose(
+        '<h3 class="m-h3">Fit gate: no clear regime</h3>'
+        '<p>Probabilities are relative. They always add up to 100%, whether or not any regime '
+        'describes the month, so on their own they turn every middling month into whichever '
+        'regime sits nearest the center. Without a check, the slow, disinflationary recovery of '
+        '2011 to 2014 came out as goldilocks.</p>'
+        '<p>So a month is called a regime only if it is <b>closer to that regime\'s archetype than '
+        'a neutral economy</b>, with every driver at zero, would be. Each regime\'s threshold is its '
+        f'own distance from neutral: {ui.esc(thresholds)}. There is nothing to tune. A regime far '
+        'from neutral, like a hard landing, accepts months far from neutral; one near it, like '
+        'goldilocks, demands a close match.</p>'
+        '<p>A month that fails is <b>no clear regime</b>, and goes through the same persistence '
+        'rule as any regime, so the call moves to and from it deliberately. No clear regime is '
+        'different from transitional: transitional means regimes are close to one another; no '
+        'clear regime means none of them fits.</p>')
 
 # ---------- 8. worked example ----------
 
@@ -424,10 +445,14 @@ st.html(ui.table(
     [[rlabel[r]] + [f"{contrib.at[r, n]:.2f}" for n in driver_names]
      + [f"{dist[r]:.2f}", f"{probs.at[latest, r]:.0%}"] for r in regime_names],
     numeric=set(range(1, len(driver_names) + 3))))
-called_text = rlabel.get(call["called"], "transitional")
+called_text = ui.call_label(call["called"], reg)
+fit_text = ""
+if pd.notna(call.get("threshold")):
+    fit_text = (f' A neutral economy would sit {call["threshold"]:.2f} from it, so the month '
+                + ("fits." if call.get("fits") else "does not fit clearly."))
 prose(f'<p>{ui.esc(rlabel[leader])} is closest, at a distance of {dist[leader]:.2f}, '
-      f'giving it {probs.at[latest, leader]:.0%}. The driver pulling hardest against it is '
-      f'<b>{ui.esc(dlabel[pull].lower())}</b>. After the persistence rule and confidence '
+      f'giving it {probs.at[latest, leader]:.0%}.{fit_text} The driver pulling hardest against it is '
+      f'<b>{ui.esc(dlabel[pull].lower())}</b>. After the fit gate, persistence rule and confidence '
       f'floor, the call is <b>{ui.esc(called_text)}</b>.</p>'
       f'<p>On the dashboard, click any number in "What is pulling the call" to trace it '
       f'further: the driver\'s recent path against that regime, and each indicator\'s '
@@ -503,6 +528,8 @@ terms = [
     ("Salience", "How much a driver counts when measuring distance to an archetype."),
     ("Temperature", "Sets how sharply distances turn into probabilities."),
     ("Transitional", "Reported when no regime clears the confidence floor."),
+    ("No clear regime", "Reported when conditions are no closer to any regime than a neutral "
+                        "economy would be."),
     ("Vintage", "The date a value was published. Revisions create new vintages."),
     ("Anchor", "An indicator a month cannot be confirmed without, such as consumer spending."),
     ("Neutral rate (r*)", "The real interest rate that neither stimulates nor restrains the "

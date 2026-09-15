@@ -19,7 +19,7 @@ import pandas as pd
 import streamlit as st
 
 from src.drivers import compute, expected_release, indicator_inputs, load_config
-from src.regimes import load_regimes, probabilities, run
+from src.regimes import fit, load_regimes, probabilities, run
 from src.store import Store
 
 INDICATORS = "config/indicators.yml"
@@ -85,10 +85,15 @@ def _results_for(vintage: dt.date, version: str):
     if res["drivers"].empty:
         return None
     res.update(run(res["drivers"], reg), config=cfg, regimes=reg)
+    gate_on = str(reg["settings"].get("fit_gate", "none")) == "closer_than_neutral"
     for reading in res["provisional"]:
-        p = probabilities(pd.DataFrame([reading["drivers"]], index=[reading["month"]]), reg).iloc[0]
+        frame = pd.DataFrame([reading["drivers"]], index=[reading["month"]])
+        p = probabilities(frame, reg).iloc[0]
         reading["probabilities"] = p
         reading["leading"] = p.idxmax()
+        f = fit(frame, reg).iloc[0]
+        reading["fits"] = bool(f["fits"]) if gate_on else True
+        reading["fit_distance"], reading["fit_threshold"] = f["distance"], f["threshold"]
         reading["schedule"] = release_schedule(res, reading, vintage)
     return res
 
@@ -105,6 +110,8 @@ def release_schedule(res: dict, reading: dict, vintage: dt.date) -> pd.DataFrame
     """
     inputs = indicator_inputs(res["config"])
     freq, lags = res["frequency"], res["release_lags"]
+    last_obs = res.get("last_obs", {})
+    month_start = reading["month"] - pd.offsets.MonthBegin(1)
     status = reading["status"].copy()
     expected, frequency = [], []
     today = pd.Timestamp(vintage)
@@ -113,8 +120,13 @@ def release_schedule(res: dict, reading: dict, vintage: dt.date) -> pd.DataFrame
         fastest = max((freq.get(s, 12) for s in series), default=12)
         frequency.append(FREQ_LABEL.get(fastest, "Monthly"))
         if row.status in ("carried", "pending") and series:
+            # Only inputs that actually hold the month back: monthly or faster
+            # series without an observation for it. Quarterly and annual inputs
+            # are carried forward and never do.
+            waiting_on = [s for s in series if freq.get(s, 12) >= 12
+                          and (pd.isna(last_obs.get(s)) or last_obs[s] < month_start)]
             dates = [expected_release(reading["month"], freq.get(s, 12), lags.get(s, np.nan))
-                     for s in series if not pd.isna(lags.get(s, np.nan))]
+                     for s in (waiting_on or series) if not pd.isna(lags.get(s, np.nan))]
             when = max(dates) if dates else pd.NaT
             expected.append(when if pd.isna(when) or when > today else today)
         else:

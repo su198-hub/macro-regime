@@ -292,6 +292,7 @@ drivers:
         direction: 1
         weight: 0.20
         carry_forward_periods: 6
+        release: PCE report
         why: Plain stance check with no rule coefficients. Guards against the Taylor rule's uncertain inputs.
 
       - id: financial_conditions

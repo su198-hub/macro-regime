@@ -16,6 +16,12 @@ settings:
   temperature: 0.30        # lower = sharper calls, higher = flatter probabilities
   persistence_months: 3    # consecutive months a new leader needs before it is called
   min_confidence: 0.35     # below this, report "transitional" rather than a regime
+  # A month is called a regime only if it is closer to that regime's archetype
+  # than a neutral economy (every driver at zero) would be; otherwise it is
+  # "no clear regime". Probabilities alone are relative and turn middling
+  # months into whichever archetype sits nearest the centre. Set to none to
+  # switch the gate off.
+  fit_gate: closer_than_neutral
 
 driver_salience:           # how much each driver matters when measuring distance
   demand: 1.0

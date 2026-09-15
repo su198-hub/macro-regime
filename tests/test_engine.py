@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src.regimes import call_regime, probabilities
+from src.regimes import UNCLASSIFIED, call_regime, fit, probabilities, run
 from src.transform import normalise, pct_change_3m_ann, sum_12m, to_monthly, yoy_pct
 
 
@@ -142,6 +142,30 @@ def test_a_single_outlier_month_does_not_flip_the_call():
         index=pd.date_range("2024-01-31", periods=5, freq="ME"),
     )
     assert set(call_regime(probabilities(d, REG), REG)["called"]) == {"hot"}
+
+
+def test_a_neutral_month_fits_no_regime_even_though_probabilities_sum_to_one():
+    d = pd.DataFrame({"a": [0.0, 0.9], "b": [0.0, 0.9]},
+                     index=pd.date_range("2024-01-31", periods=2, freq="ME"))
+    f = fit(d, REG)
+    # All-neutral is exactly as far from "hot" as neutral itself is: not closer, so no fit.
+    assert not f["fits"].iloc[0]
+    assert f["fits"].iloc[1] and f["nearest"].iloc[1] == "hot"
+
+
+def test_fit_gate_moves_the_call_to_unclassified_only_after_persistence():
+    cfg = {**REG, "settings": {**REG["settings"], "fit_gate": "closer_than_neutral"}}
+    d = pd.DataFrame({"a": [1.0, 1.0, 1.0, 0.0, 0.0, 0.0],
+                      "b": [1.0, 1.0, 1.0, 0.0, 0.0, 0.0]},
+                     index=pd.date_range("2024-01-31", periods=6, freq="ME"))
+    calls = run(d, cfg)["calls"]
+    assert calls["called"].tolist() == ["hot"] * 5 + [UNCLASSIFIED]
+    assert calls["state"].iloc[3] == UNCLASSIFIED
+
+
+def test_gate_off_keeps_the_old_behaviour():
+    d = pd.DataFrame({"a": [0.0], "b": [0.0]}, index=pd.to_datetime(["2024-01-31"]))
+    assert run(d, REG)["calls"]["called"].iloc[0] in {"hot", "cold"}
 
 
 def test_confidence_floor_reports_transitional():
