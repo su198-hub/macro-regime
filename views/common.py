@@ -95,12 +95,26 @@ def is_demo(store) -> bool:
 
 
 def published_note() -> str:
-    """'Data published 15 September 2026' for pages on a snapshot, else ''."""
+    """'Data published 15 September 2026 at 07:23 UTC' on a snapshot, else ''.
+
+    The time matters: a second publish on the same day otherwise looks
+    identical, and there is no way to tell the app has picked it up.
+    """
     m = snapshot_manifest()
     if not m:
         return ""
-    when = dt.datetime.fromisoformat(m["published_at"])
-    return f"Data published {when:%d %B %Y}, latest vintage {m['latest_vintage']}."
+    when = dt.datetime.fromisoformat(m["published_at"]).astimezone(dt.timezone.utc)
+    return (f"Data published {when:%d %B %Y} at {when:%H:%M} UTC, "
+            f"latest vintage {m['latest_vintage']}.")
+
+
+def refresh_button() -> None:
+    """Let a viewer skip the wait for the periodic snapshot check."""
+    if not data_url():
+        return
+    if st.button("Check for new data", icon=":material/refresh:", type="tertiary"):
+        snapshot_manifest.clear()
+        st.rerun()
 
 
 def source_sentence(vendors: set[str]) -> str:

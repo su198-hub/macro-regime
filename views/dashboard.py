@@ -17,7 +17,7 @@ from src import ui
 from src.drivers import DRIVER_SCALE, driver_breakdown
 from src.regimes import contributions
 from views.common import (get_results, get_store, is_demo as store_is_demo, published_note,
-                          source_sentence)
+                          refresh_button, source_sentence)
 
 # Diverging blue to red through a neutral grey, for signed indicator scores.
 DIVERGING = LinearSegmentedColormap.from_list(
@@ -285,3 +285,4 @@ st.html(
     f'<b>Config:</b> {results.get("config_hash", "n/a")}</div>')
 st.page_link("views/methodology.py", label="Read the full methodology",
              icon=":material/menu_book:")
+refresh_button()
