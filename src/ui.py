@@ -528,6 +528,46 @@ def style(chart: alt.Chart) -> alt.Chart:
                               labelFontWeight="bold", title=None))
 
 
+def month_mid(index) -> pd.DatetimeIndex:
+    """Where to plot monthly values: mid-month, not the month-end they are stored on.
+
+    Stored on the last day, December lands on the January line and every month
+    reads a month late against the year ticks.
+    """
+    return pd.DatetimeIndex(index).to_period("M").to_timestamp() + pd.Timedelta(days=14)
+
+
+def month_start(index) -> pd.DatetimeIndex:
+    return pd.DatetimeIndex(index).to_period("M").to_timestamp()
+
+
+def time_x(field: str, start, end, months: tuple[int, ...] = (1,), fmt: str = "%Y",
+           every_years: int | None = None) -> alt.X:
+    """A temporal x encoding with ticks on real period starts, labeled to their right.
+
+    Dates reach the browser as UTC, so the scale and labels are UTC too: a
+    viewer's time zone can never move a month into the one before.
+    """
+    start, end = pd.Timestamp(start), pd.Timestamp(end)
+    span = end.year - start.year + 1
+    step = every_years or (1 if span <= 16 else 2 if span <= 30 else 5)
+    values = [alt.DateTime(year=y, month=m, date=1, utc=True)
+              for y in range(start.year, end.year + 2) if y % step == 0 or step == 1
+              for m in months
+              if start <= pd.Timestamp(year=y, month=m, day=1) <= end + pd.Timedelta(days=31)]
+    return alt.X(f"{field}:T", title=None, scale=alt.Scale(type="utc"),
+                 axis=alt.Axis(values=values, format=fmt, labelAlign="left", labelPadding=4,
+                               labelOffset=3, ticks=True, tickSize=6, tickColor=AXIS,
+                               domain=True, domainColor=AXIS, grid=False, labelFlush=False))
+
+
+def month_tip(field: str, title: str = "Month") -> alt.Tooltip:
+    # A utc time unit makes Vega format in UTC; formatType="utc" on a temporal
+    # tooltip renders NaN.
+    return alt.Tooltip(field, timeUnit="utcyearmonth", type="temporal", title=title,
+                       format="%B %Y")
+
+
 def regime_runs(called: pd.Series) -> pd.DataFrame:
     """Collapse a monthly called-regime series into contiguous spans."""
     s = called.dropna()
@@ -552,6 +592,7 @@ def history_chart(probs: pd.DataFrame, calls: pd.DataFrame, reg_cfg: dict) -> al
     colors = [reg_cfg["regimes"][n]["color"] for n in names] + [TRANSITIONAL]
 
     wide = probs.copy()
+    wide.index = month_mid(wide.index)
     wide.index.name = "date"
     wide = wide.reset_index()
     wide["called"] = calls["called"].reindex(probs.index).map(
@@ -563,7 +604,7 @@ def history_chart(probs: pd.DataFrame, calls: pd.DataFrame, reg_cfg: dict) -> al
     # in the same order as the bands.
     long["stack"] = long["regime"].map({n: i for i, n in enumerate(names)})
 
-    x = alt.X("date:T", title=None, axis=alt.Axis(format="%Y", tickCount=8, grid=False))
+    x = time_x("date", month_start(probs.index)[0], probs.index[-1])
     color = alt.Color("label:N", scale=alt.Scale(domain=domain, range=colors),
                       legend=alt.Legend(values=[labels[n] for n in names],
                                         orient="bottom", columns=2, offset=14,
@@ -580,8 +621,7 @@ def history_chart(probs: pd.DataFrame, calls: pd.DataFrame, reg_cfg: dict) -> al
                               ticks=False)),
         color=color,
         order=alt.Order("stack:Q", sort="descending"))
-    tooltip = [alt.Tooltip("date:T", title="Month", format="%B %Y"),
-               alt.Tooltip("called:N", title="Called")] + [
+    tooltip = [month_tip("date"), alt.Tooltip("called:N", title="Called")] + [
         alt.Tooltip(f"{n}:Q", title=labels[n], format=".0%") for n in names]
     rule = alt.Chart(wide).mark_rule(color=INK, strokeWidth=1).encode(
         x="date:T", opacity=alt.condition(hover, alt.value(0.7), alt.value(0)),
@@ -591,12 +631,17 @@ def history_chart(probs: pd.DataFrame, calls: pd.DataFrame, reg_cfg: dict) -> al
     # same layer, so it shares the x scale and the chart can fill its container.
     runs = regime_runs(calls["called"].reindex(probs.index))
     runs["label"] = runs["regime"].map(lambda c: labels.get(c, "Transitional"))
+    # Runs cover whole months: from the first day of the first month to the
+    # first day of the month after the last.
+    runs["start"] = month_start(runs["start"])
+    runs["end"] = month_start(runs["end"])
+    runs["until"] = runs["end"] - pd.Timedelta(days=1)
     ribbon = alt.Chart(runs).mark_rect().encode(
-        x="start:T", x2="end:T", y=alt.value(-26), y2=alt.value(-12),
+        x=alt.X("start:T", scale=alt.Scale(type="utc")), x2="end:T",
+        y=alt.value(-26), y2=alt.value(-12),
         color=alt.Color("label:N", scale=alt.Scale(domain=domain, range=colors)),
-        tooltip=[alt.Tooltip("label:N", title="Called"),
-                 alt.Tooltip("start:T", title="From", format="%B %Y"),
-                 alt.Tooltip("end:T", title="Until", format="%B %Y")])
+        tooltip=[alt.Tooltip("label:N", title="Called"), month_tip("start", "From"),
+                 month_tip("until", "Until")])
     ribbon_label = alt.Chart(pd.DataFrame({"t": ["Called regime"]})).mark_text(
         align="left", baseline="bottom", fontSize=11, color=INK_2, font=BODY_FONT,
     ).encode(text="t:N", x=alt.value(0), y=alt.value(-30))
@@ -611,17 +656,18 @@ def drivers_chart(drivers: pd.DataFrame, ind_cfg: dict) -> alt.Chart:
     names = [c for c in drivers.columns if not c.endswith("__coverage")]
     labels = {n: ind_cfg["drivers"].get(n, {}).get("label", n) for n in names}
     long = drivers[names].copy()
+    first, last = month_start(long.index)[0], long.index[-1]
+    long.index = month_mid(long.index)
     long.index.name = "date"
     long = long.reset_index().melt(id_vars="date", var_name="driver", value_name="score")
     long["driver"] = long["driver"].map(labels)
 
-    base = alt.Chart().encode(x=alt.X("date:T", title=None,
-                                      axis=alt.Axis(format="%Y", tickCount=5, grid=False)))
+    # Small panels: one labeled tick every five years keeps labels from colliding.
+    base = alt.Chart().encode(x=time_x("date", first, last, every_years=5))
     line = base.mark_line(strokeWidth=2, color=INK).encode(
         y=alt.Y("score:Q", title=None, scale=alt.Scale(domain=[-1, 1]),
                 axis=alt.Axis(values=[-1, -0.5, 0, 0.5, 1], domain=False, ticks=False)),
-        tooltip=[alt.Tooltip("date:T", title="Month", format="%B %Y"),
-                 alt.Tooltip("score:Q", title="Score", format="+.2f")])
+        tooltip=[month_tip("date"), alt.Tooltip("score:Q", title="Score", format="+.2f")])
     zero = alt.Chart().mark_rule(color=AXIS).encode(y=alt.datum(0))
     return style(alt.layer(zero, line, data=long).properties(width=290, height=150).facet(
         facet=alt.Facet("driver:N", sort=[labels[n] for n in names], title=None),
@@ -653,11 +699,13 @@ def gap_chart(drivers: pd.DataFrame, driver: str, archetype: float, regime_label
               color: str, months: int = 36) -> alt.Chart:
     """The driver's recent path against where one regime expects it to sit."""
     df = drivers[[driver]].tail(months).rename(columns={driver: "score"})
+    first, last = month_start(df.index)[0], df.index[-1]
+    df.index = month_mid(df.index)
     df.index.name = "date"
     df = df.reset_index()
     df["archetype"] = archetype
     df["gap"] = df["score"] - archetype
-    x = alt.X("date:T", title=None, axis=alt.Axis(format="%b %Y", tickCount=6, grid=False))
+    x = time_x("date", first, last, months=(1, 7), fmt="%b %Y")
     y = alt.Y("score:Q", title=None, scale=alt.Scale(domain=[-1, 1]),
               axis=alt.Axis(values=[-1, -0.5, 0, 0.5, 1], domain=False, ticks=False))
     wash = alt.Chart(df).mark_area(opacity=0.12, color=color).encode(
@@ -670,7 +718,7 @@ def gap_chart(drivers: pd.DataFrame, driver: str, archetype: float, regime_label
              text=alt.value(f"{regime_label} expects {signed(archetype)}"))
     line = alt.Chart(df).mark_line(strokeWidth=2, color=INK).encode(
         x=x, y=y,
-        tooltip=[alt.Tooltip("date:T", title="Month", format="%B %Y"),
+        tooltip=[month_tip("date"),
                  alt.Tooltip("score:Q", title="Driver score", format="+.2f"),
                  alt.Tooltip("gap:Q", title="Gap to regime", format="+.2f")])
     end = alt.Chart(df.tail(1)).mark_circle(size=70, color=INK, stroke="#ffffff",

@@ -3,7 +3,13 @@
 import pandas as pd
 import pytest
 
-from src.ui import cluster, regime_runs, run_length, track_position
+from src.ui import cluster, month_mid, month_start, regime_runs, run_length, track_position
+
+
+def test_months_plot_mid_month_not_on_the_next_months_line():
+    idx = pd.to_datetime(["2016-12-31", "2017-01-31"])
+    assert list(month_mid(idx)) == [pd.Timestamp("2016-12-15"), pd.Timestamp("2017-01-15")]
+    assert list(month_start(idx)) == [pd.Timestamp("2016-12-01"), pd.Timestamp("2017-01-01")]
 
 
 def test_track_position_orders_low_to_high_and_clips():
