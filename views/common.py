@@ -142,8 +142,9 @@ def published_note() -> str:
     if not m:
         return ""
     when = dt.datetime.fromisoformat(m["published_at"]).astimezone(dt.timezone.utc)
-    return (f"Data published {when:%d %B %Y} at {when:%H:%M} UTC, "
-            f"latest vintage {m['latest_vintage']}.")
+    vintage = dt.date.fromisoformat(m["latest_vintage"])
+    return (f"Data published {when:%B} {when.day}, {when.year} at {when:%H:%M} UTC; "
+            f"latest vintage {vintage:%B} {vintage.day}.")
 
 
 def refresh_button() -> None:

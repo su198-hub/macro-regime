@@ -16,14 +16,14 @@ HEADING_FONT = ("'Sabon Next LT', 'Sabon LT Pro', 'Sabon LT Std', Sabon, "
                 "Georgia, 'Times New Roman', serif")
 BODY_FONT = "Arial, Helvetica, sans-serif"
 
-INK = "#0b0b0b"
-INK_2 = "#52514e"
-MUTED = "#898781"
-GRID = "#e1e0d9"
-AXIS = "#c3c2b7"
-NAVY = "#12203f"
-TRACK = "#ecebe6"
-TRANSITIONAL = "#b5b3ab"
+INK = "#111111"
+INK_2 = "#4d4d4d"
+MUTED = "#8c8c8c"
+GRID = "#e3e3e3"
+AXIS = "#bdbdbd"
+NAVY = "#12203f"      # driver labels on the signpost chart only, as in the deck
+TRACK = "#eeeeee"
+TRANSITIONAL = "#b3b3b3"
 TONES = {  # end-of-scale boxes: (fill, text)
     "risk": ("#b83232", "#ffffff"),
     "good": ("#1f8a1f", "#ffffff"),
@@ -76,129 +76,133 @@ def signed(x: float) -> str:
 
 CSS = f"""
 <style>
-[data-testid="stMainBlockContainer"] {{ max-width: 1180px; padding-top: 4rem; }}
-.mr-eyebrow {{ font: 600 0.88rem {BODY_FONT}; color: {INK_2}; margin: 0 0 0.25rem; }}
-.mr-title {{ font-family: {HEADING_FONT}; font-weight: 700; font-size: 2.3rem;
-  color: {NAVY}; line-height: 1.1; margin: 0; }}
-.mr-sub {{ font: 0.95rem/1.45 {BODY_FONT}; color: {INK_2}; margin: 0.35rem 0 0; }}
-.mr-rule {{ border: 0; border-top: 1px solid {GRID}; margin: 1.1rem 0 1.4rem; }}
-.mr-h2 {{ font-family: {HEADING_FONT}; font-weight: 700; font-size: 1.55rem;
-  color: {NAVY}; margin: 0 0 0.2rem; }}
-.mr-caption {{ font: 0.88rem/1.45 {BODY_FONT}; color: {INK_2}; margin: 0 0 0.9rem; }}
+/* Editorial, data-first: black type on white, hairline rules instead of boxes,
+   one strong rule above each section, small consistent radii. */
+[data-testid="stMainBlockContainer"] {{ max-width: 1200px; padding-top: 4.6rem; }}
+.mr-mast {{ border-top: 3px solid {INK}; padding-top: 0.7rem; }}
+.mr-mast-rule {{ border: 0; border-top: 3px solid {INK}; margin: 0 0 0.2rem; }}
+.mr-mast.bare {{ border-top: 0; padding-top: 0; }}
+.mr-eyebrow {{ font: 0.9rem {BODY_FONT}; color: {INK_2}; margin: 0 0 0.2rem; }}
+.mr-title {{ font-family: {HEADING_FONT}; font-weight: 700; font-size: 2.35rem;
+  color: {INK}; line-height: 1.08; margin: 0; letter-spacing: -0.005em; }}
+.mr-sub {{ font: 0.92rem/1.45 {BODY_FONT}; color: {INK_2}; margin: 0.3rem 0 0; }}
+.mr-rule {{ border: 0; border-top: 1px solid {GRID}; margin: 0.9rem 0 1.1rem; }}
+.mr-h2 {{ font-family: {HEADING_FONT}; font-weight: 700; font-size: 1.45rem; color: {INK};
+  margin: 2.2rem 0 0.15rem; padding-top: 0.55rem; border-top: 2px solid {INK}; }}
+.mr-caption {{ font: 0.88rem/1.45 {BODY_FONT}; color: {INK_2}; margin: 0 0 0.9rem; max-width: 60rem; }}
+.mr-source {{ font: 0.76rem/1.4 {BODY_FONT}; color: {MUTED}; margin: 0.35rem 0 0; }}
 
-.mr-call {{ font-family: {HEADING_FONT}; font-weight: 700; font-size: 2.6rem;
-  line-height: 1.08; color: {INK}; margin: 0.1rem 0 0.6rem; }}
-.mr-call-swatch {{ display: inline-block; width: 0.55em; height: 0.55em;
-  border-radius: 50%; margin-right: 0.35em; vertical-align: 0.08em; }}
-.mr-lede {{ font: 1rem/1.55 {BODY_FONT}; color: {INK}; margin: 0 0 0.5rem; max-width: 36rem; }}
-.mr-lede-muted {{ font: 0.88rem/1.5 {BODY_FONT}; color: {INK_2}; margin: 0; max-width: 36rem; }}
-.mr-demo {{ font: 0.85rem {BODY_FONT}; color: {INK}; background: #fdf3dc;
-  border-left: 3px solid #eda100; padding: 0.45rem 0.7rem; margin: 0.9rem 0 0; max-width: 36rem; }}
+.mr-call {{ font-family: {HEADING_FONT}; font-weight: 700; font-size: 2.7rem;
+  line-height: 1.05; color: {INK}; margin: 0.05rem 0 0.55rem; }}
+.mr-call-swatch {{ display: inline-block; width: 0.5em; height: 0.5em;
+  border-radius: 50%; margin-right: 0.3em; vertical-align: 0.1em; }}
+.mr-lede {{ font: 1rem/1.55 {BODY_FONT}; color: {INK}; margin: 0 0 0.45rem; max-width: 38rem; }}
+.mr-lede-muted {{ font: 0.86rem/1.5 {BODY_FONT}; color: {INK_2}; margin: 0; max-width: 38rem; }}
+.mr-demo {{ font: 0.86rem/1.5 {BODY_FONT}; color: {INK}; margin: 0.7rem 0 0; }}
+.mr-demo b {{ color: #b83232; }}
 
 .mr-probs {{ font-family: {BODY_FONT}; }}
-.mr-probs-head {{ font: 600 0.88rem {BODY_FONT}; color: {INK_2}; margin: 0.35rem 0 0.7rem; }}
+.mr-probs-head {{ font: 700 0.9rem {BODY_FONT}; color: {INK}; margin: 0.35rem 0 0.5rem; }}
 .mr-prob {{ display: grid; grid-template-columns: minmax(9rem, 13rem) 1fr 3rem;
-  align-items: center; gap: 0.75rem; padding: 0.42rem 0; border-bottom: 1px solid {GRID}; }}
-.mr-prob:last-child {{ border-bottom: 0; }}
+  align-items: center; gap: 0.75rem; padding: 0.4rem 0; border-bottom: 1px solid {GRID}; }}
 .mr-prob-label {{ font-size: 0.92rem; color: {INK}; }}
 .mr-prob-label b {{ font-weight: 700; }}
-.mr-prob-code {{ color: {INK_2}; font-size: 0.78rem; margin-left: 0.3rem; }}
-.mr-prob-track {{ height: 10px; background: {TRACK}; border-radius: 0 4px 4px 0; }}
-.mr-prob-bar {{ height: 10px; border-radius: 0 4px 4px 0; }}
-.mr-prob-val {{ font-size: 0.95rem; color: {INK}; text-align: right;
-  font-variant-numeric: tabular-nums; }}
-
-.sp {{ font-family: {BODY_FONT}; }}
-.sp-legend {{ display: flex; flex-wrap: wrap; gap: 0.5rem 1.2rem; align-items: center;
-  font-size: 0.84rem; color: {INK_2}; margin: 0 0 1rem; }}
-.sp-legend span {{ display: inline-flex; align-items: center; gap: 0.35rem; }}
-.sp-row {{ display: grid; grid-template-columns: 12.5rem 1fr; gap: 1.1rem;
-  align-items: center; padding: 0.55rem 0; }}
-.sp-pill {{ background: {NAVY}; color: #fff; border-radius: 10px; padding: 0.7rem 0.8rem;
-  text-align: center; font-weight: 700; font-size: 1.02rem; line-height: 1.2; }}
-.sp-read {{ font-size: 0.78rem; color: {INK_2}; text-align: center; margin-top: 0.3rem;
-  font-variant-numeric: tabular-nums; }}
-.sp-scale {{ display: grid; grid-template-columns: 7.2rem 1fr 7.2rem; min-height: 4.6rem; }}
-.sp-end {{ display: flex; align-items: center; justify-content: center; text-align: center;
-  font-weight: 700; font-size: 0.86rem; line-height: 1.2; padding: 0.3rem 0.45rem; }}
-.sp-end.left {{ border-radius: 6px 0 0 6px; }}
-.sp-end.right {{ border-radius: 0 6px 6px 0; }}
-.sp-track {{ position: relative; background: {TRACK}; margin: 0 2px; }}
-.sp-zero {{ position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: {AXIS}; }}
-.sp-star {{ position: absolute; top: 0.2rem; transform: translateX(-50%);
-  font-size: 1.45rem; line-height: 1; color: {NAVY}; z-index: 3; }}
-.sp-star-prov {{ color: {NAVY}; z-index: 4; }}
-.sp-prov-key {{ color: {NAVY}; font-size: 1.2rem; line-height: 1; }}
-.mr-prov {{ margin: 1rem 0 0; padding: 0.8rem 1rem; max-width: 36rem; background: #f4f3ef;
-  border-left: 3px solid {MUTED}; font-family: {BODY_FONT}; }}
-.mr-prov p {{ margin: 0; }}
-.mr-prov-head {{ font-weight: 600; font-size: 0.88rem; color: {INK_2}; }}
-.mr-badge {{ display: inline-block; font-size: 0.72rem; font-weight: 700; color: {INK};
-  border: 1px solid {INK_2}; border-radius: 3px; padding: 0 0.3rem; margin-right: 0.35rem;
-  vertical-align: 0.05em; }}
-.mr-prov-main {{ font-size: 1.12rem; font-weight: 700; color: {INK}; margin: 0.3rem 0 0.35rem !important; }}
-.mr-prov-body {{ font-size: 0.9rem; line-height: 1.5; color: {INK}; }}
-.mr-prov-next {{ font-size: 0.84rem; line-height: 1.5; color: {INK_2}; margin-top: 0.45rem !important; }}
+.mr-prob-code {{ color: {MUTED}; font-size: 0.76rem; margin-left: 0.3rem; }}
+.mr-prob-track {{ position: relative; height: 9px; background: {TRACK}; }}
+.mr-prob-bar {{ height: 9px; }}
+.mr-prob-val {{ font-size: 0.95rem; color: {INK}; text-align: right; font-variant-numeric: tabular-nums; }}
 .mr-prob.two {{ grid-template-columns: minmax(9rem, 13rem) 1fr 2.8rem 2.8rem; }}
-.mr-prob-cols {{ border-bottom: 1px solid {AXIS}; align-items: end; padding-bottom: 0.45rem; }}
-.mr-prob-legend {{ font-size: 0.78rem; color: {INK_2}; display: flex; flex-wrap: wrap; gap: 0.2rem 0.6rem;
-  align-items: center; }}
-.mr-prob-colhead {{ font-size: 0.78rem; font-weight: 600; color: {INK_2}; text-align: right; }}
-.mr-prob-track {{ position: relative; }}
+.mr-prob-cols {{ border-bottom: 1px solid {INK}; align-items: end; padding: 0 0 0.35rem; }}
+.mr-prob-colhead {{ font-size: 0.8rem; font-weight: 700; color: {INK}; text-align: right; }}
 .mr-prob-tick {{ position: absolute; top: -4px; bottom: -4px; width: 2px; background: {INK};
   box-shadow: 0 0 0 1px #fff; }}
 .mr-prob-prov {{ color: {INK_2}; }}
-.mr-key-bar {{ display: inline-block; width: 16px; height: 8px; background: {MUTED}; border-radius: 0 3px 3px 0; }}
 .mr-key-tick {{ display: inline-block; width: 2px; height: 11px; background: {INK};
   margin: 0 0.2rem 0 0.1rem; vertical-align: -1px; }}
-.mr-prob-note {{ font-size: 0.78rem; color: {INK_2}; margin: 0.5rem 0 0; }}
-.sp-then {{ position: absolute; top: 0.45rem; width: 12px; height: 12px; border-radius: 50%;
+.mr-prob-note {{ font-size: 0.76rem; line-height: 1.5; color: {MUTED}; margin: 0.45rem 0 0; }}
+
+.mr-prov {{ display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 2.5rem;
+  border-top: 1px solid {INK}; border-bottom: 1px solid {GRID}; padding: 0.9rem 0 1rem;
+  margin: 1.4rem 0 0; font-family: {BODY_FONT}; }}
+.mr-prov p {{ margin: 0; }}
+.mr-prov-title {{ font-family: {HEADING_FONT}; font-weight: 700; font-size: 1.2rem; color: {INK};
+  margin: 0 0 0.35rem; }}
+.mr-prov-title span {{ font-family: {BODY_FONT}; font-weight: 400; font-size: 0.86rem; color: {INK_2};
+  margin-left: 0.4rem; }}
+.mr-prov-main {{ font-size: 1.05rem; font-weight: 700; color: {INK}; margin: 0 0 0.4rem !important; }}
+.mr-prov-body {{ font-size: 0.9rem; line-height: 1.55; color: {INK}; max-width: 38rem; }}
+.mr-cal-title {{ font-weight: 700; font-size: 0.9rem; color: {INK}; margin: 0 0 0.35rem !important; }}
+.mr-cal {{ width: 100%; border-collapse: collapse; font-size: 0.86rem; color: {INK}; }}
+.mr-cal th {{ text-align: left; font-weight: 400; color: {MUTED}; font-size: 0.76rem;
+  border-bottom: 1px solid {AXIS}; padding: 0 0.6rem 0.25rem 0; }}
+.mr-cal td {{ border-bottom: 1px solid {GRID}; padding: 0.32rem 0.6rem 0.32rem 0; vertical-align: top; }}
+.mr-cal td.date {{ white-space: nowrap; font-variant-numeric: tabular-nums; width: 4.2rem; }}
+.mr-cal td.drv {{ color: {INK_2}; white-space: nowrap; }}
+.mr-cal .conf {{ font-size: 0.76rem; color: {INK_2}; }}
+
+.sp {{ font-family: {BODY_FONT}; }}
+.sp-legend {{ display: flex; flex-wrap: wrap; gap: 0.45rem 1.1rem; align-items: center;
+  font-size: 0.82rem; color: {INK_2}; margin: 0 0 0.8rem; }}
+.sp-legend span {{ display: inline-flex; align-items: center; gap: 0.35rem; }}
+.sp-row {{ display: grid; grid-template-columns: 13.5rem 1fr; gap: 1rem;
+  align-items: center; padding: 0.4rem 0; }}
+.sp-pill {{ background: {NAVY}; color: #fff; border-radius: 3px; padding: 0.62rem 0.7rem;
+  text-align: center; font-weight: 700; font-size: 1rem; line-height: 1.2; }}
+.sp-read {{ font-size: 0.76rem; color: {INK_2}; text-align: center; margin-top: 0.28rem;
+  font-variant-numeric: tabular-nums; }}
+.sp-scale {{ display: grid; grid-template-columns: 7rem 1fr 7rem; min-height: 4.4rem; }}
+.sp-end {{ display: flex; align-items: center; justify-content: center; text-align: center;
+  font-weight: 700; font-size: 0.84rem; line-height: 1.2; padding: 0.3rem 0.45rem; }}
+.sp-end.left {{ border-radius: 3px 0 0 3px; }}
+.sp-end.right {{ border-radius: 0 3px 3px 0; }}
+.sp-track {{ position: relative; background: {TRACK}; margin: 0 2px; }}
+.sp-zero {{ position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: {AXIS}; }}
+.sp-star {{ position: absolute; top: 0.2rem; transform: translateX(-50%);
+  font-size: 1.4rem; line-height: 1; color: {INK}; z-index: 3; }}
+.sp-star-prov {{ color: {INK}; z-index: 4; }}
+.sp-prov-key {{ color: {INK}; font-size: 1.15rem; line-height: 1; }}
+.sp-then {{ position: absolute; top: 0.45rem; width: 11px; height: 11px; border-radius: 50%;
   transform: translateX(-50%); border: 2px solid {MUTED}; background: {TRACK}; z-index: 2; }}
 .sp-group {{ position: absolute; bottom: 0.45rem; transform: translateX(-50%);
-  display: flex; gap: 3px; white-space: nowrap; z-index: 1; }}
-.sp-chip {{ font-size: 0.76rem; font-weight: 700; padding: 0.16rem 0.38rem; border-radius: 4px;
-  letter-spacing: 0.02em; }}
-.sp-note {{ font-size: 0.8rem; color: {INK_2}; margin-top: 0.6rem; }}
+  display: flex; gap: 2px; white-space: nowrap; z-index: 1; }}
+.sp-chip {{ font-size: 0.74rem; font-weight: 700; padding: 0.14rem 0.34rem; border-radius: 2px; }}
+.sp-note {{ font-size: 0.78rem; color: {INK_2}; margin-top: 0.5rem; }}
 
-.mr-foot {{ font: 0.8rem/1.55 {BODY_FONT}; color: {INK_2}; border-top: 1px solid {GRID};
-  margin-top: 2.4rem; padding-top: 0.9rem; }}
+.mr-foot {{ font: 0.78rem/1.6 {BODY_FONT}; color: {INK_2}; border-top: 1px solid {INK};
+  margin-top: 2.6rem; padding-top: 0.7rem; }}
 .mr-foot b {{ color: {INK}; }}
 
 .m-body p, .m-body li {{ font: 0.98rem/1.62 {BODY_FONT}; color: {INK}; max-width: 48rem; }}
 .m-body p {{ margin: 0 0 0.75rem; }}
 .m-body ul, .m-body ol {{ margin: 0 0 0.9rem; padding-left: 1.3rem; }}
 .m-body li {{ margin: 0 0 0.35rem; }}
-.m-body code {{ font-size: 0.86em; background: #f4f3ef; padding: 0.05rem 0.25rem; border-radius: 3px; }}
-.m-body a, .mr-caption a, .m-toc a, .m-table a, .mr-foot a {{ color: {NAVY}; text-decoration: underline;
+.m-body code {{ font-size: 0.86em; background: {TRACK}; padding: 0.05rem 0.25rem; border-radius: 2px; }}
+.m-body a, .mr-caption a, .m-toc a, .m-table a, .mr-foot a {{ color: {INK}; text-decoration: underline;
   text-decoration-color: {AXIS}; text-underline-offset: 2px; }}
 .m-section {{ scroll-margin-top: 5rem; }}
-.m-h3 {{ font-family: {HEADING_FONT}; font-weight: 700; font-size: 1.18rem; color: {NAVY};
-  margin: 1.4rem 0 0.35rem; }}
+.m-h3 {{ font-family: {HEADING_FONT}; font-weight: 700; font-size: 1.15rem; color: {INK};
+  margin: 1.3rem 0 0.3rem; }}
 .m-toc {{ list-style: none; padding: 0; margin: 0.4rem 0 0; columns: 2; column-gap: 2.5rem;
   font: 0.95rem/1.5 {BODY_FONT}; max-width: 44rem; }}
-.m-toc li {{ margin: 0 0 0.35rem; break-inside: avoid; }}
+.m-toc li {{ margin: 0 0 0.3rem; break-inside: avoid; }}
 .m-toc span {{ color: {MUTED}; display: inline-block; width: 1.6rem; font-variant-numeric: tabular-nums; }}
-.m-callout {{ background: #f4f3ef; border-left: 3px solid {NAVY}; padding: 0.75rem 1rem;
-  margin: 0.6rem 0 1rem; max-width: 48rem; }}
+.m-callout {{ border-top: 1px solid {INK}; border-bottom: 1px solid {GRID}; padding: 0.7rem 0;
+  margin: 0.8rem 0 1rem; max-width: 48rem; }}
 .m-callout p:last-child {{ margin-bottom: 0; }}
-.m-steps {{ counter-reset: step; list-style: none; padding-left: 0 !important; }}
-.m-steps li {{ counter-increment: step; position: relative; padding-left: 2.2rem; }}
-.m-steps li::before {{ content: counter(step); position: absolute; left: 0; top: 0.1rem;
-  width: 1.45rem; height: 1.45rem; border-radius: 50%; background: {NAVY}; color: #fff;
-  font: 700 0.78rem/1.45rem {BODY_FONT}; text-align: center; }}
 .m-wrap {{ overflow-x: auto; margin: 0.3rem 0 1rem; }}
 .m-table {{ width: 100%; border-collapse: collapse; font: 0.87rem/1.45 {BODY_FONT}; color: {INK}; }}
-.m-table th {{ text-align: left; font-weight: 600; color: {INK_2}; border-bottom: 1px solid {AXIS};
-  padding: 0.45rem 0.9rem 0.45rem 0; white-space: nowrap; vertical-align: bottom; }}
-.m-table td {{ border-bottom: 1px solid {GRID}; padding: 0.5rem 0.9rem 0.5rem 0; vertical-align: top; }}
+.m-table th {{ text-align: left; font-weight: 700; color: {INK}; border-bottom: 1px solid {INK};
+  padding: 0.4rem 0.9rem 0.35rem 0; white-space: nowrap; vertical-align: bottom; }}
+.m-table td {{ border-bottom: 1px solid {GRID}; padding: 0.45rem 0.9rem 0.45rem 0; vertical-align: top; }}
 .m-table td.num, .m-table th.num {{ text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }}
 .m-table td.muted {{ color: {INK_2}; }}
-.m-table tr.group td {{ font-weight: 700; color: {NAVY}; border-bottom: 1px solid {AXIS}; padding-top: 1rem; }}
+.m-table tr.group td {{ font-weight: 700; color: {INK}; border-bottom: 1px solid {AXIS}; padding-top: 1rem; }}
 .m-dl dt {{ font: 700 0.95rem {BODY_FONT}; color: {INK}; margin-top: 0.7rem; }}
 .m-dl dd {{ font: 0.95rem/1.55 {BODY_FONT}; color: {INK_2}; margin: 0.15rem 0 0; max-width: 48rem; }}
 
 @media (max-width: 760px) {{
   .m-toc {{ columns: 1; }}
+  .mr-prov {{ grid-template-columns: 1fr; gap: 1rem; }}
   .sp-row {{ grid-template-columns: 1fr; gap: 0.4rem; }}
   .sp-end {{ font-size: 0.66rem; padding: 0.15rem; overflow-wrap: anywhere; }}
   .sp-scale {{ grid-template-columns: 3.9rem 1fr 3.9rem; }}
@@ -206,8 +210,7 @@ CSS = f"""
   .sp-group {{ gap: 1px; }}
   .mr-prob {{ grid-template-columns: 8rem 1fr 2.6rem; }}
   .mr-prob.two {{ grid-template-columns: 7rem 1fr 2.4rem 2.4rem; gap: 0.5rem; }}
-  .mr-prob-legend {{ display: none; }}
-  .mr-call {{ font-size: 2rem; }}
+  .mr-call {{ font-size: 2.1rem; }}
 }}
 </style>
 """
@@ -293,41 +296,60 @@ def probability_panel(probs_row: pd.Series, reg_cfg: dict, called: str,
 
 
 def provisional_box(reading: dict, reg_cfg: dict, called: str, confirm_by, confirm_with: list[str],
-                    upcoming: list[tuple[str, pd.Timestamp]]) -> str:
-    """The provisional reading, framed so it cannot be mistaken for the call."""
-    month = f"{reading['month']:%B %Y}"
+                    upcoming: list[dict]) -> str:
+    """The provisional reading as a full-width band under the confirmed call.
+
+    Left: what the early data says and when the month should be confirmed.
+    Right: the releases still to come, as a small calendar table.
+    upcoming: dicts with release, date, driver, confirms (bool).
+    """
+    month = reading["month"]
     lead = reading["leading"]
     spec = reg_cfg["regimes"][lead]
     p = float(reading["probabilities"][lead])
     if lead == called:
-        verdict = f"Leaning {esc(spec['label'])}, {p:.0%}, in line with the call"
+        verdict = f"Leaning {esc(spec['label'])}, {p:.0%}, in line with the call."
     else:
         call_label = reg_cfg["regimes"].get(called, {}).get("label", "the call")
-        verdict = f"Leaning {esc(spec['label'])}, {p:.0%}, away from {esc(call_label)}"
+        verdict = f"Leaning {esc(spec['label'])}, {p:.0%}, away from the {esc(call_label)} call."
     confirm = ""
     if confirm_by is not None and not pd.isna(confirm_by):
-        confirm = f" {reading['month']:%B} should be confirmed around {day_month(confirm_by)}"
+        confirm = f" {month:%B} should be confirmed around {day_month(confirm_by)}"
         if confirm_with:
             confirm += f", once the {esc(join_words(confirm_with))} {'is' if len(confirm_with) == 1 else 'are'} out"
         confirm += "."
-    next_up = ""
+    cal = ""
     if upcoming:
-        items = " · ".join(f"{esc(name)} ~{day_month(when, short=True)}" for name, when in upcoming)
-        next_up = f'<p class="mr-prov-next">Next releases: {items}</p>'
+        rows = "".join(
+            f'<tr><td class="date">{day_month(u["date"], short=True)}</td>'
+            f'<td>{esc(u["release"])}'
+            + (f' <span class="conf">· confirms {month:%B}</span>' if u.get("confirms") else "")
+            + f'</td><td class="drv">{esc(u["driver"])}</td></tr>'
+            for u in upcoming)
+        cal = (f'<div><p class="mr-cal-title">Still to come for {month:%B}</p>'
+               f'<table class="mr-cal"><thead><tr><th>Expected</th><th>Release</th><th>Driver</th></tr>'
+               f'</thead><tbody>{rows}</tbody></table>'
+               f'<p class="mr-source">Dates estimated from each series\' recent release timing.</p></div>')
     return (
-        f'<div class="mr-prov">'
-        f'<p class="mr-prov-head"><span class="mr-badge">Provisional</span> Reading for {esc(month)}</p>'
+        f'<div class="mr-prov"><div>'
+        f'<h3 class="mr-prov-title">Provisional reading, {month:%B %Y}'
+        f'<span>not a call</span></h3>'
         f'<p class="mr-prov-main"><span class="mr-call-swatch" style="background:{spec["color"]}"></span>'
         f'{verdict}</p>'
-        f'<p class="mr-prov-body">Based on {reading["share"]:.0%} of {esc(month.split()[0])}\'s data. '
-        f'Inputs not yet released carry their latest value. This is not a call and can change as '
-        f'releases arrive.{confirm}</p>{next_up}</div>'
+        f'<p class="mr-prov-body">Based on {reading["share"]:.0%} of {month:%B} data released so far. '
+        f'Inputs not yet released carry their latest value, so this can change as releases '
+        f'arrive.{confirm}</p></div>{cal}</div>'
     )
 
 
 def day_month(when, short: bool = False) -> str:
-    """'16 September' or '16 Sep', without platform-specific strftime flags."""
-    return f"{when.day} {when:%b}" if short else f"{when.day} {when:%B}"
+    """'September 16' or 'Sep 16', without platform-specific strftime flags."""
+    return f"{when:%b} {when.day}" if short else f"{when:%B} {when.day}"
+
+
+def long_date(when) -> str:
+    """'September 15, 2026'."""
+    return f"{when:%B} {when.day}, {when.year}"
 
 
 def join_words(items: list[str]) -> str:
@@ -393,7 +415,7 @@ def signpost_html(drivers: pd.DataFrame, ind_cfg: dict, reg_cfg: dict,
     regimes = reg_cfg["regimes"]
     then_label = f"{then:%B %Y}" if then is not None else ""
     legend = [
-        f'<span><span style="color:{NAVY};font-size:1.2rem;line-height:1">&#9733;</span>'
+        f'<span><span style="color:{INK};font-size:1.15rem;line-height:1">&#9733;</span>'
         f'{as_of:%B %Y}, confirmed</span>',
     ]
     prov_scores = provisional["drivers"] if provisional else None
@@ -459,7 +481,7 @@ def signpost_html(drivers: pd.DataFrame, ind_cfg: dict, reg_cfg: dict,
         if not pd.isna(prov):
             read += f" · {provisional['month']:%b}* {signed(prov)}"
         if not pd.isna(prior):
-            read += f" · a year ago {signed(prior)}"
+            read += f" · 12m ago {signed(prior)}"
         rows.append(
             f'<div class="sp-row"><div><div class="sp-pill">{esc(driver.get("label", name))}</div>'
             f'<div class="sp-read">{read}</div></div>'
@@ -536,7 +558,7 @@ def history_chart(probs: pd.DataFrame, calls: pd.DataFrame, reg_cfg: dict) -> al
                                 clear="pointerout", empty=False)
 
     # Probabilities sum to one, so the bands are the whole: part-to-whole over
-    # time. A 1px surface-coloured edge separates neighbouring bands.
+    # time. A 1px surface-colored edge separates neighboring bands.
     areas = alt.Chart(long).mark_area(opacity=0.9, stroke="#ffffff", strokeWidth=1).encode(
         x=x,
         y=alt.Y("probability:Q", title=None, stack="zero", scale=alt.Scale(domain=[0, 1]),
@@ -581,7 +603,7 @@ def drivers_chart(drivers: pd.DataFrame, ind_cfg: dict) -> alt.Chart:
 
     base = alt.Chart().encode(x=alt.X("date:T", title=None,
                                       axis=alt.Axis(format="%Y", tickCount=5, grid=False)))
-    line = base.mark_line(strokeWidth=2, color=NAVY).encode(
+    line = base.mark_line(strokeWidth=2, color=INK).encode(
         y=alt.Y("score:Q", title=None, scale=alt.Scale(domain=[-1, 1]),
                 axis=alt.Axis(values=[-1, -0.5, 0, 0.5, 1], domain=False, ticks=False)),
         tooltip=[alt.Tooltip("date:T", title="Month", format="%B %Y"),
@@ -596,9 +618,9 @@ def drivers_chart(drivers: pd.DataFrame, ind_cfg: dict) -> alt.Chart:
 
 TRANSFORM_TEXT = {
     "level": "Level, as published",
-    "yoy_pct": "Change on a year earlier, %",
-    "pct_change_3m_ann": "Change over 3 months, annualised %",
-    "diff_12m": "Change on a year earlier, in units",
+    "yoy_pct": "Change from a year earlier, %",
+    "pct_change_3m_ann": "Change over 3 months, annualized %",
+    "diff_12m": "Change from a year earlier, in units",
 }
 UP, DOWN = "#e34948", "#2a78d6"   # diverging poles: pushes the driver up / down
 
@@ -632,12 +654,12 @@ def gap_chart(drivers: pd.DataFrame, driver: str, archetype: float, regime_label
         align="right", baseline="bottom", dy=-4, fontSize=11, color=INK_2, font=BODY_FONT,
     ).encode(x="date:T", y="archetype:Q",
              text=alt.value(f"{regime_label} expects {signed(archetype)}"))
-    line = alt.Chart(df).mark_line(strokeWidth=2, color=NAVY).encode(
+    line = alt.Chart(df).mark_line(strokeWidth=2, color=INK).encode(
         x=x, y=y,
         tooltip=[alt.Tooltip("date:T", title="Month", format="%B %Y"),
                  alt.Tooltip("score:Q", title="Driver score", format="+.2f"),
                  alt.Tooltip("gap:Q", title="Gap to regime", format="+.2f")])
-    end = alt.Chart(df.tail(1)).mark_circle(size=70, color=NAVY, stroke="#ffffff",
+    end = alt.Chart(df.tail(1)).mark_circle(size=70, color=INK, stroke="#ffffff",
                                             strokeWidth=2, opacity=1).encode(x=x, y=y)
     return style(alt.layer(wash, zero, target, label, line, end).properties(
         height=210, width="container"))
@@ -659,7 +681,7 @@ def breakdown_table(parts: pd.DataFrame, indicators: list[dict], clipped_to: flo
             label += f'<br><span style="color:{INK_2};font-size:0.8rem">Inverted: higher pulls down</span>'
         transform = ind.get("transform", "level")
         norm = ind["normalize"]
-        centre = (f'{float(norm["center"]):g}'.replace("-", "−")
+        center = (f'{float(norm["center"]):g}'.replace("-", "−")
                   if norm.get("method") == "gap"
                   else f'Own {int(norm.get("window", 240)) / 12:g}-year history')
         reading = (f'{format_reading(r.value, transform)}<br><span style="color:{INK_2};'
@@ -676,7 +698,7 @@ def breakdown_table(parts: pd.DataFrame, indicators: list[dict], clipped_to: flo
                    f'<div style="position:absolute;{side};width:{half:.1f}%;top:0;bottom:0;'
                    f'background:{fill}"></div></div>')
             contrib = signed(r.contribution)
-        rows.append([Raw(label), Raw(reading), centre,
+        rows.append([Raw(label), Raw(reading), center,
                      "–" if pd.isna(r.score) else signed(r.score),
                      "–" if pd.isna(r.share) else f"{r.share:.0%}",
                      Raw(f'<span style="white-space:nowrap">{bar}{contrib}</span>')])
@@ -687,5 +709,5 @@ def breakdown_table(parts: pd.DataFrame, indicators: list[dict], clipped_to: flo
         total_text += f" → clipped to {signed(clipped_to)}"
     rows.append([Raw("<b>Driver score</b>"), "", "", "", "100%",
                  Raw(f'<b style="white-space:nowrap">{total_text}</b>')])
-    return table(["Indicator", "Latest reading", "Centre", "Score", "Weight",
+    return table(["Indicator", "Latest reading", "Center", "Score", "Weight",
                   "Contribution to driver"], rows, numeric={3, 4})

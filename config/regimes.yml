@@ -20,7 +20,7 @@ driver_salience:           # how much each driver matters when measuring distanc
   investment: 0.9
 
 # `short` is the code shown on the signpost chart. `color` follows the regime
-# everywhere it appears; the four were checked together for colour-blind
+# everywhere it appears; the four were checked together for color-blind
 # separation on a white page, so re-check if you change one.
 
 regimes:
@@ -49,7 +49,7 @@ regimes:
       supply: 0.55
       policy: -0.30
       investment: 0.60
-    tell: Utilisation above average and rising while the real policy rate is negative.
+    tell: Utilization above average and rising while the real policy rate is negative.
 
   stagflation:
     label: Stagflation
@@ -62,7 +62,7 @@ regimes:
       supply: 0.80
       policy: 0.30
       investment: -0.40
-    tell: Unit labour costs accelerating while capex orders contract.
+    tell: Unit labor costs accelerating while capex orders contract.
 
   hard_landing:
     label: Hard landing

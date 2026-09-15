@@ -1,4 +1,4 @@
-# Macro regime dashboard
+# Macro Regime Monitor
 
 Five drivers — demand, inflation expectations, supply constraint, policy stance,
 investment spending — scored monthly from US data and mapped to four regimes:

@@ -19,22 +19,23 @@ from src.regimes import contributions
 from views.common import (get_results, get_store, is_demo as store_is_demo, published_note,
                           refresh_button, source_sentence)
 
-# Diverging blue to red through a neutral grey, for signed indicator scores.
+# Diverging blue to red through a neutral gray, for signed indicator scores.
 DIVERGING = LinearSegmentedColormap.from_list(
-    "signed", ["#2a78d6", "#f0efec", "#e34948"])
+    "signed", ["#2a78d6", "#f0f0f0", "#e34948"])
+VENDOR_NAME = {"macrobond": "Macrobond", "fred": "FRED", "demo": "synthetic demo data"}
 
 store = get_store()
 
 # ---------- masthead ----------
 
+st.html('<hr class="mr-mast-rule">')
 head_left, head_right = st.columns([3, 1], vertical_alignment="bottom")
 head_left.html(
-    '<p class="mr-eyebrow">United States</p>'
-    '<h1 class="mr-title">Macro regime monitor</h1>'
-    '<p class="mr-sub">Five drivers scored monthly from point-in-time data and '
-    'mapped to four regimes.</p>')
+    '<div class="mr-mast bare"><h1 class="mr-title">Macro Regime Monitor</h1>'
+    '<p class="mr-sub">U.S. economy · five drivers scored monthly from point-in-time data '
+    'and mapped to four regimes</p></div>')
 vintage = head_right.date_input(
-    "Data as known on", value=dt.date.today(), format="DD/MM/YYYY",
+    "Data as known on", value=dt.date.today(), format="MM/DD/YYYY",
     help="Rewind to see the call you would have made at the time, using only "
          "data published by that date.")
 st.html('<hr class="mr-rule">')
@@ -44,7 +45,7 @@ if results is None:
     st.html('<h2 class="mr-h2">No data yet</h2>'
             '<p class="mr-caption">Load something first, then refresh.</p>')
     st.code("python ingest.py demo        # synthetic, runs immediately\n"
-            "python ingest.py backfill    # real vintages, needs FRED_API_KEY")
+            "python ingest.py backfill    # real vintages")
     st.stop()
 
 drivers = results["drivers"]
@@ -56,6 +57,10 @@ settings = reg["settings"]
 driver_cols = [c for c in drivers.columns if not c.endswith("__coverage")]
 driver_label = {n: cfg["drivers"].get(n, {}).get("label", n) for n in driver_cols}
 regime_label = {n: s["label"] for n, s in reg["regimes"].items()}
+vendors = store.sources()
+source_line = (f'<p class="mr-source">Source: '
+               f'{", ".join(VENDOR_NAME.get(v, v) for v in sorted(vendors))}; '
+               f'Macro Regime Monitor calculations.</p>')
 
 if probs.empty:
     st.warning("Not enough overlapping coverage to score a regime at this "
@@ -76,17 +81,24 @@ prov_box = ""
 if prov is not None:
     ind_label = {f"{d}::{i['id']}": i.get("label") or i["id"]
                  for d, spec in cfg["drivers"].items() for i in spec["indicators"]}
+    anchor_release = {f"{d}::{i['id']}": i.get("release")
+                      for d, spec in cfg["drivers"].items() for i in spec["indicators"]}
     sched = prov["schedule"]
     waiting = sched[sched["status"].isin(["carried", "pending"])]
     anchors = waiting[waiting["anchor"]]
     confirm_by = anchors["expected"].max() if len(anchors) else waiting["expected"].max()
-    upcoming = [(ind_label[r.key].split(",")[0], r.expected)
-                for r in waiting.dropna(subset=["expected"]).sort_values("expected").head(4).itertuples()]
+    upcoming, seen = [], set()
+    for r in waiting.dropna(subset=["expected"]).sort_values("expected").itertuples():
+        release = anchor_release.get(r.key) or ind_label[r.key].split(",")[0]
+        if release in seen:
+            continue
+        seen.add(release)
+        upcoming.append({"release": release, "date": r.expected,
+                         "driver": driver_label.get(r.driver, r.driver), "confirms": bool(r.anchor)})
     # Name the releases users watch for, such as "PCE report", not the indicators.
-    release_of = {f"{d}::{i['id']}": i.get("release") or (i.get("label") or i["id"]).lower()
-                  for d, spec in cfg["drivers"].items() for i in spec["indicators"]}
-    confirm_with = list(dict.fromkeys(release_of[k] for k in anchors["key"]))
-    prov_box = ui.provisional_box(prov, reg, called, confirm_by, confirm_with, upcoming)
+    confirm_with = list(dict.fromkeys(anchor_release.get(k) or ind_label[k].lower()
+                                      for k in anchors["key"]))
+    prov_box = ui.provisional_box(prov, reg, called, confirm_by, confirm_with, upcoming[:6])
 
 # ---------- headline ----------
 
@@ -116,41 +128,43 @@ if called not in ("transitional", leading):
 
 call_col, prob_col = st.columns([1.15, 1], gap="large")
 call_col.html(
-    f'<p class="mr-eyebrow">Regime call for {latest:%B %Y}, confirmed</p>'
+    f'<p class="mr-eyebrow">Regime call, {latest:%B %Y} · confirmed</p>'
     f'<div class="mr-call"><span class="mr-call-swatch" '
     f'style="background:{swatch}"></span>{ui.esc(call_name)}</div>'
     f'<p class="mr-lede">{ui.esc(lede)}</p>'
-    f'<p class="mr-lede-muted">Data as known on {vintage:%d %B %Y}. {latest:%B %Y} is the '
+    f'<p class="mr-lede-muted">Data as known on {ui.long_date(vintage)}. {latest:%B %Y} is the '
     f'latest month with its core data released. {ui.esc(published_note())}</p>'
-    + prov_box
-    + ('<div class="mr-demo">Demo data. These series are synthetic, so the call '
-       'and the numbers mean nothing yet.</div>' if is_demo else ""))
+    + ('<p class="mr-demo"><b>Demo data.</b> These series are synthetic, so the call '
+       'and the numbers mean nothing yet.</p>' if is_demo else ""))
 prob_col.html(ui.probability_panel(
     probs.loc[latest], reg, called, f"{latest:%b}",
     prov["probabilities"] if prov is not None else None,
     f"{prov['month']:%b}" if prov is not None else ""))
+if prov_box:
+    st.html(prov_box)
 
 # ---------- signposts ----------
 
-st.html('<hr class="mr-rule"><h2 class="mr-h2">Scenario drivers and signposts</h2>'
-        '<p class="mr-caption">Each driver runs from one extreme to the other. '
-        'Regime codes sit where that regime expects the driver to be; the solid star '
-        'is the confirmed month' + (', the outlined star the provisional one' if prov is not None else '')
+st.html('<h2 class="mr-h2">Scenario drivers and signposts</h2>'
+        '<p class="mr-caption">Each driver runs from one extreme to the other. Regime codes sit '
+        'where that regime expects the driver to be; the solid star is the confirmed month'
+        + (', the outlined star the provisional one' if prov is not None else '')
         + '. Hover any mark for the exact score. '
-        '<a href="/methodology#m-signposts" target="_self">How to read this chart</a>.</p>')
-st.html(ui.signpost_html(drivers, cfg, reg, latest, then, prov))
+        '<a href="/methodology#m-signposts" target="_self">How to read this chart</a></p>')
+st.html(ui.signpost_html(drivers, cfg, reg, latest, then, prov) + source_line)
 
 # ---------- history ----------
 
-st.html('<hr class="mr-rule"><h2 class="mr-h2">Regime probabilities over time</h2>'
-        '<p class="mr-caption">The band on top shows the regime actually called '
-        f'after the {settings["persistence_months"]}-month persistence rule. The '
-        'bands below stack to 100%. Hover the chart for each month.</p>')
+st.html('<h2 class="mr-h2">Regime probabilities over time</h2>'
+        '<p class="mr-caption">Probability of each regime, % of total, confirmed months. The band '
+        f'on top is the regime called after the {settings["persistence_months"]}-month '
+        'persistence rule.</p>')
 span = st.segmented_control("Range", ["5 years", "15 years", "All"],
                             default="15 years", label_visibility="collapsed")
 months = {"5 years": 60, "15 years": 180}.get(span or "15 years")
 window = probs if months is None else probs.tail(months)
 st.altair_chart(ui.history_chart(window, calls, reg), width="stretch")
+st.html(source_line)
 with st.expander("Show as a table"):
     table = window.iloc[::-1].rename(columns=regime_label)
     table.insert(0, "Called", calls["called"].reindex(window.index).iloc[::-1]
@@ -161,9 +175,9 @@ with st.expander("Show as a table"):
 
 # ---------- detail ----------
 
-st.html('<hr class="mr-rule"><h2 class="mr-h2">Behind the call</h2>')
+st.html('<h2 class="mr-h2">Behind the call</h2>')
 tab_pull, tab_status, tab_drivers, tab_judge, tab_cov = st.tabs(
-    ["What is pulling the call", "Data status", "Driver history", "Judgement", "Coverage"])
+    ["What is pulling the call", "Data status", "Driver history", "Judgment", "Coverage"])
 
 with tab_status:
     if prov is None:
@@ -231,7 +245,7 @@ with tab_pull:
     st.html(f'<p class="mr-probs-head" style="margin-top:0.6rem">What makes up the '
             f'{ui.esc(driver_label[focus_driver].lower())} score</p>'
             + ui.breakdown_table(parts, cfg["drivers"][focus_driver]["indicators"], score)
-            + f'<p class="mr-caption">Score is the reading measured against its centre, '
+            + f'<p class="mr-caption">Score is the reading measured against its center, '
               f'with direction applied, so positive always pushes the driver up. '
               f'Contribution is weight × score ÷ {DRIVER_SCALE:g}; the column sums to '
               f'the driver score. Red pushes up, blue pulls down.</p>')
@@ -263,11 +277,11 @@ with tab_drivers:
             names = ", ".join(driver_label[i.replace("__coverage", "")].lower()
                               for i in thin.index)
             st.warning(f"Running on partial inputs this month: {names}. "
-                       "Weights were renormalised over what was available.")
+                       "Weights were renormalized over what was available.")
 
 with tab_judge:
     st.caption("Analyst observations sit in the same database as the series, "
-               "so you can ask later whether judgement led or lagged the data.")
+               "so you can ask later whether judgment led or lagged the data.")
     with st.form("judgement", clear_on_submit=True):
         c1, c2, c3 = st.columns(3)
         j_driver = c1.selectbox("Driver", driver_cols,
@@ -305,17 +319,17 @@ with tab_cov:
 
 # ---------- sources ----------
 
-source = source_sentence(store.sources())
+source = source_sentence(vendors)
 if published_note():
     source += " " + published_note()
 st.html(
     f'<div class="mr-foot"><b>Sources:</b> {source}<br>'
-    f'<b>Method:</b> each driver is a weighted mean of normalised indicators '
+    f'<b>Method:</b> each driver is a weighted mean of normalized indicators '
     f'(<code>config/indicators.yml</code>). Regime probabilities come from '
     f'distance to each archetype (<code>config/regimes.yml</code>), softmaxed at '
     f'temperature {settings["temperature"]}, with a '
     f'{settings["persistence_months"]}-month persistence rule before a call '
-    f'changes. The archetypes have not yet been validated against a labelled '
+    f'changes. The archetypes have not yet been validated against a labeled '
     f'regime history.<br>'
     f'<b>Config:</b> {results.get("config_hash", "n/a")}</div>')
 st.page_link("views/methodology.py", label="Read the full methodology",

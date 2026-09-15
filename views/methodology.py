@@ -42,7 +42,7 @@ TRANSFORM_TEXT = ui.TRANSFORM_TEXT
 
 def section(anchor: str, number: int, title: str) -> None:
     number = num(anchor)  # numbered from SECTIONS, so inserting one renumbers the rest
-    st.html(f'<hr class="mr-rule"><h2 class="mr-h2 m-section" id="{anchor}">'
+    st.html(f'<h2 class="mr-h2 m-section" id="{anchor}">'
             f'<span style="color:{ui.MUTED};font-weight:400">{number}.</span> {ui.esc(title)}</h2>')
 
 
@@ -82,9 +82,9 @@ SECTIONS = [
 ]
 
 st.html(
-    '<p class="mr-eyebrow">Macro regime monitor</p>'
-    '<h1 class="mr-title">Methodology</h1>'
-    '<p class="mr-sub">How the monitor turns point-in-time US data into a regime call. '
+    '<div class="mr-mast"><p class="mr-eyebrow">Macro Regime Monitor</p>'
+    '<h1 class="mr-title">Methodology</h1></div>'
+    '<p class="mr-sub">How the monitor turns point-in-time U.S. data into a regime call. '
     'Tables and parameters on this page are read from the live configuration, so they '
     'always describe the model the dashboard is running.</p>'
     f'<p class="mr-lede-muted" style="margin-top:0.6rem">Config {chash} · '
@@ -104,7 +104,7 @@ prose(
     '<li><b>Read the data as it was known.</b> Every series is taken as published on the '
     'chosen date, before later revisions.</li>'
     '<li><b>Score each indicator.</b> Each series is transformed, then measured against an '
-    'economically meaningful centre, such as the 2% target, giving a signed score.</li>'
+    'economically meaningful center, such as the 2% target, giving a signed score.</li>'
     f'<li><b>Build five driver scores.</b> Indicators are averaged by weight into demand, '
     f'inflation expectations, supply constraint, policy stance and investment spending, '
     f'each between −1 and +1.</li>'
@@ -114,17 +114,17 @@ prose(
     f'{settings["persistence_months"]} consecutive months.</li>'
     f'<li><b>Read the newest month early.</b> The call is confirmed only once a month\'s core '
     f'data, including consumer spending, is out. Until then the month gets a provisional '
-    f'reading from faster indicators, labelled as such (section {num("m-provisional")}).</li></ol>'
+    f'reading from faster indicators, labeled as such (section {num("m-provisional")}).</li></ol>'
     '<div class="m-callout"><p><b>What it is not.</b> The monitor describes current '
     'conditions; it is not a forecast. There are no subjective adjustments: analyst '
     'observations logged on the dashboard are stored alongside the data but never change '
-    'a score or the call. The regime archetypes are judgements that have not yet been '
+    'a score or the call. The regime archetypes are judgments that have not yet been '
     f'validated against history (section {num("m-validation")}).</p></div>')
 
 # ---------- 2. framework ----------
 
 section("m-framework", 2, "Framework: drivers and regimes")
-prose('<p>Five drivers summarise the macro environment. Each runs from −1 to +1; positive '
+prose('<p>Five drivers summarize the macro environment. Each runs from −1 to +1; positive '
       'means hot, tight or restrictive.</p>')
 rows = []
 for n in driver_names:
@@ -158,9 +158,10 @@ prose(
     'mark outcomes that are a risk; green marks outcomes that are good for growth.</li>'
     '<li><b>Regime codes</b> sit where that regime expects the driver to be, taken from '
     f'the archetype table in section {num("m-regimes")}. Codes close together share a slot.</li>'
-    '<li><b>The star</b> is the latest month\'s score. <b>The hollow circle</b> is the '
-    'score twelve months earlier, as the data is known today.</li>'
-    '<li><b>The thin centre line</b> is zero, the neutral reading.</li>'
+    '<li><b>The solid star</b> is the latest confirmed month\'s score; <b>the outlined star</b>, '
+    'when shown, is the provisional month. <b>The hollow circle</b> is the score twelve months '
+    'earlier, as the data is known today.</li>'
+    '<li><b>The thin center line</b> is zero, the neutral reading.</li>'
     + (f'<li><b>{ui.esc(", ".join(reversed_))}</b> is drawn with the tighter end on the '
        f'left. Scores still count restrictive as positive.</li>' if reversed_ else '')
     + '<li>A star sitting near a regime\'s code on most rows is what a high probability '
@@ -224,14 +225,14 @@ st.html(ui.table(
 # ---------- 5. indicators ----------
 
 section("m-indicators", 5, "From series to indicator scores")
-prose('<p>Each indicator goes through three steps: a transform, a normalisation that '
+prose('<p>Each indicator goes through three steps: a transform, a normalization that '
       'puts it on a common scale, and a direction that makes positive mean the driver is '
-      'being pushed up.</p><h3 class="m-h3">Normalisation</h3>'
+      'being pushed up.</p><h3 class="m-h3">Normalization</h3>'
       '<p><b>Gap</b> is used wherever a level has economic meaning, such as the 2% target, '
-      'long-run average utilisation or a neutral real rate. It says how far the indicator '
-      'is from that centre in units of a chosen scale:</p>')
+      'long-run average utilization or a neutral real rate. It says how far the indicator '
+      'is from that center in units of a chosen scale:</p>')
 st.latex(r"g_t \;=\; \dfrac{x_t - c}{s}")
-prose(f'<p><b>Rolling z-score</b> is used only where there is no meaningful centre. It '
+prose(f'<p><b>Rolling z-score</b> is used only where there is no meaningful center. It '
       f'compares the indicator with its own recent history, over a window of <i>w</i> '
       f'months and needing at least max(24, w/4) months of data:</p>')
 st.latex(r"z_t \;=\; \dfrac{x_t - \operatorname{mean}_w(x)}{\operatorname{sd}_w(x)}")
@@ -260,8 +261,8 @@ for n in driver_names:
             source = fred_link(src["fred"])
         norm = i["normalize"]
         if norm.get("method") == "gap":
-            centre = f'{float(norm["center"]):g}'.replace("-", "−")
-            norm_text = f'Gap from {centre}, scale {float(norm["scale"]):g}'
+            center = f'{float(norm["center"]):g}'.replace("-", "−")
+            norm_text = f'Gap from {center}, scale {float(norm["scale"]):g}'
         else:
             norm_text = f'Z-score, {int(norm.get("window", 240))}-month window'
         rows.append([
@@ -273,7 +274,7 @@ for n in driver_names:
             norm_text, "+1" if int(i["direction"]) > 0 else "−1",
             f'{float(i["weight"]):.2f}', f'{float(i["weight"]) / total:.0%}',
             i.get("why", "")])
-st.html(ui.table(["Indicator", "Source", "Transform", "Normalisation", "Direction",
+st.html(ui.table(["Indicator", "Source", "Transform", "Normalization", "Direction",
                   "Weight", "Share", "Why it is included"], rows, numeric={4, 5, 6}))
 
 # ---------- 6. drivers ----------
@@ -286,7 +287,7 @@ st.latex(r"D_t \;=\; \operatorname{clip}\!\left(\frac{1}{%g}\cdot"
          % DRIVER_SCALE)
 prose(f'<p>where <i>A<sub>t</sub></i> is the set of indicators available in month <i>t</i>. '
       f'Dividing by {DRIVER_SCALE:g} maps a typical range of indicator scores onto −1 to +1.</p>'
-      '<p><b>Renormalising over available indicators.</b> In early history some inputs '
+      '<p><b>Renormalizing over available indicators.</b> In early history some inputs '
       'do not yet exist. Rather than let a driver drift toward zero, weights are rescaled '
       'over what is present. The cost is that early scores rest on fewer inputs, so '
       'coverage is tracked: the share of the driver\'s intended weight that was actually '
@@ -398,22 +399,22 @@ prose(f'<p>{ui.esc(rlabel[leader])} is closest, at a distance of {dist[leader]:.
 
 section("m-validation", 9, "Validation and track record")
 prose('<p>There is no track record yet. The archetypes, weights, temperature and '
-      'confidence floor are informed judgements, not estimates. Until they are checked '
+      'confidence floor are informed judgments, not estimates. Until they are checked '
       'against history, read the probabilities as a structured way to read the drivers, '
       'not as a measured likelihood.</p>')
 st.html(ui.table(["Check", "Status", "Notes"], [
-    ["Unit tests on transforms, normalisation and the persistence rule", "In place",
+    ["Unit tests on transforms, normalization and the persistence rule", "In place",
      "Run on every change to the code."],
     ["Point-in-time data", "In place" if not demo else "Built, not yet loaded",
      f"Full vintage histories; how far back each goes is in section {num('m-data')}."],
-    ["Hand-labelled regime history, 1970 to present", "Not yet",
-     "Labelled from what was knowable at the time, not with hindsight. The priority."],
-    ["Compare the calls with the labelled history", "Not yet",
-     "Depends on the labelled history."],
+    ["Hand-labeled regime history, 1970 to present", "Not yet",
+     "Labeled from what was knowable at the time, not with hindsight. The priority."],
+    ["Compare the calls with the labeled history", "Not yet",
+     "Depends on the labeled history."],
     ["Sensitivity of the call to weights, temperature and persistence", "Not yet",
      "Should precede any recalibration."],
     ["Statistical alternative, such as a Markov-switching model", "Not yet",
-     "Only once there is a labelled history to validate against."],
+     "Only once there is a labeled history to validate against."],
 ]))
 
 # ---------- 10. limitations ----------
@@ -422,7 +423,7 @@ section("m-limits", 10, "Limitations")
 prose(
     '<ul>'
     '<li><b>Unvalidated archetypes.</b> Where each regime sits in driver space is a '
-    f'judgement (section {num("m-validation")}).</li>'
+    f'judgment (section {num("m-validation")}).</li>'
     '<li><b>Stepwise inputs.</b> Quarterly and annual series are carried forward, so their '
     'drivers move in steps. The annual federal deficit adds almost no timely signal.</li>'
     '<li><b>Lagging inputs.</b> Senior Loan Officer lending standards (quarterly) and '
@@ -431,7 +432,7 @@ prose(
     'moves can cancel out.</li>'
     '<li><b>Calibration risk.</b> Tuning thresholds on 2021 to 2023 would overfit an '
     'unusual episode.</li>'
-    '<li><b>US only.</b> The indicator set and centres are US-specific.</li>'
+    '<li><b>U.S. only.</b> The indicator set and centers are U.S.-specific.</li>'
     + ('<li><b>Demo data.</b> This deployment runs on synthetic series.</li>' if demo else '')
     + '</ul>')
 
@@ -458,7 +459,7 @@ terms = [
     ("Archetype", "The driver scores a regime would have in its purest form."),
     ("Coverage", "The share of a driver's intended indicator weight that had data in a month."),
     ("Driver", "One of five summary dimensions, scored from −1 to +1."),
-    ("Gap", "Distance of an indicator from a meaningful centre, in units of a set scale."),
+    ("Gap", "Distance of an indicator from a meaningful center, in units of a set scale."),
     ("Persistence", "Consecutive months a new leader must hold before the call changes."),
     ("Salience", "How much a driver counts when measuring distance to an archetype."),
     ("Temperature", "Sets how sharply distances turn into probabilities."),
@@ -476,7 +477,7 @@ st.html('<dl class="m-dl">' + "".join(
 
 st.html('<div class="mr-foot"><b>Further reading:</b> OECD and European Commission Joint '
         'Research Centre, <i>Handbook on Constructing Composite Indicators: Methodology and '
-        'User Guide</i> (2008), for normalisation, weighting and aggregation. ALFRED, '
+        'User Guide</i> (2008), for normalization, weighting and aggregation. ALFRED, '
         'Federal Reserve Bank of St. Louis, for vintage data.</div>')
 st.page_link("views/dashboard.py", label="Back to the dashboard",
              icon=":material/arrow_back:")

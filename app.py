@@ -13,7 +13,7 @@ import streamlit as st
 
 from src import ui
 
-st.set_page_config(page_title="Macro regime monitor", layout="wide",
+st.set_page_config(page_title="Macro Regime Monitor", layout="wide",
                    initial_sidebar_state="collapsed")
 st.html(ui.CSS)
 

@@ -7,7 +7,7 @@
 #   zscore  - rolling z-score over `window` months. Use when "unusual" is the
 #             thing you care about and there is no economically meaningful level.
 #   gap     - (value - center) / scale, clipped by the engine. Use whenever a
-#             level has meaning: 2% target, long-run average utilisation, r*.
+#             level has meaning: 2% target, long-run average utilization, r*.
 #             Prefer this. A z-score tells you rare; a gap tells you tight.
 #
 # direction: +1 if a high value means the driver is "hot", -1 if inverted.
@@ -25,7 +25,7 @@
 #
 # v0.2 added timely indicators (weekly economic index, jobless claims, supply
 # chain pressure, regional capex plans, an ex-ante real rate) at small weights,
-# so the latest month can be read before the slow releases. Centres and scales
+# so the latest month can be read before the slow releases. Centers and scales
 # for these are their 2000-2019 averages and standard deviations.
 
 meta:
@@ -59,7 +59,7 @@ drivers:
       high: {label: Strong, tone: good}
     indicators:
       - id: real_pce_yoy
-        label: Real consumer spending, year on year
+        label: Real consumer spending, year over year
         source: {fred: PCEC96}
         transform: yoy_pct
         normalize: {method: gap, center: 2.4, scale: 1.6}
@@ -70,7 +70,7 @@ drivers:
         why: Consumption is two thirds of GDP and revises less than GDP itself.
 
       - id: retail_control_yoy
-        label: Retail sales, year on year
+        label: Retail sales, year over year
         source: {fred: RSAFS}
         transform: yoy_pct
         normalize: {method: gap, center: 4.0, scale: 2.5}
@@ -79,13 +79,13 @@ drivers:
         why: Timeliest hard read on goods demand, two weeks after month end.
 
       - id: payrolls_3m_ann
-        label: Payroll growth, 3 months annualised
+        label: Payroll growth, 3 months annualized
         source: {fred: PAYEMS}
         transform: pct_change_3m_ann
         normalize: {method: gap, center: 1.0, scale: 1.0}
         direction: 1
         weight: 0.20
-        why: Labour demand, monthly, with a long and clean vintage record.
+        why: Labor demand, monthly, with a long and clean vintage record.
 
       - id: unemployment_gap
         label: Unemployment rate less its long-run level
@@ -111,7 +111,7 @@ drivers:
         why: Weekly activity scaled to GDP growth. First read on the month, days after it ends.
 
       - id: jobless_claims_yoy
-        label: Initial jobless claims, year on year
+        label: Initial jobless claims, year over year
         source: {fred: IC4WSA}
         transform: yoy_pct
         normalize: {method: gap, center: 0.0, scale: 20.0}
@@ -164,19 +164,19 @@ drivers:
 
   supply:
     label: Supply constraint
-    description: How binding are capacity, labour and input constraints.
+    description: How binding are capacity, labor and input constraints.
     signpost:
       low: {label: Over-capacity, tone: risk}
       high: {label: Under-capacity, tone: risk}
     indicators:
       - id: capacity_utilisation
-        label: Capacity utilisation
+        label: Capacity utilization
         source: {fred: TCU}
         transform: level
         normalize: {method: gap, center: 79.6, scale: 2.5}
         direction: 1
         weight: 0.25
-        why: Long-run average utilisation is the natural centre here.
+        why: Long-run average utilization is the natural center here.
 
       - id: vacancies_per_unemployed
         label: Job openings per unemployed person
@@ -187,10 +187,10 @@ drivers:
         normalize: {method: gap, center: 0.95, scale: 0.35}
         direction: 1
         weight: 0.25
-        why: Cleanest single measure of labour market tightness.
+        why: Cleanest single measure of labor market tightness.
 
       - id: unit_labour_costs_yoy
-        label: Unit labour costs, year on year
+        label: Unit labor costs, year over year
         source: {fred: ULCNFB}
         transform: yoy_pct
         normalize: {method: gap, center: 2.2, scale: 1.5}
@@ -275,7 +275,7 @@ drivers:
       high: {label: High investment, tone: good}
     indicators:
       - id: core_capex_orders_yoy
-        label: Core capital goods orders, year on year
+        label: Core capital goods orders, year over year
         source: {fred: NEWORDER}
         transform: yoy_pct
         normalize: {method: gap, center: 3.5, scale: 3.0}
@@ -284,7 +284,7 @@ drivers:
         why: Leading edge of business investment, monthly.
 
       - id: real_nonres_investment_yoy
-        label: Real business investment, year on year
+        label: Real business investment, year over year
         source: {fred: PNFIC1}
         transform: yoy_pct
         normalize: {method: gap, center: 3.5, scale: 3.0}
@@ -293,7 +293,7 @@ drivers:
         why: The actual spend. Quarterly and heavily revised, hence vintages.
 
       - id: manufacturing_construction_yoy
-        label: Manufacturing construction spending, year on year
+        label: Manufacturing construction spending, year over year
         source: {fred: TLMFGCONS}
         transform: yoy_pct
         normalize: {method: gap, center: 5.0, scale: 12.0}
