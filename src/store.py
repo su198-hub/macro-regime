@@ -60,6 +60,10 @@ class Store:
         path.parent.mkdir(parents=True, exist_ok=True)
         self.con = duckdb.connect(str(path))
         self.con.execute(SCHEMA)
+        # Added after the first stores were created; the vendor's own code
+        # for the series, which differs from series_id for anything but FRED.
+        self.con.execute(
+            "ALTER TABLE series_meta ADD COLUMN IF NOT EXISTS source_code VARCHAR")
 
     # ---------- writing ----------
 
@@ -84,19 +88,27 @@ class Store:
         return len(df)
 
     def record_meta(self, series_id, source, title="", units="", frequency="",
-                    has_vintages=True):
+                    has_vintages=True, source_code=None):
         self.con.execute(
             """
-            INSERT INTO series_meta VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO series_meta (series_id, source, title, units, frequency,
+                                     has_vintages, last_sync, source_code)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT (series_id) DO UPDATE SET
-                title = excluded.title, units = excluded.units,
-                frequency = excluded.frequency,
+                source = excluded.source, title = excluded.title,
+                units = excluded.units, frequency = excluded.frequency,
                 has_vintages = excluded.has_vintages,
-                last_sync = excluded.last_sync
+                last_sync = excluded.last_sync,
+                source_code = excluded.source_code
             """,
             [series_id, source, title, units, frequency, has_vintages,
-             dt.datetime.now()],
+             dt.datetime.now(), source_code or series_id],
         )
+
+    def sources(self) -> set[str]:
+        """Which vendors the stored series came from."""
+        return {r[0] for r in self.con.execute(
+            "SELECT DISTINCT source FROM series_meta").fetchall()}
 
     def add_judgement(self, as_of, driver, direction, confidence, analyst,
                       note, source=""):

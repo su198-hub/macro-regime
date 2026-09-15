@@ -9,7 +9,7 @@ import pandas as pd
 import pytest
 
 from src.regimes import call_regime, probabilities
-from src.transform import normalise, pct_change_3m_ann, yoy_pct
+from src.transform import normalise, pct_change_3m_ann, to_monthly, yoy_pct
 
 
 def monthly(values, start="2020-01-31"):
@@ -44,6 +44,24 @@ def test_normalisation_clips_extremes():
     assert out.iloc[1] == 3.0
 
 
+def test_quarterly_series_is_carried_to_the_latest_month_within_its_limit():
+    q = pd.Series([1.0, 2.0, 3.0, 4.0],
+                  index=pd.to_datetime(["2025-07-01", "2025-10-01", "2026-01-01", "2026-04-01"]))
+    carried = to_monthly(q, end=pd.Timestamp("2026-09-15"), carry_periods=2)
+    assert carried.index[-1] == pd.Timestamp("2026-09-30")
+    assert carried.iloc[-1] == 4.0
+    # Two quarters is six months: April's value lasts to October, not beyond.
+    stale = to_monthly(q, end=pd.Timestamp("2027-01-15"), carry_periods=2)
+    assert stale.loc["2026-10-31"] == 4.0
+    assert np.isnan(stale.loc["2026-11-30"])
+
+
+def test_monthly_series_is_never_extended():
+    m = monthly([1.0, 2.0, 3.0])
+    out = to_monthly(m, end=m.index[-1] + pd.DateOffset(months=4), carry_periods=2)
+    assert out.index[-1] == m.index[-1]
+
+
 def test_gap_rejects_zero_scale():
     with pytest.raises(ValueError):
         normalise(monthly([1.0]), {"method": "gap", "center": 0, "scale": 0})
@@ -73,6 +91,12 @@ def test_probabilities_sum_to_one_and_favour_the_near_archetype():
 def test_missing_driver_yields_no_call_rather_than_a_guess():
     d = pd.DataFrame({"a": [0.9], "b": [np.nan]},
                      index=pd.to_datetime(["2024-01-31"]))
+    assert probabilities(d, REG).isna().all(axis=1).iloc[0]
+
+
+def test_a_driver_with_no_column_at_all_also_yields_no_call():
+    # Early in a rewind a whole driver can be absent, not just NaN.
+    d = pd.DataFrame({"a": [0.9]}, index=pd.to_datetime(["2024-01-31"]))
     assert probabilities(d, REG).isna().all(axis=1).iloc[0]
 
 

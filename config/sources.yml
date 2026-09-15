@@ -1,0 +1,63 @@
+# Where each series comes from.
+#
+# Keys are the series names used in indicators.yml. They stay the FRED codes
+# so expressions like "UNRATE - NROU" read the same whatever the vendor; the
+# store saves every series under this name. `use` picks the vendor for a
+# series, falling back to `default`. For FRED the code is the key itself.
+#
+# Macrobond codes were matched on description, frequency, seasonal adjustment
+# and units, preferring the longest revision history. Notes flag where the
+# match is not like-for-like with the FRED series.
+
+default: macrobond
+
+series:
+  PCEC96:
+    macrobond: usnaac0591
+    note: Real PCE quantity index. Same growth as chained dollars, history from 1959 not 2007.
+  RSAFS:
+    macrobond: ustrad0068
+  PAYEMS:
+    macrobond: uslama1060
+  UNRATE:
+    macrobond: uslama1849
+  NROU:
+    macrobond: usfcst0668
+    note: CBO noncyclical rate. Projections beyond each vintage date are dropped.
+  T5YIFR:
+    macrobond: ust5yifr
+  T10YIE:
+    macrobond: us10ybei
+    note: Macrobond benchmark 10-year breakeven, not the H.15 constant-maturity difference.
+  MICH:
+    macrobond: ussurv3140
+  EXPINF10YR:
+    macrobond: usfcst0110
+  TCU:
+    macrobond: usprod1071
+  JTSJOL:
+    macrobond: bls_jts00000000jol
+  UNEMPLOY:
+    macrobond: uslama1795
+  ULCNFB:
+    macrobond: uslama0208
+  LNS12300060:
+    macrobond: uslama6229
+  FEDFUNDS:
+    macrobond: usrate1948
+  PCEPILFE:
+    macrobond: uspric0006
+  NFCI:
+    macrobond: ussurv0386
+  FYFSGDA188S:
+    macrobond: usfcst4769
+    note: OMB budget balance. Projections beyond each vintage date are dropped.
+  NEWORDER:
+    macrobond: usprod1425
+  PNFIC1:
+    macrobond: usnaac0301
+    note: Real nonresidential investment quantity index. Same growth as chained dollars.
+  TLMFGCONS:
+    macrobond: uscons2437
+  DRTSCILM:
+    macrobond: ussurv4106

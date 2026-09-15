@@ -20,6 +20,15 @@ meta:
   region: US
   base_frequency: M
   history_start: "1970-01-01"
+  # Quarterly and annual inputs hold their last value until the next release,
+  # for at most this many of their own periods (2 = six months for quarterly,
+  # two years for annual). Beyond that the input counts as missing, so a
+  # discontinued series drops out rather than freezing a driver.
+  carry_forward_periods: 2
+  # Ragged edge. A driver is scored in a month only if at least this share of
+  # the weight of its already-started indicators has reported. Stops the
+  # latest month resting on whichever release came first.
+  min_reported_share: 0.6
 
 drivers:
 

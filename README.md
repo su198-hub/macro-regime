@@ -100,25 +100,37 @@ ingest.py               backfill / sync / coverage / demo
 tests/                  transforms, persistence logic, signpost geometry
 ```
 
-## Swapping FRED for Macrobond
+## Real data from Macrobond
 
-`src/sources/macrobond.py` is written and unactivated. Requires a Data+,
-Professional or Enterprise licence — a standard Analysis seat will not
-authenticate. Check with:
+Macrobond is the default source (`config/sources.yml`). It needs a Data+,
+Professional or Enterprise licence and, for the COM client used here, Windows
+with Macrobond Analysis installed and signed in on the same machine. The
+package is not in `requirements.txt` because the hosted app and CI run on
+Linux without it.
 
-```bash
+```powershell
+.venv\Scripts\activate
 pip install macrobond-data-api
-python -c "from macrobond_data_api.com import ComClient; \
-           print(ComClient().__enter__().get_one_series('usgdp').values[:3])"
+$env:MACRO_REGIME_DB = "$env:LOCALAPPDATA\macro-regime\macrobond.duckdb"
+python ingest.py backfill      # all 22 series with full vintages, under a minute
+python ingest.py coverage
+streamlit run app.py
 ```
 
-If that returns numbers, change the import in `ingest.py` and map the
-`source.fred` fields in the indicator config to Macrobond series codes.
+Keep real data in its own database file. `backfill` refuses to write into a
+store that holds demo data. Re-run `python ingest.py sync` to refresh; for
+Macrobond it refetches each series' full history, which takes about as long as
+the backfill.
 
-The COM client is Windows-only and needs the desktop app on the same machine,
-which rules out hosted schedulers. The Web API client runs anywhere but is a
-separate entitlement. If you plan to run this pipeline anywhere other than a
-desk machine, price the Web API before you build around COM.
+`config/sources.yml` maps each series name used in `indicators.yml` to its
+Macrobond code, with notes where the match is not like-for-like with FRED. Set
+`use: fred` on a series to take it from FRED instead (needs `FRED_API_KEY`).
+
+The COM client rules out hosted schedulers: a scheduled refresh has to run on
+this machine (Windows Task Scheduler). The Web API client runs anywhere but is
+a separate entitlement. Check your Macrobond licence before showing its data
+anywhere other than your own machine; the hosted Streamlit app runs on demo
+data.
 
 ## Known limitations
 

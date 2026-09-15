@@ -78,11 +78,28 @@ def normalise(s: pd.Series, spec: dict) -> pd.Series:
     return out.clip(-CLIP, CLIP)
 
 
-def to_monthly(s: pd.Series) -> pd.Series:
+def to_monthly(s: pd.Series, end: pd.Timestamp | None = None,
+               carry_periods: int = 0) -> pd.Series:
     """Resample to month-end, forward-filling lower-frequency series.
 
     Forward fill is deliberate: a quarterly capex number stays the best
     available estimate until the next one lands, which is how you would
     actually read it. It does mean quarterly drivers move in steps.
+
+    Without `end`, the fill stops at the series' own last observation, so a
+    quarterly value dated April drops out in May even though the next release
+    is months away. Pass `end` (the latest month any input reaches) and
+    `carry_periods` to hold the last value up to that many of the series' own
+    periods: two quarters for a quarterly series, two years for an annual one.
+    Monthly and faster series are never extended.
     """
-    return s.resample("ME").last().ffill()
+    monthly = s.resample("ME").last().ffill()
+    ppy = _periods_per_year(s)
+    if end is None or carry_periods <= 0 or ppy >= 12 or monthly.empty:
+        return monthly
+    end = pd.Timestamp(end) + pd.offsets.MonthEnd(0)
+    if end <= monthly.index[-1]:
+        return monthly
+    months = carry_periods * (12 // ppy)
+    idx = pd.date_range(monthly.index[0], end, freq="ME")
+    return monthly.reindex(idx).ffill(limit=months)

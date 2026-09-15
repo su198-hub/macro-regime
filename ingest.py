@@ -2,13 +2,18 @@
 """Ingestion CLI.
 
     python ingest.py demo                 # synthetic data, no key needed
-    python ingest.py backfill             # full vintage history from ALFRED
-    python ingest.py sync                 # current values only, for daily runs
+    python ingest.py backfill             # full vintage history
+    python ingest.py sync                 # refresh, for scheduled runs
     python ingest.py coverage             # what you actually have
 
-Backfill is slow and only needs running once per series. Sync is what you put
-on a schedule. With Macrobond COM that schedule has to be a Windows machine
-with the desktop app installed.
+Which vendor each series comes from is set in config/sources.yml; pass
+--source to override for a run. Point --db (or MACRO_REGIME_DB) at a file that
+holds only real data: backfill refuses to write into a demo store.
+
+FRED backfill is slow and only needs running once; FRED sync pulls current
+values. Macrobond returns a series' full revision history in about a second,
+so its sync simply refetches it. With Macrobond COM the schedule has to be a
+Windows machine with the desktop app installed.
 """
 
 from __future__ import annotations
@@ -20,48 +25,92 @@ import sys
 
 import numpy as np
 import pandas as pd
+import yaml
 
 from src.drivers import load_config, required_series
 from src.store import Store
 
 
-def cmd_backfill(args):
+def load_sources(path: str) -> dict:
+    if not os.path.exists(path):
+        return {"default": "fred", "series": {}}
+    with open(path) as f:
+        return yaml.safe_load(f) or {"default": "fred", "series": {}}
+
+
+def route(sid: str, sources: dict, override: str | None) -> tuple[str, str]:
+    """(vendor, vendor's code) for one series name from indicators.yml."""
+    entry = (sources.get("series") or {}).get(sid) or {}
+    vendor = override or entry.get("use") or sources.get("default", "fred")
+    code = sid if vendor == "fred" else entry.get(vendor)
+    if not code:
+        raise KeyError(f"no {vendor} code for {sid} in config/sources.yml")
+    return vendor, code
+
+
+def open_vendor(vendor: str):
+    if vendor == "macrobond":
+        from src.sources.macrobond import MacrobondSource
+        return MacrobondSource()
     from src.sources.fred import FredSource
+    return FredSource()
 
+
+def refuse_demo_store(store: Store, db: str) -> None:
+    if "demo" in store.sources():
+        store.close()
+        sys.exit(f"{db} holds synthetic demo data. Real data goes in its own file, "
+                 f"for example:\n  python ingest.py --db "
+                 f"\"%LOCALAPPDATA%\\macro-regime\\macrobond.duckdb\" backfill")
+
+
+def _pull(args, full_history: bool):
     cfg = load_config(args.config)
+    sources = load_sources(args.sources)
     store = Store(args.db)
-    source = FredSource()
+    refuse_demo_store(store, args.db)
     series = required_series(cfg)
+    vendors: dict[str, object] = {}
 
-    print(f"Backfilling {len(series)} series with full vintage history.")
+    verb = "Backfilling" if full_history else "Syncing"
+    print(f"{verb} {len(series)} series into {args.db}.")
+    failed = 0
     for i, sid in enumerate(series, 1):
         try:
-            df = source.fetch_with_vintages(sid)
+            vendor, code = route(sid, sources, args.source)
+            if vendor not in vendors:
+                vendors[vendor] = open_vendor(vendor)
+            source = vendors[vendor]
+            # Macrobond's full history is one fast call, so it always refetches.
+            if full_history or vendor == "macrobond":
+                df = source.fetch_with_vintages(code)
+            else:
+                df = source.fetch_current(code)
+            df = df.assign(series_id=sid)
             n = store.upsert_observations(df)
-            meta = source.describe(sid)
-            store.record_meta(sid, "fred", **meta)
+            meta = source.describe(code)
+            store.record_meta(sid, vendor, source_code=code, **meta)
             vintages = df["vintage_date"].nunique() if not df.empty else 0
-            print(f"  [{i}/{len(series)}] {sid:<14} {n:>7} rows  "
-                  f"{vintages:>4} vintages  {meta['title'][:44]}")
+            print(f"  [{i:>2}/{len(series)}] {sid:<12} {vendor}:{code:<20} {n:>7} rows "
+                  f"{vintages:>5} vintages  {str(meta['title'])[:50]}")
         except Exception as exc:
-            print(f"  [{i}/{len(series)}] {sid:<14} FAILED: {exc}")
+            failed += 1
+            print(f"  [{i:>2}/{len(series)}] {sid:<12} FAILED: {exc}", file=sys.stderr)
+    for source in vendors.values():
+        if hasattr(source, "close"):
+            source.close()
     store.close()
+    print(f"Done at {dt.datetime.now():%Y-%m-%d %H:%M}. {failed} failed.")
+    if failed:
+        sys.exit(1)
+
+
+def cmd_backfill(args):
+    _pull(args, full_history=True)
 
 
 def cmd_sync(args):
-    from src.sources.fred import FredSource
-
-    cfg = load_config(args.config)
-    store = Store(args.db)
-    source = FredSource()
-    total = 0
-    for sid in required_series(cfg):
-        try:
-            total += store.upsert_observations(source.fetch_current(sid))
-        except Exception as exc:
-            print(f"  {sid}: {exc}", file=sys.stderr)
-    print(f"Synced {total} observations at {dt.date.today()}.")
-    store.close()
+    _pull(args, full_history=False)
 
 
 def cmd_coverage(args):
@@ -70,6 +119,9 @@ def cmd_coverage(args):
     if cov.empty:
         print("Store is empty. Run `python ingest.py demo` or `backfill`.")
     else:
+        meta = store.con.execute(
+            "SELECT series_id, source, source_code FROM series_meta").df()
+        cov = meta.merge(cov, on="series_id", how="right")
         print(cov.to_string(index=False))
         thin = cov[cov["vintages"] <= 1]["series_id"].tolist()
         if thin:
@@ -139,6 +191,9 @@ def load_demo(store: Store, cfg: dict) -> tuple[int, int]:
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--config", default="config/indicators.yml")
+    p.add_argument("--sources", default="config/sources.yml")
+    p.add_argument("--source", choices=["fred", "macrobond"], default=None,
+                   help="Use this vendor for every series, ignoring sources.yml.")
     p.add_argument("--db", default=os.environ.get("MACRO_REGIME_DB",
                                                   "data/regime.duckdb"))
     sub = p.add_subparsers(dest="cmd", required=True)

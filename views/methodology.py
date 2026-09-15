@@ -16,7 +16,7 @@ from src import ui
 from src.drivers import DRIVER_SCALE, config_hash, required_series
 from src.regimes import contributions
 from src.transform import CLIP
-from views.common import REPO_URL, get_results, get_store, is_demo
+from views.common import REPO_URL, get_results, get_store, is_demo, source_sentence
 
 store = get_store()
 results = get_results(dt.date.today())
@@ -160,33 +160,57 @@ prose(
 # ---------- 4. data ----------
 
 section("m-data", 4, "Data and point-in-time vintages")
+meta_cfg = cfg.get("meta") or {}
+carry = int(meta_cfg.get("carry_forward_periods", 0))
+reported = float(meta_cfg.get("min_reported_share", 0))
+vendors = store.sources()
 prose(
-    '<p><b>Source.</b> ' + (
-        'This deployment runs on <b>synthetic demo series</b> with invented dynamics, so '
-        'numbers on the dashboard mean nothing. The production source is FRED and ALFRED, '
-        'Federal Reserve Bank of St. Louis.' if demo else
-        'FRED and ALFRED (archival FRED), Federal Reserve Bank of St. Louis.') + '</p>'
+    '<p><b>Source.</b> ' + source_sentence(vendors) + '</p>'
     '<p><b>Point in time.</b> Every observation is stored with its <i>vintage</i>: the date '
     'that value was published. To view the monitor as of a date, each observation takes '
     'the latest vintage published on or before that date. Later revisions are invisible, '
     'so rewinding the dashboard shows the call that was actually available at the time.</p>'
-    '<p><b>Frequency.</b> Everything is converted to month-end. Daily series take the last '
-    'value in the month. Quarterly and annual series are carried forward until the next '
-    'release, which is how an analyst would read them, but it means those inputs move in '
-    'steps.</p>'
-    '<p><b>Revision history.</b> Market series such as breakevens and the funds rate are '
-    'never revised and legitimately have one vintage. For revised series, a single vintage '
-    'means the history is as revised, not as first published, and a backtest on it '
-    'overstates what was knowable.</p>')
+    + ('<p><b>Before revisions were recorded.</b> Each series has a date from which its '
+       'vendor recorded every revision. The history as it stood before that date is treated '
+       'as published on that date, not earlier. A rewind to before it therefore sees none of '
+       'that series, rather than a revised version presented as if it had been known. '
+       'Rewinding far enough back leaves drivers without inputs, and then no regime is '
+       'called.</p>' if vendors - {"demo"} else '')
+    + '<p><b>Projections.</b> Values dated after the vintage that published them, such as '
+    'CBO and OMB projections, are forecasts rather than observations and are not used.</p>'
+    f'<p><b>Frequency.</b> Everything is converted to month-end. Daily and weekly series '
+    f'take the last value in the month. Quarterly and annual series hold their last value '
+    f'until the next release, for at most {carry} of their own periods, which is how an '
+    f'analyst would read them; they still move in steps. Beyond that limit a series counts '
+    f'as missing, so a discontinued input drops out rather than freezing a driver.</p>'
+    f'<p><b>The latest month.</b> Series are released on different days, so the newest '
+    f'month is always incomplete. A driver is scored in a month only when at least '
+    f'{reported:.0%} of the weight of its indicators that already existed has reported. '
+    f'Indicators that had not started yet do not count against a month, so early history '
+    f'is kept.</p>'
+    '<p><b>Revision history.</b> Market series such as breakevens are rarely revised and '
+    'legitimately have few vintages. For revised series, a single vintage means the history '
+    'is as revised, not as first published, and a backtest on it overstates what was '
+    'knowable.</p>')
 cov = store.coverage()
-meta = store.con.execute("SELECT series_id, title, frequency FROM series_meta").df()
-cov = cov.merge(meta, on="series_id", how="left").fillna({"title": "", "frequency": ""})
+meta = store.con.execute(
+    "SELECT series_id, source, source_code, title, frequency FROM series_meta").df()
+cov = cov.merge(meta, on="series_id", how="left").fillna(
+    {"title": "", "frequency": "", "source": "", "source_code": ""})
+
+
+def code_cell(r) -> ui.Raw:
+    if r.source == "fred":
+        return ui.Raw(fred_link(r.source_code or r.series_id))
+    return ui.Raw(f'{ui.esc(r.source_code or r.series_id)}<br><span style="color:{ui.INK_2};'
+                  f'font-size:0.8rem">{ui.esc(r.source.capitalize())}</span>')
+
+
 st.html(ui.table(
-    ["Series", "Title", "Frequency", "Observations", "Vintages", "First", "Last"],
-    [[ui.Raw(fred_link(r.series_id)), r.title, r.frequency,
-      f"{r.observations:,}", f"{r.vintages:,}",
+    ["Series", "Vendor code", "Title", "Frequency", "Vintages", "First", "Last"],
+    [[r.series_id, code_cell(r), r.title, r.frequency, f"{r.vintages:,}",
       f"{r.first_obs:%b %Y}", f"{r.last_obs:%b %Y}"] for r in cov.itertuples()],
-    numeric={3, 4}))
+    numeric={4}))
 
 # ---------- 5. indicators ----------
 
@@ -325,7 +349,7 @@ st.html(ui.table(["Check", "Status", "Notes"], [
     ["Unit tests on transforms, normalisation and the persistence rule", "In place",
      "Run on every change to the code."],
     ["Point-in-time data", "In place" if not demo else "Built, not yet loaded",
-     "ALFRED vintages; single-vintage revised series are flagged in section 4."],
+     "Full vintage histories; how far back each goes is in section 4."],
     ["Hand-labelled regime history, 1970 to present", "Not yet",
      "Labelled from what was knowable at the time, not with hindsight. The priority."],
     ["Compare the calls with the labelled history", "Not yet",

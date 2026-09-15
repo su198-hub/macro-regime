@@ -53,22 +53,27 @@ def required_series(cfg: dict) -> list[str]:
     return sorted(ids)
 
 
-def _build_input(ind: dict, wide: pd.DataFrame) -> pd.Series | None:
-    """Resolve one indicator's raw input, handling derived expressions."""
+def _build_input(ind: dict, wide: pd.DataFrame, carry: int = 0) -> pd.Series | None:
+    """Resolve one indicator's raw input, handling derived expressions.
+
+    Lower-frequency inputs are carried forward to the latest month any series
+    reaches, for up to `carry` of their own periods (see to_monthly).
+    """
     src = ind["source"]
     expr = src.get("expr")
+    end = wide.index.max() if not wide.empty else None
 
     if not expr:
         col = src["fred"]
         if col not in wide.columns:
             return None
-        return to_monthly(wide[col].dropna())
+        return to_monthly(wide[col].dropna(), end, carry)
 
     env: dict[str, pd.Series] = {}
     for col in src.get("fred", []):
         if col not in wide.columns:
             return None
-        env[col] = to_monthly(wide[col].dropna())
+        env[col] = to_monthly(wide[col].dropna(), end, carry)
 
     for alias, spec in (src.get("derived") or {}).items():
         base = env.get(spec["fred"])
@@ -94,9 +99,10 @@ def indicator_frames(cfg: dict, wide: pd.DataFrame) -> tuple[pd.DataFrame, pd.Da
     """
     inputs: dict[str, pd.Series] = {}
     scores: dict[str, pd.Series] = {}
+    carry = int((cfg.get("meta") or {}).get("carry_forward_periods", 0))
     for driver_name, driver in cfg["drivers"].items():
         for ind in driver["indicators"]:
-            raw = _build_input(ind, wide)
+            raw = _build_input(ind, wide, carry)
             if raw is None or raw.dropna().empty:
                 continue
             transformed = TRANSFORMS[ind.get("transform", "level")](raw)
@@ -124,6 +130,12 @@ def driver_scores(cfg: dict, wide: pd.DataFrame) -> pd.DataFrame:
     scores = indicator_scores(cfg, wide)
     if scores.empty:
         return pd.DataFrame()
+    # Ragged edge: in the latest months some inputs have not been released yet.
+    # A month where less than this share of the weight of indicators that had
+    # already started is present is incomplete, and gets no score rather than
+    # one resting on whichever release came first. Indicators that did not
+    # exist yet do not count against a month, so early history survives.
+    min_reported = float((cfg.get("meta") or {}).get("min_reported_share", 0))
 
     frames = {}
     for driver_name, driver in cfg["drivers"].items():
@@ -141,8 +153,11 @@ def driver_scores(cfg: dict, wide: pd.DataFrame) -> pd.DataFrame:
         present = block.notna().to_numpy().astype(float)
         denom = present @ w
         numer = np.nansum(block.to_numpy() * w, axis=1)
+        started = block.notna().cummax().to_numpy().astype(float) @ w
         with np.errstate(invalid="ignore", divide="ignore"):
             value = np.where(denom > 0, numer / denom, np.nan)
+            reported = np.where(started > 0, denom / started, 0.0)
+        value = np.where(reported >= min_reported, value, np.nan)
 
         frames[driver_name] = pd.Series(
             np.clip(value / DRIVER_SCALE, -1, 1), index=block.index

@@ -24,6 +24,18 @@ def load_regimes(path: str | Path = "config/regimes.yml") -> dict:
         return yaml.safe_load(f)
 
 
+def _driver_order(reg_cfg: dict) -> list[str]:
+    """The drivers a regime call needs, taken from the archetypes.
+
+    Read from config rather than from whichever columns a driver frame happens
+    to have: a driver with no inputs at all is missing, not optional.
+    """
+    order: list[str] = []
+    for spec in reg_cfg["regimes"].values():
+        order += [d for d in spec["archetype"] if d not in order]
+    return order
+
+
 def _matrix(reg_cfg: dict, driver_order: list[str]):
     names = list(reg_cfg["regimes"].keys())
     arche = np.array([
@@ -42,11 +54,11 @@ def probabilities(drivers: pd.DataFrame, reg_cfg: dict) -> pd.DataFrame:
     Rows where any driver is missing return NaN rather than a guess. A regime
     call built on three of five drivers is not a regime call.
     """
-    driver_order = [c for c in drivers.columns if not c.endswith("__coverage")]
+    driver_order = _driver_order(reg_cfg)
     names, arche, salience = _matrix(reg_cfg, driver_order)
     temp = float(reg_cfg["settings"]["temperature"])
 
-    X = drivers[driver_order].to_numpy()
+    X = drivers.reindex(columns=driver_order).to_numpy(dtype=float)
     valid = ~np.isnan(X).any(axis=1)
 
     out = np.full((len(X), len(names)), np.nan)
@@ -112,9 +124,9 @@ def contributions(drivers: pd.DataFrame, reg_cfg: dict, as_of) -> pd.DataFrame:
     Answers the only question anyone asks when they disagree with the call:
     which driver is pulling it there.
     """
-    driver_order = [c for c in drivers.columns if not c.endswith("__coverage")]
+    driver_order = _driver_order(reg_cfg)
     names, arche, salience = _matrix(reg_cfg, driver_order)
-    x = drivers.loc[as_of, driver_order].to_numpy(dtype=float)
+    x = drivers.reindex(columns=driver_order).loc[as_of].to_numpy(dtype=float)
     gap = ((x[None, :] - arche) ** 2) * salience
     return pd.DataFrame(gap, index=names, columns=driver_order).round(3)
 
