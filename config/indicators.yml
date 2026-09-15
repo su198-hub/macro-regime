@@ -216,12 +216,15 @@ drivers:
         weight: 0.20
         why: Input bottlenecks from shipping, delivery times and backlogs, out days after month end.
 
-  policy:
-    label: Policy stance
-    description: Combined monetary and fiscal restrictiveness.
+  # Policy is split in two, as on the scenario slide. Monetary and fiscal
+  # stance often move in opposite directions and regimes differ on each, so a
+  # single combined score would let them cancel out.
+  monetary:
+    label: Monetary policy
+    description: How restrictive monetary policy and financial conditions are.
     signpost:
-      low: {label: Too loose, tone: risk}
-      high: {label: Too tight, tone: risk}
+      low: {label: Too dovish, tone: risk}
+      high: {label: Too hawkish, tone: risk}
       reverse: true
     indicators:
       - id: real_fed_funds
@@ -233,7 +236,7 @@ drivers:
         transform: level
         normalize: {method: gap, center: 0.5, scale: 1.2}
         direction: 1
-        weight: 0.35
+        weight: 0.45
         anchor: true
         release: PCE report
         why: Nominal rates say nothing. Real rate vs r* is the stance.
@@ -246,7 +249,7 @@ drivers:
         transform: level
         normalize: {method: gap, center: 0.5, scale: 1.2}
         direction: 1
-        weight: 0.15
+        weight: 0.20
         why: Forward-looking real rate, available weeks before core PCE.
 
       - id: financial_conditions
@@ -255,17 +258,76 @@ drivers:
         transform: level
         normalize: {method: gap, center: 0.0, scale: 0.5}
         direction: 1
-        weight: 0.30
+        weight: 0.35
         why: Captures credit spreads and leverage the funds rate misses.
 
-      - id: federal_deficit_gdp
-        label: Federal budget balance, % of GDP
-        source: {fred: FYFSGDA188S}
+  # Fiscal: +1 is small or consolidating fiscal (tight), -1 large or expanding
+  # fiscal, consistent with +1 = restrictive for every driver. Flows come from
+  # the Monthly Treasury Statement summed over 12 months, so the driver updates
+  # monthly. Centers and scales are 1990-2019 averages and standard deviations.
+  # Federal only: state and local budgets are not included.
+  fiscal:
+    label: Fiscal policy
+    description: Size and direction of federal fiscal support, and the room left for it.
+    signpost:
+      low: {label: Large fiscal, tone: good}
+      high: {label: Small fiscal, tone: risk}
+      reverse: true
+    indicators:
+      - id: primary_balance_gdp
+        label: Primary balance, % of GDP
+        source:
+          expr: "(balance_12m + interest_12m) / GDPNOM * 100"
+          fred: [MTSBAL, MTSNETINT, GDPNOM]
+          derived:
+            balance_12m: {fred: MTSBAL, transform: sum_12m}
+            interest_12m: {fred: MTSNETINT, transform: sum_12m}
         transform: level
-        normalize: {method: gap, center: -3.0, scale: 2.5}
+        normalize: {method: gap, center: -1.0, scale: 3.0}
+        direction: 1
+        weight: 0.40
+        release: Monthly Treasury Statement
+        why: The budget balance before interest. The government's own stance, stripped of past debt costs.
+
+      - id: fiscal_impulse
+        label: Fiscal impulse, change in primary balance over a year
+        source:
+          expr: "(balance_12m + interest_12m) / GDPNOM * 100"
+          fred: [MTSBAL, MTSNETINT, GDPNOM]
+          derived:
+            balance_12m: {fred: MTSBAL, transform: sum_12m}
+            interest_12m: {fred: MTSNETINT, transform: sum_12m}
+        transform: diff_12m
+        normalize: {method: gap, center: 0.0, scale: 1.7}
+        direction: 1
+        weight: 0.30
+        release: Monthly Treasury Statement
+        why: Direction matters as much as level. A shrinking deficit withdraws demand even if it is still large.
+
+      - id: debt_trajectory
+        label: Debt held by the public, change in % of GDP over a year
+        source:
+          expr: "DEBTPUB / GDPNOM * 100"
+          fred: [DEBTPUB, GDPNOM]
+        transform: diff_12m
+        normalize: {method: gap, center: 1.3, scale: 3.4}
         direction: -1
-        weight: 0.20
-        why: Wider deficit loosens the overall stance. Annual, so it lags.
+        weight: 0.15
+        why: Debt rising faster than usual means fiscal is adding to demand. Inverted.
+
+      - id: interest_burden_gdp
+        label: Net interest outlays, % of GDP
+        source:
+          expr: "interest_12m / GDPNOM * 100"
+          fred: [MTSNETINT, GDPNOM]
+          derived:
+            interest_12m: {fred: MTSNETINT, transform: sum_12m}
+        transform: level
+        normalize: {method: gap, center: 2.0, scale: 0.7}
+        direction: 1
+        weight: 0.15
+        release: Monthly Treasury Statement
+        why: Debt sustainability. A heavy interest bill narrows the room for fiscal support.
 
   investment:
     label: Investment spending

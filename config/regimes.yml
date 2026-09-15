@@ -1,11 +1,16 @@
-# Each regime is a point in five-dimensional driver space. The engine scores
-# the current driver vector by distance to each archetype and softmaxes.
+# Each regime is a point in driver space. The engine scores the current driver
+# vector by distance to each archetype and softmaxes.
 #
 # Driver scales run -1 (cold / loose / slack) to +1 (hot / tight / restrictive).
 #
 # These numbers are opinions. Argue with them, change them, and let the diff
 # explain why the regime call moved. That is the whole point of keeping them
 # in a config file rather than in code.
+#
+# Monetary archetypes carry over from the single policy driver. Fiscal
+# archetypes follow the ordering on the scenario slide, small to large fiscal:
+# hard landing, then goldilocks and high growth, then stagflation. Neither has
+# been validated against history.
 
 settings:
   temperature: 0.30        # lower = sharper calls, higher = flatter probabilities
@@ -16,7 +21,8 @@ driver_salience:           # how much each driver matters when measuring distanc
   demand: 1.0
   inflation_expectations: 1.2
   supply: 1.0
-  policy: 0.7
+  monetary: 0.7
+  fiscal: 0.5
   investment: 0.9
 
 # `short` is the code shown on the signpost chart. `color` follows the regime
@@ -34,7 +40,8 @@ regimes:
       demand: 0.40
       inflation_expectations: 0.00
       supply: -0.40
-      policy: 0.00
+      monetary: 0.00
+      fiscal: -0.10
       investment: 0.50
     tell: Capex growth running ahead of demand growth with breakevens flat.
 
@@ -47,7 +54,8 @@ regimes:
       demand: 0.80
       inflation_expectations: 0.60
       supply: 0.55
-      policy: -0.30
+      monetary: -0.30
+      fiscal: -0.30
       investment: 0.60
     tell: Utilization above average and rising while the real policy rate is negative.
 
@@ -60,7 +68,8 @@ regimes:
       demand: -0.30
       inflation_expectations: 0.70
       supply: 0.80
-      policy: 0.30
+      monetary: 0.30
+      fiscal: -0.50
       investment: -0.40
     tell: Unit labor costs accelerating while capex orders contract.
 
@@ -73,6 +82,7 @@ regimes:
       demand: -0.80
       inflation_expectations: -0.40
       supply: -0.60
-      policy: 0.60
+      monetary: 0.60
+      fiscal: 0.50
       investment: -0.80
     tell: Lending standards tightening sharply with the unemployment gap opening.

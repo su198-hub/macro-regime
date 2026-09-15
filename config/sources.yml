@@ -49,9 +49,6 @@ series:
     macrobond: uspric0006
   NFCI:
     macrobond: ussurv0386
-  FYFSGDA188S:
-    macrobond: usfcst4769
-    note: OMB budget balance. Projections beyond each vintage date are dropped.
   NEWORDER:
     macrobond: usprod1425
   PNFIC1:
@@ -79,6 +76,20 @@ series:
   EMPIRECAPEX:
     macrobond: ussurv1020
     note: NY Fed Empire State manufacturing survey, future capital expenditures, SA index.
+  # Fiscal. Monthly Treasury Statement flows are summed over 12 months and set
+  # against nominal GDP in the indicator expressions.
+  MTSBAL:
+    macrobond: usgpfi0055
+    note: Federal budget surplus or deficit, monthly, USD (Monthly Treasury Statement).
+  MTSNETINT:
+    macrobond: usgpfi0191
+    note: Federal net interest outlays, monthly, USD (Monthly Treasury Statement).
+  GDPNOM:
+    macrobond: usnaac0057
+    note: Nominal GDP, SA annual rate, USD. Quarterly, carried to monthly.
+  DEBTPUB:
+    macrobond: usflof_024008
+    note: Treasury securities held by the public, USD (Fed Financial Accounts, Z.1). Quarterly.
   EXPINF1YR:
     macrobond: usfcst0101
     note: Cleveland Fed model-based expected inflation, 1 year.

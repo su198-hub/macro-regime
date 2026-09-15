@@ -34,11 +34,22 @@ def diff_12m(s: pd.Series) -> pd.Series:
     return s - s.shift(_periods_per_year(s))
 
 
+def sum_12m(s: pd.Series) -> pd.Series:
+    """Rolling one-year sum of a flow, such as a monthly budget deficit.
+
+    Needs a full year of periods, so a partial year never passes for an annual
+    total. Summing a year also removes the seasonal pattern in unadjusted flows.
+    """
+    n = _periods_per_year(s)
+    return s.rolling(n, min_periods=n).sum()
+
+
 TRANSFORMS = {
     "level": level,
     "yoy_pct": yoy_pct,
     "pct_change_3m_ann": pct_change_3m_ann,
     "diff_12m": diff_12m,
+    "sum_12m": sum_12m,
 }
 
 

@@ -2,7 +2,7 @@
 
 Reads the indicator config, pulls the series it names as of a stated vintage,
 transforms, normalises, applies direction, and takes a weighted mean per
-driver. Output is a monthly frame of five columns in roughly -1 to +1.
+driver. Output is a monthly frame with one column per driver in roughly -1 to +1.
 
 Indicator-level scores are kept alongside the driver scores. When someone
 asks why a driver moved, you need the answer in one click, not a rerun.

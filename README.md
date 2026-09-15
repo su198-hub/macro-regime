@@ -1,7 +1,7 @@
 # Macro Regime Monitor
 
-Five drivers — demand, inflation expectations, supply constraint, policy stance,
-investment spending — scored monthly from US data and mapped to four regimes:
+Six drivers — demand, inflation expectations, supply constraint, monetary policy,
+fiscal policy, investment spending — scored monthly from U.S. data and mapped to four regimes:
 goldilocks, high growth with high inflation, stagflation, hard landing.
 
 Everything reads through a point-in-time store, so the dashboard can be rewound
@@ -108,7 +108,7 @@ src/store.py            DuckDB vintage store, grain is (series, obs, vintage)
 src/sources/fred.py     ALFRED adapter, pulls full revision history
 src/sources/macrobond.py  Macrobond adapter, needs Data+ (see below)
 src/transform.py        transforms and normalisation, pure functions
-src/drivers.py          config to five driver scores
+src/drivers.py          config to driver scores, confirmed and provisional
 src/regimes.py          archetype distance, softmax, persistence
 src/ui.py               signpost geometry, HTML fragments, chart styling
 app.py                  Streamlit entry point: page setup and navigation

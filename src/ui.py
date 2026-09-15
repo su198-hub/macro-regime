@@ -354,6 +354,22 @@ def provisional_box(reading: dict, reg_cfg: dict, called: str, confirm_by, confi
     )
 
 
+NUMBER_WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"]
+
+
+def count_word(n: int) -> str:
+    return NUMBER_WORDS[n] if 0 <= n < len(NUMBER_WORDS) else str(n)
+
+
+def ordinal_size(rank: int, total: int) -> str:
+    """'largest', 'second largest', ... 'smallest' for a 0-based rank among total."""
+    if rank >= total - 1:
+        return "smallest"
+    words = ["largest", "second largest", "third largest", "fourth largest", "fifth largest",
+             "sixth largest", "seventh largest", "eighth largest", "ninth largest"]
+    return words[rank] if rank < len(words) else f"number {rank + 1}"
+
+
 def day_month(when, short: bool = False) -> str:
     """'September 16' or 'Sep 16', without platform-specific strftime flags."""
     return f"{when:%b} {when.day}" if short else f"{when:%B} {when.day}"
@@ -506,7 +522,8 @@ def signpost_html(drivers: pd.DataFrame, ind_cfg: dict, reg_cfg: dict,
                       if (d.get("signpost") or {}).get("reverse")]
     note = ""
     if reversed_names:
-        note = (f'<div class="sp-note">{esc(", ".join(reversed_names))} '
+        names = join_words([reversed_names[0]] + [n.lower() for n in reversed_names[1:]])
+        note = (f'<div class="sp-note">{esc(names)} '
                 f'{"is" if len(reversed_names) == 1 else "are"} drawn with the '
                 f'tighter end on the left. Scores still count restrictive as positive.</div>')
     return (f'<div class="sp"><div class="sp-legend">{"".join(legend)}</div>'

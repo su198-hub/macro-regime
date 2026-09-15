@@ -9,7 +9,16 @@ import pandas as pd
 import pytest
 
 from src.regimes import call_regime, probabilities
-from src.transform import normalise, pct_change_3m_ann, to_monthly, yoy_pct
+from src.transform import normalise, pct_change_3m_ann, sum_12m, to_monthly, yoy_pct
+
+
+def test_sum_12m_needs_a_full_year_and_sums_it():
+    s = pd.Series(range(1, 15), index=pd.date_range("2020-01-31", periods=14, freq="ME"),
+                  dtype=float)
+    out = sum_12m(s)
+    assert out.iloc[:11].isna().all()
+    assert out.iloc[11] == pytest.approx(sum(range(1, 13)))
+    assert out.iloc[13] == pytest.approx(sum(range(3, 15)))
 
 
 def monthly(values, start="2020-01-31"):

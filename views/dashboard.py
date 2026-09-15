@@ -14,10 +14,10 @@ import streamlit as st
 from matplotlib.colors import LinearSegmentedColormap
 
 from src import ui
-from src.drivers import DRIVER_SCALE, driver_breakdown
-from src.regimes import contributions
-from views.common import (get_results, get_store, is_demo as store_is_demo, published_note,
-                          refresh_button, source_sentence)
+from src.drivers import DRIVER_SCALE, driver_breakdown, load_config
+from src.regimes import contributions, load_regimes
+from views.common import (INDICATORS, REGIMES, get_results, get_store, is_demo as store_is_demo,
+                          published_note, refresh_button, source_sentence)
 
 # Diverging blue to red through a neutral gray, for signed indicator scores.
 DIVERGING = LinearSegmentedColormap.from_list(
@@ -30,10 +30,11 @@ store = get_store()
 
 st.html('<hr class="mr-mast-rule">')
 head_left, head_right = st.columns([3, 1], vertical_alignment="bottom")
+_cfg_counts = (len(load_config(INDICATORS)["drivers"]), len(load_regimes(REGIMES)["regimes"]))
 head_left.html(
     '<div class="mr-mast bare"><h1 class="mr-title">Macro Regime Monitor</h1>'
-    '<p class="mr-sub">U.S. economy · five drivers scored monthly from point-in-time data '
-    'and mapped to four regimes</p></div>')
+    f'<p class="mr-sub">U.S. economy · {ui.count_word(_cfg_counts[0])} drivers scored monthly '
+    f'from point-in-time data and mapped to {ui.count_word(_cfg_counts[1])} regimes</p></div>')
 vintage = head_right.date_input(
     "Data as known on", value=dt.date.today(), format="MM/DD/YYYY",
     help="Rewind to see the call you would have made at the time, using only "
@@ -205,8 +206,6 @@ with tab_status:
             f"come from each series' own recent release timing, so treat them as estimates.")
         st.html(ui.status_table(prov["schedule"], cfg, prov["month"]))
 
-ORDINAL = ["largest", "second largest", "third largest", "fourth largest", "smallest"]
-
 with tab_pull:
     st.caption("Weighted squared distance from each regime's archetype, per "
                "driver, this month. Lower means closer. In the called regime's "
@@ -250,7 +249,8 @@ with tab_pull:
         f'{ui.signed(score)} in {latest:%B %Y}. {ui.esc(spec["label"])} expects '
         f'{ui.signed(arche)}, a gap of {abs(score - arche):.2f}. Squared and weighted by '
         f'salience {sal:g}, that adds {cell:.2f} to the distance, the '
-        f'{ORDINAL[min(rank, 4)]} of its five drivers.</p></div>')
+        f'{ui.ordinal_size(rank, len(driver_cols))} of its {ui.count_word(len(driver_cols))} '
+        f'drivers.</p></div>')
     st.altair_chart(ui.gap_chart(drivers, focus_driver, arche, spec["label"],
                                  spec["color"]), width="stretch")
 

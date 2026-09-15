@@ -36,6 +36,8 @@ dlabel = {n: cfg["drivers"][n].get("label", n) for n in driver_names}
 rlabel = {n: reg["regimes"][n]["label"] for n in regime_names}
 latest = probs.index[-1]
 chash = config_hash(cfg)
+n_drivers = ui.count_word(len(driver_names))
+n_regimes = ui.count_word(len(regime_names))
 
 TRANSFORM_TEXT = ui.TRANSFORM_TEXT
 
@@ -106,11 +108,11 @@ prose(
     'chosen date, before later revisions.</li>'
     '<li><b>Score each indicator.</b> Each series is transformed, then measured against an '
     'economically meaningful center, such as the 2% target, giving a signed score.</li>'
-    f'<li><b>Build five driver scores.</b> Indicators are averaged by weight into demand, '
-    f'inflation expectations, supply constraint, policy stance and investment spending, '
+    f'<li><b>Build {n_drivers} driver scores.</b> Indicators are averaged by weight into '
+    f'{ui.esc(ui.join_words([dlabel[n].lower() for n in driver_names]))}, '
     f'each between −1 and +1.</li>'
-    '<li><b>Compare with four regimes.</b> Each regime is a point in driver space. The '
-    'closer today\'s five scores sit to a regime, the higher its probability.</li>'
+    f'<li><b>Compare with {n_regimes} regimes.</b> Each regime is a point in driver space. The '
+    'closer today\'s driver scores sit to a regime, the higher its probability.</li>'
     f'<li><b>Hold the call steady.</b> A new regime is called only after it has led for '
     f'{settings["persistence_months"]} consecutive months.</li>'
     f'<li><b>Read the newest month early.</b> The call is confirmed only once a month\'s core '
@@ -125,8 +127,9 @@ prose(
 # ---------- 2. framework ----------
 
 section("m-framework", 2, "Framework: drivers and regimes")
-prose('<p>Five drivers summarize the macro environment. Each runs from −1 to +1; positive '
-      'means hot, tight or restrictive.</p>')
+prose(f'<p>{n_drivers.capitalize()} drivers summarize the macro environment. Each runs from −1 '
+      f'to +1; positive means hot, tight or restrictive. Policy is split into monetary and '
+      f'fiscal, because the two often pull in opposite directions and regimes differ on each.</p>')
 rows = []
 for n in driver_names:
     d = cfg["drivers"][n]
@@ -163,8 +166,9 @@ prose(
     'when shown, is the provisional month. <b>The hollow circle</b> is the score twelve months '
     'earlier, as the data is known today.</li>'
     '<li><b>The thin center line</b> is zero, the neutral reading.</li>'
-    + (f'<li><b>{ui.esc(", ".join(reversed_))}</b> is drawn with the tighter end on the '
-       f'left. Scores still count restrictive as positive.</li>' if reversed_ else '')
+    + (f'<li><b>{ui.esc(ui.join_words([reversed_[0]] + [n.lower() for n in reversed_[1:]]))}</b> '
+       f'{"is" if len(reversed_) == 1 else "are"} drawn with the tighter end on the left, as on '
+       f'the scenario slide. Scores still count restrictive as positive.</li>' if reversed_ else '')
     + '<li>A star sitting near a regime\'s code on most rows is what a high probability '
     'for that regime looks like.</li></ul>')
 
@@ -303,7 +307,7 @@ st.html(ui.table(["Driver", f"Score, {latest:%B %Y}", "Coverage"],
 
 section("m-regimes", 7, "From drivers to a regime call")
 prose('<h3 class="m-h3">Archetypes</h3>'
-      '<p>Each regime is a point in the five-driver space: where that regime expects each '
+      f'<p>Each regime is a point in the {len(driver_names)}-driver space: where that regime expects each '
       'driver to be. Salience sets how much a driver counts when measuring distance.</p>')
 st.html(ui.table(
     ["Regime"] + [dlabel[n] for n in driver_names],
@@ -429,8 +433,9 @@ prose(
     'drivers move in steps. The annual federal deficit adds almost no timely signal.</li>'
     '<li><b>Lagging inputs.</b> Senior Loan Officer lending standards (quarterly) and '
     'CBO\'s estimate of the noncyclical unemployment rate both lag.</li>'
-    '<li><b>One policy driver.</b> Monetary and fiscal stance are combined, so offsetting '
-    'moves can cancel out.</li>'
+    '<li><b>Fiscal is federal and not cyclically adjusted.</b> State and local budgets are '
+    'left out, and recessions widen the deficit automatically, which reads as looser '
+    'fiscal even when policy has not changed.</li>'
     '<li><b>Calibration risk.</b> Tuning thresholds on 2021 to 2023 would overfit an '
     'unusual episode.</li>'
     '<li><b>U.S. only.</b> The indicator set and centers are U.S.-specific.</li>'
@@ -459,7 +464,7 @@ section("m-glossary", 12, "Glossary")
 terms = [
     ("Archetype", "The driver scores a regime would have in its purest form."),
     ("Coverage", "The share of a driver's intended indicator weight that had data in a month."),
-    ("Driver", "One of five summary dimensions, scored from −1 to +1."),
+    ("Driver", f"One of {n_drivers} summary dimensions, scored from −1 to +1."),
     ("Gap", "Distance of an indicator from a meaningful center, in units of a set scale."),
     ("Persistence", "Consecutive months a new leader must hold before the call changes."),
     ("Salience", "How much a driver counts when measuring distance to an archetype."),
