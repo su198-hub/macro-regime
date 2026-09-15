@@ -163,6 +163,21 @@ def test_fit_gate_moves_the_call_to_unclassified_only_after_persistence():
     assert calls["state"].iloc[3] == UNCLASSIFIED
 
 
+def test_tolerance_grades_near_misses_as_weak_and_still_calls_them():
+    # Hot sits sqrt(2) = 1.41 from neutral; a tolerance of 1.25 allows up to 1.77.
+    cfg = {**REG, "settings": {**REG["settings"], "fit_gate": "closer_than_neutral",
+                               "fit_tolerance": 1.25}}
+    # (1.5, -1.5) is 2.55 from both archetypes: beyond the tolerance of either.
+    d = pd.DataFrame({"a": [0.9, 0.0, 1.5], "b": [0.9, 0.0, -1.5]},
+                     index=pd.date_range("2024-01-31", periods=3, freq="ME"))
+    f = fit(d, cfg)
+    assert f["fit"].tolist() == ["clear", "weak", "none"]
+    assert f["limit"].iloc[0] == pytest.approx(np.sqrt(2) * 1.25)
+    held = pd.DataFrame({"a": [0.0] * 4, "b": [0.0] * 4},
+                        index=pd.date_range("2024-01-31", periods=4, freq="ME"))
+    assert UNCLASSIFIED not in set(run(held, cfg)["calls"]["called"])
+
+
 def test_gate_off_keeps_the_old_behaviour():
     d = pd.DataFrame({"a": [0.0], "b": [0.0]}, index=pd.to_datetime(["2024-01-31"]))
     assert run(d, REG)["calls"]["called"].iloc[0] in {"hot", "cold"}

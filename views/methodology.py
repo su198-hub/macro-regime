@@ -366,6 +366,7 @@ prose(f'<p>A month with any driver missing gets no probabilities rather than a g
       f'<li><b>Confidence floor.</b> If no regime reaches {settings["min_confidence"]:.0%}, '
       f'the call is reported as transitional.</li></ul>')
 if str(settings.get("fit_gate", "none")) == "closer_than_neutral":
+    tolerance = float(settings.get("fit_tolerance", 1.0))
     thresholds = ", ".join(
         f'{rlabel[r]} {np.sqrt(sum(float(salience.get(n, 1.0)) * float(reg["regimes"][r]["archetype"][n]) ** 2 for n in driver_names)):.2f}'
         for r in regime_names)
@@ -375,15 +376,25 @@ if str(settings.get("fit_gate", "none")) == "closer_than_neutral":
         'describes the month, so on their own they turn every middling month into whichever '
         'regime sits nearest the center. Without a check, the slow, disinflationary recovery of '
         '2011 to 2014 came out as goldilocks.</p>'
-        '<p>So a month is called a regime only if it is <b>closer to that regime\'s archetype than '
-        'a neutral economy</b>, with every driver at zero, would be. Each regime\'s threshold is its '
-        f'own distance from neutral: {ui.esc(thresholds)}. There is nothing to tune. A regime far '
-        'from neutral, like a hard landing, accepts months far from neutral; one near it, like '
-        'goldilocks, demands a close match.</p>'
-        '<p>A month that fails is <b>no clear regime</b>, and goes through the same persistence '
-        'rule as any regime, so the call moves to and from it deliberately. No clear regime is '
-        'different from transitional: transitional means regimes are close to one another; no '
-        'clear regime means none of them fits.</p>')
+        '<p>So each month is also measured against its nearest regime on an absolute yardstick: '
+        'how far <b>a neutral economy</b>, with every driver at zero, would sit from that '
+        f'regime\'s archetype. Those distances are {ui.esc(thresholds)}. A regime far from '
+        'neutral, like a hard landing, accepts months far from neutral; one near it, like '
+        'goldilocks, demands a closer match. The month then gets one of three grades:</p><ul>'
+        '<li><b>Clear fit.</b> Closer to the archetype than neutral would be.</li>'
+        f'<li><b>Weak fit.</b> Further than neutral, but within {tolerance:.2f} times that '
+        'distance. The regime is still called, flagged as a weak fit and drawn in a paler shade '
+        'on the history chart.</li>'
+        f'<li><b>No fit.</b> Beyond {tolerance:.2f} times the distance. The month is <b>no clear '
+        'regime</b>.</li></ul>'
+        '<p>The tolerance is a judgment. With no tolerance at all, 53% of months since 1990 '
+        'fitted no regime, most of them only just, and a monitor that says "no clear regime" half '
+        'the time says little. At 1.25, 19% of months are unclassified: every shock (2001, '
+        '2008 to 2009, 2020, 2021 to 2022) is still called, while mid-2012 to mid-2014 and '
+        'mid-2015 to early 2017 remain no clear regime.</p>'
+        '<p>No clear regime goes through the same persistence rule as any regime, so the call '
+        'moves to and from it deliberately. It is different from transitional: transitional '
+        'means regimes are close to one another; no clear regime means none of them fits.</p>')
 
 # ---------- 8. worked example ----------
 
@@ -448,8 +459,9 @@ st.html(ui.table(
 called_text = ui.call_label(call["called"], reg)
 fit_text = ""
 if pd.notna(call.get("threshold")):
-    fit_text = (f' A neutral economy would sit {call["threshold"]:.2f} from it, so the month '
-                + ("fits." if call.get("fits") else "does not fit clearly."))
+    fit_text = (f' A neutral economy would sit {call["threshold"]:.2f} from it, and the tolerance '
+                f'allows up to {call["limit"]:.2f}, so the month is '
+                + {"clear": "a clear fit.", "weak": "a weak fit."}.get(call.get("fit"), "no fit."))
 prose(f'<p>{ui.esc(rlabel[leader])} is closest, at a distance of {dist[leader]:.2f}, '
       f'giving it {probs.at[latest, leader]:.0%}.{fit_text} The driver pulling hardest against it is '
       f'<b>{ui.esc(dlabel[pull].lower())}</b>. After the fit gate, persistence rule and confidence '
@@ -528,8 +540,10 @@ terms = [
     ("Salience", "How much a driver counts when measuring distance to an archetype."),
     ("Temperature", "Sets how sharply distances turn into probabilities."),
     ("Transitional", "Reported when no regime clears the confidence floor."),
-    ("No clear regime", "Reported when conditions are no closer to any regime than a neutral "
-                        "economy would be."),
+    ("No clear regime", "Reported when conditions are too far from every regime to fit any, "
+                        "beyond the tolerance around a neutral economy's distance."),
+    ("Weak fit", "A called regime that conditions fit only loosely: further from its archetype "
+                 "than a neutral economy, but within the tolerance."),
     ("Vintage", "The date a value was published. Revisions create new vintages."),
     ("Anchor", "An indicator a month cannot be confirmed without, such as consumer spending."),
     ("Neutral rate (r*)", "The real interest rate that neither stimulates nor restrains the "

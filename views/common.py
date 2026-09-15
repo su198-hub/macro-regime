@@ -93,6 +93,7 @@ def _results_for(vintage: dt.date, version: str):
         reading["leading"] = p.idxmax()
         f = fit(frame, reg).iloc[0]
         reading["fits"] = bool(f["fits"]) if gate_on else True
+        reading["fit"] = f["fit"] if gate_on else "clear"
         reading["fit_distance"], reading["fit_threshold"] = f["distance"], f["threshold"]
         reading["schedule"] = release_schedule(res, reading, vintage)
     return res

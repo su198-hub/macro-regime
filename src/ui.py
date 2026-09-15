@@ -337,16 +337,18 @@ def provisional_box(reading: dict, reg_cfg: dict, called: str, confirm_by, confi
     spec = reg_cfg["regimes"][lead]
     p = float(reading["probabilities"][lead])
     fits = bool(reading.get("fits", True))
+    weak = ", a weak fit" if reading.get("fit") == "weak" else ""
     called_name = call_label(called, reg_cfg)
     if not fits:
         verdict = (f"No clear regime. Nearest is {esc(spec['label'])} ({p:.0%}), but not close "
                    f"enough to call it.")
     elif lead == called:
-        verdict = f"Leaning {esc(spec['label'])}, {p:.0%}, in line with the call."
+        verdict = f"Leaning {esc(spec['label'])}, {p:.0%}{weak}, in line with the call."
     elif called == "unclassified":
-        verdict = f"Leaning {esc(spec['label'])}, {p:.0%}, while the confirmed call is no clear regime."
+        verdict = (f"Leaning {esc(spec['label'])}, {p:.0%}{weak}, while the confirmed call is "
+                   f"no clear regime.")
     else:
-        verdict = f"Leaning {esc(spec['label'])}, {p:.0%}, away from the {esc(called_name)} call."
+        verdict = f"Leaning {esc(spec['label'])}, {p:.0%}{weak}, away from the {esc(called_name)} call."
     confirm = ""
     if confirm_by is not None and not pd.isna(confirm_by):
         confirm = f" {month:%B} should be confirmed around {day_month(confirm_by)}"
@@ -607,6 +609,16 @@ def month_tip(field: str, title: str = "Month") -> alt.Tooltip:
                        format="%B %Y")
 
 
+FIT_WORDS = {"clear": "Clear", "weak": "Weak", "none": "None"}
+
+
+def fit_grade(calls: pd.DataFrame) -> pd.Series:
+    """Each month's fit grade: clear, weak or none. All clear with the gate off."""
+    if "fit" in calls:
+        return calls["fit"]
+    return pd.Series("clear", index=calls.index, dtype=object)
+
+
 def regime_runs(called: pd.Series) -> pd.DataFrame:
     """Collapse a monthly called-regime series into contiguous spans."""
     s = called.dropna()
@@ -636,8 +648,8 @@ def history_chart(probs: pd.DataFrame, calls: pd.DataFrame, reg_cfg: dict) -> al
     wide = wide.reset_index()
     wide["called"] = calls["called"].reindex(probs.index).map(
         lambda c: call_label(c, reg_cfg)).to_numpy()
-    fits = calls["fits"] if "fits" in calls else pd.Series(True, index=calls.index)
-    wide["fit"] = fits.reindex(probs.index).map({True: "Yes", False: "No"}).to_numpy()
+    grade = fit_grade(calls).reindex(probs.index)
+    wide["fit"] = grade.map(FIT_WORDS).to_numpy()
     long = wide.melt(id_vars=["date", "called", "fit"], value_vars=names,
                      var_name="regime", value_name="probability")
     long["label"] = long["regime"].map(labels)
@@ -663,7 +675,7 @@ def history_chart(probs: pd.DataFrame, calls: pd.DataFrame, reg_cfg: dict) -> al
         color=color,
         order=alt.Order("stack:Q", sort="descending"))
     tooltip = [month_tip("date"), alt.Tooltip("called:N", title="Called"),
-               alt.Tooltip("fit:N", title="Fits nearest regime")] + [
+               alt.Tooltip("fit:N", title="Fit to nearest regime")] + [
         alt.Tooltip(f"{n}:Q", title=labels[n], format=".0%") for n in names]
     rule = alt.Chart(wide).mark_rule(color=INK, strokeWidth=1).encode(
         x="date:T", opacity=alt.condition(hover, alt.value(0.7), alt.value(0)),
@@ -671,8 +683,16 @@ def history_chart(probs: pd.DataFrame, calls: pd.DataFrame, reg_cfg: dict) -> al
 
     # The called-regime band is drawn in pixel space above the plot, inside the
     # same layer, so it shares the x scale and the chart can fill its container.
-    runs = regime_runs(calls["called"].reindex(probs.index))
+    # Months called a regime on only a weak fit are drawn paler, so the band
+    # separates a clear regime from a lean.
+    called = calls["called"].reindex(probs.index)
+    regime_call = called.isin(names)
+    weak = regime_call & grade.isin(["weak", "none"])
+    runs = regime_runs(called.where(called.isna(), called.astype(str) + weak.map({True: "|weak", False: ""})))
+    runs["weak"] = runs["regime"].str.endswith("|weak")
+    runs["regime"] = runs["regime"].str.removesuffix("|weak")
     runs["label"] = runs["regime"].map(lambda c: call_label(c, reg_cfg))
+    runs["fit"] = runs["weak"].map({True: "Weak", False: "Clear"}).where(runs["regime"].isin(names), "")
     # Runs cover whole months: from the first day of the first month to the
     # first day of the month after the last.
     runs["start"] = month_start(runs["start"])
@@ -682,8 +702,9 @@ def history_chart(probs: pd.DataFrame, calls: pd.DataFrame, reg_cfg: dict) -> al
         x=alt.X("start:T", scale=alt.Scale(type="utc")), x2="end:T",
         y=alt.value(-26), y2=alt.value(-12),
         color=alt.Color("label:N", scale=alt.Scale(domain=domain, range=colors)),
-        tooltip=[alt.Tooltip("label:N", title="Called"), month_tip("start", "From"),
-                 month_tip("until", "Until")])
+        opacity=alt.condition(alt.datum.weak, alt.value(0.4), alt.value(1.0)),
+        tooltip=[alt.Tooltip("label:N", title="Called"), alt.Tooltip("fit:N", title="Fit"),
+                 month_tip("start", "From"), month_tip("until", "Until")])
     ribbon_label = alt.Chart(pd.DataFrame({"t": ["Called regime"]})).mark_text(
         align="left", baseline="bottom", fontSize=11, color=INK_2, font=BODY_FONT,
     ).encode(text="t:N", x=alt.value(0), y=alt.value(-30))

@@ -55,6 +55,7 @@ calls = results["calls"]
 reg = results["regimes"]
 cfg = results["config"]
 settings = reg["settings"]
+gate_on = str(settings.get("fit_gate", "none")) == "closer_than_neutral"
 driver_cols = [c for c in drivers.columns if not c.endswith("__coverage")]
 driver_label = {n: cfg["drivers"].get(n, {}).get("label", n) for n in driver_cols}
 regime_label = {n: s["label"] for n, s in reg["regimes"].items()}
@@ -112,9 +113,12 @@ runner_up = ranked.index[1] if len(ranked) > 1 else None
 call_name, swatch = ui.call_label(called, reg), ui.call_color(called, reg)
 state = call.get("state", leading)
 fits_now = bool(call.get("fits", True))
-distance, threshold = call.get("distance"), call.get("threshold")
+grade = call.get("fit") if gate_on else None
+distance, threshold, limit = call.get("distance"), call.get("threshold"), call.get("limit")
 fit_numbers = (f"distance {distance:.2f} against {threshold:.2f} for a neutral economy"
-               if pd.notna(distance) and pd.notna(threshold) else "")
+               if gate_on and pd.notna(distance) and pd.notna(threshold) else "")
+if fit_numbers and grade != "clear" and pd.notna(limit):
+    fit_numbers += f", limit {limit:.2f}"
 
 if called == "transitional":
     lede = (f"No regime clears the {settings['min_confidence']:.0%} confidence "
@@ -124,7 +128,7 @@ elif called == "unclassified" and fits_now:
             f"but has not fit for long enough to be called. No clear regime since {since:%B %Y}.")
 elif called == "unclassified":
     lede = (f"Nearest is {regime_label[leading]} ({ranked.iloc[0]:.0%}), but conditions are "
-            f"no closer to it than a neutral economy would be, so no regime is called"
+            f"too far from it to call"
             + (f" ({fit_numbers})" if fit_numbers else "") + f". No clear regime since {since:%B %Y}.")
 else:
     lede = f"{regime_label[leading]} leads with {ranked.iloc[0]:.0%} probability"
@@ -132,10 +136,17 @@ else:
         gap = (ranked.iloc[0] - ranked.iloc[1]) * 100
         lede += f", {gap:.0f} points ahead of {regime_label[runner_up]}"
     lede += f". Called since {since:%B %Y}."
-    if fit_numbers:
-        lede += (f" It fits: conditions sit closer to it than a neutral economy would ({fit_numbers})."
-                 if fits_now else
-                 f" This month it does not fit clearly ({fit_numbers}).")
+    # The fit is measured against this month's leader, so name it when the
+    # call is still held on another regime by the persistence rule.
+    subject = "it" if leading == called else regime_label[leading]
+    if fit_numbers and grade == "clear":
+        lede += (f" A clear fit: conditions sit closer to {subject} than a neutral economy "
+                 f"would ({fit_numbers}).")
+    elif fit_numbers and grade == "weak":
+        lede += (f" A weak fit: conditions sit a little further from {subject} than a neutral "
+                 f"economy would, but within the tolerance ({fit_numbers}).")
+    elif fit_numbers:
+        lede += f" This month conditions are too far from {subject} to fit ({fit_numbers})."
 
 if called != "transitional" and state != called and pd.notna(state):
     streak = ui.run_length(calls.loc[:latest, "state"])
@@ -183,15 +194,16 @@ st.html(ui.section_head(
     "Regime probabilities over time",
     f"Monthly · {window.index[0]:%b %Y} to {latest:%b %Y}",
     "Probability of each regime, % of total, confirmed months. The band on top is the regime "
-    f"called after the {settings['persistence_months']}-month persistence rule; light gray means "
-    "no clear regime, when conditions were no closer to any regime than a neutral economy."))
+    f"called after the {settings['persistence_months']}-month persistence rule"
+    + ("; a paler shade means a weak fit, and light gray no clear regime." if gate_on else ".")))
 st.segmented_control("Range", ["5 years", "15 years", "All"], default="15 years",
                      label_visibility="collapsed", key="history_span")
 st.altair_chart(ui.history_chart(window, calls, reg), width="stretch")
 st.html(source_line)
 export = probs.rename(columns=regime_label).assign(
     Called=calls["called"].reindex(probs.index).map(lambda c: ui.call_label(c, reg)),
-    **{"Fits nearest regime": calls["fits"].reindex(probs.index)} if "fits" in calls else {})
+    **({"Fit to nearest regime": ui.fit_grade(calls).reindex(probs.index).map(ui.FIT_WORDS)}
+       if gate_on else {}))
 export.index = export.index.strftime("%Y-%m")
 export.index.name = "Month"
 st.download_button("Download full history (CSV)", export.to_csv().encode(),

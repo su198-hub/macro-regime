@@ -84,14 +84,23 @@ def fit(drivers: pd.DataFrame, reg_cfg: dict) -> pd.DataFrame:
     whichever archetype sits nearest the centre, which is how 2011-14 came out
     as goldilocks. The fit gate asks an absolute question instead.
 
-    A month fits its nearest regime only if it is closer to that archetype than
-    a perfectly neutral economy (every driver at zero) would be. The threshold
-    is each archetype's own distance from neutral, so there is nothing to tune:
-    a regime far from neutral, like a hard landing, accepts months that are far
-    from neutral, and one near it, like goldilocks, demands a closer match.
+    The yardstick is each archetype's own distance from a perfectly neutral
+    economy (every driver at zero), so a regime far from neutral, like a hard
+    landing, accepts months far from neutral, and one near it, like goldilocks,
+    demands a closer match. Three grades:
+
+      clear  closer to the archetype than neutral is
+      weak   further than neutral, but within `fit_tolerance` times that distance
+      none   beyond the tolerance: no regime is called
+
+    With a tolerance of 1 there is no weak grade. That was too strict in
+    practice: more than half of all months since 1990 fitted nothing, most of
+    them only just, and a monitor that says "no clear regime" half the time
+    says little. Weak fits are still called, but flagged.
     """
     driver_order = _driver_order(reg_cfg)
     names, arche, salience = _matrix(reg_cfg, driver_order)
+    tolerance = float(reg_cfg["settings"].get("fit_tolerance", 1.0))
     X = drivers.reindex(columns=driver_order).to_numpy(dtype=float)
     valid = ~np.isnan(X).any(axis=1)
     from_neutral = np.sqrt(((arche ** 2) * salience).sum(axis=1))
@@ -108,7 +117,11 @@ def fit(drivers: pd.DataFrame, reg_cfg: dict) -> pd.DataFrame:
         threshold[valid] = from_neutral[k]
     out = pd.DataFrame({"nearest": nearest, "distance": distance, "threshold": threshold},
                        index=drivers.index)
-    out["fits"] = out["distance"] < out["threshold"]
+    out["limit"] = out["threshold"] * tolerance
+    out["fits"] = out["distance"] < out["limit"]
+    grade = np.where(out["distance"] < out["threshold"], "clear",
+                     np.where(out["fits"], "weak", "none"))
+    out["fit"] = pd.Series(grade, index=out.index, dtype=object).where(valid)
     return out
 
 
@@ -184,7 +197,8 @@ def run(drivers: pd.DataFrame, reg_cfg: dict) -> dict:
     probs = probabilities(drivers, reg_cfg)
     gate = str(reg_cfg["settings"].get("fit_gate", "none"))
     fitted = fit(drivers, reg_cfg)
-    fits = fitted["fits"] if gate == "closer_than_neutral" else None
-    calls = call_regime(probs, reg_cfg, fits)
-    calls = calls.join(fitted[["distance", "threshold", "fits"]])
+    gate_on = gate == "closer_than_neutral"
+    calls = call_regime(probs, reg_cfg, fitted["fits"] if gate_on else None)
+    if gate_on:
+        calls = calls.join(fitted[["distance", "threshold", "limit", "fit", "fits"]])
     return {"probabilities": probs, "calls": calls, "fit": fitted}

@@ -16,12 +16,16 @@ settings:
   temperature: 0.30        # lower = sharper calls, higher = flatter probabilities
   persistence_months: 3    # consecutive months a new leader needs before it is called
   min_confidence: 0.35     # below this, report "transitional" rather than a regime
-  # A month is called a regime only if it is closer to that regime's archetype
-  # than a neutral economy (every driver at zero) would be; otherwise it is
-  # "no clear regime". Probabilities alone are relative and turn middling
-  # months into whichever archetype sits nearest the centre. Set to none to
-  # switch the gate off.
+  # Probabilities alone are relative and turn middling months into whichever
+  # archetype sits nearest the center. The fit gate measures each month against
+  # a neutral economy (every driver at zero): closer to the nearest archetype
+  # than neutral is a clear fit; within fit_tolerance times neutral's distance
+  # a weak fit, still called but flagged; beyond it, "no clear regime".
+  # Tolerance 1.0 left 53% of months since 1990 unclassified, most only just;
+  # 1.25 leaves 19%, keeps every shock classified, and still reports 2012-14
+  # and 2015-17 as no clear regime. Set fit_gate to none to switch it off.
   fit_gate: closer_than_neutral
+  fit_tolerance: 1.25
 
 driver_salience:           # how much each driver matters when measuring distance
   demand: 1.0
