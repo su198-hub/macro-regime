@@ -36,9 +36,9 @@ st.html('<div class="mr-mast bare"><h1 class="mr-title">Control room</h1>'
 st.html('<hr class="mr-rule">')
 
 st.html(
-    '<div class="m-body"><p>Every number here is a judgment. Change one and the whole '
-    'monitor re-scores &mdash; for you only: your settings stay in this browser session and '
-    'leave the published defaults untouched.</p></div>')
+    '<div class="m-body"><p>Feel free to update any assumption below &mdash; the dashboard '
+    'rescores accordingly. Note that your settings stay in this browser session and leave '
+    'the published defaults untouched.</p></div>')
 
 
 def value_row(default, why: str) -> None:
