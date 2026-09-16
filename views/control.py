@@ -36,12 +36,9 @@ st.html('<div class="mr-mast bare"><h1 class="mr-title">Control room</h1>'
 st.html('<hr class="mr-rule">')
 
 st.html(
-    '<div class="m-body"><p>Every number in the model is a judgment someone made. '
-    'Each control below shows what it is set to, why, and lets you overrule it. '
-    '<b>Changes are yours alone:</b> they live in this browser session, never touch the '
-    'published defaults, are not visible to anyone else, and are gone when you close the '
-    'tab. The dashboard and methodology pages both follow whatever you set here, and say '
-    'so at the top while anything is changed.</p></div>')
+    '<div class="m-body"><p>Every number here is a judgment. Change one and the whole '
+    'monitor re-scores &mdash; for you only: your settings stay in this browser session and '
+    'leave the published defaults untouched.</p></div>')
 
 
 def value_row(default, why: str) -> None:
@@ -199,20 +196,32 @@ for driver, spec in cfg["drivers"].items():
     changed = sum(1 for k in keys for g in (ovr.WEIGHTS, ovr.CENTERS, ovr.SCALES)
                   if k in current[g])
     title = spec.get("label", driver) + (f" · {changed} changed" if changed else "")
+    # Weights are relative: the driver divides by the sum of whatever is
+    # present, so raising one indicator lowers everything else's share without
+    # the other numbers moving. Show the share each weight actually buys.
+    live = {k: float(current[ovr.WEIGHTS].get(k, inds[k]["weight"])) for k in keys}
+    live_total = sum(live.values()) or 1.0
     with st.expander(title):
         st.caption(spec.get("description", ""))
+        if changed:
+            st.caption(f"Weights here sum to {live_total:g}, against "
+                       f"{sum(inds[k]['weight'] for k in keys):g} by default. Only the ratios "
+                       f"matter: each indicator counts for its share of that sum.")
         with st.form(f"ind::{driver}"):
             stage = staged()
             for k in keys:
                 spec_i = inds[k]
+                share_now = live[k] / live_total
                 st.markdown(f"**{spec_i['label']}**"
                             + (" · anchor" if spec_i["anchor"] else ""))
                 if spec_i["why"]:
                     st.html(f'<p class="mr-ctl-why">{ui.esc(spec_i["why"])}</p>')
                 cols = st.columns(3, gap="medium")
                 stage[ovr.WEIGHTS][k] = cols[0].number_input(
-                    f"Weight (default {spec_i['weight']:g}, "
-                    f"{spec_i['share']:.0%} of the driver)",
+                    f"Weight — {share_now:.0%} of the driver"
+                    + (f" (default {spec_i['weight']:g}, {spec_i['share']:.0%})"
+                       if abs(share_now - spec_i["share"]) > 5e-3
+                       else f" (default {spec_i['weight']:g})"),
                     *ovr.WEIGHT_LIMITS,
                     value=float(current[ovr.WEIGHTS].get(k, spec_i["weight"])),
                     step=0.05, format="%.2f", key=f"w::{k}")

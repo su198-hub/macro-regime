@@ -226,7 +226,10 @@ with st.expander("Show as a table"):
 years = sorted({d.year for d in probs.index}, reverse=True)
 st.html(ui.section_head("Behind the call", "Pick any confirmed month",
                         "What was pulling the call, in the month you choose."))
-pick_year, pick_month, _spacer = st.columns([1, 1, 3], gap="medium")
+# The call for the chosen month is the context for everything below it, so it
+# is set like a call and the pickers sit out of the way on the right.
+call_col, pick_year, pick_month = st.columns([2.6, 1, 1], gap="medium",
+                                             vertical_alignment="bottom")
 focus_year = pick_year.selectbox("Year", years, key="focus_year")
 in_year = [d for d in probs.index if d.year == focus_year]
 # No key: changing the year rebuilds the options and falls back to that year's
@@ -235,14 +238,19 @@ focus = pick_month.selectbox("Month", in_year, index=len(in_year) - 1,
                              format_func=lambda d: f"{d:%B}")
 focus_call = calls.loc[focus]
 focus_grade = focus_call.get("fit") if gate_on else None
-st.caption(
-    f"{focus:%B %Y}: called {ui.call_label(focus_call['called'], reg).lower()}, "
-    f"with {regime_label[focus_call['leading']].lower()} leading at "
-    f"{probs.at[focus, focus_call['leading']]:.0%}"
-    + (f", {ui.FIT_WORDS[focus_grade].lower()} fit to it" if isinstance(focus_grade, str) else "")
-    + ("." if focus == latest else
-       f". This is {ui.count_word(len(probs.loc[focus:latest]) - 1)} months before the "
-       f"latest confirmed month."))
+focus_note = (f"{regime_label[focus_call['leading']]} leading at "
+              f"{probs.at[focus, focus_call['leading']]:.0%}")
+if isinstance(focus_grade, str):
+    focus_note += f" · {ui.FIT_PHRASE[focus_grade]}"
+focus_note += (" · latest confirmed month" if focus == latest else
+               f" · {ui.count_word(len(probs.loc[focus:latest]) - 1)} months before "
+               f"{latest:%B %Y}")
+call_col.html(
+    f'<p class="mr-eyebrow">Regime call, {focus:%B %Y}</p>'
+    f'<div class="mr-focus-call"><span class="mr-call-swatch" '
+    f'style="background:{ui.call_color(focus_call["called"], reg)}"></span>'
+    f'{ui.esc(ui.call_label(focus_call["called"], reg))}</div>'
+    f'<p class="mr-focus-note">{ui.esc(focus_note)}</p>')
 
 tab_pull, tab_status, tab_drivers, tab_judge, tab_cov = st.tabs(
     ["What is pulling the call", "Data status", "Driver history", "Judgment", "Coverage"])

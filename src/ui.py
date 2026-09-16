@@ -131,6 +131,12 @@ CSS = f"""
 .mr-ctl-def {{ font: 0.78rem {BODY_FONT}; color: {MUTED}; margin: 0.1rem 0 0; }}
 .mr-ctl-def b {{ color: {INK}; font-weight: 700; }}
 
+/* The month being examined: the call for that month is the context a reader
+   needs before reading any breakdown, so it is set like a call, not a caption. */
+.mr-focus-call {{ font-family: {HEADING_FONT}; font-weight: 700; font-size: 1.5rem;
+  color: {INK}; line-height: 1.15; margin: 0.1rem 0 0.25rem; }}
+.mr-focus-note {{ font: 0.86rem/1.5 {BODY_FONT}; color: {INK_2}; margin: 0; }}
+
 .mr-probs {{ font-family: {BODY_FONT}; }}
 .mr-probs-head {{ font: 700 0.9rem {BODY_FONT}; color: {INK}; margin: 0.35rem 0 0.5rem; }}
 .mr-prob {{ display: grid; grid-template-columns: minmax(9rem, 13rem) 1fr 3rem;
@@ -619,6 +625,7 @@ def month_tip(field: str, title: str = "Month") -> alt.Tooltip:
 
 
 FIT_WORDS = {"clear": "Clear", "weak": "Weak", "none": "None"}
+FIT_PHRASE = {"clear": "clear fit", "weak": "weak fit", "none": "no fit"}
 
 
 def fit_grade(calls: pd.DataFrame) -> pd.Series:
