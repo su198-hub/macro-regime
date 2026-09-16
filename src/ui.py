@@ -809,10 +809,19 @@ def gap_chart(drivers: pd.DataFrame, driver: str, archetype: float, regime_label
 
 
 def breakdown_table(parts: pd.DataFrame, indicators: list[dict], clipped_to: float | None) -> str:
-    """Indicators behind one driver this month, largest contribution first."""
+    """Indicators behind one driver this month, heaviest weight first.
+
+    Ordered by weight rather than by contribution: the reader's first question
+    is which indicators the driver leans on, and a contribution ordering hides
+    that by putting whichever indicator happened to move at the top. Within one
+    weight, the largest contribution leads; anything with no data this month
+    sinks to the bottom.
+    """
     spec = {i["id"]: i for i in indicators}
-    parts = parts.assign(order=parts["contribution"].abs().fillna(-1)).sort_values(
-        "order", ascending=False)
+    parts = parts.assign(
+        by_weight=parts["share"].fillna(-1),
+        by_move=parts["contribution"].abs().fillna(-1),
+    ).sort_values(["by_weight", "by_move"], ascending=False)
     biggest = parts["contribution"].abs().max()
     biggest = biggest if biggest and not pd.isna(biggest) else 1.0
 
