@@ -127,7 +127,7 @@ CSS = f"""
 .mr-custom {{ font: 0.86rem/1.55 {BODY_FONT}; color: {INK}; background: #fbf6e8;
   border-left: 3px solid #c99a1e; padding: 0.55rem 0.8rem; margin: 0 0 0.3rem; }}
 .mr-ctl-why {{ font: 0.82rem/1.5 {BODY_FONT}; color: {INK_2}; margin: 0.1rem 0 0.9rem;
-  max-width: 44rem; }}
+  max-width: 56rem; }}
 .mr-ctl-def {{ font: 0.78rem {BODY_FONT}; color: {MUTED}; margin: 0.1rem 0 0; }}
 .mr-ctl-def b {{ color: {INK}; font-weight: 700; }}
 
@@ -209,7 +209,9 @@ CSS = f"""
   margin-top: 2.6rem; padding-top: 0.7rem; }}
 .mr-foot b {{ color: {INK}; }}
 
-.m-body p, .m-body li {{ font: 0.98rem/1.62 {BODY_FONT}; color: {INK}; max-width: 48rem; }}
+/* Prose measure. Wide enough to use the page next to the tables it sits among,
+   short enough that the eye still finds the next line. */
+.m-body p, .m-body li {{ font: 0.98rem/1.62 {BODY_FONT}; color: {INK}; max-width: 62rem; }}
 .m-body p {{ margin: 0 0 0.75rem; }}
 .m-body ul, .m-body ol {{ margin: 0 0 0.9rem; padding-left: 1.3rem; }}
 .m-body li {{ margin: 0 0 0.35rem; }}
@@ -220,11 +222,11 @@ CSS = f"""
 .m-h3 {{ font-family: {HEADING_FONT}; font-weight: 700; font-size: 1.15rem; color: {INK};
   margin: 1.3rem 0 0.3rem; }}
 .m-toc {{ list-style: none; padding: 0; margin: 0.4rem 0 0; columns: 2; column-gap: 2.5rem;
-  font: 0.95rem/1.5 {BODY_FONT}; max-width: 44rem; }}
+  font: 0.95rem/1.5 {BODY_FONT}; max-width: 58rem; }}
 .m-toc li {{ margin: 0 0 0.3rem; break-inside: avoid; }}
 .m-toc span {{ color: {MUTED}; display: inline-block; width: 1.6rem; font-variant-numeric: tabular-nums; }}
 .m-callout {{ border-top: 1px solid {INK}; border-bottom: 1px solid {GRID}; padding: 0.7rem 0;
-  margin: 0.8rem 0 1rem; max-width: 48rem; }}
+  margin: 0.8rem 0 1rem; max-width: 62rem; }}
 .m-callout p:last-child {{ margin-bottom: 0; }}
 .m-wrap {{ overflow-x: auto; margin: 0.3rem 0 1rem; }}
 .m-table {{ width: 100%; border-collapse: collapse; font: 0.87rem/1.45 {BODY_FONT}; color: {INK}; }}
@@ -235,7 +237,7 @@ CSS = f"""
 .m-table td.muted {{ color: {INK_2}; }}
 .m-table tr.group td {{ font-weight: 700; color: {INK}; border-bottom: 1px solid {AXIS}; padding-top: 1rem; }}
 .m-dl dt {{ font: 700 0.95rem {BODY_FONT}; color: {INK}; margin-top: 0.7rem; }}
-.m-dl dd {{ font: 0.95rem/1.55 {BODY_FONT}; color: {INK_2}; margin: 0.15rem 0 0; max-width: 48rem; }}
+.m-dl dd {{ font: 0.95rem/1.55 {BODY_FONT}; color: {INK_2}; margin: 0.15rem 0 0; max-width: 62rem; }}
 
 @media (max-width: 760px) {{
   .m-toc {{ columns: 1; }}

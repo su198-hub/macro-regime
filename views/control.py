@@ -251,23 +251,11 @@ for driver, spec in cfg["drivers"].items():
                 set_overrides(stage)
                 st.rerun()
 
-# ---------- default ranking ----------
-
-st.html(ui.section_head(
-    "The default indicator set, ranked", f"{len(inds)} indicators by influence",
-    "Share of the driver × the driver's share of total salience. A first-order ranking: "
-    "distance squares the gap, so a driver sitting far from an archetype counts for more "
-    "than this shows."))
-st.html(ui.table(
-    ["#", "Indicator", "Driver", "Weight", "Share of driver", "Salience", "Influence"],
-    [[str(r["rank"]), r["label"] + (" · anchor" if r["anchor"] else ""), r["driver_label"],
-      f"{r['weight']:g}", f"{r['share']:.0%}", f"{r['salience']:g}", f"{r['influence']:.1%}"]
-     for r in ovr.influence(cfg, reg)],
-    numeric={0, 3, 4, 5, 6}))
-
 # ---------- what is fixed ----------
+# The full indicator set with its weights lives on the methodology page; no
+# need to print it twice.
 
-st.html(ui.section_head("What cannot be changed here", "And why"))
+st.html(ui.section_head("What cannot be changed here"))
 st.html('<div class="m-body"><ul>'
         '<li><b>Series, transforms, direction, anchors and carry-forward rules.</b> These '
         'define what a number is, not how much it counts. Change them and the labels on '

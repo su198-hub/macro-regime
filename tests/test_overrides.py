@@ -98,13 +98,6 @@ def test_changed_center_reaches_the_indicator_spec():
     assert spec["normalize"]["center"] == pytest.approx(new)
 
 
-def test_influence_ranking_covers_every_indicator_and_sums_to_one():
-    rows = ovr.influence(CFG, REG)
-    assert len(rows) == len(ovr.indicator_defaults(CFG))
-    assert rows[0]["influence"] >= rows[-1]["influence"]
-    assert sum(r["influence"] for r in rows) == pytest.approx(1.0)
-
-
 def test_every_default_has_a_written_justification():
     rationale = REG.get("rationale") or {}
     assert set(rationale.get("driver_salience", {})) == set(REG["driver_salience"])

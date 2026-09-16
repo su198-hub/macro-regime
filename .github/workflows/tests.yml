@@ -46,7 +46,7 @@ jobs:
           errors = [e.value for e in at.exception]
           assert not errors, errors
           body = "".join(h.proto.body for h in at.get("html"))
-          assert "The default indicator set, ranked" in body, "influence ranking missing"
+          assert "What cannot be changed here" in body, "control room incomplete"
           assert at.toggle and at.slider and at.number_input, "controls missing"
           # Changing an assumption must reach the dashboard, and only for this session.
           at.slider(key="sal::demand").set_value(2.0).run()

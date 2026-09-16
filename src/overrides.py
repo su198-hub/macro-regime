@@ -262,24 +262,3 @@ def summary(ov: dict | None, cfg: dict, reg: dict) -> list[dict]:
     return rows
 
 
-def influence(cfg: dict, reg: dict) -> list[dict]:
-    """Every indicator ranked by how much of the model it moves.
-
-    Within a driver, weights are renormalized over what reported, so what
-    matters is an indicator's share of its driver, not its raw weight. Across
-    drivers, salience sets how much that driver counts in the distance. The
-    product is a fair first-order ranking; it is only first-order, because
-    distance squares the gap, so a driver far from an archetype counts for more
-    than this suggests.
-    """
-    inds = indicator_defaults(cfg)
-    total_salience = sum(float(v) for v in reg["driver_salience"].values()) or 1.0
-    rows = []
-    for name, spec in inds.items():
-        sal = float(reg["driver_salience"].get(spec["driver"], 1.0))
-        rows.append({**spec, "key": name, "salience": sal,
-                     "influence": spec["share"] * sal / total_salience})
-    rows.sort(key=lambda r: r["influence"], reverse=True)
-    for i, row in enumerate(rows, start=1):
-        row["rank"] = i
-    return rows
