@@ -71,6 +71,12 @@ def _pull(args, full_history: bool):
     store = Store(args.db)
     refuse_demo_store(store, args.db)
     series = required_series(cfg)
+    if args.only:
+        wanted = {s.strip() for s in args.only.split(",") if s.strip()}
+        unknown = wanted - set(series)
+        if unknown:
+            raise SystemExit(f"not in this config: {', '.join(sorted(unknown))}")
+        series = [s for s in series if s in wanted]
     vendors: dict[str, object] = {}
 
     verb = "Backfilling" if full_history else "Syncing"
@@ -260,6 +266,10 @@ def main():
     p.add_argument("--sources", default=None)
     p.add_argument("--source", choices=["fred", "macrobond"], default=None,
                    help="Use this vendor for every series, ignoring sources.yml.")
+    # Comma separated, not nargs="+", which would swallow the subcommand.
+    p.add_argument("--only", default=None, metavar="A,B,C",
+                   help="Fetch only these series names, for adding an indicator "
+                        "without refetching everything.")
     p.add_argument("--db", default=os.environ.get("MACRO_REGIME_DB",
                                                   "data/regime.duckdb"))
     sub = p.add_subparsers(dest="cmd", required=True)

@@ -100,3 +100,26 @@ series:
   EXPINF1YR:
     macrobond: usfcst0101
     note: Cleveland Fed model-based expected inflation, 1 year.
+  # Wages, productivity, the Fed's balance sheet and corporate leverage, added
+  # to match the drivers on the scenario slide.
+  ECIWAG:
+    macrobond: uslama4604
+    note: >-
+      Employment cost index, wages and salaries, private industry, SA. Quarterly
+      since 1980. Preferred over average hourly earnings, which jumped eight
+      percent in 2020 purely because low-wage jobs disappeared from the sample.
+  OPHNFB:
+    macrobond: uslama0202
+    note: Nonfarm business labor productivity, output per hour, index, SA. Quarterly since 1947.
+  WSHOSHO:
+    macrobond: usbank0144
+    note: >-
+      Securities held outright by the Federal Reserve, total, weekly average.
+      From 1989. The portfolio QE and QT actually move, rather than total assets,
+      which also swings with repo and emergency lending facilities.
+  NFIBCAPEX:
+    macrobond: ussurv1414
+    note: >-
+      NFIB Small Business Economic Trends, capital expenditure plans next three
+      to six months, SA. Monthly since 1986. No FRED equivalent, so the name is
+      internal.

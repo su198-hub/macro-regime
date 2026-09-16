@@ -69,14 +69,24 @@ drivers:
         release: PCE report
         why: Consumption is two thirds of GDP and revises less than GDP itself.
 
-      - id: retail_control_yoy
-        label: Retail sales, year over year
-        source: {fred: RSAFS}
+      # Wage growth is the labor-market read the scenario slide asks for that
+      # payrolls and the unemployment gap do not give: how much income the
+      # labor market is actually generating. ECI rather than average hourly
+      # earnings, which rose eight percent in 2020 because low-wage jobs left
+      # the sample, and would have scored the collapse as a hot labor market.
+      - id: wage_growth_yoy
+        label: Employment cost index, wages, year over year
+        source: {fred: ECIWAG}
         transform: yoy_pct
-        normalize: {method: gap, center: 4.0, scale: 2.5}
+        normalize: {method: gap, center: 2.9, scale: 0.75}
         direction: 1
         weight: 0.10
-        why: Timeliest hard read on goods demand, two weeks after month end.
+        carry_forward_periods: 2
+        release: Employment cost index
+        why: >-
+          Wage growth controlled for job mix. Centered on the 1990-2019 average
+          rather than 2% plus trend productivity, which would mark almost the
+          whole sample as cool because the labor share fell through it.
 
       - id: payrolls_3m_ann
         label: Payroll growth, 3 months annualized
@@ -198,14 +208,23 @@ drivers:
         weight: 0.20
         why: Where wage pressure turns into price pressure.
 
-      - id: prime_age_epop
-        label: Prime-age employment rate
-        source: {fred: LNS12300060}
-        transform: level
-        normalize: {method: zscore, window: 240}
+      # Productivity is the supply side's other half: the same demand meets a
+      # binding constraint or an expanding one depending on output per hour.
+      # It replaces prime-age employment, which was inverted on the theory that
+      # a low employment rate means labor has left the pool, and so read the
+      # demand-driven slack of 2009 to 2013 as a supply constraint.
+      - id: productivity_yoy
+        label: Labor productivity, year over year
+        source: {fred: OPHNFB}
+        transform: yoy_pct
+        normalize: {method: gap, center: 2.0, scale: 1.5}
         direction: -1
         weight: 0.10
-        why: Rising participation relieves the constraint. Inverted.
+        carry_forward_periods: 2
+        release: Productivity and costs
+        why: >-
+          Faster productivity growth relieves the constraint, so it enters
+          inverted. Paired with unit labor costs, which is this net of wages.
 
       - id: supply_chain_pressure
         label: Global supply chain pressure
@@ -256,7 +275,7 @@ drivers:
         transform: level
         normalize: {method: gap, center: 0.0, scale: 1.5}
         direction: 1
-        weight: 0.35
+        weight: 0.30
         anchor: true
         release: PCE report
         carry_forward_periods: 6
@@ -290,7 +309,7 @@ drivers:
         transform: level
         normalize: {method: gap, center: 0.0, scale: 1.5}
         direction: 1
-        weight: 0.20
+        weight: 0.15
         carry_forward_periods: 6
         release: PCE report
         why: Plain stance check with no rule coefficients. Guards against the Taylor rule's uncertain inputs.
@@ -301,8 +320,27 @@ drivers:
         transform: level
         normalize: {method: gap, center: 0.0, scale: 0.5}
         direction: 1
-        weight: 0.30
+        weight: 0.25
         why: Captures credit spreads and leverage the funds rate misses.
+
+      # The rate is not the whole stance. From 2009 to 2014 and again in 2020
+      # the funds rate sat at its floor while the balance sheet did the work, so
+      # a rate-only driver reads those years as merely loose rather than as
+      # loose as they were. Measured as the change over a year in the portfolio
+      # QE and QT actually move, against GDP, so it is a flow like the fiscal
+      # impulse: buying is easing, running off is tightening.
+      - id: balance_sheet_impulse
+        label: Fed securities held, change over a year, % of GDP
+        source:
+          expr: "WSHOSHO / GDPNOM * 100"
+          fred: [WSHOSHO, GDPNOM]
+        transform: diff_12m
+        normalize: {method: gap, center: 0.0, scale: 2.0}
+        direction: -1
+        weight: 0.15
+        why: >-
+          Quantitative easing and tightening, the part of the stance the Taylor
+          gap cannot see. Inverted: a growing portfolio is easier policy.
 
   # Fiscal: +1 is small or consolidating fiscal (tight), -1 large or expanding
   # fiscal, consistent with +1 = restrictive for every driver. Flows come from
@@ -385,7 +423,7 @@ drivers:
         transform: yoy_pct
         normalize: {method: gap, center: 3.5, scale: 3.0}
         direction: 1
-        weight: 0.25
+        weight: 0.30
         why: Leading edge of business investment, monthly.
 
       - id: real_nonres_investment_yoy
@@ -415,20 +453,26 @@ drivers:
         weight: 0.20
         why: Net tightening chokes capex with roughly two quarters of lag.
 
-      - id: capex_plans_philadelphia
-        label: Philadelphia Fed capital spending plans
-        source: {fred: PHILCAPEX}
+      # One national survey of capex intentions in place of the Philadelphia
+      # and Empire State manufacturing surveys, which between them covered two
+      # states and only factories, and moved together anyway.
+      - id: capex_plans_nfib
+        label: Small business capital spending plans
+        source: {fred: NFIBCAPEX}
         transform: level
-        normalize: {method: gap, center: 17.0, scale: 11.0}
+        normalize: {method: gap, center: 29.0, scale: 5.6}
         direction: 1
-        weight: 0.10
-        why: Manufacturers' own plans for the next six months, published in the same month.
+        weight: 0.15
+        release: NFIB small business survey
+        why: >-
+          Firms' own plans for the next three to six months, nationwide and
+          across industries, published early in the following month. Small
+          business only, so it will not see a data-center building boom.
 
-      - id: capex_plans_empire
-        label: Empire State capital spending plans
-        source: {fred: EMPIRECAPEX}
-        transform: level
-        normalize: {method: gap, center: 20.0, scale: 10.0}
-        direction: 1
-        weight: 0.10
-        why: Second regional read on capex intentions, released mid-month.
+      # Corporate leverage was tried here and taken out again. Debt as a share
+      # of GDP is a forty-year trend, not a cycle: it scored the 1990s a point
+      # high and every year since 2016 a point low, which is an era bias rather
+      # than a signal. Measured as a change it cycles, but the sign is
+      # ambiguous, since leverage also rises when firms are investing hard. The
+      # slide's capital-allocation row needs ROIC or ICOR, which is not a
+      # monthly series.
