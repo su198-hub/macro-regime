@@ -102,8 +102,10 @@ Not code. Two things:
 ## Layout
 
 ```
+config/countries.yml    which countries exist and where their config lives
 config/indicators.yml   indicator set, weights, normalisation, reasons
 config/regimes.yml      regime archetypes in driver space, persistence settings
+src/countries.py        the country registry: live, planned, and file paths
 src/store.py            DuckDB vintage store, grain is (series, obs, vintage)
 src/sources/fred.py     ALFRED adapter, pulls full revision history
 src/sources/macrobond.py  Macrobond adapter, needs Data+ (see below)
@@ -119,6 +121,36 @@ views/methodology.py    methodology page, generated from the live config
 .streamlit/config.toml  theme: Sabon Next LT headings, Arial body
 ingest.py               backfill / sync / coverage / demo
 tests/                  transforms, persistence logic, signpost geometry
+```
+
+## Adding a country
+
+The dashboard's country menu is built from `config/countries.yml`. The United
+States is live; Japan, Germany and the United Kingdom are listed as planned, so
+they appear in the footer but not in the menu. A country becomes live when its
+three config files exist:
+
+1. an indicator file with the same six drivers and that country's series,
+2. a sources file mapping each series name to its vendor code,
+3. a regimes file, or the shared one if the archetypes really do carry over.
+
+Then point its entry at those files and set `status: live`. No code changes.
+
+Two things that do not travel. **Centers**: trend consumption growth, the
+inflation target, the noncyclical unemployment rate and average capacity
+utilisation are national numbers, and a center copied from the US will score
+another economy wrong in a way that looks plausible. **Archetypes**: "inflation
+expectations above target" means something different where the target was
+undershot for twenty years. Re-derive both rather than assuming.
+
+One store holds every country, so series names must be globally unique. Prefix
+anything that is not already a unique vendor code (`JP_UNRATE`, not `UNRATE`);
+`tests/test_countries.py` checks this across whatever configs exist.
+
+Ingestion takes `--country`, which picks both config files from the registry:
+
+```bash
+python ingest.py --country us backfill
 ```
 
 ## Real data from Macrobond

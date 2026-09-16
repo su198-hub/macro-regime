@@ -1,0 +1,64 @@
+# Countries the monitor can score.
+#
+# The country menu on the dashboard is built from this file: entries marked
+# live are selectable, planned ones are named on the page so a reader can see
+# what is coming but cannot select an empty dashboard.
+#
+# Onboarding a country is config and data, not code:
+#
+#   1. indicators file. Same six drivers, that country's series. The centers
+#      are the part that does not travel: 2.4% trend consumption growth, a 2%
+#      inflation target, 79.6% average capacity utilization and CBO's
+#      noncyclical unemployment rate are all US numbers. Expect to re-derive
+#      every center and scale from that country's own history.
+#   2. sources file mapping each series name to its vendor code.
+#   3. regimes file, or reuse the shared one if the archetypes carry over.
+#      They may not. "Inflation expectations above target" means something
+#      different where the target was undershot for twenty years, and a hard
+#      landing in an economy running a large external surplus does not look
+#      like a US one. Copy config/regimes.yml and argue the numbers rather
+#      than assuming they transfer.
+#
+# One store holds every country, so series names must be globally unique.
+# Prefix anything that is not already a unique vendor code: JP_UNRATE, not
+# UNRATE. Nothing enforces this at write time; tests/test_countries.py checks
+# it across the configs that exist.
+
+default: us
+
+countries:
+
+  us:
+    label: United States
+    short: US
+    status: live
+    indicators: config/indicators.yml
+    regimes: config/regimes.yml
+    sources: config/sources.yml
+
+  jp:
+    label: Japan
+    short: JP
+    status: planned
+    note: >-
+      Needs its own inflation expectation centers. The 2% target dates only
+      from 2013, so a gap measured against it reads the whole earlier sample
+      as deeply deflationary.
+
+  de:
+    label: Germany
+    short: DE
+    status: planned
+    note: >-
+      Monetary policy is set for the euro area, not for Germany, so the Taylor
+      gap has to be built from ECB rates against German conditions, and read as
+      a measure of misfit rather than of the central bank's stance.
+
+  gb:
+    label: United Kingdom
+    short: GB
+    status: planned
+    article: the      # for prose: "Japan, Germany and the United Kingdom"
+    note: >-
+      Fiscal series come from the ONS public sector finances rather than a
+      monthly Treasury statement, on a different timetable and definition.

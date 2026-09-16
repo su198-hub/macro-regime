@@ -18,15 +18,35 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
+from src import countries as ctry
 from src import overrides as ov
 from src.drivers import compute, expected_release, indicator_inputs, load_config
 from src.regimes import fit, load_regimes, probabilities, run
 from src.store import Store
 
-INDICATORS = "config/indicators.yml"
-REGIMES = "config/regimes.yml"
 REPO_URL = "https://github.com/su198-hub/macro-regime"
 SNAPSHOT_CHECK_SECONDS = 600
+COUNTRY_KEY = "mr_country"
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def registry() -> dict:
+    return ctry.load_registry()
+
+
+def country() -> dict:
+    """The country being viewed: code, label and its three config paths."""
+    return ctry.resolve(registry(), st.session_state.get(COUNTRY_KEY))
+
+
+# Paths of the country in view. Read through these, never hard-coded, so a
+# second country needs no change here.
+def INDICATORS() -> str:  # noqa: N802 - reads as a constant at call sites
+    return country()["indicators"]
+
+
+def REGIMES() -> str:     # noqa: N802
+    return country()["regimes"]
 
 
 def data_url() -> str | None:
@@ -69,7 +89,10 @@ def _store_for(version: str):
     # never lands in a real store by accident.
     if os.environ.get("MACRO_REGIME_SEED_DEMO") == "1" and store.coverage().empty:
         from ingest import load_demo
-        load_demo(store, load_config(INDICATORS))
+        # Demo data seeds every live country, so the menu works without a vendor.
+        reg = ctry.load_registry()
+        for code in ctry.live_codes(reg):
+            load_demo(store, load_config(ctry.resolve(reg, code)["indicators"]))
     return store
 
 
@@ -81,20 +104,29 @@ OVERRIDE_KEY = "mr_overrides"
 
 
 def base_config() -> tuple[dict, dict]:
-    """The published defaults, before anything the reader changed."""
-    return load_config(INDICATORS), load_regimes(REGIMES)
+    """The published defaults for the country in view, before any override."""
+    here = country()
+    return load_config(here["indicators"]), load_regimes(here["regimes"])
 
 
 def get_overrides() -> dict:
-    """This session's overrides. Never shared: session_state is per browser tab."""
+    """This session's overrides for the country in view.
+
+    Kept per country: a weight on US consumer spending means nothing to Japan,
+    and switching country should not carry one country's settings into another.
+    """
     cfg, reg = base_config()
-    return ov.clean(st.session_state.get(OVERRIDE_KEY), cfg, reg)
+    held = st.session_state.get(OVERRIDE_KEY) or {}
+    return ov.clean(held.get(country()["code"]), cfg, reg)
 
 
 def set_overrides(new: dict | None) -> None:
     cfg, reg = base_config()
-    st.session_state[OVERRIDE_KEY] = ov.clean(new, cfg, reg)
-    # Results are cached per override signature, so nothing to clear here.
+    held = dict(st.session_state.get(OVERRIDE_KEY) or {})
+    held[country()["code"]] = ov.clean(new, cfg, reg)
+    st.session_state[OVERRIDE_KEY] = held
+    # Results are cached per country and override signature, so nothing to
+    # clear here.
 
 
 # Control room widgets that carry a key: their value lives in session_state and
@@ -118,9 +150,10 @@ def overrides_active() -> int:
 # back and forth without recomputing, small enough not to hold the whole
 # history many times over.
 @st.cache_data(ttl=900, max_entries=8, show_spinner="Rescoring the model…")
-def _results_for(vintage: dt.date, version: str, overrides: str = "{}"):
+def _results_for(vintage: dt.date, version: str, overrides: str = "{}",
+                 indicators: str = "", regimes: str = ""):
     store = _store_for(version)
-    cfg, reg = ov.apply(load_config(INDICATORS), load_regimes(REGIMES), ov.parse(overrides))
+    cfg, reg = ov.apply(load_config(indicators), load_regimes(regimes), ov.parse(overrides))
     res = compute(store, cfg, vintage)
     if res["drivers"].empty:
         return None
@@ -178,13 +211,16 @@ def release_schedule(res: dict, reading: dict, vintage: dt.date) -> pd.DataFrame
 
 
 def get_results(vintage: dt.date, use_overrides: bool = True):
-    """Model output for a vintage, under this session's settings.
+    """Model output for a vintage, for the country in view, under this
+    session's settings.
 
     use_overrides=False gives the published defaults, for side-by-side
     comparison in the control room.
     """
     signature = ov.signature(get_overrides()) if use_overrides else "{}"
-    return _results_for(vintage, data_version(), signature)
+    here = country()
+    return _results_for(vintage, data_version(), signature,
+                        here["indicators"], here["regimes"])
 
 
 def is_demo(store) -> bool:
@@ -204,6 +240,34 @@ def published_note() -> str:
     vintage = dt.date.fromisoformat(m["latest_vintage"])
     return (f"Data published {when:%B} {when.day}, {when.year} at {when:%H:%M} UTC; "
             f"latest vintage {vintage:%B} {vintage.day}.")
+
+
+def country_picker(container=None, label_visibility: str = "visible") -> dict:
+    """The country menu. One live country still gets a menu, so the shape of
+    the page does not change when the second one lands.
+
+    Planned countries are named underneath rather than listed as options: an
+    option that leads to an empty dashboard is worse than a sentence.
+    """
+    reg = registry()
+    live = ctry.live_codes(reg)
+    where = container or st
+    where.selectbox("Country", live, key=COUNTRY_KEY,
+                    format_func=lambda c: ctry.label(reg, c),
+                    label_visibility=label_visibility,
+                    help="Each country is scored from its own indicator set and centers.")
+    return country()
+
+
+def planned_note() -> str:
+    """'Japan, Germany and the United Kingdom are being onboarded.' or ''."""
+    names = [f"{p.get('article', '')} {p.get('label', p['code'])}".strip()
+             for p in ctry.planned(registry())]
+    if not names:
+        return ""
+    from src.ui import join_words
+    verb = "is" if len(names) == 1 else "are"
+    return f"{join_words(names)} {verb} being onboarded."
 
 
 def settings_banner() -> None:

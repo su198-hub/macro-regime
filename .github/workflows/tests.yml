@@ -38,6 +38,9 @@ jobs:
           # Any confirmed month can be examined, not only the latest.
           labels = [s.label for s in at.selectbox]
           assert "Year" in labels and "Month" in labels, f"month picker missing: {labels}"
+          # The country menu offers every country whose config is in place.
+          menu = [s for s in at.selectbox if s.label == "Country"]
+          assert menu and menu[0].options, "country menu missing"
           month = at.selectbox[1]
           month.select(month.options[0]).run()
           assert not [e.value for e in at.exception], [e.value for e in at.exception]
@@ -49,15 +52,16 @@ jobs:
           assert "What cannot be changed here" in body, "control room incomplete"
           assert at.toggle and at.slider and at.number_input, "controls missing"
           # Changing an assumption must reach the dashboard, and only for this session.
-          at.slider(key="sal::demand").set_value(2.0).run()
+          at.slider(key="sal::us::demand").set_value(2.0).run()
           [b for b in at.button if b.label == "Apply salience"][0].click().run()
           assert not [e.value for e in at.exception], [e.value for e in at.exception]
-          assert at.session_state["mr_overrides"]["salience"]["demand"] == 2.0, "override lost"
+          assert at.session_state["mr_overrides"]["us"]["salience"]["demand"] == 2.0, \
+              "override lost"
           at.switch_page("views/dashboard.py").run()
           assert any('class="mr-custom"' in h.proto.body for h in at.get("html")), \
               "no custom settings banner"
           [b for b in at.button if "Reset" in b.label][0].click().run()
-          assert not at.session_state["mr_overrides"]["salience"], "reset did not clear"
+          assert not at.session_state["mr_overrides"]["us"]["salience"], "reset did not clear"
 
           at.switch_page("views/methodology.py").run()
           errors = [e.value for e in at.exception]

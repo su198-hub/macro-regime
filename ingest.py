@@ -252,8 +252,12 @@ def load_demo(store: Store, cfg: dict) -> tuple[int, int]:
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--config", default="config/indicators.yml")
-    p.add_argument("--sources", default="config/sources.yml")
+    # --country picks both config files from config/countries.yml; --config and
+    # --sources still win, for a one-off file that is not in the registry yet.
+    p.add_argument("--country", default=None,
+                   help="Country code from config/countries.yml (default: its default).")
+    p.add_argument("--config", default=None)
+    p.add_argument("--sources", default=None)
     p.add_argument("--source", choices=["fred", "macrobond"], default=None,
                    help="Use this vendor for every series, ignoring sources.yml.")
     p.add_argument("--db", default=os.environ.get("MACRO_REGIME_DB",
@@ -264,6 +268,10 @@ def main():
                      ("demo", cmd_demo)]:
         sub.add_parser(name).set_defaults(func=fn)
     args = p.parse_args()
+    from src.countries import load_registry, resolve
+    here = resolve(load_registry(), args.country, strict=args.country is not None)
+    args.config = args.config or here["indicators"]
+    args.sources = args.sources or here["sources"]
     args.func(args)
 
 

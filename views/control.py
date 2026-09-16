@@ -17,12 +17,16 @@ import streamlit as st
 
 from src import overrides as ovr
 from src import ui
-from views.common import (base_config, get_overrides, get_results, overrides_active,
-                          reset_overrides, set_overrides)
+from views.common import (INDICATORS, REGIMES, base_config, country, country_picker,
+                          get_overrides, get_results, overrides_active, reset_overrides,
+                          set_overrides)
 
 st.session_state["_mr_page"] = "control"
 
 cfg, reg = base_config()
+# Widget keys carry the country: "demand" exists in every country's config, and
+# a slider's value must not follow the reader from one to another.
+wk = country()["code"]
 inds = ovr.indicator_defaults(cfg)
 rationale = reg.get("rationale") or {}
 sal_why = rationale.get("driver_salience") or {}
@@ -31,8 +35,11 @@ current = get_overrides()
 vintage = dt.date.today()
 
 st.html('<hr class="mr-mast-rule">')
-st.html('<div class="mr-mast bare"><h1 class="mr-title">Control room</h1>'
-        '<p class="mr-sub">Change the assumptions behind the call and see what moves</p></div>')
+head_left, head_country = st.columns([3, 1], vertical_alignment="bottom")
+here = country_picker(head_country)
+head_left.html('<div class="mr-mast bare"><h1 class="mr-title">Control room</h1>'
+               f'<p class="mr-sub">Change the assumptions behind the '
+               f'{ui.esc(here["label"])} call and see what moves</p></div>')
 st.html('<hr class="mr-rule">')
 
 st.html(
@@ -177,7 +184,7 @@ with st.form("salience"):
         stage[ovr.SALIENCE][driver] = right.slider(
             label, *ovr.SALIENCE_LIMITS,
             value=float(current[ovr.SALIENCE].get(driver, default)), step=0.05,
-            label_visibility="collapsed", key=f"sal::{driver}")
+            label_visibility="collapsed", key=f"sal::{wk}::{driver}")
     if st.form_submit_button("Apply salience", type="primary"):
         set_overrides(stage)
         st.rerun()
@@ -224,7 +231,7 @@ for driver, spec in cfg["drivers"].items():
                        else f" (default {spec_i['weight']:g})"),
                     *ovr.WEIGHT_LIMITS,
                     value=float(current[ovr.WEIGHTS].get(k, spec_i["weight"])),
-                    step=0.05, format="%.2f", key=f"w::{k}")
+                    step=0.05, format="%.2f", key=f"w::{wk}::{k}")
                 if spec_i["method"] == "gap":
                     lo, hi = ovr.center_limits(spec_i["center"], spec_i["scale"])
                     step = max(round(abs(spec_i["scale"]) / 10, 4), 0.01)
@@ -233,13 +240,13 @@ for driver, spec in cfg["drivers"].items():
                     stage[ovr.CENTERS][k] = cols[1].number_input(
                         f"Center (default {spec_i['center']:g})", lo, hi,
                         value=float(current[ovr.CENTERS].get(k, spec_i["center"])),
-                        step=step, format=fmt, key=f"c::{k}",
+                        step=step, format=fmt, key=f"c::{wk}::{k}",
                         help="The reading that scores zero.")
                     slo, shi = ovr.scale_limits(spec_i["scale"])
                     stage[ovr.SCALES][k] = cols[2].number_input(
                         f"Scale (default {spec_i['scale']:g})", slo, shi,
                         value=float(current[ovr.SCALES].get(k, spec_i["scale"])),
-                        step=step, format=fmt, key=f"s::{k}",
+                        step=step, format=fmt, key=f"s::{wk}::{k}",
                         help="Units of the series per point of score. Smaller is more "
                              "sensitive.")
                 else:
@@ -260,11 +267,11 @@ st.html('<div class="m-body"><ul>'
         '<li><b>Series, transforms, direction, anchors and carry-forward rules.</b> These '
         'define what a number is, not how much it counts. Change them and the labels on '
         'the dashboard stop describing the data underneath, so they stay in '
-        '<code>config/indicators.yml</code> where a change is reviewable.</li>'
+        f'<code>{ui.esc(INDICATORS())}</code> where a change is reviewable.</li>'
         '<li><b>Regime archetypes.</b> The coordinates of each regime are what the words '
         '"goldilocks" and "stagflation" mean here. Editing them privately would leave two '
         'readers using the same name for different economies. Argue them in '
-        '<code>config/regimes.yml</code>, in public.</li>'
+        f'<code>{ui.esc(REGIMES())}</code>, in public.</li>'
         '<li><b>The regime set itself.</b> Adding or removing a regime changes every '
         'probability on the page and needs the methodology rewritten with it.</li>'
         '</ul><p>Values you do set are clamped to ranges that keep the model meaningful: '

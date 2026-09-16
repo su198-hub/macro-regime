@@ -17,10 +17,13 @@ from src import ui
 from src.drivers import DRIVER_SCALE, config_hash, required_series
 from src.regimes import contributions
 from src.transform import CLIP
-from views.common import (REPO_URL, get_results, get_store, is_demo, settings_banner,
+from views.common import (INDICATORS, REGIMES, REPO_URL, country, country_picker,
+                          get_results, get_store, is_demo, planned_note, settings_banner,
                           source_sentence)
 
 store = get_store()
+here = country()
+ind_path, reg_path = INDICATORS(), REGIMES()
 results = get_results(dt.date.today())
 demo = is_demo(store)
 
@@ -86,10 +89,14 @@ SECTIONS = [
     ("m-glossary", "Glossary"),
 ]
 
+st.html('<hr class="mr-mast-rule">')
+head_left, head_country = st.columns([3, 1], vertical_alignment="bottom")
+head_left.html('<div class="mr-mast bare"><p class="mr-eyebrow">Macro Regime Monitor</p>'
+               '<h1 class="mr-title">Methodology</h1></div>')
+country_picker(head_country)
 st.html(
-    '<div class="mr-mast"><p class="mr-eyebrow">Macro Regime Monitor</p>'
-    '<h1 class="mr-title">Methodology</h1></div>'
-    '<p class="mr-sub">How the monitor turns point-in-time U.S. data into a regime call. '
+    f'<p class="mr-sub">How the monitor turns point-in-time {ui.esc(here["label"])} data into '
+    'a regime call. '
     'Tables and parameters on this page are read from the live configuration, so they '
     'always describe the model the dashboard is running, including any assumption you '
     'have changed in the control room.</p>'
@@ -512,7 +519,10 @@ prose(
     'fiscal even when policy has not changed.</li>'
     '<li><b>Calibration risk.</b> Tuning thresholds on 2021 to 2023 would overfit an '
     'unusual episode.</li>'
-    '<li><b>U.S. only.</b> The indicator set and centers are U.S.-specific.</li>'
+    f'<li><b>{ui.esc(here["label"])} only.</b> The indicator set and centers are specific to '
+    f'this economy: trend growth, the inflation target, the noncyclical unemployment rate '
+    f'and average capacity utilization are all national numbers, and none of them travel. '
+    f'{ui.esc(planned_note())}</li>'
     + ('<li><b>Demo data.</b> This deployment runs on synthetic series.</li>' if demo else '')
     + '</ul>')
 
@@ -527,10 +537,12 @@ prose(f'<ul><li><b>Config hash.</b> Every call is stamped with a short fingerpri
       f'<li><b>Change history.</b> Code, configuration and this page are versioned in '
       f'<a href="{REPO_URL}/commits/main" target="_blank" rel="noopener">the project '
       f'repository</a>. The weights and archetypes live in '
-      f'<a href="{REPO_URL}/blob/main/config/indicators.yml" target="_blank" '
-      f'rel="noopener"><code>config/indicators.yml</code></a> and '
-      f'<a href="{REPO_URL}/blob/main/config/regimes.yml" target="_blank" '
-      f'rel="noopener"><code>config/regimes.yml</code></a>.</li></ul>')
+      f'<a href="{REPO_URL}/blob/main/{ind_path}" target="_blank" '
+      f'rel="noopener"><code>{ui.esc(ind_path)}</code></a> and '
+      f'<a href="{REPO_URL}/blob/main/{reg_path}" target="_blank" '
+      f'rel="noopener"><code>{ui.esc(reg_path)}</code></a>, one set per country, '
+      f'listed in <a href="{REPO_URL}/blob/main/config/countries.yml" target="_blank" '
+      f'rel="noopener"><code>config/countries.yml</code></a>.</li></ul>')
 
 # ---------- 12. glossary ----------
 

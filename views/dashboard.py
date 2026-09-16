@@ -16,8 +16,9 @@ from matplotlib.colors import LinearSegmentedColormap
 from src import ui
 from src.drivers import DRIVER_SCALE, driver_breakdown, load_config
 from src.regimes import contributions, load_regimes
-from views.common import (INDICATORS, REGIMES, get_results, get_store, is_demo as store_is_demo,
-                          published_note, refresh_button, settings_banner, source_sentence)
+from views.common import (INDICATORS, REGIMES, country_picker, get_results, get_store,
+                          is_demo as store_is_demo, planned_note, published_note,
+                          refresh_button, settings_banner, source_sentence)
 
 # Diverging blue to red through a neutral gray, for signed indicator scores.
 DIVERGING = LinearSegmentedColormap.from_list(
@@ -29,12 +30,15 @@ store = get_store()
 # ---------- masthead ----------
 
 st.html('<hr class="mr-mast-rule">')
-head_left, head_right = st.columns([3, 1], vertical_alignment="bottom")
-_cfg_counts = (len(load_config(INDICATORS)["drivers"]), len(load_regimes(REGIMES)["regimes"]))
+head_left, head_country, head_right = st.columns([3, 1, 1], vertical_alignment="bottom")
+here = country_picker(head_country)
+_cfg_counts = (len(load_config(INDICATORS())["drivers"]),
+               len(load_regimes(REGIMES())["regimes"]))
 head_left.html(
     '<div class="mr-mast bare"><h1 class="mr-title">Macro Regime Monitor</h1>'
-    f'<p class="mr-sub">U.S. economy · {ui.count_word(_cfg_counts[0])} drivers scored monthly '
-    f'from point-in-time data and mapped to {ui.count_word(_cfg_counts[1])} regimes</p></div>')
+    f'<p class="mr-sub">{ui.esc(here["label"])} · {ui.count_word(_cfg_counts[0])} drivers '
+    f'scored monthly from point-in-time data and mapped to '
+    f'{ui.count_word(_cfg_counts[1])} regimes</p></div>')
 vintage = head_right.date_input(
     "Data as known on", value=dt.date.today(), format="MM/DD/YYYY",
     help="Rewind to see the call you would have made at the time, using only "
@@ -401,12 +405,14 @@ if published_note():
 st.html(
     f'<div class="mr-foot"><b>Sources:</b> {source}<br>'
     f'<b>Method:</b> each driver is a weighted mean of normalized indicators '
-    f'(<code>config/indicators.yml</code>). Regime probabilities come from '
-    f'distance to each archetype (<code>config/regimes.yml</code>), softmaxed at '
+    f'(<code>{ui.esc(INDICATORS())}</code>). Regime probabilities come from '
+    f'distance to each archetype (<code>{ui.esc(REGIMES())}</code>), softmaxed at '
     f'temperature {settings["temperature"]}, with a '
     f'{settings["persistence_months"]}-month persistence rule before a call '
     f'changes. The archetypes have not yet been validated against a labeled '
     f'regime history.<br>'
+    f'<b>Coverage:</b> {ui.esc(here["label"])} only. {ui.esc(planned_note())} Each country is '
+    f'scored from its own indicator set, with centers derived from its own history.<br>'
     f'<b>Config:</b> {results.get("config_hash", "n/a")}</div>')
 st.page_link("views/methodology.py", label="Read the full methodology",
              icon=":material/menu_book:")
