@@ -283,14 +283,18 @@ if taylor:
         'alongside at a lower weight.</p>')
 
 prose('<h3 class="m-h3">Indicator set</h3>'
-      '<p>Weights are shown both as configured and as a share of their driver.</p>')
+      '<p>Ordered within each driver by weight, heaviest first. Weights are shown both as '
+      'configured and as a share of their driver; only the ratios matter, since a driver '
+      'divides by the weight of whatever has reported that month.</p>')
 
 rows = []
 for n in driver_names:
     inds = cfg["drivers"][n]["indicators"]
     total = sum(float(i["weight"]) for i in inds)
     rows.append(dlabel[n])
-    for i in inds:
+    # Heaviest first, so the table reads as what each driver leans on rather
+    # than the order the indicators happen to sit in the config file.
+    for i in sorted(inds, key=lambda x: float(x["weight"]), reverse=True):
         src = i["source"]
         if src.get("expr"):
             source = ui.esc(src["expr"])

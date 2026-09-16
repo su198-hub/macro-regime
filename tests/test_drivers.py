@@ -49,6 +49,42 @@ def test_taylor_style_derived_inputs_fall_back_and_floor():
     assert gap.iloc[2] == pytest.approx(-0.025)
 
 
+def test_quarterly_year_on_year_survives_the_ragged_edge():
+    """A year-on-year change is taken before the carry, not after.
+
+    Carried first, a twelve-month change reads the latest quarter against
+    whichever quarter the month a year ago happened to hold. In the months
+    after a release that is three quarters back, not four, so steady 3.1% wage
+    growth printed as 2.3%.
+    """
+    cfg = {"drivers": {"demand": {"indicators": [
+        {"id": "q", "source": {"fred": "Q"}, "transform": "yoy_pct",
+         "normalize": {"method": "gap", "center": 0.0, "scale": 1.0},
+         "direction": 1, "weight": 1.0, "carry_forward_periods": 2},
+        # A monthly series that reaches further than the quarterly one, so the
+        # quarterly value has to be carried past its own last observation.
+        {"id": "m", "source": {"fred": "M"}, "transform": "level",
+         "normalize": {"method": "gap", "center": 0.0, "scale": 1.0},
+         "direction": 1, "weight": 1.0},
+    ]}}}
+    # Quarterly index growing 1% a quarter, last observation Q2 2025. Monthly
+    # data runs to July, past the month Q3 would start in, which is exactly
+    # when July a year earlier already held Q3 2024 and the comparison slips a
+    # quarter.
+    q_dates = pd.date_range("2023-01-01", "2025-04-01", freq="QS")
+    quarterly = pd.Series([100 * 1.01 ** i for i in range(len(q_dates))], index=q_dates)
+    m_dates = pd.date_range("2023-01-31", "2025-07-31", freq="ME")
+    w = pd.DataFrame({"Q": quarterly.reindex(m_dates.union(q_dates)),
+                      "M": pd.Series(1.0, index=m_dates).reindex(m_dates.union(q_dates))})
+    inputs, _ = indicator_frames(cfg, w)
+    yoy = inputs["demand::q"].dropna()
+    four_quarters = (1.01 ** 4 - 1) * 100
+    assert yoy.iloc[-1] == pytest.approx(four_quarters, abs=0.01), \
+        "the carried months lost a quarter of growth"
+    # Every month of the carry reports the same four-quarter change.
+    assert yoy.tail(4).round(6).nunique() == 1
+
+
 def test_contributions_sum_to_the_driver_score():
     w = wide([1.2, 0.9, 1.4])
     inputs, scores = indicator_frames(CFG, w)

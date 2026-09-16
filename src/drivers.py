@@ -55,26 +55,43 @@ def required_series(cfg: dict) -> list[str]:
 
 
 def _build_input(ind: dict, wide: pd.DataFrame, carry: int = 0) -> pd.Series | None:
-    """Resolve one indicator's raw input, handling derived expressions.
+    """One indicator's input, transformed, monthly.
 
     Lower-frequency inputs are carried forward to the latest month any series
     reaches, for up to `carry` of their own periods (see to_monthly).
+
+    A year-on-year change is taken at the series' own frequency *before* it is
+    carried, which matters at the ragged edge. Carry a quarterly series first
+    and a twelve-month change compares the last quarter published against
+    whatever the month a year ago held, which in the months after a release is
+    three quarters back, not four: wage growth of 3.1% printed as 2.3%. The
+    error appears only in the newest months, which is where the dashboard
+    looks.
     """
     src = ind["source"]
     expr = src.get("expr")
     end = wide.index.max() if not wide.empty else None
+    transform = TRANSFORMS[ind.get("transform", "level")]
 
     if not expr:
         col = src["fred"]
         if col not in wide.columns:
             return None
-        return to_monthly(wide[col].dropna(), end, carry)
+        return to_monthly(transform(wide[col].dropna()), end, carry)
+
+    # An expression over series that all share one frequency can also be built
+    # at that frequency, transformed there, and carried afterwards. Mixed
+    # frequencies cannot: the monthly side has to drive the index, so those
+    # combine first and transform after, as before.
+    natives = {_periods_per_year(wide[c].dropna()) for c in src.get("fred", [])
+               if c in wide.columns}
+    native_first = len(natives) == 1 and natives.pop() < 12 and not src.get("derived")
 
     env: dict[str, pd.Series] = {}
     for col in src.get("fred", []):
         if col not in wide.columns:
             return None
-        env[col] = to_monthly(wide[col].dropna(), end, carry)
+        env[col] = wide[col].dropna() if native_first else to_monthly(wide[col].dropna(), end, carry)
 
     # Derived inputs are built in order, so each can use the ones before it:
     #   {fred: X, transform: t}      a transform of one source series
@@ -109,9 +126,12 @@ def _build_input(ind: dict, wide: pd.DataFrame, carry: int = 0) -> pd.Series | N
     if frame.empty:
         return None
     try:
-        return frame.eval(expr)
+        combined = frame.eval(expr)
     except Exception as exc:
         raise ValueError(f"bad expr for {ind['id']}: {expr}") from exc
+    if native_first:
+        return to_monthly(transform(combined.dropna()), end, carry)
+    return transform(combined)
 
 
 def indicator_frames(cfg: dict, wide: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -126,10 +146,9 @@ def indicator_frames(cfg: dict, wide: pd.DataFrame) -> tuple[pd.DataFrame, pd.Da
     carry = int((cfg.get("meta") or {}).get("carry_forward_periods", 0))
     for driver_name, driver in cfg["drivers"].items():
         for ind in driver["indicators"]:
-            raw = _build_input(ind, wide, int(ind.get("carry_forward_periods", carry)))
-            if raw is None or raw.dropna().empty:
+            transformed = _build_input(ind, wide, int(ind.get("carry_forward_periods", carry)))
+            if transformed is None or transformed.dropna().empty:
                 continue
-            transformed = TRANSFORMS[ind.get("transform", "level")](raw)
             key = f"{driver_name}::{ind['id']}"
             inputs[key] = transformed
             scores[key] = normalise(transformed, ind["normalize"]) * int(ind["direction"])
