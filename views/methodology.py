@@ -17,7 +17,8 @@ from src import ui
 from src.drivers import DRIVER_SCALE, config_hash, required_series
 from src.regimes import contributions
 from src.transform import CLIP
-from views.common import REPO_URL, get_results, get_store, is_demo, source_sentence
+from views.common import (REPO_URL, get_results, get_store, is_demo, settings_banner,
+                          source_sentence)
 
 store = get_store()
 results = get_results(dt.date.today())
@@ -90,13 +91,16 @@ st.html(
     '<h1 class="mr-title">Methodology</h1></div>'
     '<p class="mr-sub">How the monitor turns point-in-time U.S. data into a regime call. '
     'Tables and parameters on this page are read from the live configuration, so they '
-    'always describe the model the dashboard is running.</p>'
+    'always describe the model the dashboard is running, including any assumption you '
+    'have changed in the control room.</p>'
     f'<p class="mr-lede-muted" style="margin-top:0.6rem">Config {chash} · '
     f'{len(required_series(cfg))} source series · latest scored month {latest:%B %Y}</p>'
     '<hr class="mr-rule"><p class="mr-probs-head">On this page</p><ol class="m-toc">'
     + "".join(f'<li><span>{i}.</span><a href="#{a}">{ui.esc(t)}</a></li>'
               for i, (a, t) in enumerate(SECTIONS, 1))
     + "</ol>")
+st.session_state["_mr_page"] = "methodology"
+settings_banner()
 
 # ---------- 1. summary ----------
 

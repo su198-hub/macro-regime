@@ -34,10 +34,35 @@ jobs:
           assert any("mr-prob" in b for b in html), "regime probabilities missing"
           assert len(at.tabs) == 5, "detail tabs missing"
           assert any("Contribution to driver" in b for b in html), "drill-down missing"
+
+          # Any confirmed month can be examined, not only the latest.
+          labels = [s.label for s in at.selectbox]
+          assert "Year" in labels and "Month" in labels, f"month picker missing: {labels}"
+          month = at.selectbox[1]
+          month.select(month.options[0]).run()
+          assert not [e.value for e in at.exception], [e.value for e in at.exception]
+
+          at.switch_page("views/control.py").run()
+          errors = [e.value for e in at.exception]
+          assert not errors, errors
+          body = "".join(h.proto.body for h in at.get("html"))
+          assert "The default indicator set, ranked" in body, "influence ranking missing"
+          assert at.toggle and at.slider and at.number_input, "controls missing"
+          # Changing an assumption must reach the dashboard, and only for this session.
+          at.slider(key="sal::demand").set_value(2.0).run()
+          [b for b in at.button if b.label == "Apply salience"][0].click().run()
+          assert not [e.value for e in at.exception], [e.value for e in at.exception]
+          assert at.session_state["mr_overrides"]["salience"]["demand"] == 2.0, "override lost"
+          at.switch_page("views/dashboard.py").run()
+          assert any('class="mr-custom"' in h.proto.body for h in at.get("html")), \
+              "no custom settings banner"
+          [b for b in at.button if "Reset" in b.label][0].click().run()
+          assert not at.session_state["mr_overrides"]["salience"], "reset did not clear"
+
           at.switch_page("views/methodology.py").run()
           errors = [e.value for e in at.exception]
           assert not errors, errors
           body = "".join(h.proto.body for h in at.get("html"))
           assert "m-example" in body and "m-table" in body, "methodology incomplete"
-          print("Rendered the dashboard and methodology")
+          print("Rendered the dashboard, control room and methodology")
           EOF

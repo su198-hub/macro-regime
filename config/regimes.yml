@@ -35,6 +35,54 @@ driver_salience:           # how much each driver matters when measuring distanc
   fiscal: 0.5
   investment: 0.9
 
+# Why each default is what it is. Shown next to the control in the control
+# room, so a reader changing a number can see the argument they are overruling.
+# Keep each to a sentence or two.
+rationale:
+  driver_salience:
+    demand: >-
+      Full weight. Growth is the first thing every regime disagrees about, and
+      it is measured better than anything else here.
+    inflation_expectations: >-
+      Above full weight, the highest of the six. Whether expectations stay
+      anchored is what separates a hot expansion from stagflation, and it is
+      the one driver whose damage is hard to undo once it moves.
+    supply: >-
+      Full weight. Whether inflation comes from demand outrunning capacity or
+      from capacity itself is the core distinction between goldilocks and
+      stagflation.
+    monetary: >-
+      Below full weight. Policy largely responds to the other drivers, so
+      counting it fully would double count what demand and inflation already
+      say.
+    fiscal: >-
+      Lowest weight. Reported with a lag, dominated by automatic stabilizers
+      that echo demand, and its archetype values are the least validated in the
+      config.
+    investment: >-
+      Just below full weight. Capex leads turning points, which earns it a high
+      weight, but it is noisy month to month, which stops it reaching 1.0.
+  settings:
+    temperature: >-
+      0.30 leaves the nearest regime around 70 to 80% when one archetype is
+      clearly closest, without pinning it at 100% and hiding the runner-up.
+      Lower sharpens the call, higher flattens it.
+    persistence_months: >-
+      Three months is one quarter: long enough to ignore a single odd print,
+      short enough to catch a genuine turn within a quarter.
+    min_confidence: >-
+      0.35 sits meaningfully above the 25% four regimes would each get at
+      random, so "transitional" means the regimes really are bunched.
+    fit_gate: >-
+      On. Probabilities are relative and always sum to 100%, so without an
+      absolute check every quiet month becomes whichever archetype sits nearest
+      the center, which is goldilocks.
+    fit_tolerance: >-
+      1.25. With no tolerance at all, 53% of months since 1990 fit nothing, most
+      of them only just, and the shock episodes come out full of holes. At 1.25
+      it is 19%, every shock stays whole, and the 2012 to 2017 recovery still
+      reports as no clear regime.
+
 # `short` is the code shown on the signpost chart. `color` follows the regime
 # everywhere it appears; the four were checked together for color-blind
 # separation on a white page, so re-check if you change one.

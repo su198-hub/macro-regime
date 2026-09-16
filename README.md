@@ -111,8 +111,10 @@ src/transform.py        transforms and normalisation, pure functions
 src/drivers.py          config to driver scores, confirmed and provisional
 src/regimes.py          archetype distance, softmax, persistence
 src/ui.py               signpost geometry, HTML fragments, chart styling
+src/overrides.py        session-local changes to weights, centers and settings
 app.py                  Streamlit entry point: page setup and navigation
 views/dashboard.py      the dashboard page
+views/control.py        control room: change the assumptions, per session
 views/methodology.py    methodology page, generated from the live config
 .streamlit/config.toml  theme: Sabon Next LT headings, Arial body
 ingest.py               backfill / sync / coverage / demo

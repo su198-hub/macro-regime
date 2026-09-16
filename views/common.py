@@ -18,6 +18,7 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
+from src import overrides as ov
 from src.drivers import compute, expected_release, indicator_inputs, load_config
 from src.regimes import fit, load_regimes, probabilities, run
 from src.store import Store
@@ -76,11 +77,50 @@ def get_store():
     return _store_for(data_version())
 
 
-@st.cache_data(ttl=900)
-def _results_for(vintage: dt.date, version: str):
+OVERRIDE_KEY = "mr_overrides"
+
+
+def base_config() -> tuple[dict, dict]:
+    """The published defaults, before anything the reader changed."""
+    return load_config(INDICATORS), load_regimes(REGIMES)
+
+
+def get_overrides() -> dict:
+    """This session's overrides. Never shared: session_state is per browser tab."""
+    cfg, reg = base_config()
+    return ov.clean(st.session_state.get(OVERRIDE_KEY), cfg, reg)
+
+
+def set_overrides(new: dict | None) -> None:
+    cfg, reg = base_config()
+    st.session_state[OVERRIDE_KEY] = ov.clean(new, cfg, reg)
+    # Results are cached per override signature, so nothing to clear here.
+
+
+# Control room widgets that carry a key: their value lives in session_state and
+# survives a reset unless it is cleared with the overrides, which would let a
+# reset silently re-apply on the next Apply.
+CONTROL_WIDGETS = ("sal::", "w::", "c::", "s::")
+
+
+def reset_overrides() -> None:
+    set_overrides(None)
+    for k in [k for k in st.session_state
+              if isinstance(k, str) and k.startswith(CONTROL_WIDGETS)]:
+        del st.session_state[k]
+
+
+def overrides_active() -> int:
+    return ov.count(get_overrides())
+
+
+# One entry per override set a reader tries, plus the default. Enough to flip
+# back and forth without recomputing, small enough not to hold the whole
+# history many times over.
+@st.cache_data(ttl=900, max_entries=8, show_spinner="Rescoring the model…")
+def _results_for(vintage: dt.date, version: str, overrides: str = "{}"):
     store = _store_for(version)
-    cfg = load_config(INDICATORS)
-    reg = load_regimes(REGIMES)
+    cfg, reg = ov.apply(load_config(INDICATORS), load_regimes(REGIMES), ov.parse(overrides))
     res = compute(store, cfg, vintage)
     if res["drivers"].empty:
         return None
@@ -137,8 +177,14 @@ def release_schedule(res: dict, reading: dict, vintage: dt.date) -> pd.DataFrame
     return status
 
 
-def get_results(vintage: dt.date):
-    return _results_for(vintage, data_version())
+def get_results(vintage: dt.date, use_overrides: bool = True):
+    """Model output for a vintage, under this session's settings.
+
+    use_overrides=False gives the published defaults, for side-by-side
+    comparison in the control room.
+    """
+    signature = ov.signature(get_overrides()) if use_overrides else "{}"
+    return _results_for(vintage, data_version(), signature)
 
 
 def is_demo(store) -> bool:
@@ -158,6 +204,21 @@ def published_note() -> str:
     vintage = dt.date.fromisoformat(m["latest_vintage"])
     return (f"Data published {when:%B} {when.day}, {when.year} at {when:%H:%M} UTC; "
             f"latest vintage {vintage:%B} {vintage.day}.")
+
+
+def settings_banner() -> None:
+    """Say so, on every page, when the reader is not looking at the defaults."""
+    n = overrides_active()
+    if not n:
+        return
+    st.html(f'<div class="mr-custom"><b>Custom settings.</b> {n} '
+            f'{"assumption" if n == 1 else "assumptions"} changed from the published '
+            f'defaults, in this browser session only. Everything below is scored with '
+            f'them.</div>')
+    if st.button("Reset to defaults", type="tertiary", icon=":material/restart_alt:",
+                 key=f"reset_{st.session_state.get('_mr_page', 'x')}"):
+        reset_overrides()
+        st.rerun()
 
 
 def refresh_button() -> None:

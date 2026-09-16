@@ -17,7 +17,7 @@ from src import ui
 from src.drivers import DRIVER_SCALE, driver_breakdown, load_config
 from src.regimes import contributions, load_regimes
 from views.common import (INDICATORS, REGIMES, get_results, get_store, is_demo as store_is_demo,
-                          published_note, refresh_button, source_sentence)
+                          published_note, refresh_button, settings_banner, source_sentence)
 
 # Diverging blue to red through a neutral gray, for signed indicator scores.
 DIVERGING = LinearSegmentedColormap.from_list(
@@ -40,6 +40,8 @@ vintage = head_right.date_input(
     help="Rewind to see the call you would have made at the time, using only "
          "data published by that date.")
 st.html('<hr class="mr-rule">')
+st.session_state["_mr_page"] = "dashboard"
+settings_banner()
 
 results = get_results(vintage)
 if results is None:
@@ -219,8 +221,29 @@ with st.expander("Show as a table"):
 
 # ---------- detail ----------
 
-st.html(ui.section_head("Behind the call", f"{latest:%B %Y}"
-                        + (f" · {prov['month']:%B} provisional" if prov is not None else "")))
+# Any confirmed month can be examined, not just the latest: the same breakdown
+# read at a past month is how you check whether a call made sense at the time.
+years = sorted({d.year for d in probs.index}, reverse=True)
+st.html(ui.section_head("Behind the call", "Pick any confirmed month",
+                        "What was pulling the call, in the month you choose."))
+pick_year, pick_month, _spacer = st.columns([1, 1, 3], gap="medium")
+focus_year = pick_year.selectbox("Year", years, key="focus_year")
+in_year = [d for d in probs.index if d.year == focus_year]
+# No key: changing the year rebuilds the options and falls back to that year's
+# last month, which is what a reader flipping through years expects.
+focus = pick_month.selectbox("Month", in_year, index=len(in_year) - 1,
+                             format_func=lambda d: f"{d:%B}")
+focus_call = calls.loc[focus]
+focus_grade = focus_call.get("fit") if gate_on else None
+st.caption(
+    f"{focus:%B %Y}: called {ui.call_label(focus_call['called'], reg).lower()}, "
+    f"with {regime_label[focus_call['leading']].lower()} leading at "
+    f"{probs.at[focus, focus_call['leading']]:.0%}"
+    + (f", {ui.FIT_WORDS[focus_grade].lower()} fit to it" if isinstance(focus_grade, str) else "")
+    + ("." if focus == latest else
+       f". This is {ui.count_word(len(probs.loc[focus:latest]) - 1)} months before the "
+       f"latest confirmed month."))
+
 tab_pull, tab_status, tab_drivers, tab_judge, tab_cov = st.tabs(
     ["What is pulling the call", "Data status", "Driver history", "Judgment", "Coverage"])
 
@@ -237,11 +260,11 @@ with tab_status:
         st.html(ui.status_table(prov["schedule"], cfg, prov["month"]))
 
 with tab_pull:
-    st.caption("Weighted squared distance from each regime's archetype, per "
-               "driver, this month. Lower means closer. In the called regime's "
-               "row, the largest number is the driver arguing against the call. "
-               "Click any number to see the data behind it.")
-    raw_contrib = contributions(drivers, reg, latest)
+    st.caption(f"Weighted squared distance from each regime's archetype, per driver, in "
+               f"{focus:%B %Y}. Lower means closer. In the called regime's row, the largest "
+               f"number is the driver arguing against the call. Click any number to see the "
+               f"data behind it.")
+    raw_contrib = contributions(drivers, reg, focus)
     contrib = raw_contrib.rename(index=regime_label, columns=driver_label)
     contrib["Total"] = contrib.sum(axis=1)
     event = st.dataframe(
@@ -254,7 +277,8 @@ with tab_pull:
     # Total column, falls back to the biggest gap in that regime's row, which
     # by default is the driver arguing hardest against the call.
     label_to_driver = {v: k for k, v in driver_label.items()}
-    focus_regime = called if called in reg["regimes"] else leading
+    focus_regime = (focus_call["called"] if focus_call["called"] in reg["regimes"]
+                    else focus_call["leading"])
     focus_driver = None
     cells = event.selection.cells if event and event.selection else []
     if cells:
@@ -266,7 +290,7 @@ with tab_pull:
 
     spec = reg["regimes"][focus_regime]
     arche = float(spec["archetype"][focus_driver])
-    score = float(drivers.at[latest, focus_driver])
+    score = float(drivers.at[focus, focus_driver])
     sal = float(reg["driver_salience"].get(focus_driver, 1.0))
     cell = float(raw_contrib.at[focus_regime, focus_driver])
     rank = int((raw_contrib.loc[focus_regime] > cell).sum())
@@ -276,7 +300,7 @@ with tab_pull:
         f'<h3 class="m-h3" style="margin-top:0">{ui.esc(spec["label"])} and '
         f'{ui.esc(driver_label[focus_driver].lower())}: {cell:.2f}</h3>'
         f'<p class="mr-lede">{ui.esc(driver_label[focus_driver])} scores '
-        f'{ui.signed(score)} in {latest:%B %Y}. {ui.esc(spec["label"])} expects '
+        f'{ui.signed(score)} in {focus:%B %Y}. {ui.esc(spec["label"])} expects '
         f'{ui.signed(arche)}, a gap of {abs(score - arche):.2f}. Squared and weighted by '
         f'salience {sal:g}, that adds {cell:.2f} to the distance, the '
         f'{ui.ordinal_size(rank, len(driver_cols))} of its {ui.count_word(len(driver_cols))} '
@@ -285,7 +309,7 @@ with tab_pull:
                                  spec["color"]), width="stretch")
 
     parts = driver_breakdown(cfg, focus_driver, results["inputs"],
-                             results["indicators"], latest)
+                             results["indicators"], focus)
     st.html(f'<p class="mr-probs-head" style="margin-top:0.6rem">What makes up the '
             f'{ui.esc(driver_label[focus_driver].lower())} score</p>'
             + ui.breakdown_table(parts, cfg["drivers"][focus_driver]["indicators"], score)
@@ -294,11 +318,11 @@ with tab_pull:
               f'Contribution is weight × score ÷ {DRIVER_SCALE:g}; the column sums to '
               f'the driver score. Red pushes up, blue pulls down.</p>')
 
-    with st.expander(f"Indicator scores over the last 18 months: "
+    with st.expander(f"Indicator scores over the 18 months to {focus:%B %Y}: "
                      f"{driver_label[focus_driver].lower()}"):
         ind = results["indicators"]
         cols_for = [c for c in ind.columns if c.startswith(f"{focus_driver}::")]
-        block = ind[cols_for].tail(18).iloc[::-1]
+        block = ind[cols_for].loc[:focus].tail(18).iloc[::-1]
         ind_label = {i["id"]: i.get("label") or i["id"].replace("_", " ").capitalize()
                      for i in cfg["drivers"][focus_driver]["indicators"]}
         block.columns = [ind_label.get(c.split("::")[1], c) for c in block.columns]
@@ -378,4 +402,6 @@ st.html(
     f'<b>Config:</b> {results.get("config_hash", "n/a")}</div>')
 st.page_link("views/methodology.py", label="Read the full methodology",
              icon=":material/menu_book:")
+st.page_link("views/control.py", label="Change these assumptions in the control room",
+             icon=":material/tune:")
 refresh_button()

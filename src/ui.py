@@ -122,6 +122,15 @@ CSS = f"""
 .mr-demo {{ font: 0.86rem/1.5 {BODY_FONT}; color: {INK}; margin: 0.7rem 0 0; }}
 .mr-demo b {{ color: #b83232; }}
 
+/* Custom settings: a reader has moved the model off its published defaults.
+   Marked on every page, because nothing else on the page would show it. */
+.mr-custom {{ font: 0.86rem/1.55 {BODY_FONT}; color: {INK}; background: #fbf6e8;
+  border-left: 3px solid #c99a1e; padding: 0.55rem 0.8rem; margin: 0 0 0.3rem; }}
+.mr-ctl-why {{ font: 0.82rem/1.5 {BODY_FONT}; color: {INK_2}; margin: 0.1rem 0 0.9rem;
+  max-width: 44rem; }}
+.mr-ctl-def {{ font: 0.78rem {BODY_FONT}; color: {MUTED}; margin: 0.1rem 0 0; }}
+.mr-ctl-def b {{ color: {INK}; font-weight: 700; }}
+
 .mr-probs {{ font-family: {BODY_FONT}; }}
 .mr-probs-head {{ font: 700 0.9rem {BODY_FONT}; color: {INK}; margin: 0.35rem 0 0.5rem; }}
 .mr-prob {{ display: grid; grid-template-columns: minmax(9rem, 13rem) 1fr 3rem;

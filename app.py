@@ -19,6 +19,7 @@ st.html(ui.CSS)
 
 st.navigation(
     [st.Page("views/dashboard.py", title="Dashboard", default=True),
+     st.Page("views/control.py", title="Control room", url_path="control"),
      st.Page("views/methodology.py", title="Methodology", url_path="methodology")],
     position="top",
 ).run()
