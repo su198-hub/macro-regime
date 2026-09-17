@@ -709,10 +709,14 @@ def horizon_mix(ind_cfg: dict, driver: str) -> dict:
 
 
 def horizon_text(ind_cfg: dict, driver: str) -> str:
-    """'MT 55 / LT 25 / ST 20', heaviest first, zero shares dropped."""
-    mix = {h: v for h, v in horizon_mix(ind_cfg, driver).items() if v >= 0.005}
-    return " / ".join(f"{HORIZON_SHORT[h]} {v:.0%}".replace("%", "")
-                      for h, v in sorted(mix.items(), key=lambda kv: -kv[1]))
+    """'ST 20 / MT 55 / LT 25', in horizon order so it reads with the bar.
+
+    Sorted by size instead, the labels ran in a different order from the
+    segments beside them and the eye had to re-map every row.
+    """
+    mix = horizon_mix(ind_cfg, driver)
+    return " / ".join(f"{HORIZON_SHORT[h]} {mix[h]:.0%}".replace("%", "")
+                      for h in HORIZON_ORDER if mix[h] >= 0.005)
 
 
 def driver_phrase(driver: str, score: float, ind_cfg: dict) -> str:
