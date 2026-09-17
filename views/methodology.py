@@ -8,13 +8,14 @@ fixed mechanics; anything a person might argue about comes from config.
 from __future__ import annotations
 
 import datetime as dt
+import re
 
 import numpy as np
 import pandas as pd
 import streamlit as st
 
 from src import ui
-from src.drivers import DRIVER_SCALE, config_hash, required_series
+from src.drivers import DRIVER_SCALE, config_hash, indicator_inputs, required_series
 from src.regimes import contributions
 from src.transform import CLIP
 from views.common import (INDICATORS, REGIMES, REPO_URL, country, country_picker,
@@ -118,8 +119,9 @@ prose(
     '<ol class="m-steps">'
     '<li><b>Read the data as it was known.</b> Every series is taken as published on the '
     'chosen date, before later revisions.</li>'
-    '<li><b>Score each indicator.</b> Each series is transformed, then measured against an '
-    'economically meaningful center, such as the 2% target, giving a signed score.</li>'
+    '<li><b>Score each indicator.</b> Each series is transformed, then measured against a '
+    'reference: an economic anchor such as the 2% target, its own value a year ago, or its '
+    'own recent average, giving a signed score.</li>'
     f'<li><b>Build {n_drivers} driver scores.</b> Indicators are averaged by weight into '
     f'{ui.esc(ui.join_words([dlabel[n].lower() for n in driver_names]))}, '
     f'each between −1 and +1.</li>'
@@ -231,6 +233,10 @@ meta = store.con.execute(
     "SELECT series_id, source, source_code, title, frequency FROM series_meta").df()
 cov = cov.merge(meta, on="series_id", how="left").fillna(
     {"title": "", "frequency": "", "source": "", "source_code": ""})
+# Only what the current configuration asks for. The store keeps series from
+# indicators that have since been dropped, and listing them here implies they
+# are behind the call.
+cov = cov[cov["series_id"].isin(required_series(cfg))]
 
 
 def code_cell(r) -> ui.Raw:
@@ -252,17 +258,29 @@ section("m-indicators", 5, "From series to indicator scores")
 prose('<p>Each indicator goes through three steps: a transform, a normalization that '
       'puts it on a common scale, and a direction that makes positive mean the driver is '
       'being pushed up.</p><h3 class="m-h3">Normalization</h3>'
-      '<p><b>Gap</b> is used wherever a level has economic meaning, such as the 2% target, '
-      'long-run average utilization or a neutral real rate. It says how far the indicator '
-      'is from that center in units of a chosen scale:</p>')
+      '<p>Every score is a distance from a reference point, divided by a scale:</p>')
 st.latex(r"g_t \;=\; \dfrac{x_t - c}{s}")
-prose(f'<p><b>Rolling z-score</b> is used only where there is no meaningful center. It '
-      f'compares the indicator with its own recent history, over a window of <i>w</i> '
-      f'months and needing at least max(24, w/4) months of data:</p>')
-st.latex(r"z_t \;=\; \dfrac{x_t - \operatorname{mean}_w(x)}{\operatorname{sd}_w(x)}")
-prose(f'<p>A gap says <i>tight</i>; a z-score only says <i>unusual</i>. That is why gaps '
-      f'are preferred. Both are clipped to ±{CLIP:g} so a single extreme print cannot '
-      f'dominate a driver, then multiplied by the direction (+1 or −1).</p>')
+prose(
+    '<p>What differs between indicators is what that reference is, and the choice is not a '
+    'matter of taste. There are three:</p><ul>'
+    '<li><b>A fixed anchor</b>, where a level has economic meaning of its own: the 2% '
+    'inflation target, the neutral real rate, the noncyclical unemployment rate, long-run '
+    'average capacity utilization. This is the strongest form, because the score then says '
+    '<i>tight</i> or <i>loose</i> rather than merely <i>unusual</i>.</li>'
+    '<li><b>The series\' own past</b>, for anything that grows: a year-on-year or '
+    'twelve-month change is a gap whose reference is the value a year ago. Consumption, '
+    'permits, the Fed\'s portfolio and the debt ratio all enter this way.</li>'
+    '<li><b>The series\' own recent average</b>, where the level grows with the economy and '
+    'no absolute number means anything. Crude inventories are measured against their own '
+    'five-year average, which is the convention the EIA publishes.</li></ul>'
+    '<p>The second and third forms carry their own defense against a stale reference: it '
+    'moves with the data. A fixed anchor does not, so an anchor that drifts away from the '
+    'economy quietly biases its driver, and the ones in use are worth re-examining rather '
+    'than trusting (section ' + str(num("m-limits")) + ').</p>'
+    f'<p>Scores are clipped to ±{CLIP:g} so a single extreme print cannot dominate a driver, '
+    f'then multiplied by the direction, +1 or −1. A z-score against a rolling window is '
+    f'available for indicators with no meaningful reference at all; none currently needs '
+    f'it.</p>')
 
 taylor = next((i for spec in cfg["drivers"].values() for i in spec["indicators"]
                if i["id"] == "taylor_gap"), None)
@@ -289,9 +307,9 @@ if taylor:
         'alongside at a lower weight.</p>')
 
 prose('<h3 class="m-h3">Indicator set</h3>'
-      '<p>Ordered within each driver by weight, heaviest first. Weights are shown both as '
-      'configured and as a share of their driver; only the ratios matter, since a driver '
-      'divides by the weight of whatever has reported that month.</p>')
+      '<p>Ordered within each driver by weight, heaviest first. Weight is shown as a share of '
+      'its driver, which is all that matters: a driver divides by the weight of whatever has '
+      'reported that month, so only the ratios do any work.</p>')
 
 rows = []
 horizon_of = ui.horizons(cfg)
@@ -304,21 +322,17 @@ for n in driver_names:
     for i in sorted(inds, key=lambda x: float(x["weight"]), reverse=True):
         src = i["source"]
         if src.get("expr"):
-            source = ui.esc(src["expr"])
-            for sid in sorted(src.get("fred", []), key=len, reverse=True):
-                source = source.replace(sid, fred_link(sid))
-            for alias, spec in (src.get("derived") or {}).items():
-                if "first_of" in spec:
-                    what = (f'{ui.esc(spec["first_of"][0])}, or {ui.esc(", ".join(spec["first_of"][1:]))} '
-                            f'before it is available')
-                elif "expr" in spec:
-                    what = ui.esc(spec["expr"])
-                    if "floor" in spec:
-                        what += f', floored at {float(spec["floor"]):g}'
-                else:
-                    what = (f'{ui.esc(TRANSFORM_TEXT.get(spec.get("transform", "level"), ""))} '
-                            f'of {fred_link(spec["fred"])}')
-                source += f'<br><span style="color:{ui.INK_2}">{ui.esc(alias)} = {what}</span>'
+            # The expression, with its series linked. Intermediate aliases used
+            # to be spelled out here and swamped the row; the Taylor rule, the
+            # only one complicated enough to need it, is written out in prose
+            # above, and the rest are in the config file this page links to.
+            # One pass over whole words. Replacing series one at a time breaks
+            # when one name contains another: linking DGS10 first, then DGS1,
+            # rewrote the markup of the link just inserted.
+            links = {s: fred_link(s) for s in src.get("fred", [])}
+            source = re.sub(r"[A-Za-z_][A-Za-z0-9_]*",
+                            lambda m: links.get(m.group(0), m.group(0)),
+                            ui.esc(src["expr"]))
         else:
             source = fred_link(src["fred"])
         norm = i["normalize"]
@@ -335,11 +349,10 @@ for n in driver_names:
             TRANSFORM_TEXT.get(i.get("transform", "level"), i.get("transform", "")),
             norm_text, "+1" if int(i["direction"]) > 0 else "−1",
             ui.HORIZON_SHORT.get(horizon_of.get(i["id"], "medium"), "MT"),
-            f'{float(i["weight"]):.2f}', f'{float(i["weight"]) / total:.0%}',
+            f'{float(i["weight"]) / total:.0%}',
             i.get("why", "")])
 st.html(ui.table(["Indicator", "Source", "Transform", "Normalization", "Direction",
-                  "Horizon", "Weight", "Share", "Why it is included"], rows,
-                 numeric={4, 5, 6, 7}))
+                  "Horizon", "Weight", "Why it is included"], rows, numeric={4, 5, 6}))
 
 # ---------- 6. drivers ----------
 
@@ -391,6 +404,10 @@ prose(f'<p>A month with any driver missing gets no probabilities rather than a g
       f'the call is reported as transitional.</li></ul>')
 if str(settings.get("fit_gate", "none")) == "closer_than_neutral":
     tolerance = float(settings.get("fit_tolerance", 1.0))
+    # Measured, not remembered: this number moves whenever the indicator set or
+    # the tolerance changes, and a stale one here would be the page's own lie.
+    _called = results["calls"]["called"].loc["1990":].dropna()
+    unclassified_share = (_called == "unclassified").mean() if len(_called) else float("nan")
     thresholds = ", ".join(
         f'{rlabel[r]} {np.sqrt(sum(float(salience.get(n, 1.0)) * float(reg["regimes"][r]["archetype"][n]) ** 2 for n in driver_names)):.2f}'
         for r in regime_names)
@@ -412,10 +429,11 @@ if str(settings.get("fit_gate", "none")) == "closer_than_neutral":
         f'<li><b>No fit.</b> Beyond {tolerance:.2f} times the distance. The month is <b>no clear '
         'regime</b>.</li></ul>'
         '<p>The tolerance is a judgment. With no tolerance at all, 53% of months since 1990 '
-        'fitted no regime, most of them only just, and a monitor that says "no clear regime" half '
-        'the time says little. At 1.25, 19% of months are unclassified: every shock (2001, '
-        '2008 to 2009, 2020, 2021 to 2022) is still called, while mid-2012 to mid-2014 and '
-        'mid-2015 to early 2017 remain no clear regime.</p>'
+        f'fitted no regime, most of them only just, and a monitor that says "no clear regime" '
+        f'half the time says little. At {tolerance:.2f}, {unclassified_share:.0%} of months '
+        f'since 1990 are unclassified: the shocks are all still called, while the slower '
+        f'stretches in between, 2010 to 2014 above all, report no clear regime rather than a '
+        f'quiet goldilocks.</p>'
         '<p>No clear regime goes through the same persistence rule as any regime, so the call '
         'moves to and from it deliberately. It is different from transitional: transitional '
         'means regimes are close to one another; no clear regime means none of them fits.</p>')
@@ -426,10 +444,14 @@ section("m-provisional", 0, "Confirmed call and provisional reading")
 prov_cfg = meta_cfg.get("provisional") or {}
 anchor_names = [i.get("label") or i["id"] for spec in cfg["drivers"].values()
                 for i in spec["indicators"] if i.get("anchor")]
-timely = ["weekly_economic_index", "jobless_claims_yoy", "supply_chain_pressure",
-          "taylor_gap_expected", "capex_plans_philadelphia", "capex_plans_empire"]
-timely_names = [i.get("label") or i["id"] for spec in cfg["drivers"].values()
-                for i in spec["indicators"] if i["id"] in timely]
+# Read the fast inputs off the data rather than a list kept by hand, which went
+# stale the moment an indicator was swapped out.
+_freq = results.get("frequency", {})
+_inputs = indicator_inputs(cfg)
+timely_names = [i.get("label") or i["id"] for driver, spec in cfg["drivers"].items()
+                for i in spec["indicators"]
+                if max((_freq.get(s, 12) for s in _inputs.get(f"{driver}::{i['id']}", [])),
+                       default=12) > 12]
 prose(
     '<p>Releases arrive weeks apart. Consumer spending and core PCE inflation come about four '
     'weeks after a month ends; jobless claims, surveys and market prices come within days. The '
@@ -530,6 +552,21 @@ prose(
     '<li><b>Fiscal is federal and not cyclically adjusted.</b> State and local budgets are '
     'left out, and recessions widen the deficit automatically, which reads as looser '
     'fiscal even when policy has not changed.</li>'
+    '<li><b>Fixed centers drift.</b> Where a score is measured against an anchor rather than '
+    'against the series\' own past, the anchor can stop describing the economy. Capacity '
+    'utilization has averaged about a point below its 1990 to 2019 center since 2016, and the '
+    'primary balance about a point below its own: either the economy has changed or those '
+    'centers have, and only judgment separates the two.</li>'
+    '<li><b>Four regimes do not cover the space.</b> There is no box for a capex recession '
+    'with a resilient consumer, which is why mid-2016 reports as a hard landing, or for a '
+    'slow recovery under emergency policy, which is why 2010 to 2014 reports as no clear '
+    'regime. A fifth regime would close both; it has not been added because it should be '
+    'argued from a labeled history rather than fitted to these two episodes.</li>'
+    '<li><b>Persistence can hold a call through a turn.</b> The rule that stops the call '
+    'flipping on noise also delays it at a genuine turning point. In mid-2008 the monthly '
+    'readings had already moved to stagflation and then to a hard landing while the called '
+    'regime was still goldilocks, because the challengers alternated and neither held three '
+    'months in a row.</li>'
     '<li><b>Calibration risk.</b> Tuning thresholds on 2021 to 2023 would overfit an '
     'unusual episode.</li>'
     f'<li><b>{ui.esc(here["label"])} only.</b> The indicator set and centers are specific to '

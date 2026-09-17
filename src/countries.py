@@ -80,10 +80,13 @@ def resolve(reg: dict, code: str | None = None, root: str | Path = ".",
                 f"Live: {', '.join(live_codes(reg, root))}")
         code = default_code(reg, root)
     spec = _spec(reg, code)
+    # Forward slashes even on Windows: these paths are shown on the page and
+    # quoted in the methodology, where a backslash would be wrong for everyone
+    # reading the repository.
     return {"code": code,
             "label": spec.get("label", code.upper()),
             "short": spec.get("short", code.upper()),
-            **{k: str(Path(root) / spec[k]) for k in REQUIRED_PATHS}}
+            **{k: (Path(root) / spec[k]).as_posix() for k in REQUIRED_PATHS}}
 
 
 def label(reg: dict, code: str) -> str:

@@ -85,7 +85,10 @@ def text_on(fill: str) -> str:
 
 
 def signed(x: float) -> str:
-    return f"{x:+.2f}".replace("-", "−")
+    # Round first: a score of -0.001 printed as "−0.00", which reads as a
+    # negative reading that is somehow zero.
+    value = 0.0 if abs(x) < 0.005 else x
+    return f"{value:+.2f}".replace("-", "−")
 
 
 # ---------- page chrome ----------
@@ -343,7 +346,8 @@ def probability_panel(probs_row: pd.Series, reg_cfg: dict, called: str,
                 f'<div class="mr-prob-colhead">{esc(provisional_label)}*</div></div>')
         note = (f'<p class="mr-prob-note">Bars are {esc(confirmed_label)}, confirmed. '
                 f'<span class="mr-key-tick"></span> Ticks are {esc(provisional_label)}, '
-                f'provisional.<br>* Provisional: not a call, and can change as data arrives.</p>')
+                f'provisional.<br>* {esc(provisional_label)} can still change as data '
+                f'arrives.</p>')
     return '<div class="mr-probs">' + head + "".join(rows) + note + "</div>"
 
 

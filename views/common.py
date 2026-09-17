@@ -302,8 +302,9 @@ def source_sentence(vendors: set[str]) -> str:
                 "invented dynamics, so the numbers mean nothing.")
     if "macrobond" in vendors:
         parts.append("Macrobond, carrying each series from its original publisher: BEA, "
-                     "BLS, Census, the Federal Reserve Board, the Chicago and Cleveland Feds, "
-                     "CBO, OMB and the University of Michigan")
+                     "BLS, Census, EIA, the Federal Reserve Board, the New York, Chicago and "
+                     "Cleveland Feds, CBO, the Conference Board, S&amp;P with Robert Shiller, "
+                     "and the University of Michigan")
     if "fred" in vendors:
         parts.append("FRED and ALFRED, Federal Reserve Bank of St. Louis")
     if not parts:
