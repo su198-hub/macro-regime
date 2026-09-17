@@ -323,7 +323,13 @@ horizon_of = ui.horizons(cfg)
 for n in driver_names:
     inds = cfg["drivers"][n]["indicators"]
     total = sum(float(i["weight"]) for i in inds)
-    rows.append(dlabel[n])
+    # The driver's horizon mix sits on its heading row, so the shape of each
+    # block is visible above the indicators that make it up.
+    rows.append(ui.Raw(
+        f'{ui.esc(dlabel[n])} <span style="font-weight:400;margin-left:0.5rem">'
+        f'{ui.horizon_bar(cfg, n, width=90)}</span>'
+        f'<span style="font-weight:400;color:{ui.INK_2};font-size:0.82rem;margin-left:0.4rem">'
+        f'{ui.esc(ui.horizon_text(cfg, n))}</span>'))
     # Heaviest first, so the table reads as what each driver leans on rather
     # than the order the indicators happen to sit in the config file.
     for i in sorted(inds, key=lambda x: float(x["weight"]), reverse=True):

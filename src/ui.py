@@ -288,8 +288,9 @@ def table(header: list[str], rows: list[list], numeric: set[int] = frozenset()) 
                    for i, h in enumerate(header))
     body = []
     for r in rows:
-        if isinstance(r, str):
-            body.append(f'<tr class="group"><td colspan="{len(header)}">{esc(r)}</td></tr>')
+        # A lone string, or a lone Raw, is a full-width heading inside the table.
+        if isinstance(r, (str, Raw)):
+            body.append(f'<tr class="group"><td colspan="{len(header)}">{cell(r)}</td></tr>')
             continue
         body.append("<tr>" + "".join(
             f'<td class="num">{cell(v)}</td>' if i in numeric else f"<td>{cell(v)}</td>"
