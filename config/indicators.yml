@@ -67,15 +67,16 @@ meta:
   # score which decade it is rather than what is happening.
   horizons:
     short: [payrolls_3m_ann, jobless_claims_yoy, umich_1y, supply_chain_pressure,
-            financial_conditions, capex_plans_nfib]
+            financial_conditions]
     medium: [real_pce_yoy, unemployment_gap, wage_growth_yoy, capacity_utilisation,
              vacancies_per_unemployed, unit_labour_costs_yoy, oil_inventory_tightness,
              taylor_gap, taylor_gap_expected, real_fed_funds, balance_sheet_impulse,
              primary_balance_gdp, fiscal_impulse, debt_trajectory,
              core_capex_orders_yoy, real_nonres_investment_yoy,
-             manufacturing_construction_yoy, ci_lending_standards]
+             building_permits_yoy, excess_bond_premium, ci_lending_standards]
     long: [breakeven_5y5y, breakeven_10y, cleveland_10y, productivity_yoy,
-           interest_burden_gdp, debt_sustainability_gap, equity_risk_premium]
+           interest_burden_gdp, debt_sustainability_gap, equity_risk_premium,
+           yield_curve_slope]
 
 drivers:
 
@@ -324,7 +325,7 @@ drivers:
         transform: level
         normalize: {method: gap, center: 0.0, scale: 1.5}
         direction: 1
-        weight: 0.30
+        weight: 0.25
         anchor: true
         release: PCE report
         carry_forward_periods: 6
@@ -358,7 +359,7 @@ drivers:
         transform: level
         normalize: {method: gap, center: 0.0, scale: 1.5}
         direction: 1
-        weight: 0.15
+        weight: 0.10
         carry_forward_periods: 6
         release: PCE report
         why: Plain stance check with no rule coefficients. Guards against the Taylor rule's uncertain inputs.
@@ -369,8 +370,29 @@ drivers:
         transform: level
         normalize: {method: gap, center: 0.0, scale: 0.5}
         direction: 1
-        weight: 0.25
+        weight: 0.20
         why: Captures credit spreads and leverage the funds rate misses.
+
+      # The rule-based indicators above judge the stance against what today's
+      # inflation and slack call for. The curve is the other question: what the
+      # market thinks that stance will do. An inverted curve says short rates
+      # are expected to fall, which is the bond market's verdict that policy is
+      # tight enough to break something. Inverted before every postwar
+      # recession, with two false positives, 1966 and the 28-month inversion of
+      # 2022 to 2024 — so it is carried at a weight that informs rather than
+      # decides.
+      - id: yield_curve_slope
+        label: Yield curve, 10-year less 1-year
+        source:
+          expr: "DGS10 - DGS1"
+          fred: [DGS10, DGS1]
+        transform: level
+        normalize: {method: gap, center: 1.47, scale: 1.05}
+        direction: -1
+        weight: 0.15
+        why: >-
+          A flat or inverted curve is restrictive, so it enters inverted. A
+          spread, so it cannot drift the way a level of rates does.
 
       # The rate is not the whole stance. From 2009 to 2014 and again in 2020
       # the funds rate sat at its floor while the balance sheet did the work, so
@@ -511,14 +533,37 @@ drivers:
         weight: 0.20
         why: The actual spend. Quarterly and heavily revised, hence vintages.
 
-      - id: manufacturing_construction_yoy
-        label: Manufacturing construction spending, year over year
-        source: {fred: TLMFGCONS}
+      # Housing is the most cyclical sector in the economy and the longest
+      # leading one, turning four to six quarters before business capex, and
+      # the model had no residential exposure at all. Permits rather than
+      # starts: the decision to build, before ground is broken.
+      - id: building_permits_yoy
+        label: Building permits, year over year
+        source: {fred: PERMIT}
         transform: yoy_pct
-        normalize: {method: gap, center: 5.0, scale: 12.0}
+        normalize: {method: gap, center: 1.65, scale: 17.0}
         direction: 1
-        weight: 0.10
-        why: Picks up reshoring and subsidy-driven building directly.
+        weight: 0.15
+        why: >-
+          The earliest read on residential investment, monthly since 1954.
+          Replaces manufacturing construction, which saw only the reshoring and
+          chip-fab building and missed the housing cycle entirely.
+
+      # The price of credit risk, stripped of the compensation for expected
+      # default: what lenders charge for bearing it. Rises when credit is being
+      # rationed for reasons unconnected to the borrower, which is what stops
+      # investment. Mean zero by construction, so the center needs no judgment.
+      - id: excess_bond_premium
+        label: Excess bond premium
+        source: {fred: EBP}
+        transform: level
+        normalize: {method: gap, center: 0.08, scale: 0.63}
+        direction: -1
+        weight: 0.15
+        why: >-
+          Gilchrist and Zakrajsek's residual after modelling each bond's default
+          risk. Inverted: a wide premium means credit is dear and capex is next
+          to stop. Forecasts investment better than a raw spread does.
 
       - id: ci_lending_standards
         label: Banks tightening business lending standards, net %
@@ -526,24 +571,17 @@ drivers:
         transform: level
         normalize: {method: gap, center: 5.0, scale: 20.0}
         direction: -1
-        weight: 0.20
-        why: Net tightening chokes capex with roughly two quarters of lag.
-
-      # One national survey of capex intentions in place of the Philadelphia
-      # and Empire State manufacturing surveys, which between them covered two
-      # states and only factories, and moved together anyway.
-      - id: capex_plans_nfib
-        label: Small business capital spending plans
-        source: {fred: NFIBCAPEX}
-        transform: level
-        normalize: {method: gap, center: 29.0, scale: 5.6}
-        direction: 1
         weight: 0.10
-        release: NFIB small business survey
         why: >-
-          Firms' own plans for the next three to six months, nationwide and
-          across industries, published early in the following month. Small
-          business only, so it will not see a data-center building boom.
+          Net tightening chokes capex with roughly two quarters of lag. Held at
+          a lower weight now that the excess bond premium prices the same
+          credit conditions from the market side rather than the survey side.
+
+      # The NFIB capex-plans survey was dropped here. It was the shortest
+      # horizon input in the driver, covered small business only, and the
+      # financing measures now in its place — the cost of equity, the price of
+      # credit risk, the availability of bank credit — say more about whether
+      # the next round of investment happens than an intentions survey does.
 
       # Everything else in this driver measures investment that has already
       # happened or been ordered. This is what it costs to fund the next round:

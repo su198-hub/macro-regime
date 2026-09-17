@@ -142,3 +142,22 @@ series:
   DGS10:
     macrobond: us10yfedgov_m
     note: 10-year Treasury constant maturity yield, monthly average, since 1941.
+  DGS1:
+    macrobond: us12mfedgov_m
+    note: >-
+      1-year Treasury constant maturity yield, monthly, since 1953. Paired with
+      the 10-year for the curve slope. The 1-year rather than the 3-month buys
+      thirty years of extra history and inverts at much the same times.
+  PERMIT:
+    macrobond: uslead0109
+    note: >-
+      Building permits for new private housing units, SA annual rate, monthly
+      since 1954. Census data, carried in the Conference Board's business cycle
+      set.
+  EBP:
+    macrobond: uslead0489
+    note: >-
+      Excess bond premium, Gilchrist and Zakrajsek, published by the Federal
+      Reserve. Monthly since 1973. The part of corporate bond spreads left after
+      removing compensation for expected default: the price of bearing credit
+      risk rather than the risk itself. Mean zero by construction.
