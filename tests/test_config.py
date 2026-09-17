@@ -71,11 +71,13 @@ def test_every_driver_carries_something_slower_than_the_news():
         assert mix["medium"] + mix["long"] >= 0.33, f"{name} is {mix['short']:.0%} short-horizon"
 
 
-def test_long_horizon_inputs_are_never_raw_levels_of_a_trending_series():
-    """A level against a fixed center scores which decade it is.
+def test_long_horizon_inputs_are_never_raw_levels_by_accident():
+    """A level against a fixed center can end up scoring which decade it is.
 
-    Long-horizon inputs must be a change, a deviation from their own trend, or
-    a spread: an expression that differences two series.
+    A long-horizon input must therefore be a change, a deviation from its own
+    trend, or a spread — or else say in config that its level is the point, as
+    an inflation expectation measured against the target is. The flag is there
+    to make that a decision rather than an oversight.
     """
     horizon = ui.horizons(CFG)
     changes = {"yoy_pct", "diff_12m", "dev_5y_pct", "pct_change_5y_ann", "pct_change_3m_ann"}
@@ -84,10 +86,7 @@ def test_long_horizon_inputs_are_never_raw_levels_of_a_trending_series():
             if horizon.get(i["id"]) != "long":
                 continue
             transform = i.get("transform", "level")
-            expr = i["source"].get("expr", "")
-            is_spread = "-" in expr
-            # A rate or ratio published as a level is already a spread-like
-            # quantity; anything else has to be differenced.
-            assert transform in changes or is_spread or i["id"] in {
-                "breakeven_5y5y", "breakeven_10y", "cleveland_10y", "interest_burden_gdp"
-            }, f"{i['id']} is long-horizon but enters as a raw level"
+            is_spread = "-" in i["source"].get("expr", "")
+            assert transform in changes or is_spread or i.get("absolute_level"), (
+                f"{i['id']} is long-horizon and enters as a raw level: difference it, "
+                f"or set absolute_level: true and say why in its reason")

@@ -142,6 +142,20 @@ series:
   DGS10:
     macrobond: us10yfedgov_m
     note: 10-year Treasury constant maturity yield, monthly average, since 1941.
+  SPFCPI10:
+    macrobond: usfcst0720
+    note: >-
+      Survey of Professional Forecasters, mean expected CPI inflation over the
+      next ten years, quarterly since 1991. Philadelphia Fed. CPI rather than
+      PCE: the PCE version only starts in 2007. No FRED equivalent, so the name
+      is internal.
+  INFRISKPREM:
+    macrobond: usfcst0669
+    note: >-
+      Cleveland Fed 10-year inflation risk premium: the part of a breakeven that
+      pays for bearing inflation uncertainty rather than for expected inflation.
+      Monthly since 1982. Pairs with EXPINF10YR, the expectations half of the
+      same decomposition.
   DGS1:
     macrobond: us12mfedgov_m
     note: >-

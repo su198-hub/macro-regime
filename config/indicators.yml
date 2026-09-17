@@ -27,8 +27,9 @@
 # before the slow releases. v0.3 balances that with longer-horizon inputs — oil
 # inventories against their own five-year average, the equity risk premium, r
 # minus g — because a regime lasts years and a monitor built only of fast data
-# reports what just happened. meta.horizons says which is which, and every long
-# input enters as a change, a spread or a deviation from trend.
+# reports what just happened. meta.horizons says which is which, and a long
+# input enters as a change, a spread or a deviation from trend unless it is
+# marked absolute_level, for the few whose level is the point.
 
 meta:
   region: US
@@ -62,9 +63,12 @@ meta:
   #           breakeven or the equity risk premium is long-horizon in content
   #           while trading daily, which is the combination worth having.
   #
-  # Every long and medium input enters as a change, a spread, or a deviation
-  # from its own trend — never a raw level against a fixed center, which would
-  # score which decade it is rather than what is happening.
+  # Long and medium inputs enter as a change, a spread, or a deviation from
+  # their own trend, because a raw level against a fixed center scores which
+  # decade it is rather than what is happening. The exception is marked
+  # `absolute_level: true` on the indicator: an inflation expectation against
+  # the 2% target is meant to be read as a level, since the target is a policy
+  # commitment rather than an average that drifts.
   horizons:
     short: [payrolls_3m_ann, jobless_claims_yoy, umich_1y, supply_chain_pressure,
             financial_conditions]
@@ -74,7 +78,7 @@ meta:
              primary_balance_gdp, fiscal_impulse, debt_trajectory,
              core_capex_orders_yoy, real_nonres_investment_yoy,
              building_permits_yoy, excess_bond_premium, ci_lending_standards]
-    long: [breakeven_5y5y, breakeven_10y, cleveland_10y, productivity_yoy,
+    long: [breakeven_5y5y, spf_long_run, inflation_risk_premium, cleveland_10y, productivity_yoy,
            interest_burden_gdp, debt_sustainability_gap, equity_risk_premium,
            yield_curve_slope]
 
@@ -171,17 +175,48 @@ drivers:
         transform: level
         normalize: {method: gap, center: 2.3, scale: 0.35}
         direction: 1
+        absolute_level: true   # an expectation measured against the 2% target
         weight: 0.30
-        why: Market-implied long-run expectations. Daily, never revised.
+        why: >-
+          Market-implied inflation for the five years starting five years out,
+          far enough ahead that today's oil price and business cycle have washed
+          out and only the anchor is left. Daily, never revised.
 
-      - id: breakeven_10y
-        label: 10-year breakeven inflation
-        source: {fred: T10YIE}
+      # Professionals rather than households. Forecasters barely move this
+      # number, which is what makes it informative: when a long-run survey
+      # shifts, something has changed about the anchor itself. Centered on 2.3
+      # rather than 2.0 because it forecasts CPI, which runs about three tenths
+      # above the PCE measure the Fed targets.
+      - id: spf_long_run
+        label: Professional forecasters, CPI over the next ten years
+        source: {fred: SPFCPI10}
         transform: level
         normalize: {method: gap, center: 2.3, scale: 0.35}
         direction: 1
-        weight: 0.15
-        why: Cross-check on 5y5y, more sensitive to near-term prints.
+        absolute_level: true   # an expectation measured against the 2% target
+        weight: 0.20
+        carry_forward_periods: 2
+        release: Survey of Professional Forecasters
+        why: >-
+          The survey-against-target reading, from the forecasters the Fed itself
+          watches. Replaces the 10-year breakeven, which was a second reading of
+          the same TIPS market as the 5y5y.
+
+      # A breakeven is expected inflation plus payment for bearing inflation
+      # risk. Without the second term you cannot tell a rise in expectations
+      # from a rise in uncertainty, and they mean different things.
+      - id: inflation_risk_premium
+        label: Inflation risk premium, 10 year
+        source: {fred: INFRISKPREM}
+        transform: level
+        normalize: {method: gap, center: 0.41, scale: 0.07}
+        direction: 1
+        absolute_level: true   # a premium that mean-reverts around zero-ish, not a trending level
+        weight: 0.10
+        why: >-
+          What markets pay to be insured against inflation, apart from what they
+          expect it to be. It widens when the distribution of outcomes skews
+          upward, which is de-anchoring risk before expectations themselves move.
 
       - id: umich_1y
         label: Household inflation expectations, 1 year
@@ -189,8 +224,12 @@ drivers:
         transform: level
         normalize: {method: gap, center: 3.0, scale: 1.2}
         direction: 1
-        weight: 0.25
-        why: Household expectations. Noisy, but it is what the Fed watches.
+        weight: 0.15
+        why: >-
+          Household expectations, centered on 3 rather than 2 because households
+          persistently report above realized inflation. Held at a lower weight
+          than the professional survey: since 2021 the answers have diverged by
+          political affiliation more than by inflation.
 
       - id: cleveland_10y
         label: Cleveland Fed 10-year expected inflation
@@ -198,8 +237,12 @@ drivers:
         transform: level
         normalize: {method: gap, center: 2.0, scale: 0.4}
         direction: 1
-        weight: 0.30
-        why: Model-based, blends surveys and markets, no liquidity premium.
+        absolute_level: true   # an expectation measured against the 2% target
+        weight: 0.25
+        why: >-
+          Model-based expected inflation, with the risk and liquidity premia
+          taken out. The expectations half of the decomposition whose other half
+          is the risk premium below.
 
   supply:
     label: Supply constraint
@@ -503,6 +546,7 @@ drivers:
         transform: level
         normalize: {method: gap, center: 2.0, scale: 0.7}
         direction: 1
+        absolute_level: true   # the level is the constraint: a rising interest bill really does narrow the room, so the drift is the signal
         weight: 0.15
         release: Monthly Treasury Statement
         why: Debt sustainability. A heavy interest bill narrows the room for fiscal support.
