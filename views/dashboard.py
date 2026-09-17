@@ -241,7 +241,7 @@ with st.expander("Show as a table"):
 # Any confirmed month can be examined, not just the latest: the same breakdown
 # read at a past month is how you check whether a call made sense at the time.
 years = sorted({d.year for d in probs.index}, reverse=True)
-st.html(ui.section_head("Behind the call", "Pick any confirmed month",
+st.html(ui.section_head("Behind the call", "",
                         "What was pulling the call, in the month you choose."))
 # The call for the chosen month is the context for everything below it, so it
 # is set like a call and the pickers sit out of the way on the right.
@@ -269,8 +269,8 @@ call_col.html(
     f'{ui.esc(ui.call_label(focus_call["called"], reg))}</div>'
     f'<p class="mr-focus-note">{ui.esc(focus_note)}</p>')
 
-tab_pull, tab_status, tab_drivers, tab_judge, tab_cov = st.tabs(
-    ["What is pulling the call", "Data status", "Driver history", "Judgment", "Coverage"])
+tab_pull, tab_status, tab_drivers, tab_cov = st.tabs(
+    ["What is pulling the call", "Data status", "Driver history", "Coverage"])
 
 with tab_status:
     if prov is None:
@@ -374,36 +374,6 @@ with tab_drivers:
                               for i in thin.index)
             st.warning(f"Running on partial inputs this month: {names}. "
                        "Weights were renormalized over what was available.")
-
-with tab_judge:
-    st.caption("Analyst observations sit in the same database as the series, "
-               "so you can ask later whether judgment led or lagged the data.")
-    with st.form("judgement", clear_on_submit=True):
-        c1, c2, c3 = st.columns(3)
-        j_driver = c1.selectbox("Driver", driver_cols,
-                                format_func=lambda d: driver_label[d])
-        j_dir = c2.selectbox("Direction", [1, 0, -1],
-                             format_func={1: "Pushing up", 0: "Neutral",
-                                          -1: "Pushing down"}.get)
-        j_conf = c3.slider("Confidence", 0.0, 1.0, 0.5, 0.1)
-        j_analyst = st.text_input("Your name")
-        j_source = st.text_input("Source", placeholder="FOMC minutes, call notes")
-        j_note = st.text_area("Observation")
-        if st.form_submit_button("Save observation"):
-            if not j_note.strip():
-                st.error("Add an observation before saving.")
-            else:
-                store.add_judgement(dt.date.today(), j_driver, j_dir, j_conf,
-                                    j_analyst, j_note, j_source)
-                st.success("Saved.")
-    log = store.con.execute(
-        "SELECT as_of, driver, direction, confidence, analyst, source, note "
-        "FROM judgement ORDER BY as_of DESC LIMIT 100"
-    ).df()
-    if log.empty:
-        st.write("Nothing logged yet.")
-    else:
-        st.dataframe(log, width="stretch", hide_index=True)
 
 with tab_cov:
     cov = store.coverage()

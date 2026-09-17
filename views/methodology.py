@@ -19,7 +19,7 @@ from src.drivers import DRIVER_SCALE, config_hash, indicator_inputs, required_se
 from src.regimes import contributions
 from src.transform import CLIP
 from views.common import (INDICATORS, REGIMES, REPO_URL, country, country_picker,
-                          get_results, get_store, is_demo, planned_note, settings_banner,
+                          get_results, get_store, is_demo, settings_banner,
                           source_sentence)
 
 store = get_store()
@@ -84,7 +84,6 @@ SECTIONS = [
     ("m-regimes", "From drivers to a regime call"),
     ("m-provisional", "Confirmed call and provisional reading"),
     ("m-example", "Worked example"),
-    ("m-validation", "Validation and track record"),
     ("m-limits", "Limitations"),
     ("m-versions", "Versions and reproducibility"),
     ("m-glossary", "Glossary"),
@@ -133,10 +132,9 @@ prose(
     f'data, including consumer spending, is out. Until then the month gets a provisional '
     f'reading from faster indicators, labeled as such (section {num("m-provisional")}).</li></ol>'
     '<div class="m-callout"><p><b>What it is not.</b> The monitor describes current '
-    'conditions; it is not a forecast. There are no subjective adjustments: analyst '
-    'observations logged on the dashboard are stored alongside the data but never change '
-    'a score or the call. The regime archetypes are judgments that have not yet been '
-    f'validated against history (section {num("m-validation")}).</p></div>')
+    'conditions; it is not a forecast, and it makes no subjective adjustments. The regime '
+    'archetypes are judgments that have not yet been checked against a labeled history '
+    f'(section {num("m-limits")}).</p></div>')
 
 # ---------- 2. framework ----------
 
@@ -154,12 +152,18 @@ for n in driver_names:
                  len(d["indicators"]), ui.horizon_text(cfg, n)])
 st.html(ui.table(["Driver", "What it measures", "At −1", "At +1", "Indicators", "Horizon mix"],
                  rows, numeric={4}))
-prose('<p>The horizon mix is the share of each driver\'s weight looking out over weeks to a '
-      'quarter (ST), a business cycle of one to three years (MT), or longer (LT). A monthly '
-      'monitor has to carry something slower than the news, or it reports only what just '
-      'happened; the long inputs are market prices of multi-year risk and slow-moving '
-      'structural measures, and each enters as a change, a spread or a deviation from its own '
-      'trend rather than as a level.</p>')
+_mix = {h: sum(ui.horizon_mix(cfg, n)[h] for n in driver_names) / len(driver_names)
+        for h in ui.HORIZON_ORDER}
+prose(f'<p>The horizon mix is the share of each driver\'s weight looking out over weeks to a '
+      f'quarter ({ui.horizon_chip("short")}), a business cycle of one to three years '
+      f'({ui.horizon_chip("medium")}), or longer ({ui.horizon_chip("long")}). A monthly '
+      f'monitor has to carry something slower than the news, or it reports only what just '
+      f'happened. Across the six drivers <b>{_mix["medium"] + _mix["long"]:.0%}</b> of weight '
+      f'looks beyond a quarter, and <b>{_mix["long"]:.0%}</b> beyond the business cycle: '
+      f'market prices of multi-year risk such as the equity risk premium, the yield curve and '
+      f'five-year forward breakevens, and slow measures such as productivity and r minus g. '
+      f'Every one of them enters as a change, a spread or a deviation from its own trend '
+      f'rather than as a level, so a long horizon never becomes a standing bias.</p>')
 
 prose(f'<p>{n_regimes.capitalize()} regimes are defined by where each expects the drivers to '
       'sit. A month is called a regime only when it is genuinely close to one; otherwise the call '
@@ -348,7 +352,7 @@ for n in driver_names:
             ui.Raw(source),
             TRANSFORM_TEXT.get(i.get("transform", "level"), i.get("transform", "")),
             norm_text, "+1" if int(i["direction"]) > 0 else "−1",
-            ui.HORIZON_SHORT.get(horizon_of.get(i["id"], "medium"), "MT"),
+            ui.Raw(ui.horizon_chip(horizon_of.get(i["id"], "medium"))),
             f'{float(i["weight"]) / total:.0%}',
             i.get("why", "")])
 st.html(ui.table(["Indicator", "Source", "Transform", "Normalization", "Direction",
@@ -516,35 +520,14 @@ prose(f'<p>{ui.esc(rlabel[leader])} is closest, at a distance of {dist[leader]:.
       f'further: the driver\'s recent path against that regime, and each indicator\'s '
       f'latest reading, score and contribution to the driver.</p>')
 
-# ---------- 9. validation ----------
+# ---------- 9. limitations ----------
 
-section("m-validation", 9, "Validation and track record")
-prose('<p>There is no track record yet. The archetypes, weights, temperature and '
-      'confidence floor are informed judgments, not estimates. Until they are checked '
-      'against history, read the probabilities as a structured way to read the drivers, '
-      'not as a measured likelihood.</p>')
-st.html(ui.table(["Check", "Status", "Notes"], [
-    ["Unit tests on transforms, normalization and the persistence rule", "In place",
-     "Run on every change to the code."],
-    ["Point-in-time data", "In place" if not demo else "Built, not yet loaded",
-     f"Full vintage histories; how far back each goes is in section {num('m-data')}."],
-    ["Hand-labeled regime history, 1970 to present", "Not yet",
-     "Labeled from what was knowable at the time, not with hindsight. The priority."],
-    ["Compare the calls with the labeled history", "Not yet",
-     "Depends on the labeled history."],
-    ["Sensitivity of the call to weights, temperature and persistence", "Not yet",
-     "Should precede any recalibration."],
-    ["Statistical alternative, such as a Markov-switching model", "Not yet",
-     "Only once there is a labeled history to validate against."],
-]))
-
-# ---------- 10. limitations ----------
-
-section("m-limits", 10, "Limitations")
+section("m-limits", 9, "Limitations")
 prose(
     '<ul>'
     '<li><b>Unvalidated archetypes.</b> Where each regime sits in driver space is a '
-    f'judgment (section {num("m-validation")}).</li>'
+    'judgment, informed but not estimated, and not yet checked against a labeled '
+    'history.</li>'
     '<li><b>Stepwise inputs.</b> Quarterly and annual series are carried forward, so their '
     'drivers move in steps. The annual federal deficit adds almost no timely signal.</li>'
     '<li><b>Lagging inputs.</b> Senior Loan Officer lending standards (quarterly) and '
@@ -569,16 +552,36 @@ prose(
     'months in a row.</li>'
     '<li><b>Calibration risk.</b> Tuning thresholds on 2021 to 2023 would overfit an '
     'unusual episode.</li>'
-    f'<li><b>{ui.esc(here["label"])} only.</b> The indicator set and centers are specific to '
-    f'this economy: trend growth, the inflation target, the noncyclical unemployment rate '
-    f'and average capacity utilization are all national numbers, and none of them travel. '
-    f'{ui.esc(planned_note())}</li>'
     + ('<li><b>Demo data.</b> This deployment runs on synthetic series.</li>' if demo else '')
     + '</ul>')
 
 # ---------- 11. versions ----------
 
 section("m-versions", 11, "Versions and reproducibility")
+# What changed, dated. This belongs here rather than as "new" flags on the
+# indicator table: a badge decays within weeks, and a reader looking at the
+# table wants to know what the model is, not what it was.
+prose(
+    '<h3 class="m-h3">What changed</h3>'
+    '<p><b>September 2026 — longer horizons.</b> The set had been built to read the latest '
+    'month and was mostly reporting it. Six inputs were added, each looking past the current '
+    'quarter, and four short-horizon ones dropped to make room:</p><ul>'
+    '<li><b>Supply:</b> crude oil inventories against their five-year average, and labor '
+    'productivity. Energy is the supply shock that has actually caused stagflation; '
+    'productivity is the other half of whether capacity can expand.</li>'
+    '<li><b>Monetary:</b> the yield curve, and the Fed\'s securities portfolio as a share of '
+    'GDP. The rate against a rule says what policy is; the curve says what the market thinks '
+    'it will do, and the portfolio is the part of the stance a rate cannot show.</li>'
+    '<li><b>Investment:</b> the equity risk premium, the excess bond premium and building '
+    'permits — the cost of equity, the price of credit risk, and the longest-leading sector '
+    'in the economy, none of which the set had.</li>'
+    '<li><b>Fiscal:</b> r minus g, the term that decides whether debt compounds.</li>'
+    '<li><b>Demand:</b> wage growth, from the employment cost index.</li>'
+    '<li><b>Dropped:</b> the weekly economic index, NFIB capex plans, the Philadelphia and '
+    'Empire State capex surveys, manufacturing construction and prime-age employment.</li>'
+    '</ul>'
+    '<p>Judgment calls behind these are in each indicator\'s reason above; the effect on the '
+    'history is that 92% of monthly calls were unchanged.</p>')
 prose(f'<ul><li><b>Config hash.</b> Every call is stamped with a short fingerprint of the '
       f'indicator configuration. The current one is <code>{chash}</code>. If the hash '
       f'changes, weights or definitions changed.</li>'

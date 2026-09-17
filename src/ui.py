@@ -658,6 +658,20 @@ MID_BAND = 0.15   # scores inside this read as "close to normal"
 HORIZON_SHORT = {"short": "ST", "medium": "MT", "long": "LT"}
 HORIZON_LABEL = {"short": "Short", "medium": "Medium", "long": "Long"}
 HORIZON_ORDER = ("short", "medium", "long")
+# Horizon is ordered, not categorical, so it takes one hue getting darker
+# rather than three competing colors. A neutral slate, because green, blue, red
+# and amber already mean regimes here and red and blue mean direction: a fourth
+# color system would collide with all of them. The letters stay inside the
+# chip, so the color is never carrying the meaning on its own.
+HORIZON_CHIP = {"short": ("#eef1f4", INK_2), "medium": ("#c3ccd6", INK),
+                "long": ("#5a6875", "#ffffff")}
+
+
+def horizon_chip(horizon: str) -> str:
+    bg, fg = HORIZON_CHIP.get(horizon, HORIZON_CHIP["medium"])
+    return (f'<span style="background:{bg};color:{fg};font-size:0.72rem;font-weight:700;'
+            f'letter-spacing:0.02em;padding:0.1rem 0.35rem;border-radius:2px;'
+            f'white-space:nowrap">{HORIZON_SHORT.get(horizon, "MT")}</span>')
 
 
 def horizons(ind_cfg: dict) -> dict:
