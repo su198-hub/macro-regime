@@ -337,7 +337,8 @@ with tab_pull:
                              results["indicators"], focus)
     st.html(f'<p class="mr-probs-head" style="margin-top:0.6rem">What makes up the '
             f'{ui.esc(driver_label[focus_driver].lower())} score '
-            f'<span style="font-weight:400;color:{ui.INK_2}">· '
+            f'{ui.horizon_bar(cfg, focus_driver)} '
+            f'<span style="font-weight:400;color:{ui.INK_2}">'
             f'{ui.esc(ui.horizon_text(cfg, focus_driver))}</span></p>'
             + ui.breakdown_table(parts, cfg["drivers"][focus_driver]["indicators"], score,
                                  horizon_of=ui.horizons(cfg))

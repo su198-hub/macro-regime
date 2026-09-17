@@ -669,9 +669,26 @@ HORIZON_CHIP = {"short": ("#eef1f4", INK_2), "medium": ("#c3ccd6", INK),
 
 def horizon_chip(horizon: str) -> str:
     bg, fg = HORIZON_CHIP.get(horizon, HORIZON_CHIP["medium"])
-    return (f'<span style="background:{bg};color:{fg};font-size:0.72rem;font-weight:700;'
+    return (f'<span title="{HORIZON_LABEL.get(horizon, "Medium")} horizon" '
+            f'style="background:{bg};color:{fg};font-size:0.72rem;font-weight:700;'
             f'letter-spacing:0.02em;padding:0.1rem 0.35rem;border-radius:2px;'
             f'white-space:nowrap">{HORIZON_SHORT.get(horizon, "MT")}</span>')
+
+
+def horizon_bar(ind_cfg: dict, driver: str, width: int = 110) -> str:
+    """The driver's horizon mix as one small stacked bar, light to dark.
+
+    Segments run short to long so the bar itself reads as the ramp: the further
+    right, the further out it looks. Two pixels of surface between segments so
+    neighbouring shades do not merge into one block.
+    """
+    mix = horizon_mix(ind_cfg, driver)
+    parts = "".join(
+        f'<span title="{HORIZON_LABEL[h]} {mix[h]:.0%}" style="flex:{mix[h]:.4f};'
+        f'background:{HORIZON_CHIP[h][0]};border-radius:1px"></span>'
+        for h in HORIZON_ORDER if mix[h] > 0.004)
+    return (f'<span style="display:inline-flex;gap:2px;width:{width}px;height:9px;'
+            f'vertical-align:middle">{parts}</span>')
 
 
 def horizons(ind_cfg: dict) -> dict:
@@ -1089,14 +1106,11 @@ def breakdown_table(parts: pd.DataFrame, indicators: list[dict], clipped_to: flo
     for r in parts.itertuples():
         ind = spec[r.id]
         label = esc(ind.get("label") or r.id)
-        notes = []
         if (horizon_of or {}).get(r.id):
-            notes.append(f"{HORIZON_LABEL[horizon_of[r.id]].lower()} horizon")
+            label += " " + horizon_chip(horizon_of[r.id])
         if int(ind["direction"]) < 0:
-            notes.append("inverted: higher pulls down")
-        if notes:
             label += (f'<br><span style="color:{INK_2};font-size:0.8rem">'
-                      f'{esc(join_words(notes).capitalize())}</span>')
+                      f'Inverted: higher pulls down</span>')
         transform = ind.get("transform", "level")
         norm = ind["normalize"]
         center = (f'{float(norm["center"]):g}'.replace("-", "−")

@@ -149,7 +149,10 @@ for n in driver_names:
     rows.append([dlabel[n], d.get("description", ""),
                  (sp.get("low") or {}).get("label", "−1"),
                  (sp.get("high") or {}).get("label", "+1"),
-                 len(d["indicators"]), ui.horizon_text(cfg, n)])
+                 len(d["indicators"]),
+                 ui.Raw(ui.horizon_bar(cfg, n)
+                        + f'<br><span style="color:{ui.INK_2};font-size:0.78rem;'
+                          f'white-space:nowrap">{ui.esc(ui.horizon_text(cfg, n))}</span>')])
 st.html(ui.table(["Driver", "What it measures", "At −1", "At +1", "Indicators", "Horizon mix"],
                  rows, numeric={4}))
 _mix = {h: sum(ui.horizon_mix(cfg, n)[h] for n in driver_names) / len(driver_names)
