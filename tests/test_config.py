@@ -23,6 +23,12 @@ def test_every_series_has_a_vendor_mapping():
     assert not missing, f"no sources.yml entry for {missing}"
 
 
+def test_every_transform_has_wording_for_the_dashboard():
+    """Without this the table prints the function name, such as dev_5y_pct."""
+    missing = [t for t in TRANSFORMS if t not in ui.TRANSFORM_TEXT]
+    assert not missing, f"no TRANSFORM_TEXT for {missing}"
+
+
 def test_every_indicator_names_a_known_transform():
     for d in DRIVERS.values():
         for i in d["indicators"]:

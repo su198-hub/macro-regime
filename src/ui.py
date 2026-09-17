@@ -999,7 +999,10 @@ TRANSFORM_TEXT = {
     "level": "Level, as published",
     "yoy_pct": "Change from a year earlier, %",
     "pct_change_3m_ann": "Change over 3 months, annualized %",
+    "pct_change_5y_ann": "Change over 5 years, annualized %",
     "diff_12m": "Change from a year earlier, in units",
+    "sum_12m": "Sum over the last twelve months",
+    "dev_5y_pct": "Difference from its own five-year average, %",
 }
 UP, DOWN = "#e34948", "#2a78d6"   # diverging poles: pushes the driver up / down
 
