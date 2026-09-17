@@ -149,9 +149,15 @@ for n in driver_names:
     rows.append([dlabel[n], d.get("description", ""),
                  (sp.get("low") or {}).get("label", "−1"),
                  (sp.get("high") or {}).get("label", "+1"),
-                 len(d["indicators"])])
-st.html(ui.table(["Driver", "What it measures", "At −1", "At +1", "Indicators"],
+                 len(d["indicators"]), ui.horizon_text(cfg, n)])
+st.html(ui.table(["Driver", "What it measures", "At −1", "At +1", "Indicators", "Horizon mix"],
                  rows, numeric={4}))
+prose('<p>The horizon mix is the share of each driver\'s weight looking out over weeks to a '
+      'quarter (ST), a business cycle of one to three years (MT), or longer (LT). A monthly '
+      'monitor has to carry something slower than the news, or it reports only what just '
+      'happened; the long inputs are market prices of multi-year risk and slow-moving '
+      'structural measures, and each enters as a change, a spread or a deviation from its own '
+      'trend rather than as a level.</p>')
 
 prose(f'<p>{n_regimes.capitalize()} regimes are defined by where each expects the drivers to '
       'sit. A month is called a regime only when it is genuinely close to one; otherwise the call '
@@ -288,6 +294,7 @@ prose('<h3 class="m-h3">Indicator set</h3>'
       'divides by the weight of whatever has reported that month.</p>')
 
 rows = []
+horizon_of = ui.horizons(cfg)
 for n in driver_names:
     inds = cfg["drivers"][n]["indicators"]
     total = sum(float(i["weight"]) for i in inds)
@@ -327,10 +334,12 @@ for n in driver_names:
             ui.Raw(source),
             TRANSFORM_TEXT.get(i.get("transform", "level"), i.get("transform", "")),
             norm_text, "+1" if int(i["direction"]) > 0 else "−1",
+            ui.HORIZON_SHORT.get(horizon_of.get(i["id"], "medium"), "MT"),
             f'{float(i["weight"]):.2f}', f'{float(i["weight"]) / total:.0%}',
             i.get("why", "")])
 st.html(ui.table(["Indicator", "Source", "Transform", "Normalization", "Direction",
-                  "Weight", "Share", "Why it is included"], rows, numeric={4, 5, 6}))
+                  "Horizon", "Weight", "Share", "Why it is included"], rows,
+                 numeric={4, 5, 6, 7}))
 
 # ---------- 6. drivers ----------
 

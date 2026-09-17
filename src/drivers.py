@@ -88,10 +88,12 @@ def _build_input(ind: dict, wide: pd.DataFrame, carry: int = 0) -> pd.Series | N
     native_first = len(natives) == 1 and natives.pop() < 12 and not src.get("derived")
 
     env: dict[str, pd.Series] = {}
+    native: dict[str, pd.Series] = {}
     for col in src.get("fred", []):
         if col not in wide.columns:
             return None
-        env[col] = wide[col].dropna() if native_first else to_monthly(wide[col].dropna(), end, carry)
+        native[col] = wide[col].dropna()
+        env[col] = native[col] if native_first else to_monthly(native[col], end, carry)
 
     # Derived inputs are built in order, so each can use the ones before it:
     #   {fred: X, transform: t}      a transform of one source series
@@ -120,7 +122,15 @@ def _build_input(ind: dict, wide: pd.DataFrame, carry: int = 0) -> pd.Series | N
             base = env.get(spec["fred"])
             if base is None:
                 return None
-            env[alias] = TRANSFORMS[spec.get("transform", "level")](base)
+            fn = TRANSFORMS[spec.get("transform", "level")]
+            # Same rule as the indicator's own transform: take the change at
+            # the series' own frequency, then carry. A quarterly series carried
+            # first and differenced after loses a quarter at the ragged edge.
+            raw = native.get(spec["fred"])
+            if raw is not None and not native_first and _periods_per_year(raw) < 12:
+                env[alias] = to_monthly(fn(raw), end, carry)
+            else:
+                env[alias] = fn(base)
 
     frame = pd.DataFrame(env).dropna(how="all")
     if frame.empty:

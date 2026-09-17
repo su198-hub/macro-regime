@@ -336,8 +336,11 @@ with tab_pull:
     parts = driver_breakdown(cfg, focus_driver, results["inputs"],
                              results["indicators"], focus)
     st.html(f'<p class="mr-probs-head" style="margin-top:0.6rem">What makes up the '
-            f'{ui.esc(driver_label[focus_driver].lower())} score</p>'
-            + ui.breakdown_table(parts, cfg["drivers"][focus_driver]["indicators"], score)
+            f'{ui.esc(driver_label[focus_driver].lower())} score '
+            f'<span style="font-weight:400;color:{ui.INK_2}">· '
+            f'{ui.esc(ui.horizon_text(cfg, focus_driver))}</span></p>'
+            + ui.breakdown_table(parts, cfg["drivers"][focus_driver]["indicators"], score,
+                                 horizon_of=ui.horizons(cfg))
             + f'<p class="mr-caption">Score is the reading measured against its center, '
               f'with direction applied, so positive always pushes the driver up. '
               f'Contribution is weight × score ÷ {DRIVER_SCALE:g}; the column sums to '

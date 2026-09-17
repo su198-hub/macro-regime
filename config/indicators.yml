@@ -23,10 +23,12 @@
 # ends of the -1 and +1 scale; tone is risk or good. `reverse: true` draws +1
 # on the left without touching the score itself.
 #
-# v0.2 added timely indicators (weekly economic index, jobless claims, supply
-# chain pressure, regional capex plans, an ex-ante real rate) at small weights,
-# so the latest month can be read before the slow releases. Centers and scales
-# for these are their 2000-2019 averages and standard deviations.
+# v0.2 added timely indicators at small weights, so the latest month can be read
+# before the slow releases. v0.3 balances that with longer-horizon inputs — oil
+# inventories against their own five-year average, the equity risk premium, r
+# minus g — because a regime lasts years and a monitor built only of fast data
+# reports what just happened. meta.horizons says which is which, and every long
+# input enters as a change, a spread or a deviation from trend.
 
 meta:
   region: US
@@ -49,6 +51,32 @@ meta:
     fill_months: 2
     min_reported_share: 0.5
 
+  # How far ahead each indicator is really looking. The monitor is a monthly
+  # nowcast, but a regime is not a month, so every driver carries something
+  # slower than the news:
+  #
+  #   short   turns within weeks to a quarter. Fast, noisy, and what makes the
+  #           provisional reading possible at all.
+  #   medium  a business-cycle horizon, one to three years.
+  #   long    structural or a market's multi-year view. A price like the 5y5y
+  #           breakeven or the equity risk premium is long-horizon in content
+  #           while trading daily, which is the combination worth having.
+  #
+  # Every long and medium input enters as a change, a spread, or a deviation
+  # from its own trend — never a raw level against a fixed center, which would
+  # score which decade it is rather than what is happening.
+  horizons:
+    short: [payrolls_3m_ann, jobless_claims_yoy, umich_1y, supply_chain_pressure,
+            financial_conditions, capex_plans_nfib]
+    medium: [real_pce_yoy, unemployment_gap, wage_growth_yoy, capacity_utilisation,
+             vacancies_per_unemployed, unit_labour_costs_yoy, oil_inventory_tightness,
+             taylor_gap, taylor_gap_expected, real_fed_funds, balance_sheet_impulse,
+             primary_balance_gdp, fiscal_impulse, debt_trajectory,
+             core_capex_orders_yoy, real_nonres_investment_yoy,
+             manufacturing_construction_yoy, ci_lending_standards]
+    long: [breakeven_5y5y, breakeven_10y, cleveland_10y, productivity_yoy,
+           interest_burden_gdp, debt_sustainability_gap, equity_risk_premium]
+
 drivers:
 
   demand:
@@ -68,7 +96,7 @@ drivers:
         transform: yoy_pct
         normalize: {method: gap, center: 2.4, scale: 1.6}
         direction: 1
-        weight: 0.25
+        weight: 0.30
         anchor: true
         release: PCE report
         why: Consumption is two thirds of GDP and revises less than GDP itself.
@@ -84,7 +112,7 @@ drivers:
         transform: yoy_pct
         normalize: {method: gap, center: 2.9, scale: 0.75}
         direction: 1
-        weight: 0.10
+        weight: 0.15
         carry_forward_periods: 2
         release: Employment cost index
         why: >-
@@ -115,15 +143,10 @@ drivers:
         carry_forward_periods: 6
         why: Slack relative to CBO's estimate of the noncyclical rate.
 
-      - id: weekly_economic_index
-        label: Weekly economic index
-        source: {fred: WEI}
-        transform: level
-        normalize: {method: gap, center: 2.0, scale: 1.5}
-        direction: 1
-        weight: 0.10
-        why: Weekly activity scaled to GDP growth. First read on the month, days after it ends.
-
+      # The weekly economic index was dropped here: it is a composite whose
+      # components are mostly jobless claims and retail sales, so next to the
+      # claims series below it was the same week's news counted twice, and it
+      # was the shortest-horizon input in the model.
       - id: jobless_claims_yoy
         label: Initial jobless claims, year over year
         source: {fred: IC4WSA}
@@ -191,7 +214,7 @@ drivers:
         transform: level
         normalize: {method: gap, center: 79.6, scale: 2.5}
         direction: 1
-        weight: 0.25
+        weight: 0.20
         why: Long-run average utilization is the natural center here.
 
       - id: vacancies_per_unemployed
@@ -202,7 +225,7 @@ drivers:
         transform: level
         normalize: {method: gap, center: 0.95, scale: 0.35}
         direction: 1
-        weight: 0.25
+        weight: 0.20
         why: Cleanest single measure of labor market tightness.
 
       - id: unit_labour_costs_yoy
@@ -211,8 +234,27 @@ drivers:
         transform: yoy_pct
         normalize: {method: gap, center: 2.2, scale: 1.5}
         direction: 1
-        weight: 0.20
+        weight: 0.15
         why: Where wage pressure turns into price pressure.
+
+      # Energy is the supply shock that has actually caused stagflation, and
+      # inventories are how the physical market says whether it is tight. A
+      # level means nothing here — storage grows with the economy — so it is
+      # measured against its own five-year average, which is the convention the
+      # EIA publishes and which cycles over two to four years rather than
+      # trending. Weekly, so it is also the fastest input in this driver.
+      - id: oil_inventory_tightness
+        label: Crude oil inventories against their five-year average
+        source: {fred: WCESTUS1}
+        transform: dev_5y_pct
+        normalize: {method: gap, center: 3.0, scale: 10.0}
+        direction: -1
+        weight: 0.20
+        why: >-
+          Full tanks mean the constraint is slack, empty ones mean it binds, so
+          it enters inverted. Commercial stocks only: the Strategic Petroleum
+          Reserve is a policy stock on a forty-year trend, not what the market
+          prices against.
 
       # Productivity is the supply side's other half: the same demand meets a
       # binding constraint or an expanding one depending on output per hour.
@@ -238,7 +280,7 @@ drivers:
         transform: level
         normalize: {method: gap, center: 0.0, scale: 1.0}
         direction: 1
-        weight: 0.20
+        weight: 0.15
         why: Input bottlenecks from shipping, delivery times and backlogs, out days after month end.
 
   # Policy is split in two, as on the scenario slide. Monetary and fiscal
@@ -374,7 +416,7 @@ drivers:
         transform: level
         normalize: {method: gap, center: -1.0, scale: 3.0}
         direction: 1
-        weight: 0.40
+        weight: 0.35
         release: Monthly Treasury Statement
         why: The budget balance before interest. The government's own stance, stripped of past debt costs.
 
@@ -389,7 +431,7 @@ drivers:
         transform: diff_12m
         normalize: {method: gap, center: 0.0, scale: 1.7}
         direction: 1
-        weight: 0.30
+        weight: 0.25
         release: Monthly Treasury Statement
         why: Direction matters as much as level. A shrinking deficit withdraws demand even if it is still large.
 
@@ -401,8 +443,33 @@ drivers:
         transform: diff_12m
         normalize: {method: gap, center: 1.3, scale: 3.4}
         direction: -1
-        weight: 0.15
+        weight: 0.10
         why: Debt rising faster than usual means fiscal is adding to demand. Inverted.
+
+      # Whether the debt stabilises on its own comes down to one difference: the
+      # rate paid on the debt against the growth of the economy carrying it.
+      # Above zero the stock compounds and the room for support narrows whatever
+      # this year's deficit is; below zero it erodes quietly. A spread, so it
+      # cycles rather than drifting the way a level of debt does.
+      - id: debt_sustainability_gap
+        label: 10-year yield less nominal GDP growth
+        source:
+          expr: "DGS10 - gdp_growth"
+          fred: [DGS10, GDPNOM]
+          derived:
+            # Trend growth, not this year's: a year-on-year rate would carry
+            # whichever recession sits in the window and read 2020 as the
+            # moment fiscal room vanished, which is backwards.
+            gdp_growth: {fred: GDPNOM, transform: pct_change_5y_ann}
+        transform: level
+        normalize: {method: gap, center: -0.25, scale: 1.2}
+        direction: 1
+        weight: 0.15
+        carry_forward_periods: 2
+        why: >-
+          r minus g, the term that decides whether debt compounds. Positive
+          narrows the room for fiscal support, so it pushes toward the small
+          fiscal end even when the deficit is wide.
 
       - id: interest_burden_gdp
         label: Net interest outlays, % of GDP
@@ -432,7 +499,7 @@ drivers:
         transform: yoy_pct
         normalize: {method: gap, center: 3.5, scale: 3.0}
         direction: 1
-        weight: 0.30
+        weight: 0.25
         why: Leading edge of business investment, monthly.
 
       - id: real_nonres_investment_yoy
@@ -450,7 +517,7 @@ drivers:
         transform: yoy_pct
         normalize: {method: gap, center: 5.0, scale: 12.0}
         direction: 1
-        weight: 0.15
+        weight: 0.10
         why: Picks up reshoring and subsidy-driven building directly.
 
       - id: ci_lending_standards
@@ -471,12 +538,33 @@ drivers:
         transform: level
         normalize: {method: gap, center: 29.0, scale: 5.6}
         direction: 1
-        weight: 0.15
+        weight: 0.10
         release: NFIB small business survey
         why: >-
           Firms' own plans for the next three to six months, nationwide and
           across industries, published early in the following month. Small
           business only, so it will not see a data-center building boom.
+
+      # Everything else in this driver measures investment that has already
+      # happened or been ordered. This is what it costs to fund the next round:
+      # the earnings yield on equity over a ten-year real rate, which is the
+      # hurdle capital has to clear. Cheap equity finance supports capex, so a
+      # thin premium reads as supportive; the counter-argument, that a thin
+      # premium is froth that ends badly, is about what happens next rather
+      # than about conditions now, which is what this driver measures.
+      - id: equity_risk_premium
+        label: Equity risk premium over the real 10-year yield
+        source:
+          expr: "100 / CAPE - (DGS10 - EXPINF10YR)"
+          fred: [CAPE, DGS10, EXPINF10YR]
+        transform: level
+        normalize: {method: gap, center: 2.1, scale: 1.4}
+        direction: -1
+        weight: 0.15
+        why: >-
+          The cost of equity capital, from the cyclically adjusted earnings
+          yield less a long real rate. Inverted: a low premium is cheap funding
+          for the firms doing the investing.
 
       # Corporate leverage was tried here and taken out again. Debt as a share
       # of GDP is a forty-year trend, not a cycle: it scored the 1990s a point

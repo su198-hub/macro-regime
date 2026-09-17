@@ -123,3 +123,22 @@ series:
       NFIB Small Business Economic Trends, capital expenditure plans next three
       to six months, SA. Monthly since 1986. No FRED equivalent, so the name is
       internal.
+
+  # Longer-horizon inputs: physical oil tightness, the cost of equity capital,
+  # and the long rate behind debt dynamics.
+  WCESTUS1:
+    macrobond: uscaes0003
+    note: >-
+      EIA weekly commercial crude oil stocks, excluding the Strategic Petroleum
+      Reserve. Weekly since 1982, published five days after the week ends.
+      Excludes the SPR deliberately: that is a policy stock on a forty-year
+      trend, not a measure of what the physical market is pricing.
+  CAPE:
+    macrobond: sp500_shpe
+    note: >-
+      Shiller cyclically adjusted price/earnings ratio for the S&P 500, monthly
+      since 1881. A market price, so never revised: a single vintage is correct
+      here rather than a gap in the record.
+  DGS10:
+    macrobond: us10yfedgov_m
+    note: 10-year Treasury constant maturity yield, monthly average, since 1941.

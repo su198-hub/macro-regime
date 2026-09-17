@@ -44,12 +44,44 @@ def sum_12m(s: pd.Series) -> pd.Series:
     return s.rolling(n, min_periods=n).sum()
 
 
+def pct_change_5y_ann(s: pd.Series) -> pd.Series:
+    """Annualised growth over five years: a trend rate rather than a cyclical one.
+
+    Where a year-on-year rate would carry the recession that happens to sit in
+    the window, five years annualised carries the trend. Use it where the
+    question is about the economy's growth rate rather than this year's: debt
+    dynamics turn on the rate the debt compounds against over a decade, not on
+    the quarter GDP collapsed.
+    """
+    n = 5 * _periods_per_year(s)
+    return ((s / s.shift(n)) ** (1 / 5) - 1) * 100
+
+
+def dev_5y_pct(s: pd.Series) -> pd.Series:
+    """Percent deviation from the series' own trailing five-year average.
+
+    For stocks that have no meaningful absolute level because they grow with
+    the economy — oil inventories being the case in hand, where the question is
+    never "how many barrels" but "more or fewer than usual". Five years is the
+    convention the EIA publishes against, long enough to average out a cycle,
+    short enough to follow structural growth in storage.
+
+    Needs three years of history before it reports, so a new series does not
+    read as a huge deviation from its own first months.
+    """
+    n = 5 * _periods_per_year(s)
+    base = s.rolling(n, min_periods=int(n * 0.6)).mean()
+    return (s / base - 1.0) * 100
+
+
 TRANSFORMS = {
     "level": level,
     "yoy_pct": yoy_pct,
     "pct_change_3m_ann": pct_change_3m_ann,
     "diff_12m": diff_12m,
     "sum_12m": sum_12m,
+    "dev_5y_pct": dev_5y_pct,
+    "pct_change_5y_ann": pct_change_5y_ann,
 }
 
 

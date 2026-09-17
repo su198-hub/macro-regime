@@ -651,6 +651,34 @@ def fit_grade(calls: pd.DataFrame) -> pd.Series:
 
 MID_BAND = 0.15   # scores inside this read as "close to normal"
 
+HORIZON_SHORT = {"short": "ST", "medium": "MT", "long": "LT"}
+HORIZON_LABEL = {"short": "Short", "medium": "Medium", "long": "Long"}
+HORIZON_ORDER = ("short", "medium", "long")
+
+
+def horizons(ind_cfg: dict) -> dict:
+    """Indicator id to horizon, from meta.horizons. Anything unlisted is medium."""
+    listed = ((ind_cfg.get("meta") or {}).get("horizons") or {})
+    return {i: h for h, ids in listed.items() for i in (ids or [])}
+
+
+def horizon_mix(ind_cfg: dict, driver: str) -> dict:
+    """Share of a driver's weight by horizon, for saying how far ahead it looks."""
+    tags = horizons(ind_cfg)
+    inds = (ind_cfg["drivers"].get(driver) or {}).get("indicators", [])
+    total = sum(float(i.get("weight", 0.0)) for i in inds) or 1.0
+    mix = {h: 0.0 for h in HORIZON_ORDER}
+    for i in inds:
+        mix[tags.get(i["id"], "medium")] += float(i.get("weight", 0.0)) / total
+    return mix
+
+
+def horizon_text(ind_cfg: dict, driver: str) -> str:
+    """'MT 55 / LT 25 / ST 20', heaviest first, zero shares dropped."""
+    mix = {h: v for h, v in horizon_mix(ind_cfg, driver).items() if v >= 0.005}
+    return " / ".join(f"{HORIZON_SHORT[h]} {v:.0%}".replace("%", "")
+                      for h, v in sorted(mix.items(), key=lambda kv: -kv[1]))
+
 
 def driver_phrase(driver: str, score: float, ind_cfg: dict) -> str:
     """How one driver reads in a sentence: 'capex is expanding'.
@@ -1018,7 +1046,8 @@ def gap_chart(drivers: pd.DataFrame, driver: str, archetype: float, regime_label
         height=210, width="container"))
 
 
-def breakdown_table(parts: pd.DataFrame, indicators: list[dict], clipped_to: float | None) -> str:
+def breakdown_table(parts: pd.DataFrame, indicators: list[dict], clipped_to: float | None,
+                    horizon_of: dict | None = None) -> str:
     """Indicators behind one driver this month, heaviest weight first.
 
     Ordered by weight rather than by contribution: the reader's first question
@@ -1039,8 +1068,14 @@ def breakdown_table(parts: pd.DataFrame, indicators: list[dict], clipped_to: flo
     for r in parts.itertuples():
         ind = spec[r.id]
         label = esc(ind.get("label") or r.id)
+        notes = []
+        if (horizon_of or {}).get(r.id):
+            notes.append(f"{HORIZON_LABEL[horizon_of[r.id]].lower()} horizon")
         if int(ind["direction"]) < 0:
-            label += f'<br><span style="color:{INK_2};font-size:0.8rem">Inverted: higher pulls down</span>'
+            notes.append("inverted: higher pulls down")
+        if notes:
+            label += (f'<br><span style="color:{INK_2};font-size:0.8rem">'
+                      f'{esc(join_words(notes).capitalize())}</span>')
         transform = ind.get("transform", "level")
         norm = ind["normalize"]
         center = (f'{float(norm["center"]):g}'.replace("-", "−")
