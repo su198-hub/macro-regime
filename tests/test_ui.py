@@ -1,9 +1,25 @@
 """Signpost geometry. A flipped sign here draws a confident, wrong chart."""
 
 import pandas as pd
+
+PROSE_CFG = {"drivers": {
+    "demand": {"label": "Demand", "signpost": {
+        "low": {"label": "Weak", "phrase": "demand is running below trend"},
+        "high": {"label": "Strong", "phrase": "demand is running above trend"},
+        "mid": {"phrase": "demand is close to trend"}}},
+    "investment": {"label": "Investment spending", "signpost": {
+        "low": {"label": "Low", "phrase": "capex is contracting"},
+        "high": {"label": "High", "phrase": "capex is expanding"},
+        "mid": {"phrase": "capex is flat"}}},
+}}
+PROSE_REG = {"driver_salience": {"demand": 1.0, "investment": 1.0},
+             "regimes": {"boom": {"label": "Boom",
+                                  "archetype": {"demand": 0.6, "investment": 0.6}}}}
 import pytest
 
-from src.ui import cluster, month_mid, month_start, regime_runs, run_length, track_position
+from src.ui import (cluster, driver_phrase, month_mid, month_start, regime_runs, run_length,
+                    objection, track_position, what_moved, why_called,
+                    why_not_called)
 
 
 def test_months_plot_mid_month_not_on_the_next_months_line():
@@ -40,3 +56,54 @@ def test_regime_runs_collapse_contiguous_months():
     assert runs["regime"].tolist() == ["a", "b", "a"]
     assert runs["start"].iloc[1] == idx[2]
     assert runs["end"].iloc[1] == idx[4]
+
+
+# ---------- the sentences on the dashboard ----------
+
+def test_driver_phrase_follows_the_score_into_the_right_band():
+    assert driver_phrase("demand", 0.8, PROSE_CFG) == "demand is running above trend"
+    assert driver_phrase("demand", -0.8, PROSE_CFG) == "demand is running below trend"
+    assert driver_phrase("demand", 0.02, PROSE_CFG) == "demand is close to trend"
+
+
+def test_why_called_names_what_matches_and_what_argues_against():
+    row = pd.Series({"demand": 0.05, "investment": 0.62})
+    text = why_called(row, PROSE_CFG, PROSE_REG, "boom")
+    assert text == "Boom because capex is expanding."
+    # Demand is furthest from the archetype, so it is the objection, and it is
+    # not listed as a reason for the call.
+    assert "demand" not in text
+    assert objection(row, PROSE_CFG, PROSE_REG, "boom") == \
+        "The main argument against: demand is close to trend."
+
+
+def test_why_called_marks_a_loose_match_without_arithmetic():
+    row = pd.Series({"demand": 0.05, "investment": 0.62})
+    text = why_called(row, PROSE_CFG, PROSE_REG, "boom", weak=True)
+    assert "though the match is loose" in text
+    assert "distance" not in text.lower()
+
+
+def test_why_not_called_names_the_two_worst_gaps():
+    row = pd.Series({"demand": -0.7, "investment": -0.6})
+    text = why_not_called(row, PROSE_CFG, PROSE_REG, "boom")
+    assert text.startswith("Nearest is Boom, but")
+    assert "demand is running below trend" in text and "capex is contracting" in text
+
+
+def test_what_moved_reports_movers_and_holds_without_repeating_the_driver():
+    before = pd.Series({"demand": 0.0, "investment": 0.30})
+    now = pd.Series({"demand": 0.40, "investment": 0.31})
+    text = what_moved(now, before, PROSE_CFG)
+    assert text.startswith("demand is running above trend after rising")
+    assert "demand has risen, so demand" not in text
+    assert "investment spending are little changed" in text
+
+
+def test_what_moved_says_what_held_when_nothing_moved():
+    before = pd.Series({"demand": 0.20, "investment": 0.30})
+    now = pd.Series({"demand": 0.21, "investment": 0.31})
+    text = what_moved(now, before, PROSE_CFG)
+    assert text.startswith("little has moved")
+    assert "demand" in text and "investment spending" in text
+

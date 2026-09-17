@@ -106,7 +106,11 @@ if prov is not None:
     # Name the releases users watch for, such as "PCE report", not the indicators.
     confirm_with = list(dict.fromkeys(anchor_release.get(k) or ind_label[k].lower()
                                       for k in anchors["key"]))
-    prov_box = ui.provisional_box(prov, reg, called, confirm_by, confirm_with, upcoming[:6])
+    # What has actually moved since the confirmed month, so the reading is not
+    # just a number: it says which drivers changed and which held still.
+    moved = ui.what_moved(prov["drivers"], drivers.loc[latest], cfg)
+    prov_box = ui.provisional_box(prov, reg, called, confirm_by, confirm_with, upcoming[:6],
+                                  moved=moved, since=latest)
 
 # ---------- headline ----------
 
@@ -126,33 +130,32 @@ fit_numbers = (f"distance {distance:.2f} against {threshold:.2f} for a neutral e
 if fit_numbers and grade != "clear" and pd.notna(limit):
     fit_numbers += f", limit {limit:.2f}"
 
+row = drivers.loc[latest]
 if called == "transitional":
     lede = (f"No regime clears the {settings['min_confidence']:.0%} confidence "
             f"floor. {regime_label[leading]} leads with {ranked.iloc[0]:.0%}.")
 elif called == "unclassified" and fits_now:
-    lede = (f"{regime_label[leading]} fits this month ({ranked.iloc[0]:.0%}; {fit_numbers}), "
-            f"but has not fit for long enough to be called. No clear regime since {since:%B %Y}.")
+    lede = (f"{ui.why_called(row, cfg, reg, leading)} That is {ranked.iloc[0]:.0%} of the "
+            f"probability, but it has not held for long enough to be called. No clear regime "
+            f"since {since:%B %Y}.")
 elif called == "unclassified":
-    lede = (f"Nearest is {regime_label[leading]} ({ranked.iloc[0]:.0%}), but conditions are "
-            f"too far from it to call"
-            + (f" ({fit_numbers})" if fit_numbers else "") + f". No clear regime since {since:%B %Y}.")
+    lede = (f"{ui.why_not_called(row, cfg, reg, leading)} No regime is close enough to call, "
+            f"and there has been none since {since:%B %Y}.")
 else:
-    lede = f"{regime_label[leading]} leads with {ranked.iloc[0]:.0%} probability"
+    # Why this regime, in plain terms. The distances behind it are in the
+    # drill-down and the methodology, where someone is asking for them.
+    focus_regime_name = called if called in reg["regimes"] else leading
+    lede = ui.why_called(row, cfg, reg, focus_regime_name, weak=(grade == "weak"))
+    lede += f" Called since {since:%B %Y}"
     if runner_up is not None:
         gap = (ranked.iloc[0] - ranked.iloc[1]) * 100
-        lede += f", {gap:.0f} points ahead of {regime_label[runner_up]}"
-    lede += f". Called since {since:%B %Y}."
-    # The fit is measured against this month's leader, so name it when the
-    # call is still held on another regime by the persistence rule.
-    subject = "it" if leading == called else regime_label[leading]
-    if fit_numbers and grade == "clear":
-        lede += (f" A clear fit: conditions sit closer to {subject} than a neutral economy "
-                 f"would ({fit_numbers}).")
-    elif fit_numbers and grade == "weak":
-        lede += (f" A weak fit: conditions sit a little further from {subject} than a neutral "
-                 f"economy would, but within the tolerance ({fit_numbers}).")
-    elif fit_numbers:
-        lede += f" This month conditions are too far from {subject} to fit ({fit_numbers})."
+        lede += (f", at {ranked.iloc[0]:.0%} probability, {gap:.0f} points ahead of "
+                 f"{regime_label[runner_up].lower()}.")
+    else:
+        lede += "."
+    objection = ui.objection(row, cfg, reg, focus_regime_name)
+    if objection:
+        lede += f" {objection}"
 
 if called != "transitional" and state != called and pd.notna(state):
     streak = ui.run_length(calls.loc[:latest, "state"])

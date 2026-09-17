@@ -342,7 +342,7 @@ def probability_panel(probs_row: pd.Series, reg_cfg: dict, called: str,
 
 
 def provisional_box(reading: dict, reg_cfg: dict, called: str, confirm_by, confirm_with: list[str],
-                    upcoming: list[dict]) -> str:
+                    upcoming: list[dict], moved: str = "", since=None) -> str:
     """The provisional reading as a full-width band under the confirmed call.
 
     Left: what the early data says and when the month should be confirmed.
@@ -384,11 +384,17 @@ def provisional_box(reading: dict, reg_cfg: dict, called: str, confirm_by, confi
                f'<table class="mr-cal"><thead><tr><th>Expected</th><th>Release</th><th>Driver</th></tr>'
                f'</thead><tbody>{rows}</tbody></table>'
                f'<p class="mr-source">Dates estimated from each series\' recent release timing.</p></div>')
+    change = ""
+    if moved:
+        opener = f"Since {since:%B}, " if since is not None else ""
+        text = esc(moved[0].lower() + moved[1:]) if opener else esc(moved[0].upper() + moved[1:])
+        change = f'<p class="mr-prov-body">{opener}{text}.</p>'
     return (
         f'<div class="mr-prov"><div>'
         f'<h3 class="mr-prov-title">Provisional reading, {month:%B %Y}</h3>'
         f'<p class="mr-prov-main"><span class="mr-call-swatch" style="background:{spec["color"]}"></span>'
         f'{verdict}</p>'
+        f'{change}'
         f'<p class="mr-prov-body">Based on {reading["share"]:.0%} of {month:%B} data released so far. '
         f'Inputs not yet released carry their latest value, so this can change as releases '
         f'arrive.{confirm}</p></div>{cal}</div>'
@@ -635,6 +641,134 @@ def fit_grade(calls: pd.DataFrame) -> pd.Series:
     if "fit" in calls:
         return calls["fit"]
     return pd.Series("clear", index=calls.index, dtype=object)
+
+
+MID_BAND = 0.15   # scores inside this read as "close to normal"
+
+
+def driver_phrase(driver: str, score: float, ind_cfg: dict) -> str:
+    """How one driver reads in a sentence: 'capex is expanding'.
+
+    Written in config next to the signpost labels, so the wording lives with
+    the driver definition rather than in code, and a second country can say
+    something different.
+    """
+    sp = (ind_cfg["drivers"].get(driver) or {}).get("signpost") or {}
+    label = (ind_cfg["drivers"].get(driver) or {}).get("label", driver).lower()
+    if pd.isna(score):
+        return f"{label} is not scored"
+    if score > MID_BAND:
+        end = sp.get("high") or {}
+    elif score < -MID_BAND:
+        end = sp.get("low") or {}
+    else:
+        end = sp.get("mid") or {}
+    return end.get("phrase") or f"{label} is {end.get('label', 'mixed').lower()}"
+
+
+def _gaps(row: pd.Series, reg_cfg: dict, regime: str) -> pd.Series:
+    """Weighted squared distance from one regime's archetype, per driver."""
+    arche = reg_cfg["regimes"][regime]["archetype"]
+    salience = reg_cfg.get("driver_salience", {})
+    return pd.Series({d: (float(row[d]) - float(a)) ** 2 * float(salience.get(d, 1.0))
+                      for d, a in arche.items() if d in row and pd.notna(row[d])})
+
+
+def why_called(row: pd.Series, ind_cfg: dict, reg_cfg: dict, regime: str,
+               weak: bool = False) -> str:
+    """Why this month looks like this regime, in one sentence.
+
+    Names the drivers the regime cares about that the month actually matches,
+    then the one arguing hardest against. Distances belong in the drill-down
+    and the methodology, not in the headline.
+    """
+    if regime not in reg_cfg["regimes"] or row is None:
+        return ""
+    gaps = _gaps(row, reg_cfg, regime)
+    if gaps.empty:
+        return ""
+    arche = reg_cfg["regimes"][regime]["archetype"]
+    label = reg_cfg["regimes"][regime]["label"]
+    # A driver supports the call only if the regime takes a real position on it
+    # *and* the month is meaningfully closer to that position than a blank
+    # reading would be. Without the second test a driver sitting nowhere near
+    # the archetype gets listed as a reason for the call.
+    salience = reg_cfg.get("driver_salience", {})
+    def neutral_gap(d):
+        return float(arche[d]) ** 2 * float(salience.get(d, 1.0))
+    committed = [d for d in gaps.index if abs(float(arche[d])) >= 0.25]
+    support = sorted([d for d in committed if gaps[d] < 0.5 * neutral_gap(d)],
+                     key=lambda d: gaps[d])[:2]
+    against = gaps.idxmax()
+
+    # Plain text, not HTML: the caller escapes it.
+    for_text = join_words([driver_phrase(d, row[d], ind_cfg) for d in support])
+    lead = f"{label} because {for_text}" if for_text else f"Nearest to {label}"
+    if weak:
+        lead = f"{lead}, though the match is loose"
+    return f"{lead}."
+
+
+def objection(row: pd.Series, ind_cfg: dict, reg_cfg: dict, regime: str) -> str:
+    """The driver arguing hardest against the call, as a sentence.
+
+    Kept apart from why_called so a page can put it after the call's history
+    rather than interrupting the reason with it.
+    """
+    if regime not in reg_cfg["regimes"] or row is None:
+        return ""
+    gaps = _gaps(row, reg_cfg, regime)
+    if gaps.empty or gaps.max() < 0.05:
+        return ""
+    # The phrase is already a clause, so it is introduced rather than inflected.
+    return f"The main argument against: {driver_phrase(gaps.idxmax(), row[gaps.idxmax()], ind_cfg)}."
+
+
+def why_not_called(row: pd.Series, ind_cfg: dict, reg_cfg: dict, regime: str) -> str:
+    """Why a month fits nothing, named by the two drivers furthest from the nearest regime."""
+    if regime not in reg_cfg["regimes"] or row is None:
+        return ""
+    gaps = _gaps(row, reg_cfg, regime)
+    if gaps.empty:
+        return ""
+    worst = gaps.sort_values(ascending=False).index[:2]
+    label = reg_cfg["regimes"][regime]["label"]
+    return (f"Nearest is {label}, but "
+            + join_words([driver_phrase(d, row[d], ind_cfg) for d in worst]) + ".")
+
+
+def what_moved(now: pd.Series, before: pd.Series, ind_cfg: dict,
+               min_move: float = 0.08) -> str:
+    """What changed between two months' driver scores, and what did not."""
+    if now is None or before is None:
+        return ""
+    shared = [d for d in now.index if d in before.index
+              and pd.notna(now[d]) and pd.notna(before[d]) and d in ind_cfg["drivers"]]
+    if not shared:
+        return ""
+    delta = pd.Series({d: float(now[d]) - float(before[d]) for d in shared})
+    movers = delta[delta.abs() >= min_move].sort_values(key=abs, ascending=False)[:2]
+    steady = [d for d in shared if d not in movers.index]
+    labels = {d: ind_cfg["drivers"][d].get("label", d).lower() for d in shared}
+
+    if movers.empty:
+        # Say what is holding the reading up, not merely that nothing moved:
+        # that is the reason the call has not changed.
+        held = delta.abs().sort_values().index[:3]
+        return ("little has moved: " + join_words([labels[d] for d in held])
+                + " are all close to where they were")
+    parts = []
+    for d, v in movers.items():
+        phrase, verb = driver_phrase(d, now[d], ind_cfg), "rising" if v > 0 else "easing"
+        # Most phrases name the driver already, so saying it twice reads badly.
+        parts.append(f"{phrase} after {verb}" if phrase.lower().startswith(labels[d])
+                     else f"{labels[d]} has {'risen' if v > 0 else 'eased'}, so {phrase}")
+    moved = join_words(parts)
+    if steady:
+        rest = (join_words([labels[d] for d in steady]) + " are"
+                if len(steady) <= 3 else "the other drivers are")
+        moved += f", while {rest} little changed"
+    return moved
 
 
 def regime_runs(called: pd.Series) -> pd.DataFrame:

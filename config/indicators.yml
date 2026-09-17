@@ -54,9 +54,13 @@ drivers:
   demand:
     label: Demand
     description: Strength of final demand relative to trend.
+    # `phrase` is how the driver reads in a sentence on the dashboard, when it
+    # explains why a month was called what it was. Write it as a fragment that
+    # follows "because ...": lower case, no verb of its own.
     signpost:
-      low: {label: Weak, tone: risk}
-      high: {label: Strong, tone: good}
+      low: {label: Weak, tone: risk, phrase: demand is running below trend}
+      high: {label: Strong, tone: good, phrase: demand is running above trend}
+      mid: {phrase: demand is close to trend}
     indicators:
       - id: real_pce_yoy
         label: Real consumer spending, year over year
@@ -133,8 +137,9 @@ drivers:
     label: Inflation expectations
     description: Where expectations sit relative to the 2% target.
     signpost:
-      low: {label: De-anchored lower, tone: risk}
-      high: {label: De-anchored higher, tone: risk}
+      low: {label: De-anchored lower, tone: risk, phrase: inflation expectations sit below target}
+      high: {label: De-anchored higher, tone: risk, phrase: inflation expectations sit above target}
+      mid: {phrase: inflation expectations are anchored}
     indicators:
       - id: breakeven_5y5y
         label: 5-year inflation expectations, 5 years ahead
@@ -176,8 +181,9 @@ drivers:
     label: Supply constraint
     description: How binding are capacity, labor and input constraints.
     signpost:
-      low: {label: Over-capacity, tone: risk}
-      high: {label: Under-capacity, tone: risk}
+      low: {label: Over-capacity, tone: risk, phrase: there is spare capacity to grow into}
+      high: {label: Under-capacity, tone: risk, phrase: capacity and labor are binding}
+      mid: {phrase: capacity is near normal}
     indicators:
       - id: capacity_utilisation
         label: Capacity utilization
@@ -255,8 +261,9 @@ drivers:
     label: Monetary policy
     description: How restrictive policy is against what inflation and slack call for, plus financial conditions.
     signpost:
-      low: {label: Too dovish, tone: risk}
-      high: {label: Too hawkish, tone: risk}
+      low: {label: Too dovish, tone: risk, phrase: policy is looser than the rule calls for}
+      high: {label: Too hawkish, tone: risk, phrase: policy is tighter than the rule calls for}
+      mid: {phrase: policy is close to what the rule calls for}
       reverse: true
     indicators:
       - id: taylor_gap
@@ -351,8 +358,9 @@ drivers:
     label: Fiscal policy
     description: Size and direction of federal fiscal support, and the room left for it.
     signpost:
-      low: {label: Large fiscal, tone: good}
-      high: {label: Small fiscal, tone: risk}
+      low: {label: Large fiscal, tone: good, phrase: fiscal policy is adding to demand}
+      high: {label: Small fiscal, tone: risk, phrase: fiscal policy is pulling back}
+      mid: {phrase: fiscal policy is roughly neutral}
       reverse: true
     indicators:
       - id: primary_balance_gdp
@@ -414,8 +422,9 @@ drivers:
     label: Investment spending
     description: Capex momentum and the credit conditions behind it.
     signpost:
-      low: {label: Low investment, tone: risk}
-      high: {label: High investment, tone: good}
+      low: {label: Low investment, tone: risk, phrase: capex is contracting}
+      high: {label: High investment, tone: good, phrase: capex is expanding}
+      mid: {phrase: capex is flat}
     indicators:
       - id: core_capex_orders_yoy
         label: Core capital goods orders, year over year
