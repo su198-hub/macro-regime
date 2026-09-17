@@ -80,7 +80,7 @@ def test_why_called_names_what_matches_and_what_argues_against():
 def test_why_called_marks_a_loose_match_without_arithmetic():
     row = pd.Series({"demand": 0.05, "investment": 0.62})
     text = why_called(row, PROSE_CFG, PROSE_REG, "boom", weak=True)
-    assert "though the match is loose" in text
+    assert text.endswith("Overall the match is loose.")
     assert "distance" not in text.lower()
 
 

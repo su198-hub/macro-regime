@@ -672,6 +672,37 @@ def driver_phrase(driver: str, score: float, ind_cfg: dict) -> str:
     return end.get("phrase") or f"{label} is {end.get('label', 'mixed').lower()}"
 
 
+def indicator_evidence(parts: pd.DataFrame, indicators: list[dict]) -> str:
+    """The reading behind a driver, for a sentence: 'capex orders up 6.6% on a year earlier'.
+
+    Takes whichever indicator moved the driver most this month. Labels carry
+    their own transform ("Core capital goods orders, year over year"), which
+    reads badly mid-sentence, so the label is cut at the first comma and the
+    transform supplies the wording instead.
+    """
+    if parts is None or parts.empty:
+        return ""
+    live = parts.dropna(subset=["contribution"])
+    if live.empty:
+        return ""
+    row = live.loc[live["contribution"].abs().idxmax()]
+    spec = next((i for i in indicators if i["id"] == row["id"]), None)
+    if spec is None or pd.isna(row["value"]):
+        return ""
+    # Only the first letter drops: "Fed funds rate less Taylor rule rate" keeps
+    # its proper nouns.
+    base = (spec.get("label") or row["id"]).split(",")[0]
+    base = base[0].lower() + base[1:]
+    value, transform = float(row["value"]), spec.get("transform", "level")
+    if transform == "yoy_pct":
+        return f"{base} {'up' if value >= 0 else 'down'} {abs(value):.1f}% on a year earlier"
+    if transform == "pct_change_3m_ann":
+        return f"{base} running at {format_reading(value, transform)} annualized"
+    if transform == "diff_12m":
+        return f"{base} {format_reading(value, transform)} over the past year"
+    return f"{base} at {format_reading(value, transform)}"
+
+
 def _gaps(row: pd.Series, reg_cfg: dict, regime: str) -> pd.Series:
     """Weighted squared distance from one regime's archetype, per driver."""
     arche = reg_cfg["regimes"][regime]["archetype"]
@@ -681,12 +712,15 @@ def _gaps(row: pd.Series, reg_cfg: dict, regime: str) -> pd.Series:
 
 
 def why_called(row: pd.Series, ind_cfg: dict, reg_cfg: dict, regime: str,
-               weak: bool = False) -> str:
-    """Why this month looks like this regime, in one sentence.
+               weak: bool = False, evidence: dict | None = None) -> str:
+    """Why this month looks like this regime, in two or three sentences.
 
-    Names the drivers the regime cares about that the month actually matches,
-    then the one arguing hardest against. Distances belong in the drill-down
-    and the methodology, not in the headline.
+    Opens with what the regime needs and the month has, backed by the reading
+    that moved that driver most. Then covers the rest of the picture, the
+    drivers saying something whether or not they support the call, so a reader
+    sees where inflation and policy sit rather than one flattering fact. The
+    driver arguing hardest against is left to objection(), which the page puts
+    last. Distances stay in the drill-down and the methodology.
     """
     if regime not in reg_cfg["regimes"] or row is None:
         return ""
@@ -707,24 +741,44 @@ def why_called(row: pd.Series, ind_cfg: dict, reg_cfg: dict, regime: str,
                      key=lambda d: gaps[d])[:3]
     against = gaps.idxmax()
 
-    # One sentence per matching driver, up to three: a reader takes them in one
-    # at a time. Plain text, not HTML; the caller escapes it.
-    if not support:
-        lead = f"Nearest to {label}"
-        if weak:
-            lead += ", though the match is loose"
-        return f"{lead}."
-    first = f"{label} because {driver_phrase(support[0], row[support[0]], ind_cfg)}"
+    # Plain text, not HTML; the caller escapes it.
+    evidence = evidence or {}
+    said = set()
+    if support:
+        first = f"{label} because {driver_phrase(support[0], row[support[0]], ind_cfg)}"
+        if evidence.get(support[0]):
+            first += f", with {evidence[support[0]]}"
+        said.add(support[0])
+    else:
+        first = f"Nearest to {label}, though no driver is close to what it expects"
+    sentences = [f"{first}."]
+
+    # Then the rest of the picture, loudest first, so inflation and policy get
+    # said whether or not they flatter the call. The objection is held back.
+    said.add(against)
+    sentences += _picture(row, ind_cfg, gaps.index, said, limit=2)
+    # Kept as its own sentence: tacked onto the first one it collides with the
+    # reading quoted there.
     if weak:
-        first += ", though the match is loose"
-    rest = []
-    for d in support[1:]:
-        phrase = driver_phrase(d, row[d], ind_cfg)
-        rest.append(f"{phrase[0].upper()}{phrase[1:]}.")
-    return " ".join([f"{first}."] + rest)
+        sentences.append("Overall the match is loose.")
+    return " ".join(sentences)
 
 
-def objection(row: pd.Series, ind_cfg: dict, reg_cfg: dict, regime: str) -> str:
+def _picture(row: pd.Series, ind_cfg: dict, drivers, said: set, limit: int = 2) -> list[str]:
+    """Sentences covering the drivers not yet mentioned, loudest first."""
+    others = sorted([d for d in drivers if d not in said],
+                    key=lambda d: abs(float(row[d])), reverse=True)
+    out = []
+    for group in (others[:2], others[2:3]):
+        if not group or len(out) >= limit:
+            break
+        clause = join_words([driver_phrase(d, row[d], ind_cfg) for d in group])
+        out.append(f"{clause[0].upper()}{clause[1:]}.")
+    return out
+
+
+def objection(row: pd.Series, ind_cfg: dict, reg_cfg: dict, regime: str,
+              evidence: dict | None = None) -> str:
     """The driver arguing hardest against the call, as a sentence.
 
     Kept apart from why_called so a page can put it after the call's history
@@ -736,7 +790,11 @@ def objection(row: pd.Series, ind_cfg: dict, reg_cfg: dict, regime: str) -> str:
     if gaps.empty or gaps.max() < 0.05:
         return ""
     # The phrase is already a clause, so it is introduced rather than inflected.
-    return f"The main argument against: {driver_phrase(gaps.idxmax(), row[gaps.idxmax()], ind_cfg)}."
+    worst = gaps.idxmax()
+    text = f"The main argument against: {driver_phrase(worst, row[worst], ind_cfg)}"
+    if (evidence or {}).get(worst):
+        text += f", with {evidence[worst]}"
+    return f"{text}."
 
 
 def why_not_called(row: pd.Series, ind_cfg: dict, reg_cfg: dict, regime: str) -> str:
@@ -746,10 +804,13 @@ def why_not_called(row: pd.Series, ind_cfg: dict, reg_cfg: dict, regime: str) ->
     gaps = _gaps(row, reg_cfg, regime)
     if gaps.empty:
         return ""
-    worst = gaps.sort_values(ascending=False).index[:2]
+    worst = list(gaps.sort_values(ascending=False).index[:2])
     label = reg_cfg["regimes"][regime]["label"]
-    return (f"Nearest is {label}, but "
-            + join_words([driver_phrase(d, row[d], ind_cfg) for d in worst]) + ".")
+    first = (f"Nearest is {label}, but "
+             + join_words([driver_phrase(d, row[d], ind_cfg) for d in worst]) + ".")
+    # The rest of the picture still gets said: a month that fits nothing is
+    # still doing something.
+    return " ".join([first] + _picture(row, ind_cfg, gaps.index, set(worst), limit=2))
 
 
 def what_moved(now: pd.Series, before: pd.Series, ind_cfg: dict,

@@ -133,12 +133,17 @@ if fit_numbers and grade != "clear" and pd.notna(limit):
 # The lede says what the economy is doing; the standing behind it — how long
 # the call has run, how far ahead it is — is bookkeeping, and is set back.
 row = drivers.loc[latest]
+# The reading that moved each driver most, so the sentences can point at data
+# rather than only at scores.
+evidence = {d: ui.indicator_evidence(
+    driver_breakdown(cfg, d, results["inputs"], results["indicators"], latest),
+    cfg["drivers"][d]["indicators"]) for d in driver_cols}
 standing = ""
 if called == "transitional":
     lede = (f"No regime clears the {settings['min_confidence']:.0%} confidence "
             f"floor. {regime_label[leading]} leads with {ranked.iloc[0]:.0%}.")
 elif called == "unclassified" and fits_now:
-    lede = ui.why_called(row, cfg, reg, leading)
+    lede = ui.why_called(row, cfg, reg, leading, evidence=evidence)
     standing = (f"That is {ranked.iloc[0]:.0%} of the probability, but it has not held long "
                 f"enough to be called. No clear regime since {since:%B %Y}.")
 elif called == "unclassified":
@@ -148,8 +153,9 @@ else:
     # Why this regime, in plain terms. The distances behind it are in the
     # drill-down and the methodology, where someone is asking for them.
     focus_regime_name = called if called in reg["regimes"] else leading
-    lede = ui.why_called(row, cfg, reg, focus_regime_name, weak=(grade == "weak"))
-    objection = ui.objection(row, cfg, reg, focus_regime_name)
+    lede = ui.why_called(row, cfg, reg, focus_regime_name, weak=(grade == "weak"),
+                         evidence=evidence)
+    objection = ui.objection(row, cfg, reg, focus_regime_name, evidence=evidence)
     if objection:
         lede += f" {objection}"
     standing = f"Called since {since:%B %Y}"
