@@ -118,7 +118,9 @@ CSS = f"""
 .mr-call-swatch {{ display: inline-block; width: 0.5em; height: 0.5em;
   border-radius: 50%; margin-right: 0.3em; vertical-align: 0.1em; }}
 .mr-lede {{ font: 1rem/1.55 {BODY_FONT}; color: {INK}; margin: 0 0 0.45rem; max-width: 38rem; }}
-.mr-lede-muted {{ font: 0.86rem/1.5 {BODY_FONT}; color: {INK_2}; margin: 0; max-width: 38rem; }}
+.mr-lede-muted {{ font: 0.86rem/1.5 {BODY_FONT}; color: {INK_2}; margin: 0 0 0.35rem;
+  max-width: 38rem; }}
+.mr-lede-muted:last-child {{ margin-bottom: 0; }}
 .mr-demo {{ font: 0.86rem/1.5 {BODY_FONT}; color: {INK}; margin: 0.7rem 0 0; }}
 .mr-demo b {{ color: #b83232; }}
 
@@ -167,6 +169,10 @@ CSS = f"""
   margin-left: 0.4rem; }}
 .mr-prov-main {{ font-size: 1.05rem; font-weight: 700; color: {INK}; margin: 0 0 0.4rem !important; }}
 .mr-prov-body {{ font-size: 0.9rem; line-height: 1.55; color: {INK}; max-width: 38rem; }}
+/* Mechanics of the reading: how much data, when it confirms. Secondary to
+   what the reading says, so it is set back and given air above it. */
+.mr-prov-note {{ font: 0.84rem/1.5 {BODY_FONT}; color: {INK_2}; max-width: 38rem;
+  margin: 0.85rem 0 0 !important; }}
 .mr-cal-title {{ font-weight: 700; font-size: 0.9rem; color: {INK}; margin: 0 0 0.35rem !important; }}
 .mr-cal {{ width: 100%; border-collapse: collapse; font-size: 0.86rem; color: {INK}; }}
 .mr-cal th {{ text-align: left; font-weight: 400; color: {MUTED}; font-size: 0.76rem;
@@ -395,7 +401,7 @@ def provisional_box(reading: dict, reg_cfg: dict, called: str, confirm_by, confi
         f'<p class="mr-prov-main"><span class="mr-call-swatch" style="background:{spec["color"]}"></span>'
         f'{verdict}</p>'
         f'{change}'
-        f'<p class="mr-prov-body">Based on {reading["share"]:.0%} of {month:%B} data released so far. '
+        f'<p class="mr-prov-note">Based on {reading["share"]:.0%} of {month:%B} data released so far. '
         f'Inputs not yet released carry their latest value, so this can change as releases '
         f'arrive.{confirm}</p></div>{cal}</div>'
     )
@@ -698,15 +704,24 @@ def why_called(row: pd.Series, ind_cfg: dict, reg_cfg: dict, regime: str,
         return float(arche[d]) ** 2 * float(salience.get(d, 1.0))
     committed = [d for d in gaps.index if abs(float(arche[d])) >= 0.25]
     support = sorted([d for d in committed if gaps[d] < 0.5 * neutral_gap(d)],
-                     key=lambda d: gaps[d])[:2]
+                     key=lambda d: gaps[d])[:3]
     against = gaps.idxmax()
 
-    # Plain text, not HTML: the caller escapes it.
-    for_text = join_words([driver_phrase(d, row[d], ind_cfg) for d in support])
-    lead = f"{label} because {for_text}" if for_text else f"Nearest to {label}"
+    # One sentence per matching driver, up to three: a reader takes them in one
+    # at a time. Plain text, not HTML; the caller escapes it.
+    if not support:
+        lead = f"Nearest to {label}"
+        if weak:
+            lead += ", though the match is loose"
+        return f"{lead}."
+    first = f"{label} because {driver_phrase(support[0], row[support[0]], ind_cfg)}"
     if weak:
-        lead = f"{lead}, though the match is loose"
-    return f"{lead}."
+        first += ", though the match is loose"
+    rest = []
+    for d in support[1:]:
+        phrase = driver_phrase(d, row[d], ind_cfg)
+        rest.append(f"{phrase[0].upper()}{phrase[1:]}.")
+    return " ".join([f"{first}."] + rest)
 
 
 def objection(row: pd.Series, ind_cfg: dict, reg_cfg: dict, regime: str) -> str:

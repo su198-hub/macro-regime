@@ -130,38 +130,41 @@ fit_numbers = (f"distance {distance:.2f} against {threshold:.2f} for a neutral e
 if fit_numbers and grade != "clear" and pd.notna(limit):
     fit_numbers += f", limit {limit:.2f}"
 
+# The lede says what the economy is doing; the standing behind it — how long
+# the call has run, how far ahead it is — is bookkeeping, and is set back.
 row = drivers.loc[latest]
+standing = ""
 if called == "transitional":
     lede = (f"No regime clears the {settings['min_confidence']:.0%} confidence "
             f"floor. {regime_label[leading]} leads with {ranked.iloc[0]:.0%}.")
 elif called == "unclassified" and fits_now:
-    lede = (f"{ui.why_called(row, cfg, reg, leading)} That is {ranked.iloc[0]:.0%} of the "
-            f"probability, but it has not held for long enough to be called. No clear regime "
-            f"since {since:%B %Y}.")
+    lede = ui.why_called(row, cfg, reg, leading)
+    standing = (f"That is {ranked.iloc[0]:.0%} of the probability, but it has not held long "
+                f"enough to be called. No clear regime since {since:%B %Y}.")
 elif called == "unclassified":
-    lede = (f"{ui.why_not_called(row, cfg, reg, leading)} No regime is close enough to call, "
-            f"and there has been none since {since:%B %Y}.")
+    lede = ui.why_not_called(row, cfg, reg, leading)
+    standing = f"No regime is close enough to call, and there has been none since {since:%B %Y}."
 else:
     # Why this regime, in plain terms. The distances behind it are in the
     # drill-down and the methodology, where someone is asking for them.
     focus_regime_name = called if called in reg["regimes"] else leading
     lede = ui.why_called(row, cfg, reg, focus_regime_name, weak=(grade == "weak"))
-    lede += f" Called since {since:%B %Y}"
-    if runner_up is not None:
-        gap = (ranked.iloc[0] - ranked.iloc[1]) * 100
-        lede += (f", at {ranked.iloc[0]:.0%} probability, {gap:.0f} points ahead of "
-                 f"{regime_label[runner_up].lower()}.")
-    else:
-        lede += "."
     objection = ui.objection(row, cfg, reg, focus_regime_name)
     if objection:
         lede += f" {objection}"
+    standing = f"Called since {since:%B %Y}"
+    if runner_up is not None:
+        gap = (ranked.iloc[0] - ranked.iloc[1]) * 100
+        standing += (f", at {ranked.iloc[0]:.0%} probability, {gap:.0f} points ahead of "
+                     f"{regime_label[runner_up].lower()}.")
+    else:
+        standing += "."
 
 if called != "transitional" and state != called and pd.notna(state):
     streak = ui.run_length(calls.loc[:latest, "state"])
-    lede += (f" {ui.call_label(state, reg)} for {streak} of the "
-             f"{settings['persistence_months']} consecutive months needed to "
-             f"change the call.")
+    standing += (f" {ui.call_label(state, reg)} for {streak} of the "
+                 f"{settings['persistence_months']} consecutive months needed to "
+                 f"change the call.")
 
 call_col, prob_col = st.columns([1.15, 1], gap="large")
 call_col.html(
@@ -169,7 +172,8 @@ call_col.html(
     f'<div class="mr-call"><span class="mr-call-swatch" '
     f'style="background:{swatch}"></span>{ui.esc(call_name)}</div>'
     f'<p class="mr-lede">{ui.esc(lede)}</p>'
-    f'<p class="mr-lede-muted">Data as known on {ui.long_date(vintage)}. {latest:%B %Y} is the '
+    + (f'<p class="mr-lede-muted">{ui.esc(standing)}</p>' if standing else "")
+    + f'<p class="mr-lede-muted">Data as known on {ui.long_date(vintage)}. {latest:%B %Y} is the '
     f'latest month with its core data released. {ui.esc(published_note())}</p>'
     + ('<p class="mr-demo"><b>Demo data.</b> These series are synthetic, so the call '
        'and the numbers mean nothing yet.</p>' if is_demo else ""))
