@@ -197,3 +197,11 @@ def test_horizon_mix_sums_to_one_for_a_non_empty_selection():
 def test_empty_selection_does_not_divide_by_zero():
     assert sum(bn.horizon_mix([]).values()) == 0
     assert "0 added" in bn.summary(BENCH, set()) or "CHANGES" in bn.summary(BENCH, set())
+
+
+def test_rows_show_the_scored_set_then_the_proposal_then_the_rest():
+    """Among candidates, the ones put forward come first; the live set leads."""
+    for key in bn.drivers(BENCH):
+        ranks = [0 if i.get("status") == "in_set" else 1 if i.get("preselect") else 2
+                 for i in bn.display_order(bn.by_driver(BENCH, key))]
+        assert ranks == sorted(ranks), f"{key} is out of order: {ranks}"

@@ -93,7 +93,7 @@ st.html(
 
 # ---------- toolbar ----------
 
-bar = st.columns([1.25, 1.3, 1.3, 1.45, 1.45, 1.7, 0.95, 0.95])
+bar = st.columns([1.3, 1.4, 1.4, 1.55, 2.0, 0.95, 0.95])
 show = bar[0].selectbox("Show", ["Everything", "In the set", "Candidates"],
                         help="Narrow the list without losing what is already ticked.")
 natures = bar[1].multiselect("Nature", list(bn.NATURE_ORDER), default=[],
@@ -108,25 +108,23 @@ kinds = bar[3].multiselect("Source type", list(bn.KIND_ORDER), default=[],
                            placeholder="Any source type",
                            help="Market, model and survey readings of the same thing can "
                                 "disagree; official statistics mostly cannot.")
-sources = bar[4].multiselect("Vendor", list(bn.SOURCE_LABEL), default=[],
-                             format_func=lambda s: bn.SOURCE_LABEL[s],
-                             placeholder="Any vendor")
-query = bar[5].text_input("Search", "", placeholder="name or description")
+query = bar[4].text_input("Search", "", placeholder="name or description")
 
 # Buttons run before any checkbox is drawn: Streamlit will not let a widget's
 # state be rewritten in the same run that renders it.
-if bar[6].button("Reset", use_container_width=True,
+if bar[5].button("Reset", use_container_width=True,
                  help="Back to how this page opened: the scored set plus the "
                       "candidates put forward for discussion."):
     seed(opening)
     st.rerun()
-if bar[7].button("Clear", use_container_width=True,
+if bar[6].button("Clear", use_container_width=True,
                  help="Untick everything and build up from nothing."):
     seed(set())
     st.rerun()
 
-detail = st.toggle("Show how each one is measured", value=True,
-                   help="Turn off to fit more rows on screen once everyone knows the list.")
+detail = st.toggle("Show how each one is measured", value=False,
+                   help="Off by default, so the list reads in one pass; turn on when "
+                        "the question is how a number is collected.")
 
 
 def visible(row: dict) -> bool:
@@ -139,8 +137,6 @@ def visible(row: dict) -> bool:
     if kinds and row.get("kind", "official") not in kinds:
         return False
     if horizons and row.get("horizon", "medium") not in horizons:
-        return False
-    if sources and row.get("where", "macrobond_check") not in sources:
         return False
     if query:
         hay = " ".join(str(row.get(f, "")) for f in ("name", "refers", "measured", "code", "vendor"))
@@ -255,7 +251,7 @@ st.html(ui.section_head("The bench", caption=
         "review; nothing has been backtested, so inclusion here is a proposal, not a result."))
 
 for key, block in bn.drivers(bench).items():
-    items = [i for i in (block.get("items") or []) if visible(i)]
+    items = bn.display_order([i for i in (block.get("items") or []) if visible(i)])
     if not items:
         continue
     b = next(x for x in blocks if x["driver"] == key)
@@ -281,12 +277,21 @@ for key, block in bn.drivers(bench).items():
                         help=f"{bn.NATURE_HELP.get(kind, '')}\n\n"
                              f"{bn.KIND_HELP.get(who, '')}"
                              + (f"\n\n{bn.ENTERS_HELP['revision']}" if ent == "revision" else ""))
-            note = f"{item.get('refers', '')}"
-            note += f"  \n*Scored as:* {bn.ENTERS_LABEL.get(ent, ent)}"
-            if detail and item.get("measured"):
-                note += f"  \n*How it is measured:* {item['measured'].strip()}"
-            note += f"  \n<small>{ui.esc(bn.source_note(item))}</small>"
-            st.caption(note, unsafe_allow_html=True)
+            # One block, indented under the label text so every line of a row
+            # shares an edge. The description is what the row is about, so it
+            # reads in body ink; scoring and source are reference, so muted.
+            measured = (f'<br><i>How it is measured:</i> '
+                        f'{ui.esc(str(item["measured"]).strip())}'
+                        if detail and item.get("measured") else "")
+            st.html(
+                f'<div style="margin:-0.4rem 0 0.7rem 1.75rem">'
+                f'<div style="color:{ui.INK};font-size:0.92rem;line-height:1.5">'
+                f'{ui.esc(str(item.get("refers", "")).strip())}</div>'
+                f'<div style="color:{ui.MUTED};font-size:0.8rem;line-height:1.5;'
+                f'margin-top:0.15rem"><i>Scored as:</i> '
+                f'{ui.esc(bn.ENTERS_LABEL.get(ent, ent))}{measured}<br>'
+                f'<span style="font-size:0.74rem">{ui.esc(bn.source_note(item))}</span>'
+                f'</div></div>')
 
 
 # ---------- what was decided ----------

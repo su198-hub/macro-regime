@@ -1223,37 +1223,24 @@ drivers:
         where: macrobond
         code: EBP
         refers: >-
-          The price of bearing credit risk, separated from expected default.
-          ON READING IT AS A CHANGE — worth arguing about, but the level has the
-          stronger case here. It is mean zero by construction, so it does not drift
-          the way a raw spread does, and it is the level that Gilchrist and Zakrajšek
-          show forecasts investment and output. Differencing it would discard the
-          finding the series exists for. The change version belongs on high yield
-          spreads, which do drift.
+          The price of bearing credit risk, kept as a level because it is mean zero by
+          construction and it is the level that forecasts investment.
         measured: >-
           Gilchrist-Zakrajšek: thousands of individual corporate bond prices with each
           issuer's modelled default risk removed. Mean zero by construction.
-
       - id: equity_risk_premium
-        name: Equity risk premium
+        name: Change in equity risk premium
         status: in_set
         horizon: long
         nature: cyclical
         kind: market
-        enters: spread
+        enters: change
         where: macrobond
         code: CAPE, DGS10, EXPINF10YR
         refers: >-
-          The hurdle a new project must clear to be worth financing with equity.
-          Long-dated in content, but valuations mean-revert within a cycle, so it
-          behaves cyclically however far ahead it looks.
-          ON READING IT AS A CHANGE — agreed here, and more strongly than for the
-          excess bond premium. Its level carries thirty years of valuation drift, so
-          scoring it against a fixed centre partly scores which decade it is, the
-          same trap that killed corporate debt to GDP in backtest. The change is
-          stationary and is the market marking the cost of equity.
+          The hurdle a new project must clear to be financed with equity, read as a
+          change because its level carries decades of valuation drift.
         measured: Inverse of the Shiller CAPE less a real 10-year yield. Monthly.
-
       # Opens unticked. A quarterly survey of what banks say they will do, and
       # the change in high yield spreads below prices the same credit conditions
       # daily and from people with money at stake.
@@ -1273,21 +1260,20 @@ drivers:
           quarter ends. Net percentage tightening minus easing.
 
       - id: cand_sp_capex
-        name: S&P 500 aggregate capex and forward consensus
+        name: Revision to consensus capex, S&P 500
         status: candidate
         horizon: medium
         nature: cyclical
-        kind: company
-        enters: change
-        where: external
-        vendor: CIQ
+        kind: survey
+        enters: revision
+        where: bloomberg
+        code: SPX Index|BEST_CAPEX
         refers: >-
-          What firms have spent and what analysts expect them to spend next. The only
-          candidate anywhere on the bench with a forward leg attached.
+          Whether analysts are marking up or cutting what firms will spend on capex
+          over the next year — the only forward-looking investment row.
         measured: >-
-          Bottom-up reported capital expenditure plus consensus estimates, refreshed
-          monthly. No BEA lag.
-
+          Bloomberg consensus (BEst), blended 12-month forward, monthly from 2007. Up
+          53% on a year ago, the highest on record; low −29% in April 2009.
       - id: cand_buybacks_vs_capex
         name: Buyback authorisations vs capex
         status: candidate
@@ -1376,23 +1362,10 @@ drivers:
         where: bloomberg
         code: LF98OAS Index
         refers: >-
-          The market repricing corporate credit risk. Read as a change: the level says
-          what risk costs today, the change says the odds are being marked, and it is
-          the marking that stops capex.
+          The market repricing corporate credit risk, read as a change because it is
+          the repricing, not the level, that stops capex.
         measured: >-
           Bloomberg US Corporate High Yield OAS, daily from 1994, currently 267bp,
           peak 1,971bp in December 2008. Bloomberg's index rather than ICE BofA's;
           the two track closely.
 
-      - id: cand_architecture_billings
-        name: Architecture Billings Index
-        status: candidate
-        horizon: long
-        nature: cyclical
-        kind: survey
-        enters: level
-        where: macrobond_check
-        refers: >-
-          Design work underway, which precedes construction spending by nine to twelve
-          months — the longest lead available for nonresidential building.
-        measured: American Institute of Architects monthly panel, diffusion index.

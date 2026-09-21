@@ -135,6 +135,20 @@ def by_driver(bench: dict, driver: str) -> list[dict]:
     return list(block.get("items") or [])
 
 
+def display_order(items: list[dict]) -> list[dict]:
+    """Scored rows first, then the candidates put forward, then the rest.
+
+    Config order holds within each group. The live set leads because it is the
+    reference point; the proposal comes next so it is read before the
+    alternatives rather than scrolled past on the way to them.
+    """
+    def rank(item: dict) -> int:
+        if item.get("status") == "in_set":
+            return 0
+        return 1 if item.get("preselect") else 2
+    return sorted(items, key=rank)
+
+
 def horizon_mix(items: list[dict]) -> dict:
     """Share of a selection by horizon, counted per indicator.
 
@@ -250,7 +264,7 @@ def summary(bench: dict, selected: set[str]) -> str:
         lines.append(f"  structural {block['structural']} of {block['n']}"
                      f"  (was {block['was_structural']} of {block['was']})")
         lines.append(f"  sources: {', '.join(block['kinds']) or 'none'}")
-        for item in by_driver(bench, block["driver"]):
+        for item in display_order(by_driver(bench, block["driver"])):
             if item["id"] not in selected:
                 continue
             mark = " " if item.get("status") == "in_set" else "+"
