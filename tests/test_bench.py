@@ -42,11 +42,32 @@ def test_every_row_says_what_it_is_and_how_it_is_measured():
             assert str(r.get(field, "")).strip(), f"{r['id']} has no {field}"
 
 
-def test_horizons_natures_and_sources_are_known_values():
+def test_horizons_natures_kinds_and_sources_are_known_values():
     for r in ROWS:
         assert r.get("horizon") in bn.HORIZON_ORDER, f"{r['id']} has horizon {r.get('horizon')!r}"
         assert r.get("nature") in bn.NATURE_ORDER, f"{r['id']} has nature {r.get('nature')!r}"
+        assert r.get("kind") in bn.KIND_ORDER, f"{r['id']} has kind {r.get('kind')!r}"
         assert r.get("where") in bn.SOURCE_LABEL, f"{r['id']} has where {r.get('where')!r}"
+
+
+def test_demand_candidates_answer_the_horizon_and_source_criticism():
+    """The two things the demand driver was sent back for.
+
+    It is five official statistics about what already happened. What it is
+    offered has to be structural, and it has to come from somewhere those five
+    could disagree with — otherwise the bench reproduces the problem.
+    """
+    cands = [i for i in bn.by_driver(BENCH, "demand") if i.get("status") == "candidate"]
+    assert all(c["nature"] == "structural" for c in cands), \
+        [c["id"] for c in cands if c["nature"] != "structural"]
+    assert len(bn.kinds_present(cands)) >= 3, \
+        f"demand candidates draw on only {bn.kinds_present(cands)}"
+
+
+def test_the_live_demand_driver_is_the_single_source_case():
+    """Guards the claim the page makes on screen, so it cannot go stale."""
+    live = [i for i in bn.by_driver(BENCH, "demand") if i.get("status") == "in_set"]
+    assert bn.kinds_present(live) == ["official"], bn.kinds_present(live)
 
 
 def test_nature_is_not_just_horizon_under_another_name():

@@ -76,37 +76,48 @@ st.html(
     f'<div><b>Nature</b> — what kind of thing it measures. <span style="color:{ui.INK_2}">'
     'NEWS what just happened · CYC where output sits relative to capacity · '
     'STR what capacity is and where it is drifting.</span></div>'
-    f'<div style="grid-column:1/-1;color:{ui.INK_2}">The test for the second: does it '
-    'move the speed limit, or tell you where you are against it? Capacity utilisation '
-    'tells you where you are. The growth of capacity moves the limit. Four live '
-    'indicators are tagged LT but mean-revert inside a cycle, which is how the set came '
-    'to read 27% long-horizon while carrying 18% structural.</div></div>')
+    f'<div><b>Source type</b> — who produced the number. <span style="color:{ui.INK_2}">'
+    'MARKET a traded price · MODEL an estimator\'s output · SURVEY someone was asked · '
+    'OFFICIAL an agency\'s count · COMPANY read off financial statements.</span></div>'
+    f'<div style="grid-column:1/-1;color:{ui.INK_2}">The test for nature: does it move '
+    'the speed limit, or tell you where you are against it? Capacity utilisation tells '
+    'you where you are; the growth of capacity moves the limit. Four live indicators are '
+    'tagged LT but mean-revert inside a cycle, which is how the set came to read 27% '
+    'long-horizon while carrying 18% structural. The test for source type is whether two '
+    'readings could ever disagree — five agency statistics cannot, a market price and a '
+    'survey routinely do, and inflation expectations works because it is built that way.'
+    '</div></div>')
 
 
 # ---------- toolbar ----------
 
-bar = st.columns([1.35, 1.35, 1.5, 1.5, 1.9, 1.0, 1.0])
+bar = st.columns([1.25, 1.3, 1.3, 1.45, 1.45, 1.7, 0.95, 0.95])
 show = bar[0].selectbox("Show", ["Everything", "In the set", "Candidates"],
                         help="Narrow the list without losing what is already ticked.")
 natures = bar[1].multiselect("Nature", list(bn.NATURE_ORDER), default=[],
                              format_func=lambda n: bn.NATURE_LABEL[n],
-                             placeholder="Any kind",
+                             placeholder="Any nature",
                              help="Pick Structural to see only what moves the speed limit.")
 horizons = bar[2].multiselect("Horizon", list(bn.HORIZON_ORDER), default=[],
                               format_func=lambda h: bn.HORIZON_LABEL[h],
                               placeholder="Any horizon")
-sources = bar[3].multiselect("Source", list(bn.SOURCE_LABEL), default=[],
+kinds = bar[3].multiselect("Source type", list(bn.KIND_ORDER), default=[],
+                           format_func=lambda k: bn.KIND_LABEL[k],
+                           placeholder="Any source type",
+                           help="Market, model and survey readings of the same thing can "
+                                "disagree; official statistics mostly cannot.")
+sources = bar[4].multiselect("Vendor", list(bn.SOURCE_LABEL), default=[],
                              format_func=lambda s: bn.SOURCE_LABEL[s],
-                             placeholder="Any source")
-query = bar[4].text_input("Search", "", placeholder="name or description")
+                             placeholder="Any vendor")
+query = bar[5].text_input("Search", "", placeholder="name or description")
 
 # Buttons run before any checkbox is drawn: Streamlit will not let a widget's
 # state be rewritten in the same run that renders it.
-if bar[5].button("Reset", use_container_width=True,
+if bar[6].button("Reset", use_container_width=True,
                  help="Back to the set that is scored today."):
     seed(live_ids)
     st.rerun()
-if bar[6].button("Clear", use_container_width=True,
+if bar[7].button("Clear", use_container_width=True,
                  help="Untick everything and build up from nothing."):
     seed(set())
     st.rerun()
@@ -121,6 +132,8 @@ def visible(row: dict) -> bool:
     if show == "Candidates" and row.get("status") == "in_set":
         return False
     if natures and row.get("nature", "cyclical") not in natures:
+        return False
+    if kinds and row.get("kind", "official") not in kinds:
         return False
     if horizons and row.get("horizon", "medium") not in horizons:
         return False
@@ -188,7 +201,11 @@ for b in blocks:
         f'<div style="font-size:0.72rem;color:{ui.MUTED}">{mix}</div>'
         f'<div style="font-size:0.74rem;margin-top:0.3rem;color:{s_tone};'
         f'font-weight:{600 if not b["structural"] else 400}">'
-        f'{b["structural"]} structural{s_move}</div>{new}</div>')
+        f'{b["structural"]} structural{s_move}</div>'
+        # One source type means one blind spot, whatever the horizon.
+        f'<div style="font-size:0.7rem;margin-top:0.15rem;'
+        f'color:{AMBER if len(b["kinds"]) < 2 else ui.MUTED}">'
+        f'{"/".join(b["kinds"]) or "—"}</div>{new}</div>')
 # One row of six on a laptop, wrapping only when the window is genuinely narrow:
 # the six cards are meant to be compared at a glance, and a driver that falls to
 # a second row stops being part of the comparison.
@@ -201,6 +218,10 @@ notes = [f"Across the whole selection: **news {nat['news']:.0%} · cyclical "
 blank = [b["label"] for b in blocks if not b["structural"]]
 if blank:
     notes.append(f"No structural content at all in **{ui.join_words(blank)}**.")
+one_kind = [f"**{b['label']}** ({b['kinds'][0]} only)" for b in blocks if len(b["kinds"]) == 1]
+if one_kind:
+    notes.append("Built from a single kind of source, so nothing in it can disagree with "
+                 "anything else: " + " · ".join(one_kind) + ".")
 if flat:
     # Separated by middots, not commas: half these names contain a comma of
     # their own and a comma-joined list reads as twice as many items.
@@ -233,11 +254,15 @@ for key, block in bn.drivers(bench).items():
             tag = bn.HORIZON_SHORT.get(item.get("horizon", "medium"), "MT")
             kind = item.get("nature", "cyclical")
             nat_tag = bn.NATURE_SHORT.get(kind, "CYC")
-            src = bn.SOURCE_SHORT.get(item.get("where", "macrobond_check"), "MB?")
+            who = item.get("kind", "official")
             mark = "" if live else " · new"
-            st.checkbox(f"**{item['name']}**  `{tag}`  `{nat_tag}`  `{src}`{mark}",
+            # Three chips, not four: which vendor supplies it is already on the
+            # source line underneath, and a fourth tag makes the row unreadable.
+            st.checkbox(f"**{item['name']}**  `{tag}`  `{nat_tag}`  "
+                        f"`{bn.KIND_SHORT.get(who, 'OFFICIAL')}`{mark}",
                         key=key_of(item["id"]),
-                        help=bn.NATURE_HELP.get(kind, ""))
+                        help=f"{bn.NATURE_HELP.get(kind, '')}\n\n"
+                             f"{bn.KIND_HELP.get(who, '')}")
             note = f"{item.get('refers', '')}"
             if detail and item.get("measured"):
                 note += f"  \n*How it is measured:* {item['measured'].strip()}"

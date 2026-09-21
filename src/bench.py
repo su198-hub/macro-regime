@@ -23,6 +23,25 @@ HORIZON_LABEL = {"short": "Short", "medium": "Medium", "long": "Long"}
 # mean-revert inside a cycle, so "long-horizon" flatters a set that carries
 # almost nothing structural. Keeping both makes that visible instead of
 # arguable.
+# The third axis: who produced the number. A driver built from one kind of
+# source inherits that source's blind spot whatever its horizon — five BLS
+# releases disagree about very little. Inflation expectations works because a
+# market price, a model and two surveys can disagree, and the disagreement is
+# the signal.
+KIND_ORDER = ("market", "model", "survey", "official", "company")
+KIND_SHORT = {"market": "MKT", "model": "MODEL", "survey": "SURVEY",
+              "official": "OFFICIAL", "company": "COMPANY"}
+KIND_LABEL = {"market": "Market price", "model": "Model estimate",
+              "survey": "Survey", "official": "Official statistic",
+              "company": "Company financials"}
+KIND_HELP = {
+    "market": "A traded price. Never revised, available daily, and it is someone's money.",
+    "model": "An estimator's output. Revises when the model is re-run.",
+    "survey": "Someone was asked. Captures beliefs, including wrong ones.",
+    "official": "A statistical agency's count or census of what happened.",
+    "company": "Read off corporate financial statements.",
+}
+
 NATURE_ORDER = ("news", "cyclical", "structural")
 NATURE_SHORT = {"news": "NEWS", "cyclical": "CYC", "structural": "STR"}
 NATURE_LABEL = {"news": "News", "cyclical": "Cyclical", "structural": "Structural"}
@@ -94,6 +113,12 @@ def nature_mix(items: list[dict]) -> dict:
     return mix
 
 
+def kinds_present(items: list[dict]) -> list[str]:
+    """Which source types a selection draws on, in a stable order."""
+    have = {i.get("kind", "official") for i in items}
+    return [k for k in KIND_ORDER if k in have]
+
+
 def flattered(items: list[dict]) -> list[dict]:
     """Rows tagged long-horizon that are cyclical in nature.
 
@@ -128,6 +153,8 @@ def tally(bench: dict, selected: set[str]) -> list[dict]:
             "natures": nature_mix(items),
             "structural": sum(1 for i in items if i.get("nature") == "structural"),
             "was_structural": sum(1 for i in live if i.get("nature") == "structural"),
+            "kinds": kinds_present(items),
+            "was_kinds": kinds_present(live),
             "sources": source_mix(items),
             "new_sources": sum(1 for i in items if i.get("where") == "external"),
         })
@@ -167,13 +194,16 @@ def summary(bench: dict, selected: set[str]) -> str:
         lines.append(f"{block['label']}  ({block['n']}, was {block['was']}){flag}")
         lines.append(f"  structural {block['structural']} of {block['n']}"
                      f"  (was {block['was_structural']} of {block['was']})")
+        lines.append(f"  sources: {', '.join(block['kinds']) or 'none'}")
         for item in by_driver(bench, block["driver"]):
             if item["id"] not in selected:
                 continue
             mark = " " if item.get("status") == "in_set" else "+"
             tag = HORIZON_SHORT.get(item.get("horizon", "medium"), "MT")
             nat = NATURE_SHORT.get(item.get("nature", "cyclical"), "CYC")
-            lines.append(f"  {mark} [{tag}/{nat:<4}] {item['name']}  ({source_note(item)})")
+            knd = item.get("kind", "official")
+            lines.append(f"  {mark} [{tag}/{nat:<4}/{knd:<8}] {item['name']}"
+                         f"  ({source_note(item)})")
         lines.append("")
 
     picked = [r for r in rows(bench) if r["id"] in selected]
@@ -191,6 +221,10 @@ def summary(bench: dict, selected: set[str]) -> str:
     empty = [b["label"] for b in tally(bench, selected) if not b["structural"]]
     if empty:
         lines.append(f"  no structural content at all in: {', '.join(empty)}")
+    single = [f"{b['label']} ({b['kinds'][0]} only)"
+              for b in tally(bench, selected) if len(b["kinds"]) == 1]
+    if single:
+        lines.append(f"  built from one kind of source: {'; '.join(single)}")
     flat = flattered(picked)
     if flat:
         # Semicolons, because many of these names carry a comma of their own.
