@@ -222,21 +222,14 @@ drivers:
         where: macrobond
         code: usfcst0723
         refers: >-
-          The change in expected productivity growth over a decade — the Solow A term
-          being marked up or down. The case for it over the headline growth forecast:
-          ten-year-ahead labour force growth is close to already known, since the
-          people who will be thirty in 2036 are twenty now, so productivity is where
-          nearly all the genuine uncertainty in potential growth sits.
-          CAUTION — an either/or with the GDP growth revision above, not an addition.
-          Their revisions correlate 0.83 and share a sign in 91% of readings, because
-          they come from the same panel in the same survey and potential growth is
-          roughly labour force growth plus productivity. Carrying both would repeat
-          the mistake of holding the 10-year breakeven next to the 5y5y.
+          The Solow A term marked up or down. Sharper than the headline growth
+          forecast, because ten-year-ahead labour force growth is close to already
+          known and productivity is where the real uncertainty sits.
+          CAUTION — an either/or with the GDP revision above, not an addition: the two
+          correlate 0.83 and share a sign 91% of the time.
         measured: >-
-          Philadelphia Fed SPF. Macrobond labels it quarterly, but the ten-year
-          questions are asked once a year, so there is one new reading each Q1 and
-          34 in total since 1992 — the revision is an annual signal carried for
-          twelve months.
+          Philadelphia Fed SPF. Asked once a year despite the quarterly label, so 34
+          readings since 1992 and an annual signal carried for twelve months.
 
       - id: cand_hlw_trend_growth
         name: Revision to trend growth inside r*
@@ -279,32 +272,24 @@ drivers:
           one needs the vintage-diff transform: this vintage's 2035 estimate less the
           previous vintage's.
 
-      - id: cand_real_rate_10y
-        name: Real 10-year interest rate
+      - id: cand_real_5y5y
+        name: 5y5y forward real rate
         status: candidate
         horizon: long
         nature: structural
         kind: market
         enters: level
         where: macrobond
-        code: usfcst4842
+        code: us10ygov, us5ygov, ust5yifr
         refers: >-
-          The long real rate — what lenders charge for real resources a decade out.
-          It is here to fill the market slot in the survey/model/market spread, and
-          it does drift rather than cycle: decade averages run 5.26, 3.30, 1.87, 0.54
-          and 1.09, only 29% of its variance is deviation from its own trend, and it
-          correlates just 0.23 with the unemployment rate.
-          CAUTION — the drift is real but it is mostly not about growth. US trend
-          growth did not fall from 5% to 0.5%; global savings, demographics, safe
-          asset demand and the term premium did most of that work. It also duplicates
-          two monetary candidates, the real TIPS yield and r*. The weakest of the
-          eight: it wins its slot on symmetry rather than on content, and a 5y5y
-          forward real rate — the same trick the 5y5y breakeven uses to strip the
-          cycle out of the front end — would be the better market leg if it can be
-          built.
+          The real rate the market prices for years six to ten — its view of trend
+          growth, since in equilibrium the real rate sits near the economy's growth
+          rate. Starting five years out strips the cycle, the same trick the 5y5y
+          breakeven uses. Carries a term premium too, so read it as growth plus noise.
         measured: >-
-          Cleveland Fed, the real leg of the same decomposition that produces
-          EXPINF10YR. Monthly since 1982, 81 vintages.
+          Built here, not published: the 5y5y nominal forward from the 5- and 10-year
+          benchmarks, less the 5y5y breakeven already in the set. Monthly from 2003,
+          currently 2.8% against a 2010s average of 0.9%.
 
       - id: cand_analyst_ltg
         name: Revision to analysts' long-term growth expectations
@@ -577,9 +562,13 @@ drivers:
           BLS Productivity and Costs — compensation per hour over output per hour.
           Quarterly, and heavily revised because both halves move.
 
+      # Opens unticked, with the potential labour force revision in its place.
+      # The most news-bound input in supply: it turns in weeks and says nothing
+      # about whether the economy's capacity to produce is growing.
       - id: supply_chain_pressure
         name: Global supply chain pressure
         status: in_set
+        preselect: false
         horizon: short
         nature: news
         kind: model
@@ -668,19 +657,41 @@ drivers:
           series as a denominator; its growth rate says whether the limit is rising.
         measured: Federal Reserve G.17 capacity index, monthly, re-estimated annually.
 
-      - id: cand_prime_age_participation
-        name: Prime-age participation rate
+      - id: cand_cbo_labour_force_revision
+        name: Revision to CBO potential labour force
         status: candidate
-        horizon: medium
+        preselect: true
+        horizon: long
         nature: structural
-        kind: official
-        enters: level
-        where: macrobond_check
+        kind: model
+        enters: revision
+        where: macrobond
+        code: usfcst0572
         refers: >-
-          The margin on which labour supply can still expand without immigration.
-          Moves over decades with childcare, disability and education, not with the
-          cycle.
-        measured: BLS household survey, 25–54 year olds in the labour force. Monthly, ~6 days.
+          How much CBO has changed its view of how many people will be working in
+          2035. The L in Solow, as a projection that gets revised rather than a count
+          of who turned up last month — immigration policy and participation move it
+          years before they move anything measurable.
+        measured: >-
+          CBO Potential GDP and Underlying Inputs, annual, running to 2036 with 52
+          vintages. Target-dated, so the revision is a vintage diff.
+
+      - id: cand_cbo_lfpr_revision
+        name: Revision to CBO potential participation rate
+        status: candidate
+        horizon: long
+        nature: structural
+        kind: model
+        enters: revision
+        where: macrobond
+        code: usfcst4766
+        refers: >-
+          The participation half of the same projection, isolated: how much of the
+          labour force view is people choosing to work rather than people existing.
+          Ageing pushes it down mechanically; childcare, health and wages push back.
+        measured: >-
+          CBO 10-Year Economic Projections, quarterly, running to 2036 with 22
+          vintages. Currently 62.0%. Target-dated, so the revision is a vintage diff.
 
       - id: cand_capex_to_depreciation
         name: Capex-to-depreciation ratio, S&P 500
