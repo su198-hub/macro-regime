@@ -9,6 +9,7 @@ import datetime as dt
 
 import pytest
 
+from src.sources import ciq
 from src.sources.ciq import CiqAuthError, CiqSource
 
 
@@ -55,17 +56,55 @@ def source(payload=None, status=200):
     return CiqSource(username="u", password="p", pause=0, session=fake), fake
 
 
-def test_credentials_are_required_and_never_defaulted():
-    with pytest.raises(RuntimeError, match="No Capital IQ credentials"):
+@pytest.fixture
+def no_stored_login(monkeypatch):
+    """Hide any real login on this machine, so tests never touch it."""
+    monkeypatch.delenv("CIQ_USERNAME", raising=False)
+    monkeypatch.delenv("CIQ_PASSWORD", raising=False)
+    monkeypatch.setattr(ciq, "user_env", lambda name: None)
+
+
+def test_credentials_are_required_and_never_defaulted(no_stored_login):
+    with pytest.raises(RuntimeError, match="ciq-login"):
         CiqSource(username=None, password=None)
 
 
-def test_credentials_come_from_the_environment(monkeypatch):
+def test_credentials_come_from_the_environment(no_stored_login, monkeypatch):
     monkeypatch.setenv("CIQ_USERNAME", "env-user")
     monkeypatch.setenv("CIQ_PASSWORD", "env-pass")
     s = CiqSource(session=FakeSession())
     assert s.username == "env-user"
     assert s.session.auth == ("env-user", "env-pass")
+
+
+def test_a_stored_login_is_found_without_restarting_the_terminal(no_stored_login,
+                                                                 monkeypatch):
+    """ciq-login writes the Windows user environment, which shells started
+    earlier never inherit. The adapter reads it live instead."""
+    stored = {"CIQ_USERNAME": "stored-user", "CIQ_PASSWORD": "stored-pass"}
+    monkeypatch.setattr(ciq, "user_env", stored.get)
+    s = CiqSource(session=FakeSession())
+    assert s.session.auth == ("stored-user", "stored-pass")
+
+
+def test_the_process_environment_wins_over_a_stored_login(no_stored_login, monkeypatch):
+    monkeypatch.setattr(ciq, "user_env", {"CIQ_USERNAME": "stored"}.get)
+    monkeypatch.setenv("CIQ_USERNAME", "session")
+    monkeypatch.setenv("CIQ_PASSWORD", "p")
+    assert CiqSource(session=FakeSession()).username == "session"
+
+
+def test_login_refuses_to_run_without_a_terminal(monkeypatch, capsys):
+    """A password prompt answered by a script is a password in a script."""
+    import argparse
+    import sys
+
+    import ingest
+    if sys.platform != "win32":
+        pytest.skip("the login stores to the Windows user environment")
+    monkeypatch.setattr(sys.stdin, "isatty", lambda: False)
+    ingest.cmd_ciq_login(argparse.Namespace(clear=False))
+    assert "your own terminal" in capsys.readouterr().out
 
 
 def test_a_refusal_says_it_may_be_the_entitlement_not_the_password():
@@ -144,7 +183,7 @@ def test_the_request_carries_the_identifier_mnemonic_and_a_date_window():
     assert "endDate" in req["properties"]
 
 
-def test_the_endpoint_can_be_pointed_elsewhere(monkeypatch):
+def test_the_endpoint_can_be_pointed_elsewhere(no_stored_login, monkeypatch):
     """S&P has moved this before, and entitlements differ by contract."""
     monkeypatch.setenv("CIQ_ENDPOINT", "https://example.invalid/api")
     s = CiqSource(username="u", password="p", session=FakeSession())

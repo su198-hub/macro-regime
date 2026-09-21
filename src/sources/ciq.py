@@ -1,17 +1,20 @@
 """S&P Capital IQ Pro adapter.
 
-Credentials come from the environment and are never read from a file in the
-repo:
+Credentials are never read from a file in the repo. Store them once, in your
+own terminal, with a masked prompt:
+
+    python ingest.py ciq-login
+
+That writes them as Windows user environment variables — out of the repo, out
+of OneDrive, out of shell history and out of any chat. Remove them with
+`ciq-login --clear`. The adapter reads:
 
     CIQ_USERNAME        your Capital IQ Pro login
     CIQ_PASSWORD        its password
     CIQ_ENDPOINT        optional; overrides the default GDS endpoint
     CIQ_FUNCTION        optional; overrides the historical-series function
 
-On Windows PowerShell, for one session:
-
-    $env:CIQ_USERNAME = "you@firm.com"
-    $env:CIQ_PASSWORD = "..."
+from the process environment first and the Windows user environment second.
 
 The API is entitled separately from a Pro seat at most institutions, so the
 first thing to do is not to backfill but to run:
@@ -40,6 +43,7 @@ from __future__ import annotations
 
 import datetime as dt
 import os
+import sys
 import time
 
 import pandas as pd
@@ -63,21 +67,69 @@ class CiqAuthError(RuntimeError):
     """Bad credentials, or the API is not on this seat's entitlement."""
 
 
+# ---------- where the credentials live ----------
+#
+# `ingest.py ciq-login` stores them as Windows user environment variables,
+# typed into a masked prompt. That keeps them out of the repo, out of OneDrive
+# (the repo syncs; the registry does not), out of shell history (a prompt's
+# answer is not a command), and out of any chat transcript. Processes started
+# before the login inherit a stale environment, so reads fall back to the
+# registry directly rather than asking for a restart.
+
+_ENV_KEY = "Environment"
+
+
+def user_env(name: str) -> str | None:
+    """A Windows user environment variable, read live from the registry."""
+    if sys.platform != "win32":
+        return None
+    try:
+        import winreg
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, _ENV_KEY) as key:
+            value, _ = winreg.QueryValueEx(key, name)
+            return value or None
+    except OSError:
+        return None
+
+
+def set_user_env(name: str, value: str | None) -> None:
+    """Store (or with None, remove) a Windows user environment variable."""
+    import ctypes
+    import winreg
+    with winreg.OpenKey(winreg.HKEY_CURRENT_USER, _ENV_KEY, 0,
+                        winreg.KEY_SET_VALUE) as key:
+        if value is None:
+            try:
+                winreg.DeleteValue(key, name)
+            except FileNotFoundError:
+                pass
+        else:
+            winreg.SetValueEx(key, name, 0, winreg.REG_SZ, value)
+    # Tell running shells the environment changed, so new terminals see it.
+    ctypes.windll.user32.SendMessageTimeoutW(
+        0xFFFF, 0x1A, 0, _ENV_KEY, 0x0002, 5000, ctypes.byref(ctypes.c_ulong()))
+
+
+def credential(name: str) -> str | None:
+    return os.environ.get(name) or user_env(name)
+
+
 class CiqSource:
     name = "ciq"
 
     def __init__(self, username: str | None = None, password: str | None = None,
                  endpoint: str | None = None, function: str | None = None,
                  pause: float = 0.3, session=None):
-        self.username = username or os.environ.get("CIQ_USERNAME")
-        self.password = password or os.environ.get("CIQ_PASSWORD")
+        self.username = username or credential("CIQ_USERNAME")
+        self.password = password or credential("CIQ_PASSWORD")
         if not (self.username and self.password):
             raise RuntimeError(
-                "No Capital IQ credentials. Set CIQ_USERNAME and CIQ_PASSWORD "
-                "in the environment; do not put them in a file in the repo."
+                "No Capital IQ credentials. Run `python ingest.py ciq-login` in your "
+                "own terminal, or set CIQ_USERNAME and CIQ_PASSWORD in the "
+                "environment. Never put them in a file in the repo."
             )
-        self.endpoint = endpoint or os.environ.get("CIQ_ENDPOINT") or DEFAULT_ENDPOINT
-        self.function = function or os.environ.get("CIQ_FUNCTION") or DEFAULT_FUNCTION
+        self.endpoint = endpoint or credential("CIQ_ENDPOINT") or DEFAULT_ENDPOINT
+        self.function = function or credential("CIQ_FUNCTION") or DEFAULT_FUNCTION
         self.pause = pause
         self.session = session or requests.Session()
         self.session.auth = (self.username, self.password)

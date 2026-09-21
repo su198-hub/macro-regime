@@ -49,6 +49,51 @@ def route(sid: str, sources: dict, override: str | None) -> tuple[str, str]:
     return vendor, code
 
 
+def cmd_ciq_login(args) -> None:
+    """Store Capital IQ credentials from a masked prompt.
+
+    Deliberately interactive only. The password is typed into getpass, so it is
+    not echoed, not a command line, and not in shell history; it goes to the
+    Windows user environment, which neither the repo nor OneDrive can see.
+    """
+    import getpass
+
+    from src.sources.ciq import set_user_env, user_env
+
+    if sys.platform != "win32":
+        print("  Not on Windows: export CIQ_USERNAME and CIQ_PASSWORD in your shell "
+              "profile instead, or use your OS keychain.")
+        return
+    if args.clear:
+        for name in ("CIQ_USERNAME", "CIQ_PASSWORD"):
+            set_user_env(name, None)
+        print("  Capital IQ credentials removed from your Windows user environment.")
+        return
+    not_here = ("  Run this in your own terminal. It prompts for the password, and a "
+                "prompt cannot be answered from a script — which is the point.")
+    # isatty() alone is not enough on Windows: the NUL device reports itself as a
+    # terminal, so a script with no input gets past it and hits EOF instead.
+    if not sys.stdin.isatty():
+        print(not_here)
+        return
+
+    current = user_env("CIQ_USERNAME")
+    hint = f" [{current}]" if current else ""
+    try:
+        username = input(f"  Capital IQ username{hint}: ").strip() or current
+        password = getpass.getpass("  Capital IQ password (not shown): ")
+    except (EOFError, KeyboardInterrupt):
+        print("\n" + not_here)
+        return
+    if not (username and password):
+        print("  Nothing stored: both are needed.")
+        return
+    set_user_env("CIQ_USERNAME", username)
+    set_user_env("CIQ_PASSWORD", password)
+    print(f"\n  Stored for {username}. Nothing was written to the repo.")
+    print("  Next:  python ingest.py ciq-probe --id IQ24937 --code IQ_CLOSEPRICE")
+
+
 def cmd_ciq_probe(args) -> None:
     """One call, printed raw, so the entitlement question is answered by the
     vendor rather than guessed at — and so the response shape is visible before
@@ -320,6 +365,13 @@ def main():
                      ("coverage", cmd_coverage), ("publish", cmd_publish),
                      ("demo", cmd_demo)]:
         sub.add_parser(name).set_defaults(func=fn)
+    login = sub.add_parser(
+        "ciq-login",
+        help="Store Capital IQ credentials from a masked prompt, as Windows user "
+             "environment variables. Run it in your own terminal.")
+    login.add_argument("--clear", action="store_true",
+                       help="Remove the stored credentials instead.")
+    login.set_defaults(func=cmd_ciq_login)
     probe = sub.add_parser(
         "ciq-probe",
         help="One Capital IQ call, printed raw. Run this before any backfill: it "
