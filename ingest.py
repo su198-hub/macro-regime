@@ -32,6 +32,11 @@ from src.drivers import load_config, required_series
 from src.store import Store
 
 
+# Vendors whose terms forbid redistribution. `publish` pushes to a public
+# branch, so it refuses to run while the store holds any of their series.
+RESTRICTED_VENDORS = {"bloomberg", "ciq"}
+
+
 def load_sources(path: str) -> dict:
     if not os.path.exists(path):
         return {"default": "fred", "series": {}}
@@ -141,6 +146,9 @@ def open_vendor(vendor: str):
     if vendor == "ciq":
         from src.sources.ciq import CiqSource
         return CiqSource()
+    if vendor == "bloomberg":
+        from src.sources.bloomberg import BloombergSource
+        return BloombergSource()
     from src.sources.fred import FredSource
     return FredSource()
 
@@ -252,6 +260,15 @@ def cmd_publish(args):
         sys.exit(f"{args.db} is empty. Run backfill first.")
     if "demo" in store.sources():
         sys.exit(f"{args.db} holds demo data; refusing to publish it as real data.")
+    restricted = sorted(set(store.sources()) & RESTRICTED_VENDORS)
+    if restricted:
+        store.close()
+        sys.exit(
+            f"{args.db} holds series from {', '.join(restricted)}, whose licences do "
+            f"not allow redistribution, and publish pushes to a public branch. Refusing "
+            f"rather than dropping them quietly, which would make the hosted app score a "
+            f"different model from the local one. Decide first whether those series "
+            f"belong in the published model at all.")
 
     git = shutil.which("git") or r"C:\Program Files\Git\cmd\git.exe"
     root = os.path.dirname(os.path.abspath(__file__))
@@ -352,7 +369,7 @@ def main():
                    help="Country code from config/countries.yml (default: its default).")
     p.add_argument("--config", default=None)
     p.add_argument("--sources", default=None)
-    p.add_argument("--source", choices=["fred", "macrobond", "ciq"], default=None,
+    p.add_argument("--source", choices=["fred", "macrobond", "ciq", "bloomberg"], default=None,
                    help="Use this vendor for every series, ignoring sources.yml.")
     # Comma separated, not nargs="+", which would swallow the subcommand.
     p.add_argument("--only", default=None, metavar="A,B,C",

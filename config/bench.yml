@@ -1154,25 +1154,19 @@ drivers:
         nature: structural
         kind: market
         enters: level
-        where: external
-        vendor: CIQ
+        where: bloomberg
+        code: US CDS USD SR 5Y D14 Corp
         refers: >-
-          A market price of US fiscal credibility. Every other fiscal indicator is an
-          accounting measure; none is priced by anyone with money at stake.
-          CAUTION — US sovereign CDS is a thin market quoted in euros, because you
-          cannot hedge dollar default risk in dollars. It spikes on debt-ceiling
-          dates rather than on solvency: roughly 180bp in 2023 on pure political
-          timing risk. It prices technical default around scheduled events, which is
-          not the same thing as fiscal riskiness. The term premium already carried in
-          monetary is the better-behaved market read on the same worry.
+          A market price of US fiscal credibility — the only fiscal row priced by
+          someone with money at stake. Thin market, and calmer than its reputation:
+          the 5-year sat at 53–61bp through the 2023 debt ceiling, and has peaked at
+          89bp (March 2020). CAUTION — only eight years of history, so it has never
+          seen a 2008 or a 2011.
         measured: >-
-          Markit quotes on US government debt, daily. NOT REACHABLE through our
-          Macrobond entitlement, and the gap is licensing rather than coverage:
-          searching sovereign CDS returns nothing for any country — not Italy, the
-          most traded sovereign CDS there is, nor Germany, nor an EM index. Only
-          CFTC notional-outstanding volumes come back. So it arrives with CIQ or
-          Bloomberg, and the same subscription would cover Japan and Germany, where
-          sovereign CDS is a far better behaved measure than it is here.
+          Bloomberg, daily from August 2018, currently 31bp. The euro contract runs
+          from 2009 but is missing 2017 and 2019–23, so it cannot be spliced on.
+          Germany (GERMAN CDS USD SR 5Y D14) and Japan (JGB CDS USD SR 5Y D14) run
+          from 2003, ready for those countries.
 
   investment:
     label: Investment spending
@@ -1379,16 +1373,16 @@ drivers:
         nature: cyclical
         kind: market
         enters: change
-        where: external
-        vendor: CIQ / ICE
+        where: bloomberg
+        code: LF98OAS Index
         refers: >-
-          The market repricing corporate credit risk. Read as a change rather than a
-          level: the level says what risk costs today, the change says the odds are
-          being marked, and it is the marking that stops capex. The CCC less BB gap
-          isolates distress at the bottom of the stack.
+          The market repricing corporate credit risk. Read as a change: the level says
+          what risk costs today, the change says the odds are being marked, and it is
+          the marking that stops capex.
         measured: >-
-          ICE BofA option-adjusted spreads, daily. Not in our Macrobond entitlement —
-          no hits under any phrasing — so CIQ or Bloomberg.
+          Bloomberg US Corporate High Yield OAS, daily from 1994, currently 267bp,
+          peak 1,971bp in December 2008. Bloomberg's index rather than ICE BofA's;
+          the two track closely.
 
       - id: cand_architecture_billings
         name: Architecture Billings Index

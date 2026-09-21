@@ -71,9 +71,13 @@ NATURE_HELP = {
 SOURCE_LABEL = {
     "macrobond": "Macrobond",
     "macrobond_check": "Macrobond, code unconfirmed",
+    # Verified through the Desktop API, but only where a terminal is logged in,
+    # and never publishable: the hosted app cannot have it.
+    "bloomberg": "Bloomberg terminal",
     "external": "New source",
 }
-SOURCE_SHORT = {"macrobond": "MB", "macrobond_check": "MB?", "external": "EXT"}
+SOURCE_SHORT = {"macrobond": "MB", "macrobond_check": "MB?", "bloomberg": "BBG",
+                "external": "EXT"}
 
 # A driver a reader can hold in their head. Same bounds the config test enforces.
 MIN_PER_DRIVER, MAX_PER_DRIVER = 3, 6

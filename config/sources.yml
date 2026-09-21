@@ -24,7 +24,18 @@
 # separately from a Pro seat, and the probe answers that in seconds using the
 # vendor's own error message.
 #
-# LICENSING. Anything fetched from `ciq` must be checked against the
+# A fourth, `bloomberg`, reads from a Bloomberg terminal logged in on the same
+# machine through the Desktop API — no credentials here, the terminal's login is
+# the entitlement. Codes are a ticker, optionally `ticker|FIELD`:
+#
+#   CDS5Y_US:
+#     use: bloomberg
+#     bloomberg: "US CDS USD SR 5Y D14 Corp"
+#
+# It works only where a terminal runs, so the hosted app can never refresh it.
+#
+# LICENSING. `ingest.py publish` refuses to run while the store holds any
+# `bloomberg` or `ciq` series. Anything fetched from `ciq` must be checked against the
 # subscription's redistribution terms before it reaches `ingest.py publish`,
 # which pushes a snapshot to a public branch. The same question is open for the
 # proprietary Macrobond series already in the set.
