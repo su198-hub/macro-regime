@@ -64,27 +64,49 @@ st.html('<div class="mr-custom"><b>Nothing here is scored.</b> Selections stay i
         'defaults are untouched whatever you tick. The counts below are the only '
         'feedback: they say whether a selection could actually ship.</div>')
 
+# Every row carries two tags because the two questions come apart, and the gap
+# between them is the case for changing the set.
+st.html(
+    '<div style="display:grid;gap:0.6rem 1.5rem;grid-template-columns:repeat(auto-fit,'
+    f'minmax(15rem,1fr));border-left:2px solid {ui.MUTED};padding:0.5rem 0 0.5rem 1rem;'
+    'margin:0.4rem 0 0.2rem">'
+    f'<div><b>Horizon</b> — how far ahead it looks. <span style="color:{ui.INK_2}">'
+    'ST weeks to a quarter · MT one to three years · LT structural or a market\'s '
+    'multi-year view.</span></div>'
+    f'<div><b>Nature</b> — what kind of thing it measures. <span style="color:{ui.INK_2}">'
+    'NEWS what just happened · CYC where output sits relative to capacity · '
+    'STR what capacity is and where it is drifting.</span></div>'
+    f'<div style="grid-column:1/-1;color:{ui.INK_2}">The test for the second: does it '
+    'move the speed limit, or tell you where you are against it? Capacity utilisation '
+    'tells you where you are. The growth of capacity moves the limit. Four live '
+    'indicators are tagged LT but mean-revert inside a cycle, which is how the set came '
+    'to read 27% long-horizon while carrying 18% structural.</div></div>')
+
 
 # ---------- toolbar ----------
 
-bar = st.columns([1.5, 1.6, 1.6, 2.2, 1.1, 1.1])
+bar = st.columns([1.35, 1.35, 1.5, 1.5, 1.9, 1.0, 1.0])
 show = bar[0].selectbox("Show", ["Everything", "In the set", "Candidates"],
                         help="Narrow the list without losing what is already ticked.")
-horizons = bar[1].multiselect("Horizon", list(bn.HORIZON_ORDER), default=[],
+natures = bar[1].multiselect("Nature", list(bn.NATURE_ORDER), default=[],
+                             format_func=lambda n: bn.NATURE_LABEL[n],
+                             placeholder="Any kind",
+                             help="Pick Structural to see only what moves the speed limit.")
+horizons = bar[2].multiselect("Horizon", list(bn.HORIZON_ORDER), default=[],
                               format_func=lambda h: bn.HORIZON_LABEL[h],
                               placeholder="Any horizon")
-sources = bar[2].multiselect("Source", list(bn.SOURCE_LABEL), default=[],
+sources = bar[3].multiselect("Source", list(bn.SOURCE_LABEL), default=[],
                              format_func=lambda s: bn.SOURCE_LABEL[s],
                              placeholder="Any source")
-query = bar[3].text_input("Search", "", placeholder="name or description")
+query = bar[4].text_input("Search", "", placeholder="name or description")
 
 # Buttons run before any checkbox is drawn: Streamlit will not let a widget's
 # state be rewritten in the same run that renders it.
-if bar[4].button("Reset", use_container_width=True,
+if bar[5].button("Reset", use_container_width=True,
                  help="Back to the set that is scored today."):
     seed(live_ids)
     st.rerun()
-if bar[5].button("Clear", use_container_width=True,
+if bar[6].button("Clear", use_container_width=True,
                  help="Untick everything and build up from nothing."):
     seed(set())
     st.rerun()
@@ -97,6 +119,8 @@ def visible(row: dict) -> bool:
     if show == "In the set" and row.get("status") != "in_set":
         return False
     if show == "Candidates" and row.get("status") == "in_set":
+        return False
+    if natures and row.get("nature", "cyclical") not in natures:
         return False
     if horizons and row.get("horizon", "medium") not in horizons:
         return False
@@ -125,20 +149,31 @@ blocks = bn.tally(bench, picked)
 d = bn.diff(bench, picked)
 needs_source = sum(1 for r in all_rows if r["id"] in picked and r.get("where") == "external")
 
+whole = [r for r in all_rows if r["id"] in picked]
+nat = bn.nature_mix(whole)
+flat = bn.flattered(whole)
+
 st.html(ui.section_head(
     "Where the selection stands",
     meta=f"{len(picked)} selected · {len(d['added'])} added · {len(d['dropped'])} dropped",
-    caption="A driver has to carry three to six indicators to stay readable, and "
-            "something slower than the news. Red means the selection could not ship as it is."))
+    caption="A driver has to carry three to six indicators to stay readable. Red means "
+            "the selection could not ship as it is; amber means the driver has nothing "
+            "structural in it at all."))
 
+AMBER = "#b7791f"
 cards = []
 for b in blocks:
     tone = ui.INK if b["ok"] else "#c0392b"
     delta = b["n"] - b["was"]
     move = (f'<span style="color:{ui.MUTED}">was {b["was"]}</span>' if delta == 0
-            else f'<span style="color:{ui.MUTED}">was {b["was"]}, {"+" if delta > 0 else "−"}{abs(delta)}</span>')
+            else f'<span style="color:{ui.MUTED}">was {b["was"]}, '
+                 f'{"+" if delta > 0 else "−"}{abs(delta)}</span>')
     mix = " / ".join(f'{bn.HORIZON_SHORT[h]} {b["horizons"][h]:.0%}'.replace("%", "")
                      for h in bn.HORIZON_ORDER if b["horizons"][h] >= 0.005) or "—"
+    # A driver with no structural content is the thing this page exists to show,
+    # so it gets its own colour rather than being one number among several.
+    s_tone = AMBER if not b["structural"] else ui.INK
+    s_move = "" if b["structural"] == b["was_structural"] else f' (was {b["was_structural"]})'
     new = (f'<div style="font-size:0.72rem;color:{ui.MUTED}">{b["new_sources"]} need a new source</div>'
            if b["new_sources"] else "")
     cards.append(
@@ -150,7 +185,10 @@ for b in blocks:
         f'<div style="font-size:1.6rem;font-weight:600;line-height:1.1;color:{tone}">{b["n"]}</div>'
         f'<div style="font-size:0.74rem">{move}</div>'
         f'<div style="margin-top:0.35rem">{horizon_bar(b["horizons"])}</div>'
-        f'<div style="font-size:0.72rem;color:{ui.MUTED}">{mix}</div>{new}</div>')
+        f'<div style="font-size:0.72rem;color:{ui.MUTED}">{mix}</div>'
+        f'<div style="font-size:0.74rem;margin-top:0.3rem;color:{s_tone};'
+        f'font-weight:{600 if not b["structural"] else 400}">'
+        f'{b["structural"]} structural{s_move}</div>{new}</div>')
 # One row of six on a laptop, wrapping only when the window is genuinely narrow:
 # the six cards are meant to be compared at a glance, and a driver that falls to
 # a second row stops being part of the comparison.
@@ -158,9 +196,21 @@ st.html('<div style="display:grid;gap:0.9rem;'
         'grid-template-columns:repeat(auto-fit,minmax(7.5rem,1fr))">'
         f'{"".join(cards)}</div>')
 
+notes = [f"Across the whole selection: **news {nat['news']:.0%} · cyclical "
+         f"{nat['cyclical']:.0%} · structural {nat['structural']:.0%}**."]
+blank = [b["label"] for b in blocks if not b["structural"]]
+if blank:
+    notes.append(f"No structural content at all in **{ui.join_words(blank)}**.")
+if flat:
+    # Separated by middots, not commas: half these names contain a comma of
+    # their own and a comma-joined list reads as twice as many items.
+    names = " · ".join(f"**{r['name']}**" for r in flat)
+    notes.append(f"Tagged long-horizon but cyclical in nature: {names} — these are why "
+                 f"the horizon mix reads longer-dated than the set really is.")
 if needs_source:
-    st.caption(f"{needs_source} of the {len(picked)} selected would need a source we do not "
-               f"have today — CIQ, a vendor feed, or an open publisher.")
+    notes.append(f"{needs_source} of the {len(picked)} selected would need a source we do "
+                 f"not have today.")
+st.caption("  \n".join(notes))
 
 
 # ---------- the bench ----------
@@ -181,10 +231,13 @@ for key, block in bn.drivers(bench).items():
         for item in items:
             live = item.get("status") == "in_set"
             tag = bn.HORIZON_SHORT.get(item.get("horizon", "medium"), "MT")
+            kind = item.get("nature", "cyclical")
+            nat_tag = bn.NATURE_SHORT.get(kind, "CYC")
             src = bn.SOURCE_SHORT.get(item.get("where", "macrobond_check"), "MB?")
             mark = "" if live else " · new"
-            st.checkbox(f"**{item['name']}**  `{tag}`  `{src}`{mark}",
-                        key=key_of(item["id"]))
+            st.checkbox(f"**{item['name']}**  `{tag}`  `{nat_tag}`  `{src}`{mark}",
+                        key=key_of(item["id"]),
+                        help=bn.NATURE_HELP.get(kind, ""))
             note = f"{item.get('refers', '')}"
             if detail and item.get("measured"):
                 note += f"  \n*How it is measured:* {item['measured'].strip()}"

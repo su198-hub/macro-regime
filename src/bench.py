@@ -17,6 +17,22 @@ HORIZON_ORDER = ("short", "medium", "long")
 HORIZON_SHORT = {"short": "ST", "medium": "MT", "long": "LT"}
 HORIZON_LABEL = {"short": "Short", "medium": "Medium", "long": "Long"}
 
+# The second axis. Horizon says how far ahead an indicator looks; nature says
+# what kind of thing it measures, and the two come apart exactly where the set
+# is weakest. A valuation or a risk premium can look a decade ahead and still
+# mean-revert inside a cycle, so "long-horizon" flatters a set that carries
+# almost nothing structural. Keeping both makes that visible instead of
+# arguable.
+NATURE_ORDER = ("news", "cyclical", "structural")
+NATURE_SHORT = {"news": "NEWS", "cyclical": "CYC", "structural": "STR"}
+NATURE_LABEL = {"news": "News", "cyclical": "Cyclical", "structural": "Structural"}
+NATURE_HELP = {
+    "news": "What just happened. Turns in weeks and mean-reverts fast.",
+    "cyclical": "Where output sits relative to capacity. Oscillates over one to three years.",
+    "structural": "What capacity is, and where it is drifting. Does not mean-revert "
+                  "inside a cycle — this is where the Solow terms live.",
+}
+
 # Where a row can come from, in order of how much work it is to get.
 SOURCE_LABEL = {
     "macrobond": "Macrobond",
@@ -69,6 +85,25 @@ def horizon_mix(items: list[dict]) -> dict:
     return mix
 
 
+def nature_mix(items: list[dict]) -> dict:
+    """Share of a selection by what it measures, counted per indicator."""
+    total = len(items) or 1
+    mix = {n: 0.0 for n in NATURE_ORDER}
+    for it in items:
+        mix[it.get("nature", "cyclical")] += 1 / total
+    return mix
+
+
+def flattered(items: list[dict]) -> list[dict]:
+    """Rows tagged long-horizon that are cyclical in nature.
+
+    These are the ones that made the set look longer-dated than it is: the
+    horizon tag was widened without the content changing.
+    """
+    return [i for i in items
+            if i.get("horizon") == "long" and i.get("nature") != "structural"]
+
+
 def source_mix(items: list[dict]) -> dict:
     mix = {k: 0 for k in SOURCE_LABEL}
     for it in items:
@@ -90,6 +125,9 @@ def tally(bench: dict, selected: set[str]) -> list[dict]:
             "was": len(live),
             "ok": MIN_PER_DRIVER <= n <= MAX_PER_DRIVER,
             "horizons": horizon_mix(items),
+            "natures": nature_mix(items),
+            "structural": sum(1 for i in items if i.get("nature") == "structural"),
+            "was_structural": sum(1 for i in live if i.get("nature") == "structural"),
             "sources": source_mix(items),
             "new_sources": sum(1 for i in items if i.get("where") == "external"),
         })
@@ -125,23 +163,39 @@ def summary(bench: dict, selected: set[str]) -> str:
     """
     lines = ["INDICATOR BENCH — proposed set", ""]
     for block in tally(bench, selected):
-        flag = "" if block["ok"] else f"  <-- {block['n']} indicators, outside {MIN_PER_DRIVER}-{MAX_PER_DRIVER}"
+        flag = "" if block["ok"] else f"  <-- outside {MIN_PER_DRIVER}-{MAX_PER_DRIVER}"
         lines.append(f"{block['label']}  ({block['n']}, was {block['was']}){flag}")
+        lines.append(f"  structural {block['structural']} of {block['n']}"
+                     f"  (was {block['was_structural']} of {block['was']})")
         for item in by_driver(bench, block["driver"]):
             if item["id"] not in selected:
                 continue
             mark = " " if item.get("status") == "in_set" else "+"
             tag = HORIZON_SHORT.get(item.get("horizon", "medium"), "MT")
-            lines.append(f"  {mark} [{tag}] {item['name']}  ({source_note(item)})")
+            nat = NATURE_SHORT.get(item.get("nature", "cyclical"), "CYC")
+            lines.append(f"  {mark} [{tag}/{nat:<4}] {item['name']}  ({source_note(item)})")
         lines.append("")
 
+    picked = [r for r in rows(bench) if r["id"] in selected]
     d = diff(bench, selected)
     lines.append(f"CHANGES: {len(d['added'])} added, {len(d['dropped'])} dropped")
     for r in d["added"]:
         lines.append(f"  + {r['driver_label']}: {r['name']}  ({source_note(r)})")
     for r in d["dropped"]:
         lines.append(f"  - {r['driver_label']}: {r['name']}")
-    new_sources = sum(1 for r in rows(bench)
-                      if r["id"] in selected and r.get("where") == "external")
-    lines += ["", f"Needs a source we do not have today: {new_sources}"]
+
+    mix = nature_mix(picked)
+    lines += ["", f"WHOLE SET: {len(picked)} indicators — "
+                  f"news {mix['news']:.0%}, cyclical {mix['cyclical']:.0%}, "
+                  f"structural {mix['structural']:.0%}"]
+    empty = [b["label"] for b in tally(bench, selected) if not b["structural"]]
+    if empty:
+        lines.append(f"  no structural content at all in: {', '.join(empty)}")
+    flat = flattered(picked)
+    if flat:
+        # Semicolons, because many of these names carry a comma of their own.
+        lines.append(f"  tagged long-horizon but cyclical in nature: "
+                     f"{'; '.join(r['name'] for r in flat)}")
+    new_sources = sum(1 for r in picked if r.get("where") == "external")
+    lines.append(f"  needs a source we do not have today: {new_sources}")
     return "\n".join(lines)

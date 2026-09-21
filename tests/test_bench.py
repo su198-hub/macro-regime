@@ -42,10 +42,33 @@ def test_every_row_says_what_it_is_and_how_it_is_measured():
             assert str(r.get(field, "")).strip(), f"{r['id']} has no {field}"
 
 
-def test_horizons_and_sources_are_known_values():
+def test_horizons_natures_and_sources_are_known_values():
     for r in ROWS:
         assert r.get("horizon") in bn.HORIZON_ORDER, f"{r['id']} has horizon {r.get('horizon')!r}"
+        assert r.get("nature") in bn.NATURE_ORDER, f"{r['id']} has nature {r.get('nature')!r}"
         assert r.get("where") in bn.SOURCE_LABEL, f"{r['id']} has where {r.get('where')!r}"
+
+
+def test_nature_is_not_just_horizon_under_another_name():
+    """If the two axes always agreed, one of them would be dead weight.
+
+    They are meant to come apart: a valuation can look a decade ahead and still
+    mean-revert inside a cycle. Those disagreements are the argument for
+    carrying both, so at least one has to exist among the live rows.
+    """
+    live = [r for r in ROWS if r.get("status") == "in_set"]
+    assert bn.flattered(live), "no live row is long-horizon yet cyclical — check the tagging"
+
+
+def test_every_driver_offers_a_structural_candidate():
+    """The set is short of structural content in four drivers out of six.
+
+    A bench that offered none would leave the discussion no way out of it.
+    """
+    for key, block in bn.drivers(BENCH).items():
+        structural = [i for i in (block.get("items") or [])
+                      if i.get("status") == "candidate" and i.get("nature") == "structural"]
+        assert structural, f"{key} offers no structural candidate"
 
 
 def test_external_rows_name_a_vendor():
@@ -62,11 +85,18 @@ def test_the_shipped_set_passes_its_own_size_rule():
         assert block["n"] == block["was"]
 
 
-def test_every_driver_offers_something_to_choose_from():
+def test_each_driver_offers_a_short_readable_list():
+    """Enough to choose from, few enough to read aloud in a meeting."""
     for key, block in bn.drivers(BENCH).items():
-        items = block.get("items") or []
-        candidates = [i for i in items if i.get("status") == "candidate"]
-        assert len(candidates) >= 5, f"{key} offers only {len(candidates)} candidates"
+        candidates = [i for i in (block.get("items") or []) if i.get("status") == "candidate"]
+        assert 5 <= len(candidates) <= 8, f"{key} offers {len(candidates)} candidates"
+
+
+def test_summary_reports_the_structural_share_and_the_empty_drivers():
+    text = bn.summary(BENCH, set(bn.in_set_ids(BENCH)))
+    assert "structural" in text
+    assert "no structural content at all in:" in text, \
+        "the live set has drivers with no structural content; the summary should say so"
 
 
 def test_diff_and_summary_report_a_swap():
