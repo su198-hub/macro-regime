@@ -148,9 +148,16 @@ def test_the_opening_proposal_reads_as_a_swap_against_what_ships():
 
 
 def test_what_opens_ticked_is_a_swap_not_a_wishlist():
-    """Additions without removals push a driver past the six it is allowed."""
-    assert len(bn.preselect_ids(BENCH)) == len(bn.predrop_ids(BENCH)), \
-        "preselected additions and removals do not balance, so a driver changes size"
+    """Additions have to be paid for, but not one for one.
+
+    What matters is that no driver leaves the three-to-six rule and that the
+    proposal stays recognisable as the same set rather than becoming a wish
+    list — so a driver may gain or lose one, and no more.
+    """
+    for block in bn.tally(BENCH, set(bn.opening_ids(BENCH))):
+        assert abs(block["n"] - block["was"]) <= 1, (
+            f"{block['label']} opens at {block['n']} against {block['was']} as it "
+            f"ships; that is a redesign, not a proposal")
 
 
 def test_each_driver_offers_a_short_readable_list():

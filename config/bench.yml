@@ -1149,6 +1149,7 @@ drivers:
       - id: cand_sovereign_cds
         name: Sovereign CDS on Treasuries
         status: candidate
+        preselect: true
         horizon: long
         nature: structural
         kind: market
@@ -1166,8 +1167,12 @@ drivers:
           monetary is the better-behaved market read on the same worry.
         measured: >-
           Markit quotes on US government debt, daily. NOT REACHABLE through our
-          Macrobond entitlement — no hits under any phrasing, like the ICE BofA
-          spreads. It is a licensed market-data product, so CIQ or Bloomberg.
+          Macrobond entitlement, and the gap is licensing rather than coverage:
+          searching sovereign CDS returns nothing for any country — not Italy, the
+          most traded sovereign CDS there is, nor Germany, nor an EM index. Only
+          CFTC notional-outstanding volumes come back. So it arrives with CIQ or
+          Bloomberg, and the same subscription would cover Japan and Germany, where
+          sovereign CDS is a far better behaved measure than it is here.
 
   investment:
     label: Investment spending
@@ -1198,9 +1203,13 @@ drivers:
         refers: The actual capital spending, as against orders and intentions.
         measured: BEA national accounts — structures, equipment and IP in chained volumes. Quarterly.
 
+      # Opens unticked. A good housing-cycle timer with a nine to twelve month
+      # lead, but purely cyclical, and the driver had nothing structural at all.
+      # Swapped for the average age of the capital stock below.
       - id: building_permits_yoy
         name: Building permits
         status: in_set
+        preselect: false
         horizon: medium
         nature: cyclical
         kind: official
@@ -1299,6 +1308,26 @@ drivers:
           shift toward buybacks has run for two decades and has not reverted; it is a
           change in how corporate America uses cash, not a cyclical swing.
         measured: Announced repurchase authorisations against reported capex, aggregated.
+
+      - id: cand_capital_age
+        name: Average age of the capital stock
+        status: candidate
+        preselect: true
+        horizon: long
+        nature: structural
+        kind: official
+        enters: level
+        where: macrobond
+        code: bea001_106e1ptotl1es00_a
+        refers: >-
+          How old the equipment American firms actually work with. It rises when
+          investment is not keeping up with retirement, and it is the cleanest single
+          answer to whether the country is re-equipping itself — capex flows tell you
+          what was spent, this tells you what it added up to.
+        measured: >-
+          BEA current-cost average age of private fixed assets, equipment, annual from
+          1925. Slow and annual, which is the point: it drifts for decades rather than
+          cycling.
 
       - id: cand_intangible_share
         name: Intellectual property share of investment
