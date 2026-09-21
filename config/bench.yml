@@ -40,6 +40,31 @@
 # still mean-revert inside a cycle. That is why both axes are carried, and why
 # "27% long-horizon" flattered a set that is 18% structural.
 #
+#   enters:  how the reading would be SCORED, which is a separate question from
+#            what it measures.
+#            level      the number as published
+#            change     year-over-year or twelve-month
+#            deviation  from its own trailing average
+#            spread     one series less another
+#            revision   how much an estimate OF THE SAME FUTURE TARGET moved
+#                       between publications
+#
+# `revision` is the one nothing in the model uses today, and it is the answer to
+# a specific objection: a potential-growth level sits near 1.8% for years and
+# cannot discriminate between months, so as a level it is dead weight. The
+# CHANGE in it is news about the future arriving now — the economy being re-rated
+# toward a higher- or lower-growth world — and it is stationary, so it normalises
+# properly instead of scoring which decade it is.
+#
+# Two revision mechanics, and only one needs new machinery:
+#   forecast-dated  each observation is that quarter's forecast of the same
+#                   distant horizon, so the revision is the first difference.
+#                   SPF, HLW and analyst estimates work with today's transforms.
+#   target-dated    the series is indexed by the year being forecast, so the
+#                   revision is value(this vintage, 2035) less value(last
+#                   vintage, 2035). Needs a vintage-diff transform, which the
+#                   point-in-time store can support and almost nothing else could.
+#
 # `refers` says what the number is about; `measured` says who collects it and
 # how. One sentence each.
 #
@@ -66,6 +91,7 @@ drivers:
         horizon: medium
         nature: cyclical
         kind: official
+        enters: change
         where: macrobond
         code: PCEC96
         refers: Household spending on goods and services, inflation-adjusted — two thirds of GDP.
@@ -79,6 +105,7 @@ drivers:
         horizon: medium
         nature: cyclical
         kind: official
+        enters: spread
         where: macrobond
         code: UNRATE − NROU
         refers: Labour market slack measured against full employment rather than against zero.
@@ -92,6 +119,7 @@ drivers:
         horizon: short
         nature: news
         kind: official
+        enters: change
         where: macrobond
         code: PAYEMS
         refers: The pace at which the economy is adding jobs.
@@ -105,6 +133,7 @@ drivers:
         horizon: medium
         nature: cyclical
         kind: official
+        enters: change
         where: macrobond
         code: ECIWAG
         refers: What the labour market pays, holding the mix of jobs constant.
@@ -118,6 +147,7 @@ drivers:
         horizon: short
         nature: news
         kind: official
+        enters: change
         where: macrobond
         code: IC4WSA
         refers: New layoffs, the earliest turning-point signal in the set.
@@ -149,72 +179,83 @@ drivers:
       #                   and almost no other dashboard could.
 
       - id: cand_spf_lt_growth
-        name: Forecasters' 10-year real GDP growth
+        name: Revision to forecasters' 10-year GDP growth
         status: candidate
         horizon: long
         nature: structural
         kind: survey
+        enters: revision
         where: macrobond
         code: usfcst0722
         refers: >-
-          What professional forecasters think the economy can grow at over a decade.
-          The growth twin of the 10-year CPI expectation the inflation driver already
-          carries, and the cleanest reading of whether we are drifting toward a
-          high-growth or low-growth world.
+          Whether professional forecasters have marked their view of the next decade's
+          growth up or down since last quarter. The level sits near 2% for years and
+          says nothing; the change in it is the economy being re-rated toward a
+          higher- or lower-growth world, and that re-rating is what moves expected
+          lifetime income. The growth twin of the 10-year CPI expectation the
+          inflation driver already carries.
         measured: >-
           Philadelphia Fed Survey of Professional Forecasters, ~35 respondents,
-          quarterly since 1992. Forecast-dated, so the revision is the change from
-          the previous survey.
+          quarterly since 1992. Forecast-dated, so the revision is simply the change
+          from the previous survey — no new machinery needed.
 
       - id: cand_spf_lt_productivity
-        name: Forecasters' 10-year productivity growth
+        name: Revision to forecasters' 10-year productivity growth
         status: candidate
         horizon: long
         nature: structural
         kind: survey
+        enters: revision
         where: macrobond
         code: usfcst0723
         refers: >-
-          Expected productivity growth over a decade — the Solow A term as a forward
-          expectation rather than a measured past. It is the half of potential growth
-          that is not demographics, and the half that can surprise.
+          The change in expected productivity growth over a decade — the Solow A term
+          as a forward expectation being marked up or down, rather than as a measured
+          past. It is the half of potential growth that is not demographics, and the
+          only half that can genuinely surprise.
         measured: >-
-          Philadelphia Fed SPF, quarterly since 1992. Forecast-dated; read as the
-          revision.
+          Philadelphia Fed SPF, quarterly since 1992. Forecast-dated, so the revision
+          is the change from the previous survey.
 
       - id: cand_hlw_trend_growth
-        name: Trend growth inside r*
+        name: Revision to trend growth inside r*
         status: candidate
         horizon: long
         nature: structural
         kind: model
+        enters: revision
         where: macrobond
         code: usfcst2426
         refers: >-
-          The New York Fed's estimate of the economy's trend growth rate — the g that
-          sits inside r*. A model's view of the speed limit, to set against the
-          forecasters' view and the market's.
+          How much the New York Fed has moved its estimate of the economy's trend
+          growth rate — the g that sits inside r*. A model marking the speed limit up
+          or down, to set against the forecasters doing the same thing and the market
+          pricing it.
         measured: >-
           Holston-Laubach-Williams one-sided estimate, quarterly from 1961, using only
-          data available at each date. Re-estimated each quarter, so it revises.
+          data available at each date. Re-estimated every quarter, so the series is
+          already a sequence of revisions.
 
       - id: cand_cbo_potential_revision
-        name: CBO potential GDP for a fixed future year
+        name: Revision to CBO potential GDP for 2035
         status: candidate
         horizon: long
         nature: structural
         kind: model
+        enters: revision
         where: macrobond
         code: usfcst1985
         refers: >-
-          How much output CBO thinks the economy will be capable of in 2035, and how
-          that number moves between publications. A downgrade is a permanent-income
-          shock dated today, which is exactly what a 5Y-plus demand reading should be
-          made of.
+          How much CBO has changed its estimate of what the economy will be capable of
+          producing in 2035 since it last published. A downgrade is a permanent-income
+          shock dated today — the clearest single example of scoring the revision
+          rather than the level, since the level itself is a number about a year that
+          has not happened.
         measured: >-
           CBO 10-Year Economic Projections, quarterly, currently running to 2036, with
-          67 vintages in the store. Target-dated, so it needs the vintage-diff
-          transform described above.
+          67 vintages in the store. Target-dated rather than forecast-dated, so this
+          one needs the vintage-diff transform: this vintage's 2035 estimate less the
+          previous vintage's.
 
       - id: cand_real_rate_10y
         name: Real 10-year interest rate
@@ -222,6 +263,7 @@ drivers:
         horizon: long
         nature: structural
         kind: market
+        enters: level
         where: macrobond
         code: usfcst4842
         refers: >-
@@ -235,21 +277,23 @@ drivers:
           well as growth, which is the honest caveat on reading it as growth alone.
 
       - id: cand_analyst_ltg
-        name: Analysts' long-term growth expectations
+        name: Revision to analysts' long-term growth expectations
         status: candidate
         horizon: long
         nature: structural
         kind: survey
+        enters: revision
         where: external
         vendor: CIQ / IBES
         refers: >-
-          The 3-to-5 year earnings growth rate analysts attach to the index — the
-          bottom-up version of the same question, from people paid to be right about
-          individual companies rather than about the aggregate.
+          The change in the 3-to-5 year earnings growth rate analysts attach to the
+          index — the bottom-up version of the same question, from people paid to be
+          right about individual companies rather than about the aggregate. The level
+          is known to be biased high, which is precisely why only the drift is usable.
         measured: >-
           Consensus long-term growth estimates aggregated across constituents,
-          refreshed monthly. Read as the revision; the level is known to be biased
-          high and the drift is the signal.
+          refreshed monthly. Forecast-dated, so the revision is the change from the
+          previous month.
 
       # --- The stock that permanent income is actually drawn from. Not
       # expectations, but not news either: these move over decades and set how
@@ -261,6 +305,7 @@ drivers:
         horizon: long
         nature: structural
         kind: official
+        enters: level
         where: macrobond_check
         refers: >-
           The stock of household wealth relative to what households earn — the balance
@@ -275,6 +320,7 @@ drivers:
         horizon: long
         nature: structural
         kind: official
+        enters: level
         where: macrobond_check
         refers: >-
           How much of output reaches wages rather than profits. Wages are spent at a
@@ -294,6 +340,7 @@ drivers:
         horizon: long
         nature: structural
         kind: market
+        enters: level
         where: macrobond
         code: T5YIFR
         refers: The inflation rate priced for years six to ten — the anchor itself.
@@ -307,6 +354,7 @@ drivers:
         horizon: long
         nature: structural
         kind: model
+        enters: level
         where: macrobond
         code: EXPINF10YR
         refers: Expected inflation with risk and liquidity premia removed.
@@ -320,6 +368,7 @@ drivers:
         horizon: long
         nature: structural
         kind: survey
+        enters: level
         where: macrobond
         code: SPFCPI10
         refers: What professional forecasters expect inflation to average over a decade.
@@ -333,6 +382,7 @@ drivers:
         horizon: short
         nature: news
         kind: survey
+        enters: level
         where: macrobond
         code: MICH
         refers: What households expect prices to do over the next twelve months.
@@ -346,6 +396,7 @@ drivers:
         horizon: long
         nature: cyclical
         kind: model
+        enters: level
         where: macrobond
         code: INFRISKPREM
         refers: >-
@@ -361,6 +412,7 @@ drivers:
         horizon: medium
         nature: structural
         kind: survey
+        enters: level
         where: macrobond_check
         refers: >-
           What firms — the people who actually set prices — expect their own unit
@@ -375,6 +427,7 @@ drivers:
         horizon: long
         nature: structural
         kind: market
+        enters: level
         where: external
         vendor: CIQ
         refers: Market-priced inflation across the term structure.
@@ -388,6 +441,7 @@ drivers:
         horizon: long
         nature: structural
         kind: market
+        enters: level
         where: external
         vendor: CIQ / dealer
         refers: >-
@@ -401,6 +455,7 @@ drivers:
         horizon: medium
         nature: cyclical
         kind: survey
+        enters: level
         where: macrobond_check
         refers: Household expectations at a medium-term horizon.
         measured: >-
@@ -413,6 +468,7 @@ drivers:
         horizon: medium
         nature: cyclical
         kind: official
+        enters: change
         where: macrobond_check
         refers: The persistent core of realised inflation, with the tails cut off.
         measured: >-
@@ -426,6 +482,7 @@ drivers:
         horizon: long
         nature: structural
         kind: survey
+        enters: level
         where: external
         vendor: vendor
         refers: A second forecaster panel, to check SPF rather than rely on it alone.
@@ -440,6 +497,7 @@ drivers:
         horizon: medium
         nature: cyclical
         kind: official
+        enters: level
         where: macrobond
         code: TCU
         refers: How much physical headroom industry has before it hits its own ceiling.
@@ -453,6 +511,7 @@ drivers:
         horizon: medium
         nature: cyclical
         kind: official
+        enters: level
         where: macrobond
         code: JTSJOL / UNEMPLOY
         refers: Labour market tightness — how many jobs chase each available worker.
@@ -466,6 +525,7 @@ drivers:
         horizon: medium
         nature: cyclical
         kind: official
+        enters: deviation
         where: macrobond
         code: WCESTUS1
         refers: Physical tightness in the one input that has actually caused stagflation.
@@ -479,6 +539,7 @@ drivers:
         horizon: medium
         nature: cyclical
         kind: official
+        enters: change
         where: macrobond
         code: ULCNFB
         refers: Labour cost per unit of output — where wage pressure becomes price pressure.
@@ -492,6 +553,7 @@ drivers:
         horizon: short
         nature: news
         kind: model
+        enters: level
         where: macrobond
         code: GSCPI
         refers: Bottlenecks originating outside the domestic economy.
@@ -505,6 +567,7 @@ drivers:
         horizon: long
         nature: cyclical
         kind: official
+        enters: change
         where: macrobond
         code: OPHNFB
         refers: >-
@@ -521,6 +584,7 @@ drivers:
         horizon: long
         nature: structural
         kind: official
+        enters: change
         where: macrobond
         code: uslama6803
         refers: >-
@@ -537,6 +601,7 @@ drivers:
         horizon: long
         nature: structural
         kind: official
+        enters: change
         where: macrobond
         code: bls_lns11000000m
         refers: >-
@@ -551,6 +616,7 @@ drivers:
         horizon: long
         nature: structural
         kind: official
+        enters: change
         where: macrobond
         code: bea017_17kcytotl1es00_a
         refers: >-
@@ -565,6 +631,7 @@ drivers:
         horizon: long
         nature: structural
         kind: official
+        enters: change
         where: macrobond_check
         refers: >-
           The ceiling itself rather than the distance to it. Utilisation is this
@@ -577,6 +644,7 @@ drivers:
         horizon: medium
         nature: structural
         kind: official
+        enters: level
         where: macrobond_check
         refers: >-
           The margin on which labour supply can still expand without immigration.
@@ -590,6 +658,7 @@ drivers:
         horizon: long
         nature: structural
         kind: company
+        enters: level
         where: external
         vendor: CIQ
         refers: >-
@@ -603,6 +672,7 @@ drivers:
         horizon: medium
         nature: cyclical
         kind: model
+        enters: level
         where: external
         vendor: IEA / EIA
         refers: OPEC's cushion — whether an outage becomes a shock.
@@ -620,6 +690,7 @@ drivers:
         horizon: medium
         nature: cyclical
         kind: model
+        enters: spread
         where: macrobond
         code: FEDFUNDS, PCEPILFE, SEPLR
         refers: How far the policy rate sits from what inflation and slack call for.
@@ -633,6 +704,7 @@ drivers:
         horizon: short
         nature: cyclical
         kind: model
+        enters: level
         where: macrobond
         code: NFCI
         refers: How tight or loose markets are, independently of the policy rate.
@@ -648,6 +720,7 @@ drivers:
         horizon: long
         nature: cyclical
         kind: market
+        enters: spread
         where: macrobond
         code: DGS10 − DGS1
         refers: >-
@@ -662,6 +735,7 @@ drivers:
         horizon: medium
         nature: cyclical
         kind: model
+        enters: spread
         where: macrobond
         code: EXPINF1YR
         refers: The same rule, run on expected rather than realised inflation.
@@ -675,6 +749,7 @@ drivers:
         horizon: medium
         nature: cyclical
         kind: official
+        enters: change
         where: macrobond
         code: WSHOSHO / GDPNOM
         refers: Quantitative easing and tightening — the stance a policy rate cannot show.
@@ -688,6 +763,7 @@ drivers:
         horizon: medium
         nature: cyclical
         kind: model
+        enters: spread
         where: macrobond
         code: FEDFUNDS, PCEPILFE
         refers: The policy rate in real terms against an estimate of neutral.
@@ -701,6 +777,7 @@ drivers:
         horizon: long
         nature: structural
         kind: model
+        enters: level
         where: macrobond_check
         refers: >-
           The real rate that neither stimulates nor restrains. It is Solow's terms
@@ -717,6 +794,7 @@ drivers:
         horizon: long
         nature: structural
         kind: market
+        enters: level
         where: macrobond_check
         refers: >-
           The discount rate every long-duration asset and capital project is valued
@@ -729,6 +807,7 @@ drivers:
         horizon: long
         nature: cyclical
         kind: model
+        enters: level
         where: macrobond_check
         refers: The part of the long yield that is compensation rather than expectation.
         measured: >-
@@ -741,6 +820,7 @@ drivers:
         horizon: medium
         nature: cyclical
         kind: market
+        enters: deviation
         where: macrobond
         code: usexri0001
         refers: >-
@@ -754,6 +834,7 @@ drivers:
         horizon: medium
         nature: cyclical
         kind: official
+        enters: change
         where: external
         vendor: CIQ
         refers: Global liquidity — US conditions are set partly by the BoJ and ECB.
@@ -765,6 +846,7 @@ drivers:
         horizon: medium
         nature: structural
         kind: company
+        enters: level
         where: external
         vendor: CIQ
         refers: >-
@@ -782,6 +864,7 @@ drivers:
         horizon: medium
         nature: cyclical
         kind: official
+        enters: level
         where: macrobond
         code: MTSBAL, MTSNETINT
         refers: The deficit with interest added back — what government is choosing now.
@@ -795,6 +878,7 @@ drivers:
         horizon: medium
         nature: cyclical
         kind: official
+        enters: change
         where: macrobond
         code: MTSBAL, MTSNETINT
         refers: The direction of fiscal support, since demand responds to the change.
@@ -806,6 +890,7 @@ drivers:
         horizon: long
         nature: structural
         kind: market
+        enters: spread
         where: macrobond
         code: DGS10 − GDPNOM
         refers: r minus g — whether debt compounds on its own or erodes.
@@ -819,6 +904,7 @@ drivers:
         horizon: long
         nature: structural
         kind: official
+        enters: level
         where: macrobond
         code: MTSNETINT
         refers: Debt service as a claim on the budget.
@@ -830,6 +916,7 @@ drivers:
         horizon: medium
         nature: structural
         kind: official
+        enters: change
         where: macrobond
         code: DEBTPUB
         refers: What the debt ratio actually did, against what r−g says it should.
@@ -841,6 +928,7 @@ drivers:
         horizon: medium
         nature: structural
         kind: model
+        enters: level
         where: macrobond_check
         refers: >-
           The fiscal stance with the automatic stabilisers taken out — what was
@@ -854,6 +942,7 @@ drivers:
         horizon: long
         nature: structural
         kind: official
+        enters: level
         where: macrobond_check
         refers: >-
           The split between spending that adds to the capital stock and spending that
@@ -867,6 +956,7 @@ drivers:
         horizon: long
         nature: structural
         kind: model
+        enters: revision
         where: macrobond_check
         refers: >-
           The expected fiscal path as it was believed at the time. Every current
@@ -879,6 +969,7 @@ drivers:
         horizon: medium
         nature: cyclical
         kind: official
+        enters: level
         where: macrobond_check
         code: bea044_88ad03rc_q
         refers: >-
@@ -892,6 +983,7 @@ drivers:
         horizon: medium
         nature: cyclical
         kind: official
+        enters: change
         where: macrobond_check
         refers: How the deficit is funded across the maturity spectrum.
         measured: >-
@@ -904,6 +996,7 @@ drivers:
         horizon: long
         nature: structural
         kind: market
+        enters: level
         where: external
         vendor: CIQ
         refers: >-
@@ -920,6 +1013,7 @@ drivers:
         horizon: medium
         nature: cyclical
         kind: official
+        enters: change
         where: macrobond
         code: NEWORDER
         refers: The earliest hard commitment to invest — an order is a contract.
@@ -933,6 +1027,7 @@ drivers:
         horizon: medium
         nature: cyclical
         kind: official
+        enters: change
         where: macrobond
         code: PNFIC1
         refers: The actual capital spending, as against orders and intentions.
@@ -944,6 +1039,7 @@ drivers:
         horizon: medium
         nature: cyclical
         kind: official
+        enters: change
         where: macrobond
         code: PERMIT
         refers: The earliest decision to build, in the most cyclical sector there is.
@@ -955,6 +1051,7 @@ drivers:
         horizon: medium
         nature: cyclical
         kind: model
+        enters: level
         where: macrobond
         code: EBP
         refers: The price of bearing credit risk, separated from expected default.
@@ -968,6 +1065,7 @@ drivers:
         horizon: long
         nature: cyclical
         kind: market
+        enters: spread
         where: macrobond
         code: CAPE, DGS10, EXPINF10YR
         refers: >-
@@ -982,6 +1080,7 @@ drivers:
         horizon: medium
         nature: cyclical
         kind: survey
+        enters: level
         where: macrobond
         code: DRTSCILM
         refers: Whether credit is available at all, as distinct from what it costs.
@@ -995,6 +1094,7 @@ drivers:
         horizon: medium
         nature: cyclical
         kind: company
+        enters: change
         where: external
         vendor: CIQ
         refers: >-
@@ -1010,6 +1110,7 @@ drivers:
         horizon: long
         nature: structural
         kind: company
+        enters: level
         where: external
         vendor: CIQ
         refers: >-
@@ -1024,6 +1125,7 @@ drivers:
         horizon: long
         nature: structural
         kind: official
+        enters: level
         where: macrobond_check
         refers: >-
           Software, R&D and data as a share of total business investment. The capital
@@ -1037,6 +1139,7 @@ drivers:
         horizon: long
         nature: structural
         kind: company
+        enters: level
         where: external
         vendor: CIQ
         refers: >-
@@ -1050,6 +1153,7 @@ drivers:
         horizon: medium
         nature: cyclical
         kind: company
+        enters: level
         where: external
         vendor: CIQ
         refers: >-
@@ -1063,6 +1167,7 @@ drivers:
         horizon: medium
         nature: cyclical
         kind: market
+        enters: level
         where: external
         vendor: CIQ / ICE
         refers: >-
@@ -1076,6 +1181,7 @@ drivers:
         horizon: long
         nature: cyclical
         kind: survey
+        enters: level
         where: macrobond_check
         refers: >-
           Design work underway, which precedes construction spending by nine to twelve

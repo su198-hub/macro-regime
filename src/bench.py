@@ -42,6 +42,21 @@ KIND_HELP = {
     "company": "Read off corporate financial statements.",
 }
 
+# How a reading would be scored. Separate from what it measures: the same
+# series can be dead weight as a level and informative as a revision.
+ENTERS_ORDER = ("level", "change", "deviation", "spread", "revision")
+ENTERS_LABEL = {"level": "Level, as published",
+                "change": "Change from a year earlier",
+                "deviation": "Deviation from its own average",
+                "spread": "One series less another",
+                "revision": "Revision to an estimate of the same future target"}
+ENTERS_HELP = {
+    "revision": "How much an estimate of the SAME future target moved between "
+                "publications. The level of a long-run forecast barely moves and "
+                "cannot discriminate between months; the change in it is news about "
+                "the future arriving now, and it is stationary, so it normalises.",
+}
+
 NATURE_ORDER = ("news", "cyclical", "structural")
 NATURE_SHORT = {"news": "NEWS", "cyclical": "CYC", "structural": "STR"}
 NATURE_LABEL = {"news": "News", "cyclical": "Cyclical", "structural": "Structural"}
@@ -113,6 +128,15 @@ def nature_mix(items: list[dict]) -> dict:
     return mix
 
 
+def revisions(items: list[dict]) -> list[dict]:
+    """Rows that would be scored as a revision rather than as a reading.
+
+    Nothing in the model does this today, which is the gap the demand driver
+    was sent back for.
+    """
+    return [i for i in items if i.get("enters") == "revision"]
+
+
 def kinds_present(items: list[dict]) -> list[str]:
     """Which source types a selection draws on, in a stable order."""
     have = {i.get("kind", "official") for i in items}
@@ -155,6 +179,8 @@ def tally(bench: dict, selected: set[str]) -> list[dict]:
             "was_structural": sum(1 for i in live if i.get("nature") == "structural"),
             "kinds": kinds_present(items),
             "was_kinds": kinds_present(live),
+            "revisions": len(revisions(items)),
+            "was_revisions": len(revisions(live)),
             "sources": source_mix(items),
             "new_sources": sum(1 for i in items if i.get("where") == "external"),
         })
@@ -202,7 +228,8 @@ def summary(bench: dict, selected: set[str]) -> str:
             tag = HORIZON_SHORT.get(item.get("horizon", "medium"), "MT")
             nat = NATURE_SHORT.get(item.get("nature", "cyclical"), "CYC")
             knd = item.get("kind", "official")
-            lines.append(f"  {mark} [{tag}/{nat:<4}/{knd:<8}] {item['name']}"
+            ent = item.get("enters", "level")
+            lines.append(f"  {mark} [{tag}/{nat:<4}/{knd:<8}/{ent:<9}] {item['name']}"
                          f"  ({source_note(item)})")
         lines.append("")
 
@@ -215,9 +242,13 @@ def summary(bench: dict, selected: set[str]) -> str:
         lines.append(f"  - {r['driver_label']}: {r['name']}")
 
     mix = nature_mix(picked)
+    rev = revisions(picked)
     lines += ["", f"WHOLE SET: {len(picked)} indicators — "
                   f"news {mix['news']:.0%}, cyclical {mix['cyclical']:.0%}, "
                   f"structural {mix['structural']:.0%}"]
+    lines.append(f"  scored as a revision rather than a reading: {len(rev)}"
+                 + (f" ({'; '.join(r['name'] for r in rev)})" if rev else
+                    " — nothing in the model does this today"))
     empty = [b["label"] for b in tally(bench, selected) if not b["structural"]]
     if empty:
         lines.append(f"  no structural content at all in: {', '.join(empty)}")

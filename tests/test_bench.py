@@ -50,6 +50,33 @@ def test_horizons_natures_kinds_and_sources_are_known_values():
         assert r.get("where") in bn.SOURCE_LABEL, f"{r['id']} has where {r.get('where')!r}"
 
 
+def test_every_row_says_how_it_would_be_scored():
+    for r in ROWS:
+        assert r.get("enters") in bn.ENTERS_ORDER, f"{r['id']} has enters {r.get('enters')!r}"
+
+
+def test_nothing_scored_today_enters_as_a_revision():
+    """Guards the claim the page makes on screen.
+
+    If an indicator is ever added that scores a revision, this fails and the
+    wording that says nothing does has to be revisited rather than quietly
+    becoming untrue.
+    """
+    live = [r for r in ROWS if r.get("status") == "in_set"]
+    assert not bn.revisions(live), [r["id"] for r in bn.revisions(live)]
+
+
+def test_most_demand_candidates_enter_as_a_revision():
+    """The specific objection: a long-run forecast is dead weight at its level."""
+    cands = [i for i in bn.by_driver(BENCH, "demand") if i.get("status") == "candidate"]
+    rev = bn.revisions(cands)
+    assert len(rev) >= len(cands) / 2, \
+        f"only {len(rev)} of {len(cands)} demand candidates are scored as revisions"
+    for r in rev:
+        assert "evision" in r["name"], \
+            f"{r['id']} is scored as a revision but its name does not say so"
+
+
 def test_demand_candidates_answer_the_horizon_and_source_criticism():
     """The two things the demand driver was sent back for.
 

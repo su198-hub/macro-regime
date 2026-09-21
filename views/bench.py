@@ -79,6 +79,11 @@ st.html(
     f'<div><b>Source type</b> — who produced the number. <span style="color:{ui.INK_2}">'
     'MARKET a traded price · MODEL an estimator\'s output · SURVEY someone was asked · '
     'OFFICIAL an agency\'s count · COMPANY read off financial statements.</span></div>'
+    f'<div><b>↻ Revision</b> — how it would be scored. <span style="color:{ui.INK_2}">'
+    'Most rows enter as a level, a change or a spread. A row marked ↻ enters as the '
+    'movement in an estimate of the same future target between publications — the '
+    'level of a ten-year forecast barely moves, so only its revision carries '
+    'information. Nothing in the model is scored this way today.</span></div>'
     f'<div style="grid-column:1/-1;color:{ui.INK_2}">The test for nature: does it move '
     'the speed limit, or tell you where you are against it? Capacity utilisation tells '
     'you where you are; the growth of capacity moves the limit. Four live indicators are '
@@ -205,7 +210,11 @@ for b in blocks:
         # One source type means one blind spot, whatever the horizon.
         f'<div style="font-size:0.7rem;margin-top:0.15rem;'
         f'color:{AMBER if len(b["kinds"]) < 2 else ui.MUTED}">'
-        f'{"/".join(b["kinds"]) or "—"}</div>{new}</div>')
+        f'{"/".join(b["kinds"]) or "—"}</div>'
+        + (f'<div style="font-size:0.72rem;margin-top:0.15rem;color:{ui.INK};'
+           f'font-weight:600">↻ {b["revisions"]} revision'
+           f'{"" if b["revisions"] == 1 else "s"}</div>' if b["revisions"] else "")
+        + f'{new}</div>')
 # One row of six on a laptop, wrapping only when the window is genuinely narrow:
 # the six cards are meant to be compared at a glance, and a driver that falls to
 # a second row stops being part of the comparison.
@@ -222,6 +231,13 @@ one_kind = [f"**{b['label']}** ({b['kinds'][0]} only)" for b in blocks if len(b[
 if one_kind:
     notes.append("Built from a single kind of source, so nothing in it can disagree with "
                  "anything else: " + " · ".join(one_kind) + ".")
+rev = bn.revisions(whole)
+notes.append(
+    (f"**↻ Scored as a revision rather than a reading: {len(rev)}** — "
+     + " · ".join(f"**{r['name']}**" for r in rev) + ".") if rev else
+    "**↻ Nothing selected is scored as a revision.** Every reading is a level, a change "
+    "or a spread — so a long-run forecast would enter at its level, which barely moves "
+    "and cannot discriminate between months.")
 if flat:
     # Separated by middots, not commas: half these names contain a comma of
     # their own and a comma-joined list reads as twice as many items.
@@ -255,15 +271,20 @@ for key, block in bn.drivers(bench).items():
             kind = item.get("nature", "cyclical")
             nat_tag = bn.NATURE_SHORT.get(kind, "CYC")
             who = item.get("kind", "official")
+            ent = item.get("enters", "level")
             mark = "" if live else " · new"
-            # Three chips, not four: which vendor supplies it is already on the
-            # source line underneath, and a fourth tag makes the row unreadable.
+            # Three standing chips, plus a fourth only on a revision. Nothing in
+            # the model is scored that way today, so it is the exception worth
+            # seeing rather than another axis to read on every row.
+            rev = "  **↻ REVISION**" if ent == "revision" else ""
             st.checkbox(f"**{item['name']}**  `{tag}`  `{nat_tag}`  "
-                        f"`{bn.KIND_SHORT.get(who, 'OFFICIAL')}`{mark}",
+                        f"`{bn.KIND_SHORT.get(who, 'OFFICIAL')}`{rev}{mark}",
                         key=key_of(item["id"]),
                         help=f"{bn.NATURE_HELP.get(kind, '')}\n\n"
-                             f"{bn.KIND_HELP.get(who, '')}")
+                             f"{bn.KIND_HELP.get(who, '')}"
+                             + (f"\n\n{bn.ENTERS_HELP['revision']}" if ent == "revision" else ""))
             note = f"{item.get('refers', '')}"
+            note += f"  \n*Scored as:* {bn.ENTERS_LABEL.get(ent, ent)}"
             if detail and item.get("measured"):
                 note += f"  \n*How it is measured:* {item['measured'].strip()}"
             note += f"  \n<small>{ui.esc(bn.source_note(item))}</small>"
