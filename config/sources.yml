@@ -8,6 +8,26 @@
 # Macrobond codes were matched on description, frequency, seasonal adjustment
 # and units, preferring the longest revision history. Notes flag where the
 # match is not like-for-like with the FRED series.
+#
+# A third vendor, `ciq`, covers what Macrobond's entitlement does not: sovereign
+# CDS, ICE BofA spreads, and anything read off company financials. Its codes are
+# written `identifier|mnemonic`, because a Capital IQ field needs both the
+# entity and the field to resolve:
+#
+#   CDS5Y_US:
+#     use: ciq
+#     ciq: "IQ12345|IQ_CDS_SPREAD_5YR"
+#
+# Credentials live in CIQ_USERNAME and CIQ_PASSWORD in the environment, never in
+# this file or any other file in the repo. Before adding a `ciq` series, run
+# `python ingest.py ciq-probe --id ... --code ...`: the API is usually entitled
+# separately from a Pro seat, and the probe answers that in seconds using the
+# vendor's own error message.
+#
+# LICENSING. Anything fetched from `ciq` must be checked against the
+# subscription's redistribution terms before it reaches `ingest.py publish`,
+# which pushes a snapshot to a public branch. The same question is open for the
+# proprietary Macrobond series already in the set.
 
 default: macrobond
 

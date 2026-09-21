@@ -49,10 +49,53 @@ def route(sid: str, sources: dict, override: str | None) -> tuple[str, str]:
     return vendor, code
 
 
+def cmd_ciq_probe(args) -> None:
+    """One call, printed raw, so the entitlement question is answered by the
+    vendor rather than guessed at — and so the response shape is visible before
+    anything is written to the store."""
+    import json
+
+    from src.sources.ciq import CiqAuthError, CiqSource
+
+    code = f"{args.id}|{args.code}"
+    try:
+        source = CiqSource()
+    except RuntimeError as exc:
+        print(f"  {exc}")
+        return
+    print(f"  endpoint  {source.endpoint}")
+    print(f"  user      {source.username}")
+    print(f"  asking    {code}\n")
+    try:
+        payload = source.request(source._body(args.id, args.code, None, None))
+    except CiqAuthError as exc:
+        print(f"  NOT ENTITLED (or wrong credentials)\n\n  {exc}")
+        return
+    except Exception as exc:
+        print(f"  call failed: {type(exc).__name__}: {exc}")
+        return
+    finally:
+        source.close()
+
+    text = json.dumps(payload, indent=2)
+    print(text[:4000] + ("\n  ...truncated" if len(text) > 4000 else ""))
+    rows = []
+    try:
+        rows = source._rows(payload)
+    except Exception as exc:
+        print(f"\n  the parser did not understand this shape: {exc}")
+    print(f"\n  parsed {len(rows)} rows"
+          + (f", first {rows[0]}, last {rows[-1]}" if rows else
+             " — adjust CiqSource._rows to match the shape above"))
+
+
 def open_vendor(vendor: str):
     if vendor == "macrobond":
         from src.sources.macrobond import MacrobondSource
         return MacrobondSource()
+    if vendor == "ciq":
+        from src.sources.ciq import CiqSource
+        return CiqSource()
     from src.sources.fred import FredSource
     return FredSource()
 
@@ -264,7 +307,7 @@ def main():
                    help="Country code from config/countries.yml (default: its default).")
     p.add_argument("--config", default=None)
     p.add_argument("--sources", default=None)
-    p.add_argument("--source", choices=["fred", "macrobond"], default=None,
+    p.add_argument("--source", choices=["fred", "macrobond", "ciq"], default=None,
                    help="Use this vendor for every series, ignoring sources.yml.")
     # Comma separated, not nargs="+", which would swallow the subcommand.
     p.add_argument("--only", default=None, metavar="A,B,C",
@@ -277,6 +320,15 @@ def main():
                      ("coverage", cmd_coverage), ("publish", cmd_publish),
                      ("demo", cmd_demo)]:
         sub.add_parser(name).set_defaults(func=fn)
+    probe = sub.add_parser(
+        "ciq-probe",
+        help="One Capital IQ call, printed raw. Run this before any backfill: it "
+             "says in seconds whether the API is entitled on your seat, and shows "
+             "the response shape the parser has to match.")
+    probe.add_argument("--id", required=True,
+                       help="Entity identifier, e.g. IQ12345 or a ticker.")
+    probe.add_argument("--code", required=True, help="Mnemonic, e.g. IQ_CLOSEPRICE.")
+    probe.set_defaults(func=cmd_ciq_probe)
     args = p.parse_args()
     from src.countries import load_registry, resolve
     here = resolve(load_registry(), args.country, strict=args.country is not None)
