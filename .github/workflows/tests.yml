@@ -68,5 +68,24 @@ jobs:
           assert not errors, errors
           body = "".join(h.proto.body for h in at.get("html"))
           assert "m-example" in body and "m-table" in body, "methodology incomplete"
-          print("Rendered the dashboard, control room and methodology")
+
+          at.switch_page("views/bench.py").run()
+          errors = [e.value for e in at.exception]
+          assert not errors, errors
+          from src import bench as bn
+          rows = bn.rows(bn.load("config/bench.yml"))
+          boxes = [c for c in at.checkbox if c.key and c.key.startswith("bench::")]
+          assert len(boxes) == len(rows), "a bench row rendered no checkbox"
+          ticked = {c.key.removeprefix("bench::") for c in boxes if c.value}
+          assert ticked == set(bn.in_set_ids(bn.load("config/bench.yml"))), \
+              "the bench does not open on the set that is scored"
+          # Ticking is for discussion: it must never reach the model.
+          cand = next(r for r in rows if r.get("status") == "candidate")
+          at.checkbox(key=f"bench::{cand['id']}").set_value(True).run()
+          assert not [e.value for e in at.exception], [e.value for e in at.exception]
+          assert "1 added" in "\n".join(c.value for c in at.code), "export did not update"
+          held = at.session_state["mr_overrides"] if "mr_overrides" in at.session_state else {}
+          assert not (held or {}).get("us"), "the bench wrote an override"
+
+          print("Rendered the dashboard, control room, methodology and bench")
           EOF

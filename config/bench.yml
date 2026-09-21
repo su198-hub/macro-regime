@@ -1,0 +1,1198 @@
+# Indicator bench — the candidate pool for the US set.
+#
+# One row per indicator, live or proposed. This file feeds the Bench tab only:
+# nothing here is scored, and ticking a row changes no result anywhere in the
+# app. It exists so a set can be argued about with the evidence on screen.
+#
+#   status:  in_set     currently scored; `id` must match config/indicators.yml
+#            candidate  proposed, not scored
+#
+#   where:   macrobond        confirmed to exist in Macrobond (code noted)
+#            macrobond_check  a real named series, vendor code not yet confirmed
+#            external         needs CIQ, a vendor, or an open publisher
+#
+#   horizon: short | medium | long — same meaning as meta.horizons in
+#            indicators.yml: weeks to a quarter / the business cycle / structural.
+#
+# `refers` says what the number is about. `measured` says who collects it and
+# how, because half of every argument about an indicator turns out to be an
+# argument about its collection. Keep both to one sentence.
+
+meta:
+  title: Indicator bench
+  note: >-
+    Candidates drawn from the September 2026 review of the set. Ticking is for
+    discussion: selections stay in this browser session and never reach the
+    model.
+
+drivers:
+
+  demand:
+    label: Demand
+    items:
+      - id: real_pce_yoy
+        name: Real consumer spending
+        status: in_set
+        horizon: medium
+        where: macrobond
+        code: PCEC96
+        refers: Household spending on goods and services, inflation-adjusted — two thirds of GDP.
+        measured: >-
+          BEA combines Census retail sales, service-sector surveys and administrative
+          records, then deflates by the PCE price index. Monthly, about 30 days.
+
+      - id: unemployment_gap
+        name: Unemployment rate less its long-run level
+        status: in_set
+        horizon: medium
+        where: macrobond
+        code: UNRATE − NROU
+        refers: Labour market slack measured against full employment rather than against zero.
+        measured: >-
+          Rate from the BLS household survey of ~60,000 households, first Friday.
+          Noncyclical rate is CBO's estimate, updated once or twice a year.
+
+      - id: payrolls_3m_ann
+        name: Payroll growth, 3 months annualised
+        status: in_set
+        horizon: short
+        where: macrobond
+        code: PAYEMS
+        refers: The pace at which the economy is adding jobs.
+        measured: >-
+          BLS establishment survey of ~119,000 businesses covering 630,000 worksites;
+          benchmarked annually to unemployment insurance tax records.
+
+      - id: wage_growth_yoy
+        name: Employment cost index, wages
+        status: in_set
+        horizon: medium
+        where: macrobond
+        code: ECIWAG
+        refers: What the labour market pays, holding the mix of jobs constant.
+        measured: >-
+          BLS National Compensation Survey, ~27,000 establishments, quarterly at ~30
+          days. Fixed-weight, so it prices the same occupations each quarter.
+
+      - id: jobless_claims_yoy
+        name: Initial jobless claims
+        status: in_set
+        horizon: short
+        where: macrobond
+        code: IC4WSA
+        refers: New layoffs, the earliest turning-point signal in the set.
+        measured: >-
+          An administrative count of claims actually filed at state unemployment
+          offices — not a survey. Weekly, Thursdays, four-week average.
+
+      - id: cand_disposable_income_ex_transfers
+        name: Real disposable income ex transfers
+        status: candidate
+        horizon: medium
+        where: macrobond_check
+        refers: Income that funds spending without a government cheque.
+        measured: >-
+          BEA personal income less transfer receipts, deflated. Monthly with PCE.
+          Separates organic demand from fiscal support, which PCE cannot.
+
+      - id: cand_debt_service_ratio
+        name: Household debt service ratio
+        status: candidate
+        horizon: medium
+        where: macrobond_check
+        refers: The share of disposable income committed to debt payments.
+        measured: >-
+          Federal Reserve estimate of required mortgage and consumer debt payments
+          over disposable personal income. Quarterly.
+
+      - id: cand_saving_rate
+        name: Personal saving rate
+        status: candidate
+        horizon: medium
+        where: macrobond_check
+        refers: Whether spending is funded from income or from a drawdown that must end.
+        measured: BEA, personal saving as a share of disposable income. Monthly, with PCE.
+
+      - id: cand_cfnai
+        name: Chicago Fed National Activity Index
+        status: candidate
+        horizon: short
+        where: macrobond
+        code: ussurv1198
+        refers: A single summary of whether the economy is growing above or below trend.
+        measured: >-
+          85 monthly indicators reduced to one principal component, zero-centred by
+          construction. Monthly, from 1967.
+
+      - id: cand_cb_lei
+        name: Conference Board Leading Economic Index
+        status: candidate
+        horizon: short
+        where: macrobond
+        code: uslead0010
+        refers: A purpose-built composite of ten series that historically turn before the cycle.
+        measured: >-
+          Conference Board, weighted composite of orders, claims, the curve, credit
+          and expectations. Monthly, from 1959.
+
+      - id: cand_weekly_hours
+        name: Aggregate weekly hours
+        status: candidate
+        horizon: short
+        where: macrobond_check
+        refers: Total hours worked across the economy — firms cut hours before heads.
+        measured: BLS establishment survey, employment times average weekly hours. Monthly, ~6 days.
+
+      - id: cand_quits_rate
+        name: Quits rate
+        status: candidate
+        horizon: medium
+        where: macrobond_check
+        refers: Worker confidence — people quit when they believe they can do better.
+        measured: BLS JOLTS, voluntary separations as a share of employment. Monthly, ~33 days.
+
+      - id: cand_confidence_spread
+        name: Consumer confidence, expectations less present situation
+        status: candidate
+        horizon: short
+        where: macrobond_check
+        refers: The gap between how households feel now and what they expect.
+        measured: >-
+          Conference Board consumer survey, ~3,000 households. The spread, not the
+          level: one of the cleaner recession signals in the postwar record.
+
+      - id: cand_retail_control
+        name: Real retail sales, control group
+        status: candidate
+        horizon: short
+        where: macrobond_check
+        refers: Core goods spending, excluding autos, gas, building materials and food service.
+        measured: >-
+          Census monthly retail trade survey at ~16 days, deflated. It is an input
+          BEA uses to build PCE, so it leads the anchor.
+
+      - id: cand_vehicle_sales
+        name: Light vehicle sales
+        status: candidate
+        horizon: short
+        where: macrobond_check
+        refers: Big-ticket discretionary spending, the most rate-sensitive part of consumption.
+        measured: Manufacturer unit sales at a seasonally adjusted annual rate. Monthly, ~3 days, unrevised.
+
+      - id: cand_sp_revenue_growth
+        name: S&P 500 ex-financials revenue growth
+        status: candidate
+        horizon: medium
+        where: external
+        vendor: CIQ
+        refers: Demand as firms book it, rather than as BEA models it.
+        measured: >-
+          Aggregated reported revenue across index constituents, bottom-up.
+          Quarterly, as companies report.
+
+      - id: cand_disc_vs_staples
+        name: Consumer discretionary vs staples relative performance
+        status: candidate
+        horizon: short
+        where: external
+        vendor: CIQ
+        refers: The market's continuously updated verdict on the consumer.
+        measured: Ratio of the two sector total-return indices. Daily, free, moves before any survey.
+
+      - id: cand_card_delinquency
+        name: Credit card delinquency, 30 and 90 day
+        status: candidate
+        horizon: medium
+        where: external
+        vendor: CIQ / NY Fed
+        refers: Stress at the margin of the consumer, where a slowdown first shows.
+        measured: Bank regulatory filings and the NY Fed household credit panel. Quarterly.
+
+      - id: cand_same_store_sales
+        name: Same-store sales, large retailers
+        status: candidate
+        horizon: short
+        where: external
+        vendor: CIQ
+        refers: Volume and traffic at a constant store base.
+        measured: >-
+          Company-reported comparable sales, aggregated. Separates volume from price,
+          which no official retail series does.
+
+      - id: cand_indeed_postings
+        name: Indeed Job Postings Index
+        status: candidate
+        horizon: short
+        where: external
+        vendor: open
+        refers: Real-time labour demand, counted as live job adverts.
+        measured: >-
+          Indeed's own posting count indexed to February 2020, published daily and
+          free. It front-ran JOLTS through 2021–23 by about a quarter.
+
+      - id: cand_card_spend
+        name: Card-spend trackers
+        status: candidate
+        horizon: short
+        where: external
+        vendor: BofA Institute / Affinity
+        refers: Weekly consumption, split by income decile.
+        measured: Aggregated anonymised card transactions. Weekly, with distributional detail PCE cannot give.
+
+  inflation_expectations:
+    label: Inflation expectations
+    items:
+      - id: breakeven_5y5y
+        name: 5-year inflation, 5 years forward
+        status: in_set
+        horizon: long
+        where: macrobond
+        code: T5YIFR
+        refers: The inflation rate priced for years six to ten — the anchor itself.
+        measured: >-
+          Computed from the Treasury curve: nominal less TIPS at ten and five years,
+          with the first five stripped out. Daily, never revised.
+
+      - id: cleveland_10y
+        name: Cleveland Fed 10-year expected inflation
+        status: in_set
+        horizon: long
+        where: macrobond
+        code: EXPINF10YR
+        refers: Expected inflation with risk and liquidity premia removed.
+        measured: >-
+          A model blending Treasury yields, inflation swaps and surveys. Monthly,
+          published before the month ends; re-estimated, so it revises.
+
+      - id: spf_long_run
+        name: Professional forecasters, 10-year CPI
+        status: in_set
+        horizon: long
+        where: macrobond
+        code: SPFCPI10
+        refers: What professional forecasters expect inflation to average over a decade.
+        measured: >-
+          Philadelphia Fed survey of ~35 forecasters, quarterly since 1968, published
+          mid-quarter. Centred on 2.3 because it forecasts CPI, not PCE.
+
+      - id: umich_1y
+        name: Household expectations, 1 year
+        status: in_set
+        horizon: short
+        where: macrobond
+        code: MICH
+        refers: What households expect prices to do over the next twelve months.
+        measured: >-
+          University of Michigan, ~600 households by phone and web. Centred on 3.0
+          because households have always reported above realised inflation.
+
+      - id: inflation_risk_premium
+        name: Inflation risk premium
+        status: in_set
+        horizon: long
+        where: macrobond
+        code: INFRISKPREM
+        refers: What investors charge for bearing inflation uncertainty, as distinct from expecting it.
+        measured: The residual from the Cleveland Fed decomposition — a breakeven less expected inflation. Monthly.
+
+      - id: cand_atlanta_bie
+        name: Atlanta Fed business inflation expectations
+        status: candidate
+        horizon: medium
+        where: macrobond_check
+        refers: What firms — the people who actually set prices — expect their own costs to do.
+        measured: >-
+          Atlanta Fed panel of ~300 businesses asked about unit cost expectations over
+          the year ahead. Monthly since 2011.
+
+      - id: cand_nfib_price_plans
+        name: NFIB price plans
+        status: candidate
+        horizon: short
+        where: macrobond_check
+        refers: Small firms' stated intent to raise prices in the next three months.
+        measured: NFIB monthly small-business survey, net percentage planning increases. From 1986.
+
+      - id: cand_trimmed_mean
+        name: Trimmed-mean PCE / median CPI
+        status: candidate
+        horizon: medium
+        where: macrobond_check
+        refers: The persistent core of realised inflation, with the tails cut off.
+        measured: >-
+          Dallas and Cleveland Feds trim the most extreme price changes each month.
+          The thing expectations are actually formed from.
+
+      - id: cand_1y1y_breakeven
+        name: 1y1y forward breakeven
+        status: candidate
+        horizon: short
+        where: macrobond_check
+        refers: Near-term market pricing, to set against the 5y5y anchor.
+        measured: Derived from the TIPS curve. The gap to 5y5y is the de-anchoring signal.
+
+      - id: cand_nyfed_sce
+        name: NY Fed Survey of Consumer Expectations, 3-year
+        status: candidate
+        horizon: medium
+        where: macrobond_check
+        refers: Household expectations at a medium-term horizon.
+        measured: >-
+          NY Fed rotating panel of ~1,300 households, better designed than Michigan
+          and asked at three years. Monthly since 2013.
+
+      - id: cand_import_prices_ex_petro
+        name: Import price index ex petroleum
+        status: candidate
+        horizon: medium
+        where: macrobond_check
+        refers: Imported inflation or disinflation — the channel from the dollar to prices.
+        measured: BLS survey of actual import transaction prices. Monthly, ~15 days.
+
+      - id: cand_inflation_options
+        name: Inflation cap/floor implied distribution
+        status: candidate
+        horizon: long
+        where: external
+        vendor: CIQ / dealer
+        refers: The market-implied probability of inflation above 3% or below 1%.
+        measured: >-
+          Backed out of inflation option prices. The tails rather than the mean,
+          which is what "anchored" actually means.
+
+      - id: cand_inflation_swaps
+        name: Inflation swap curve, 1y/2y/5y/10y
+        status: candidate
+        horizon: long
+        where: external
+        vendor: CIQ
+        refers: Market-priced inflation across the whole term structure.
+        measured: >-
+          Zero-coupon inflation swap quotes. More liquid than TIPS breakevens and free
+          of the liquidity premium that distorts them in stress.
+
+      - id: cand_gross_margins
+        name: Gross margin trajectory, S&P 500 ex-energy
+        status: candidate
+        horizon: medium
+        where: external
+        vendor: CIQ
+        refers: Whether firms are passing costs through or absorbing them.
+        measured: >-
+          Aggregated reported gross margin, bottom-up. The difference between an
+          inflation impulse and a margin squeeze.
+
+      - id: cand_pricing_power_transcripts
+        name: Pricing-power mentions in earnings calls
+        status: candidate
+        horizon: short
+        where: external
+        vendor: CIQ
+        refers: How often management talks about raising prices or passing costs on.
+        measured: Counting terms across transcripts. Unconventional, but a direct read on pricing intent.
+
+      - id: cand_consensus_lt_cpi
+        name: Consensus Economics long-run CPI
+        status: candidate
+        horizon: long
+        where: external
+        vendor: vendor
+        refers: A second forecaster panel, to check SPF rather than rely on it alone.
+        measured: Consensus Economics or Blue Chip survey of forecasters. Semi-annual for long horizons.
+
+  supply:
+    label: Supply constraint
+    items:
+      - id: capacity_utilisation
+        name: Capacity utilisation
+        status: in_set
+        horizon: medium
+        where: macrobond
+        code: TCU
+        refers: How much physical headroom industry has before it hits its own ceiling.
+        measured: >-
+          Federal Reserve G.17: industrial production over an estimate of sustainable
+          maximum output. Monthly, ~16 days, capacity re-estimated annually.
+
+      - id: vacancies_per_unemployed
+        name: Job openings per unemployed person
+        status: in_set
+        horizon: medium
+        where: macrobond
+        code: JTSJOL / UNEMPLOY
+        refers: Labour market tightness — how many jobs chase each available worker.
+        measured: >-
+          JOLTS survey of ~21,000 establishments at ~33 days over the household
+          survey's unemployment level at ~6 days.
+
+      - id: oil_inventory_tightness
+        name: Crude inventories vs 5-year average
+        status: in_set
+        horizon: medium
+        where: macrobond
+        code: WCESTUS1
+        refers: Physical tightness in the one input that has actually caused stagflation.
+        measured: >-
+          EIA mandatory weekly survey of refiners, terminals and pipelines, Wednesdays.
+          Commercial stocks only; the SPR is excluded deliberately.
+
+      - id: unit_labour_costs_yoy
+        name: Unit labour costs
+        status: in_set
+        horizon: medium
+        where: macrobond
+        code: ULCNFB
+        refers: Labour cost per unit of output — where wage pressure becomes price pressure.
+        measured: >-
+          BLS Productivity and Costs — compensation per hour over output per hour.
+          Quarterly, and heavily revised because both halves move.
+
+      - id: supply_chain_pressure
+        name: Global supply chain pressure
+        status: in_set
+        horizon: short
+        where: macrobond
+        code: GSCPI
+        refers: Bottlenecks originating outside the domestic economy.
+        measured: >-
+          NY Fed index of global freight rates plus survey delivery times across seven
+          economies, with demand effects removed. Monthly, ~6 days.
+
+      - id: productivity_yoy
+        name: Labour productivity
+        status: in_set
+        horizon: long
+        where: macrobond
+        code: OPHNFB
+        refers: Output per hour — whether the constraint is loosening structurally.
+        measured: BLS, nonfarm business output over hours. Quarterly, among the most revised series in macro.
+
+      - id: cand_tfp
+        name: Total factor productivity
+        status: candidate
+        horizon: long
+        where: macrobond
+        code: uslama6803
+        refers: The Solow residual — growth not explained by more labour or more capital.
+        measured: >-
+          BLS multifactor productivity, quarterly from 1947. The single most defensible
+          long-horizon addition, and already carried by the vendor.
+
+      - id: cand_labour_force_growth
+        name: Civilian labour force growth
+        status: candidate
+        horizon: long
+        where: macrobond
+        code: bls_lns11000000m
+        refers: The L in growth accounting — how fast the supply of workers is expanding.
+        measured: BLS household survey, labour force level, monthly from 1948.
+
+      - id: cand_capital_stock
+        name: Net stock of fixed assets, growth
+        status: candidate
+        horizon: long
+        where: macrobond
+        code: bea017_17kcytotl1es00_a
+        refers: The K in growth accounting — the capital the economy has to work with.
+        measured: >-
+          BEA fixed asset accounts, annual from 1925. Capital deepening is how
+          investment becomes supply; the set measures the flow and never the stock.
+
+      - id: cand_prime_age_participation
+        name: Prime-age participation rate
+        status: candidate
+        horizon: medium
+        where: macrobond_check
+        refers: The margin on which labour supply can still expand.
+        measured: BLS household survey, 25–54 year olds in the labour force. Monthly, ~6 days.
+
+      - id: cand_foreign_born_labour
+        name: Foreign-born labour force
+        status: candidate
+        horizon: long
+        where: macrobond_check
+        refers: Immigration's contribution to labour supply — the swing factor of the last decade.
+        measured: BLS household survey nativity tables, monthly; annual detail from the CPS supplement.
+
+      - id: cand_manufacturing_capacity
+        name: Manufacturing capacity, level
+        status: candidate
+        horizon: long
+        where: macrobond_check
+        refers: The ceiling itself, rather than how close output is to it.
+        measured: >-
+          Federal Reserve G.17 capacity index — the denominator of utilisation. Its
+          growth rate says whether the ceiling is rising, a different question.
+
+      - id: cand_ism_deliveries
+        name: ISM supplier deliveries
+        status: candidate
+        horizon: short
+        where: macrobond_check
+        refers: How fast suppliers are delivering — bottlenecks as firms experience them.
+        measured: ISM monthly purchasing manager survey, diffusion index, published on the first business day.
+
+      - id: cand_electricity_load
+        name: Electricity generation and data-centre load
+        status: candidate
+        horizon: long
+        where: macrobond_check
+        refers: Plausibly the binding physical constraint of this cycle.
+        measured: EIA generation and consumption by sector, monthly; utility interconnection queues annually.
+
+      - id: cand_rig_productivity
+        name: Rig count and output per rig
+        status: candidate
+        horizon: medium
+        where: macrobond_check
+        refers: The oil supply-response function, rather than the inventory level it produces.
+        measured: Baker Hughes weekly rig count over EIA drilling productivity estimates.
+
+      - id: cand_capex_to_depreciation
+        name: Capex-to-depreciation ratio, S&P 500
+        status: candidate
+        horizon: long
+        where: external
+        vendor: CIQ
+        refers: Whether the corporate capital stock is growing or quietly eroding.
+        measured: Aggregated capital expenditure over depreciation and amortisation, bottom-up. Below one, the stock shrinks.
+
+      - id: cand_spare_oil_capacity
+        name: Global spare oil capacity
+        status: candidate
+        horizon: medium
+        where: external
+        vendor: IEA / EIA
+        refers: OPEC's cushion — whether an outage becomes a shock.
+        measured: IEA and EIA estimates of production that could be brought on within 30 days. Monthly.
+
+      - id: cand_commodity_curves
+        name: Commodity curve shape, energy and metals
+        status: candidate
+        horizon: short
+        where: external
+        vendor: CIQ
+        refers: Backwardation is the market pricing physical scarcity today.
+        measured: Front versus deferred futures across the complex. Daily, and faster than any inventory count.
+
+      - id: cand_semi_book_to_bill
+        name: Semiconductor book-to-bill and lead times
+        status: candidate
+        horizon: medium
+        where: external
+        vendor: SIA
+        refers: The 2021 bottleneck that mattered most, and a live one.
+        measured: Semiconductor Industry Association billings and orders; lead times from distributors. Monthly.
+
+      - id: cand_freight_rates
+        name: Container and dry-bulk freight rates
+        status: candidate
+        horizon: short
+        where: external
+        vendor: Drewry / Baltic
+        refers: The cost of moving goods — the transport half of GSCPI, unsmoothed.
+        measured: Drewry World Container Index and the Baltic Dry Index. Weekly and daily respectively.
+
+      - id: cand_reshoring_tracker
+        name: Reshoring and capacity announcements
+        status: candidate
+        horizon: long
+        where: external
+        vendor: CIQ
+        refers: Announced new domestic capacity — future supply, years before it shows up.
+        measured: Company press releases and filings, aggregated. Lumpy, but it dates the capacity that arrives later.
+
+  monetary:
+    label: Monetary policy
+    items:
+      - id: taylor_gap
+        name: Fed funds less the Taylor rule rate
+        status: in_set
+        horizon: medium
+        where: macrobond
+        code: FEDFUNDS, PCEPILFE, SEPLR
+        refers: How far the policy rate sits from what inflation and slack call for.
+        measured: >-
+          Effective funds rate less a rule built from core PCE, the unemployment gap
+          and r*. r* is the FOMC's own longer-run median, or HLW before 2012.
+
+      - id: financial_conditions
+        name: Financial conditions index
+        status: in_set
+        horizon: short
+        where: macrobond
+        code: NFCI
+        refers: How tight or loose markets are, independently of the policy rate.
+        measured: Chicago Fed, 105 financial series — spreads, volatility, leverage, funding — in one weekly index.
+
+      - id: yield_curve_slope
+        name: Yield curve, 10-year less 1-year
+        status: in_set
+        horizon: long
+        where: macrobond
+        code: DGS10 − DGS1
+        refers: The bond market's verdict on where the current stance leads.
+        measured: Treasury constant-maturity yields from the daily par curve, monthly averages.
+
+      - id: taylor_gap_expected
+        name: Taylor gap on expected inflation
+        status: in_set
+        horizon: medium
+        where: macrobond
+        code: EXPINF1YR
+        refers: The same rule, run on expected rather than realised inflation.
+        measured: Cleveland Fed 1-year expected inflation substituted for core PCE, so it is available weeks earlier.
+
+      - id: balance_sheet_impulse
+        name: Fed securities held, 12-month change
+        status: in_set
+        horizon: medium
+        where: macrobond
+        code: WSHOSHO / GDPNOM
+        refers: Quantitative easing and tightening — the stance a policy rate cannot show.
+        measured: >-
+          H.4.1 weekly balance sheet, Thursdays. Securities held outright rather than
+          total assets, which also swing with repo and emergency facilities.
+
+      - id: real_fed_funds
+        name: Real fed funds less neutral
+        status: in_set
+        horizon: medium
+        where: macrobond
+        code: FEDFUNDS, PCEPILFE
+        refers: The policy rate in real terms against an estimate of neutral.
+        measured: Funds rate less core PCE inflation less r*. A check that does not depend on the Taylor rule's coefficients.
+
+      - id: cand_ff_futures_path
+        name: Fed funds futures implied path, 12m
+        status: candidate
+        horizon: short
+        where: macrobond_check
+        refers: The stance the market expects, not the one currently in place.
+        measured: >-
+          Implied rate from fed funds futures twelve months out. Policy works through
+          expectations and every current input is contemporaneous.
+
+      - id: cand_term_premium
+        name: Term premium
+        status: candidate
+        horizon: long
+        where: macrobond_check
+        refers: The part of the long yield that is compensation rather than expectation.
+        measured: >-
+          Adrian-Crump-Moench or Kim-Wright model estimate. The same decomposition
+          already applied to inflation, applied to rates.
+
+      - id: cand_real_tips_yield
+        name: Real 10-year TIPS yield
+        status: candidate
+        horizon: long
+        where: macrobond_check
+        refers: The discount rate for every long-duration asset and project.
+        measured: Treasury constant-maturity inflation-indexed yield. Daily, a market price, never revised.
+
+      - id: cand_broad_dollar
+        name: Broad dollar index
+        status: candidate
+        horizon: medium
+        where: macrobond
+        code: usexri0001
+        refers: The exchange rate as a monetary condition and the main channel abroad.
+        measured: Federal Reserve trade-weighted index against a broad basket. Daily from 1973.
+
+      - id: cand_reserve_balances
+        name: Reserve balances / GDP
+        status: candidate
+        horizon: medium
+        where: macrobond_check
+        refers: The quantity of central bank money the banking system actually holds.
+        measured: H.4.1 reserve balances over nominal GDP. Post-2008 the binding quantity is reserves, not the portfolio.
+
+      - id: cand_move_index
+        name: MOVE index
+        status: candidate
+        horizon: short
+        where: macrobond_check
+        refers: Implied volatility in the Treasury market.
+        measured: Option-implied rate volatility across the curve. High MOVE tightens conditions independently of the rate level.
+
+      - id: cand_mmf_rrp
+        name: Money market fund AUM and RRP balances
+        status: candidate
+        horizon: short
+        where: macrobond_check
+        refers: Where liquidity is parked, and therefore whether QT bites.
+        measured: ICI money fund assets and the NY Fed reverse repo facility. Weekly and daily.
+
+      - id: cand_m2_growth
+        name: M2 growth
+        status: candidate
+        horizon: medium
+        where: macrobond_check
+        refers: The broad money stock.
+        measured: >-
+          H.6 monetary aggregates, monthly. Crude and out of fashion, but it called
+          2021 when the Taylor gap did not.
+
+      - id: cand_mortgage_spread
+        name: Mortgage rate spread to 10-year
+        status: candidate
+        horizon: medium
+        where: macrobond_check
+        refers: Transmission into housing, the most rate-sensitive sector.
+        measured: >-
+          Freddie Mac survey 30-year rate less the 10-year Treasury. The spread widened
+          ~180bp in 2022–23 — tightening the funds rate never showed.
+
+      - id: cand_vendor_fci
+        name: Goldman or Bloomberg financial conditions index
+        status: candidate
+        horizon: short
+        where: external
+        vendor: CIQ / vendor
+        refers: A second reading of financial conditions, weighted differently from NFCI.
+        measured: >-
+          More equity- and dollar-sensitive than the credit-weighted NFCI. Two FCIs
+          disagreeing is itself informative.
+
+      - id: cand_xccy_basis
+        name: Cross-currency basis, EUR and JPY
+        status: candidate
+        horizon: short
+        where: external
+        vendor: CIQ
+        refers: The premium paid to borrow dollars offshore.
+        measured: The deviation from covered interest parity in FX swaps. First thing to break in every dollar squeeze since 2008.
+
+      - id: cand_sofr_ois
+        name: SOFR-OIS and FRA-OIS spreads
+        status: candidate
+        horizon: short
+        where: external
+        vendor: CIQ
+        refers: Bank funding stress.
+        measured: Term funding rates against overnight index swaps. Daily, and the earliest warning the plumbing is jamming.
+
+      - id: cand_deposit_betas
+        name: Bank deposit betas and net interest margin
+        status: candidate
+        horizon: medium
+        where: external
+        vendor: CIQ
+        refers: How much of a rate rise banks actually pass on to savers and borrowers.
+        measured: Bank regulatory filings and reported margins. Quarterly — the actual transmission mechanism.
+
+      - id: cand_private_credit
+        name: Private credit spreads and BDC marks
+        status: candidate
+        horizon: medium
+        where: external
+        vendor: CIQ
+        refers: The cost of credit in the channel that grew as bank lending shrank.
+        measured: >-
+          BDC portfolio marks and reported yields. A ~$1.7tn market that SLOOS and the
+          excess bond premium both miss entirely.
+
+      - id: cand_g4_liquidity
+        name: G4 central bank assets
+        status: candidate
+        horizon: medium
+        where: external
+        vendor: CIQ
+        refers: Global liquidity — US conditions are set partly by the BoJ and ECB.
+        measured: Fed, ECB, BoJ and BoE balance sheets converted to dollars and summed. Weekly.
+
+  fiscal:
+    label: Fiscal policy
+    items:
+      - id: primary_balance_gdp
+        name: Primary balance
+        status: in_set
+        horizon: medium
+        where: macrobond
+        code: MTSBAL, MTSNETINT
+        refers: The deficit with interest added back — what government is choosing now.
+        measured: >-
+          Monthly Treasury Statement cash receipts and outlays at ~12 days, essentially
+          never revised, summed over twelve months over nominal GDP.
+
+      - id: fiscal_impulse
+        name: Fiscal impulse
+        status: in_set
+        horizon: medium
+        where: macrobond
+        code: MTSBAL, MTSNETINT
+        refers: The direction of fiscal support, since demand responds to the change.
+        measured: The twelve-month change in the primary balance, in percentage points of GDP.
+
+      - id: debt_sustainability_gap
+        name: 10-year yield less nominal GDP growth
+        status: in_set
+        horizon: long
+        where: macrobond
+        code: DGS10 − GDPNOM
+        refers: r minus g — whether debt compounds on its own or erodes.
+        measured: >-
+          The 10-year yield less five-year annualised nominal growth. Five years, not
+          one: a one-year window spiked to +7.5 in 2020 and said fiscal room had gone.
+
+      - id: interest_burden_gdp
+        name: Net interest outlays
+        status: in_set
+        horizon: long
+        where: macrobond
+        code: MTSNETINT
+        refers: Debt service as a claim on the budget.
+        measured: Monthly Treasury Statement interest paid net of received, twelve-month sum over GDP.
+
+      - id: debt_trajectory
+        name: Debt held by the public, 12-month change
+        status: in_set
+        horizon: medium
+        where: macrobond
+        code: DEBTPUB
+        refers: What the debt ratio actually did, against what r−g says it should.
+        measured: Fed Financial Accounts (Z.1), quarterly at ~73 days — the slowest release in the set.
+
+      - id: cand_cyclically_adjusted_pb
+        name: Cyclically adjusted primary balance
+        status: candidate
+        horizon: medium
+        where: macrobond_check
+        refers: The fiscal stance with the automatic stabilisers taken out.
+        measured: >-
+          CBO or OECD estimate of the balance at potential output. Fixes a known flaw:
+          recessions widen the deficit automatically and currently read as easing.
+
+      - id: cand_state_local
+        name: State and local net saving
+        status: candidate
+        horizon: medium
+        where: macrobond_check
+        code: bea044_88ad03rc_q
+        refers: The third of government spending that must balance its books.
+        measured: >-
+          BEA government receipts and expenditures, quarterly. Constitutionally
+          near-balanced, therefore procyclical — and excluded from the set today.
+
+      - id: cand_outlays_by_function
+        name: Outlays by function — defence, transfers, investment
+        status: candidate
+        horizon: medium
+        where: macrobond_check
+        refers: What the money is spent on, not just how much of it there is.
+        measured: >-
+          Monthly Treasury Statement outlay detail. A dollar of infrastructure and a
+          dollar of transfers have different multipliers.
+
+      - id: cand_withheld_receipts
+        name: Withheld tax receipts, daily Treasury statement
+        status: candidate
+        horizon: short
+        where: macrobond_check
+        refers: Wages and employment, read straight off tax withholding.
+        measured: >-
+          Daily Treasury Statement, published each business day and unrevised. The
+          fastest real-activity signal the government produces.
+
+      - id: cand_net_issuance
+        name: Treasury net issuance and bill share
+        status: candidate
+        horizon: medium
+        where: macrobond_check
+        refers: How the deficit is funded across the maturity spectrum.
+        measured: Treasury quarterly refunding and auction results. Bill-heavy funding is very different for markets than duration-heavy.
+
+      - id: cand_tga
+        name: Treasury General Account balance
+        status: candidate
+        horizon: short
+        where: macrobond_check
+        refers: The government's cash balance at the Fed — a fiscal flow with liquidity effects.
+        measured: Daily Treasury Statement and H.4.1. Daily.
+
+      - id: cand_cbo_projections
+        name: CBO 10-year deficit projections, vintage-tracked
+        status: candidate
+        horizon: long
+        where: macrobond_check
+        refers: The expected fiscal path, as it was believed at the time.
+        measured: >-
+          CBO Budget and Economic Outlook, twice a year, stored by vintage. Every
+          current fiscal input is backward-looking.
+
+      - id: cand_tariff_rate
+        name: Effective tariff rate and tariff revenue
+        status: candidate
+        horizon: medium
+        where: macrobond_check
+        refers: A live fiscal and supply instrument at once.
+        measured: Customs duties collected over the value of imports, from Census trade data and the MTS. Monthly.
+
+      - id: cand_sovereign_cds
+        name: Sovereign CDS on Treasuries
+        status: candidate
+        horizon: long
+        where: external
+        vendor: CIQ
+        refers: A market price of US fiscal credibility.
+        measured: >-
+          Credit default swap quotes on US government debt. Every current fiscal
+          indicator is an accounting measure; none is priced.
+
+      - id: cand_muni_spreads
+        name: Municipal issuance and spreads
+        status: candidate
+        horizon: medium
+        where: external
+        vendor: CIQ
+        refers: State and local fiscal stress, priced by the market.
+        measured: Muni index spreads to Treasuries and gross issuance volume. Daily and monthly.
+
+      - id: cand_auction_tails
+        name: Treasury auction tails and bid-to-cover
+        status: candidate
+        horizon: short
+        where: external
+        vendor: CIQ
+        refers: Demand for the debt at the moment it is sold.
+        measured: Auction results from Treasury. Deteriorates before any debt ratio does.
+
+      - id: cand_ira_chips_tracker
+        name: IRA and CHIPS disbursement trackers
+        status: candidate
+        horizon: medium
+        where: external
+        vendor: open
+        refers: Money out the door against money authorised.
+        measured: Agency award and outlay data. Appropriation is not impulse; the gap has been large.
+
+      - id: cand_defence_backlogs
+        name: Defence contractor backlogs
+        status: candidate
+        horizon: long
+        where: external
+        vendor: CIQ
+        refers: Committed future government spending, with a multi-year delivery profile.
+        measured: Reported order backlog in prime contractor filings. Quarterly.
+
+      - id: cand_legislative_calendar
+        name: Legislative calendar — CR, debt ceiling, expiries
+        status: candidate
+        horizon: short
+        where: external
+        vendor: open
+        refers: Scheduled fiscal cliffs and the dates they land on.
+        measured: Not a time series — a calendar. But it is what actually sets the next impulse.
+
+  investment:
+    label: Investment spending
+    items:
+      - id: core_capex_orders_yoy
+        name: Core capital goods orders
+        status: in_set
+        horizon: medium
+        where: macrobond
+        code: NEWORDER
+        refers: The earliest hard commitment to invest — an order is a contract.
+        measured: >-
+          Census M3 survey of ~5,000 manufacturers, ~27 days. Nondefense capital goods
+          excluding aircraft, because one wide-body order can swing a month.
+
+      - id: real_nonres_investment_yoy
+        name: Real business investment
+        status: in_set
+        horizon: medium
+        where: macrobond
+        code: PNFIC1
+        refers: The actual capital spending, as against orders and intentions.
+        measured: BEA national accounts — structures, equipment and IP in chained volumes. Quarterly, heavily revised.
+
+      - id: building_permits_yoy
+        name: Building permits
+        status: in_set
+        horizon: medium
+        where: macrobond
+        code: PERMIT
+        refers: The earliest decision to build, in the most cyclical sector there is.
+        measured: Census survey of permit-issuing jurisdictions, monthly at ~21 days, seasonally adjusted annual rate.
+
+      - id: excess_bond_premium
+        name: Excess bond premium
+        status: in_set
+        horizon: medium
+        where: macrobond
+        code: EBP
+        refers: The price of bearing credit risk, separated from expected default.
+        measured: >-
+          Gilchrist-Zakrajšek: thousands of individual corporate bond prices with each
+          issuer's modelled default risk removed. Mean zero by construction.
+
+      - id: equity_risk_premium
+        name: Equity risk premium
+        status: in_set
+        horizon: long
+        where: macrobond
+        code: CAPE, DGS10, EXPINF10YR
+        refers: The hurdle a new project must clear to be worth financing with equity.
+        measured: Inverse of the Shiller CAPE less a real 10-year yield. Monthly, a market price.
+
+      - id: ci_lending_standards
+        name: Banks tightening lending standards
+        status: in_set
+        horizon: medium
+        where: macrobond
+        code: DRTSCILM
+        refers: Whether credit is available at all, as distinct from what it costs.
+        measured: >-
+          Federal Reserve survey of ~80 large banks, quarterly, published before the
+          quarter ends. Net percentage tightening minus easing.
+
+      - id: cand_investment_split
+        name: Investment split — structures, equipment, IP
+        status: candidate
+        horizon: medium
+        where: macrobond_check
+        refers: What kind of capital is being built, not just how much.
+        measured: >-
+          BEA national accounts detail. The composition is the story this cycle: one
+          aggregate hides a datacentre boom alongside an equipment recession.
+
+      - id: cand_architecture_billings
+        name: Architecture Billings Index
+        status: candidate
+        horizon: long
+        where: macrobond_check
+        refers: Design work underway, which precedes construction spending.
+        measured: >-
+          American Institute of Architects monthly panel, diffusion index. Leads
+          nonresidential construction by nine to twelve months.
+
+      - id: cand_dodge_momentum
+        name: Dodge Momentum Index
+        status: candidate
+        horizon: long
+        where: macrobond_check
+        refers: Commercial projects entering the planning stage.
+        measured: Dodge Construction Network's count of projects entering planning. Monthly — earlier still than billings.
+
+      - id: cand_regional_fed_capex
+        name: Regional Fed capex expectations
+        status: candidate
+        horizon: short
+        where: macrobond_check
+        refers: Manufacturers' stated intent to spend, before any order is placed.
+        measured: Philadelphia, NY, Dallas and KC Fed future-capex questions, monthly at ~3 weeks.
+
+      - id: cand_corporate_issuance
+        name: Corporate bond gross issuance
+        status: candidate
+        horizon: medium
+        where: macrobond_check
+        refers: The funding side of capex — money raised to spend.
+        measured: SIFMA and dealer data on gross investment-grade and high-yield issuance. Monthly. Issuance stops before spending does.
+
+      - id: cand_ci_loan_growth
+        name: Bank C&I loan growth
+        status: candidate
+        horizon: medium
+        where: macrobond_check
+        refers: Credit actually extended to business, against SLOOS's statement of intent.
+        measured: H.8 weekly assets and liabilities of commercial banks.
+
+      - id: cand_equipment_leasing
+        name: Equipment leasing volume
+        status: candidate
+        horizon: short
+        where: macrobond_check
+        refers: Small-ticket capex, the part that never appears in Census orders.
+        measured: Equipment Leasing and Finance Association monthly new business volume survey.
+
+      - id: cand_sp_capex
+        name: S&P 500 aggregate capex and forward consensus
+        status: candidate
+        horizon: medium
+        where: external
+        vendor: CIQ
+        refers: What firms have spent and what analysts expect them to spend next.
+        measured: >-
+          Bottom-up reported capital expenditure plus consensus estimates, refreshed
+          monthly. No BEA lag, and it carries a forward leg nothing else here has.
+
+      - id: cand_buybacks_vs_capex
+        name: Buyback authorisations vs capex
+        status: candidate
+        horizon: medium
+        where: external
+        vendor: CIQ
+        refers: The capital allocation choice — build something, or buy your own stock.
+        measured: >-
+          Announced repurchase authorisations against reported capex. When buybacks
+          dominate, management is saying it sees no projects worth funding.
+
+      - id: cand_eps_revision_breadth
+        name: Forward EPS revision breadth
+        status: candidate
+        horizon: short
+        where: external
+        vendor: CIQ / IBES
+        refers: Whether analysts are raising or cutting earnings forecasts, on balance.
+        measured: Upgrades less downgrades as a share of estimates changed. Weekly; leads capex by one to two quarters.
+
+      - id: cand_interest_coverage
+        name: Net interest coverage, IG and HY issuers
+        status: candidate
+        horizon: medium
+        where: external
+        vendor: CIQ
+        refers: Whether firms earn enough to service debt and still fund investment.
+        measured: EBIT over interest expense, aggregated by rating bucket. The corporate analogue of the fiscal interest burden.
+
+      - id: cand_hy_oas
+        name: High yield OAS, and CCC less BB
+        status: candidate
+        horizon: medium
+        where: external
+        vendor: CIQ / ICE
+        refers: The market price of corporate credit risk, and its distribution.
+        measured: >-
+          ICE BofA option-adjusted spreads. Finer than the excess bond premium: the
+          CCC–BB gap isolates distress at the bottom of the stack.
+
+      - id: cand_net_debt_ebitda
+        name: Net debt / EBITDA, nonfinancial corporates
+        status: candidate
+        horizon: long
+        where: external
+        vendor: CIQ
+        refers: Corporate leverage measured against earnings.
+        measured: >-
+          Aggregated from filings. Against earnings rather than GDP, which is why it
+          avoids the era bias that killed corporate debt/GDP in backtest.
+
+      - id: cand_ma_ipo_volume
+        name: M&A and IPO volume
+        status: candidate
+        horizon: medium
+        where: external
+        vendor: CIQ
+        refers: Animal spirits, cleanly measured.
+        measured: Announced deal value and IPO proceeds. Monthly. Collapses before capex does.
+
+      - id: cand_hyperscaler_capex
+        name: Hyperscaler capex guidance
+        status: candidate
+        horizon: medium
+        where: external
+        vendor: CIQ
+        refers: A handful of firms now drive a visible share of US equipment and structures investment.
+        measured: Reported and guided capital expenditure from the largest cloud operators. Quarterly, public.
+
+      - id: cand_pe_dry_powder
+        name: Private equity dry powder and deployment
+        status: candidate
+        horizon: medium
+        where: external
+        vendor: CIQ / Preqin
+        refers: Committed capital waiting to be invested outside public markets.
+        measured: Fund-level commitments less called capital. Quarterly.
