@@ -981,9 +981,12 @@ drivers:
           Monthly Treasury Statement cash receipts and outlays at ~12 days, essentially
           never revised, summed over twelve months over nominal GDP.
 
+      # Opens unticked, replaced by the three-year version below. Twelve months
+      # catches tax-filing timing and one-off cheques as if they were policy.
       - id: fiscal_impulse
         name: Fiscal impulse
         status: in_set
+        preselect: false
         horizon: medium
         nature: cyclical
         kind: official
@@ -993,9 +996,13 @@ drivers:
         refers: The direction of fiscal support, since demand responds to the change.
         measured: The twelve-month change in the primary balance, in percentage points of GDP.
 
+      # Opens unticked as a row of its own, but not discarded: r minus g is the
+      # input to the debt-stabilising balance below, which is a more legible
+      # number than the spread on its own.
       - id: debt_sustainability_gap
         name: 10-year yield less nominal GDP growth
         status: in_set
+        preselect: false
         horizon: long
         nature: structural
         kind: market
@@ -1030,6 +1037,46 @@ drivers:
         code: DEBTPUB
         refers: What the debt ratio actually did, against what r−g says it should.
         measured: Fed Financial Accounts (Z.1), quarterly at ~73 days — the slowest release in the set.
+
+      - id: cand_primary_balance_3y
+        name: Primary balance, 3-year change
+        status: candidate
+        preselect: true
+        horizon: medium
+        nature: structural
+        kind: official
+        enters: change
+        where: macrobond
+        code: MTSBAL, MTSNETINT
+        refers: >-
+          How far the government's stance has moved over a full policy cycle rather
+          than over one tax year. Three years spans a budget and its follow-through,
+          so it reads as sustained posture instead of a run of one-off cheques and
+          filing-season noise.
+        measured: >-
+          The same Monthly Treasury Statement primary balance already in the set,
+          differenced over 36 months rather than 12. Needs a three-year change
+          transform.
+
+      - id: cand_pb_vs_debt_stabilising
+        name: Primary balance less the debt-stabilising level
+        status: candidate
+        preselect: true
+        horizon: long
+        nature: structural
+        kind: model
+        enters: spread
+        where: macrobond
+        code: MTSBAL, MTSNETINT, DEBTPUB, DGS10, GDPNOM
+        refers: >-
+          Fiscal policy against the target it implicitly has: the primary balance that
+          would hold debt/GDP flat, which is (r − g)/(1 + g) times the debt ratio. A
+          reading of −2 means the deficit is two points of GDP wider than the level
+          that stabilises debt. This is where r minus g earns its keep — as the input
+          to a number you can read, rather than as a spread you have to interpret.
+        measured: >-
+          Built from series already in the set: the Treasury primary balance, the
+          Z.1 debt ratio, the 10-year yield and five-year annualised nominal growth.
 
       - id: cand_cyclically_adjusted_pb
         name: Cyclically adjusted primary balance
@@ -1109,9 +1156,18 @@ drivers:
         where: external
         vendor: CIQ
         refers: >-
-          A market price of US fiscal credibility. Every current fiscal indicator is
-          an accounting measure; none is priced by anyone with money at stake.
-        measured: Credit default swap quotes on US government debt. Daily.
+          A market price of US fiscal credibility. Every other fiscal indicator is an
+          accounting measure; none is priced by anyone with money at stake.
+          CAUTION — US sovereign CDS is a thin market quoted in euros, because you
+          cannot hedge dollar default risk in dollars. It spikes on debt-ceiling
+          dates rather than on solvency: roughly 180bp in 2023 on pure political
+          timing risk. It prices technical default around scheduled events, which is
+          not the same thing as fiscal riskiness. The term premium already carried in
+          monetary is the better-behaved market read on the same worry.
+        measured: >-
+          Markit quotes on US government debt, daily. NOT REACHABLE through our
+          Macrobond entitlement — no hits under any phrasing, like the ICE BofA
+          spreads. It is a licensed market-data product, so CIQ or Bloomberg.
 
   investment:
     label: Investment spending
@@ -1163,7 +1219,14 @@ drivers:
         enters: level
         where: macrobond
         code: EBP
-        refers: The price of bearing credit risk, separated from expected default.
+        refers: >-
+          The price of bearing credit risk, separated from expected default.
+          ON READING IT AS A CHANGE — worth arguing about, but the level has the
+          stronger case here. It is mean zero by construction, so it does not drift
+          the way a raw spread does, and it is the level that Gilchrist and Zakrajšek
+          show forecasts investment and output. Differencing it would discard the
+          finding the series exists for. The change version belongs on high yield
+          spreads, which do drift.
         measured: >-
           Gilchrist-Zakrajšek: thousands of individual corporate bond prices with each
           issuer's modelled default risk removed. Mean zero by construction.
@@ -1181,11 +1244,20 @@ drivers:
           The hurdle a new project must clear to be worth financing with equity.
           Long-dated in content, but valuations mean-revert within a cycle, so it
           behaves cyclically however far ahead it looks.
+          ON READING IT AS A CHANGE — agreed here, and more strongly than for the
+          excess bond premium. Its level carries thirty years of valuation drift, so
+          scoring it against a fixed centre partly scores which decade it is, the
+          same trap that killed corporate debt to GDP in backtest. The change is
+          stationary and is the market marking the cost of equity.
         measured: Inverse of the Shiller CAPE less a real 10-year yield. Monthly.
 
+      # Opens unticked. A quarterly survey of what banks say they will do, and
+      # the change in high yield spreads below prices the same credit conditions
+      # daily and from people with money at stake.
       - id: ci_lending_standards
         name: Banks tightening lending standards
         status: in_set
+        preselect: false
         horizon: medium
         nature: cyclical
         kind: survey
@@ -1271,18 +1343,23 @@ drivers:
         measured: EBIT over interest expense, aggregated by rating bucket. Quarterly.
 
       - id: cand_hy_oas
-        name: High yield OAS, and CCC less BB
+        name: Change in high yield spreads
         status: candidate
+        preselect: true
         horizon: medium
         nature: cyclical
         kind: market
-        enters: level
+        enters: change
         where: external
         vendor: CIQ / ICE
         refers: >-
-          The market price of corporate credit risk and its distribution. Finer than
-          the excess bond premium: the CCC–BB gap isolates distress at the bottom.
-        measured: ICE BofA option-adjusted spreads. Daily.
+          The market repricing corporate credit risk. Read as a change rather than a
+          level: the level says what risk costs today, the change says the odds are
+          being marked, and it is the marking that stops capex. The CCC less BB gap
+          isolates distress at the bottom of the stack.
+        measured: >-
+          ICE BofA option-adjusted spreads, daily. Not in our Macrobond entitlement —
+          no hits under any phrasing — so CIQ or Bloomberg.
 
       - id: cand_architecture_billings
         name: Architecture Billings Index
