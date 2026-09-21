@@ -967,9 +967,11 @@ drivers:
   fiscal:
     label: Fiscal policy
     items:
+      # Opens unticked: the three-year change and the impulse carry the stance.
       - id: primary_balance_gdp
         name: Primary balance
         status: in_set
+        preselect: false
         horizon: medium
         nature: cyclical
         kind: official
@@ -981,12 +983,9 @@ drivers:
           Monthly Treasury Statement cash receipts and outlays at ~12 days, essentially
           never revised, summed over twelve months over nominal GDP.
 
-      # Opens unticked, replaced by the three-year version below. Twelve months
-      # catches tax-filing timing and one-off cheques as if they were policy.
       - id: fiscal_impulse
         name: Fiscal impulse
         status: in_set
-        preselect: false
         horizon: medium
         nature: cyclical
         kind: official
@@ -1057,26 +1056,6 @@ drivers:
           The same Monthly Treasury Statement primary balance already in the set,
           differenced over 36 months rather than 12. Needs a three-year change
           transform.
-
-      - id: cand_pb_vs_debt_stabilising
-        name: Primary balance less the debt-stabilising level
-        status: candidate
-        preselect: true
-        horizon: long
-        nature: structural
-        kind: model
-        enters: spread
-        where: macrobond
-        code: MTSBAL, MTSNETINT, DEBTPUB, DGS10, GDPNOM
-        refers: >-
-          Fiscal policy against the target it implicitly has: the primary balance that
-          would hold debt/GDP flat, which is (r − g)/(1 + g) times the debt ratio. A
-          reading of −2 means the deficit is two points of GDP wider than the level
-          that stabilises debt. This is where r minus g earns its keep — as the input
-          to a number you can read, rather than as a spread you have to interpret.
-        measured: >-
-          Built from series already in the set: the Treasury primary balance, the
-          Z.1 debt ratio, the 10-year yield and five-year annualised nominal growth.
 
       - id: cand_cyclically_adjusted_pb
         name: Cyclically adjusted primary balance
