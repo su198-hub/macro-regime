@@ -77,8 +77,8 @@ jobs:
           boxes = [c for c in at.checkbox if c.key and c.key.startswith("bench::")]
           assert len(boxes) == len(rows), "a bench row rendered no checkbox"
           ticked = {c.key.removeprefix("bench::") for c in boxes if c.value}
-          assert ticked == set(bn.in_set_ids(bn.load("config/bench.yml"))), \
-              "the bench does not open on the set that is scored"
+          assert ticked == set(bn.opening_ids(bn.load("config/bench.yml"))), \
+              "the bench does not open on the scored set plus its preselected candidates"
           # Ticking is for discussion: it must never reach the model.
           cand = next(r for r in rows if r.get("status") == "candidate")
           at.checkbox(key=f"bench::{cand['id']}").set_value(True).run()

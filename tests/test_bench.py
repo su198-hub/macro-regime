@@ -127,10 +127,30 @@ def test_external_rows_name_a_vendor():
 
 
 def test_the_shipped_set_passes_its_own_size_rule():
-    """The bench opens on the live set, which must not open in a red state."""
     for block in bn.tally(BENCH, set(bn.in_set_ids(BENCH))):
-        assert block["ok"], f"{block['label']} starts with {block['n']} indicators"
+        assert block["ok"], f"{block['label']} ships with {block['n']} indicators"
         assert block["n"] == block["was"]
+
+
+def test_the_page_opens_on_a_proposal_that_could_itself_ship():
+    """Preselected candidates put a proposal on the table, not an illegal one."""
+    for block in bn.tally(BENCH, set(bn.opening_ids(BENCH))):
+        assert block["ok"], f"{block['label']} opens with {block['n']} indicators"
+
+
+def test_the_opening_proposal_reads_as_a_swap_against_what_ships():
+    pre, drop = set(bn.preselect_ids(BENCH)), set(bn.predrop_ids(BENCH))
+    assert pre, "nothing is preselected; drop this test if that is deliberate"
+    assert not (pre & set(bn.in_set_ids(BENCH))), "a scored row is marked preselect: true"
+    d = bn.diff(BENCH, set(bn.opening_ids(BENCH)))
+    assert {r["id"] for r in d["added"]} == pre
+    assert {r["id"] for r in d["dropped"]} == drop
+
+
+def test_what_opens_ticked_is_a_swap_not_a_wishlist():
+    """Additions without removals push a driver past the six it is allowed."""
+    assert len(bn.preselect_ids(BENCH)) == len(bn.predrop_ids(BENCH)), \
+        "preselected additions and removals do not balance, so a driver changes size"
 
 
 def test_each_driver_offers_a_short_readable_list():

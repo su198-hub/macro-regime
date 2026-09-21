@@ -101,6 +101,31 @@ def in_set_ids(bench: dict) -> list[str]:
     return [r["id"] for r in rows(bench) if r.get("status") == "in_set"]
 
 
+def preselect_ids(bench: dict) -> list[str]:
+    """Candidates the page opens with already ticked."""
+    return [r["id"] for r in rows(bench)
+            if r.get("status") == "candidate" and r.get("preselect")]
+
+
+def predrop_ids(bench: dict) -> list[str]:
+    """Scored indicators the page opens with already unticked."""
+    return [r["id"] for r in rows(bench)
+            if r.get("status") == "in_set" and r.get("preselect") is False]
+
+
+def opening_ids(bench: dict) -> list[str]:
+    """What the page opens ticked: a whole proposal, not a wishlist.
+
+    Additions without removals would open a driver past the six it is allowed,
+    so `preselect` works in both directions — true puts a candidate in, false
+    takes a scored indicator out. The diff still measures against what actually
+    ships, so the opening state reads as "2 added, 2 dropped" from the first
+    render and is never mistaken for the live set.
+    """
+    dropped = set(predrop_ids(bench))
+    return [i for i in in_set_ids(bench) if i not in dropped] + preselect_ids(bench)
+
+
 def by_driver(bench: dict, driver: str) -> list[dict]:
     block = drivers(bench).get(driver) or {}
     return list(block.get("items") or [])

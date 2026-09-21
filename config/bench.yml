@@ -113,9 +113,13 @@ drivers:
           Rate from the BLS household survey of ~60,000 households, first Friday.
           Noncyclical rate is CBO's estimate, updated once or twice a year.
 
+      # Opens unticked, with the two revisions in its place. A payroll bump a
+      # household reads as temporary barely moves consumption, because spending
+      # follows expected lifetime resources rather than this month's income.
       - id: payrolls_3m_ann
         name: Payroll growth, 3 months annualised
         status: in_set
+        preselect: false
         horizon: short
         nature: news
         kind: official
@@ -141,9 +145,14 @@ drivers:
           BLS National Compensation Survey, ~27,000 establishments, quarterly at ~30
           days. Fixed-weight, so it prices the same occupations each quarter.
 
+      # Opens unticked. It reads the state of the economy today and nothing
+      # past it: average unemployment lasts about six months, so a claims print
+      # is absorbed within two quarters and carries no information about year
+      # five by construction.
       - id: jobless_claims_yoy
         name: Initial jobless claims
         status: in_set
+        preselect: false
         horizon: short
         nature: news
         kind: official
@@ -181,6 +190,7 @@ drivers:
       - id: cand_spf_lt_growth
         name: Revision to forecasters' 10-year GDP growth
         status: candidate
+        preselect: true
         horizon: long
         nature: structural
         kind: survey
@@ -195,9 +205,12 @@ drivers:
           lifetime income. The growth twin of the 10-year CPI expectation the
           inflation driver already carries.
         measured: >-
-          Philadelphia Fed Survey of Professional Forecasters, ~35 respondents,
-          quarterly since 1992. Forecast-dated, so the revision is simply the change
-          from the previous survey — no new machinery needed.
+          Philadelphia Fed Survey of Professional Forecasters, ~35 respondents.
+          Macrobond labels it quarterly, but the ten-year questions are asked once a
+          year, so there is one new reading each Q1 and 34 in total since 1992.
+          Forecast-dated, so the revision is the change from the previous survey and
+          needs no new machinery — but it is an annual signal carried for twelve
+          months, which is the honest cost of reading this far ahead.
 
       - id: cand_spf_lt_productivity
         name: Revision to forecasters' 10-year productivity growth
@@ -210,12 +223,20 @@ drivers:
         code: usfcst0723
         refers: >-
           The change in expected productivity growth over a decade — the Solow A term
-          as a forward expectation being marked up or down, rather than as a measured
-          past. It is the half of potential growth that is not demographics, and the
-          only half that can genuinely surprise.
+          being marked up or down. The case for it over the headline growth forecast:
+          ten-year-ahead labour force growth is close to already known, since the
+          people who will be thirty in 2036 are twenty now, so productivity is where
+          nearly all the genuine uncertainty in potential growth sits.
+          CAUTION — an either/or with the GDP growth revision above, not an addition.
+          Their revisions correlate 0.83 and share a sign in 91% of readings, because
+          they come from the same panel in the same survey and potential growth is
+          roughly labour force growth plus productivity. Carrying both would repeat
+          the mistake of holding the 10-year breakeven next to the 5y5y.
         measured: >-
-          Philadelphia Fed SPF, quarterly since 1992. Forecast-dated, so the revision
-          is the change from the previous survey.
+          Philadelphia Fed SPF. Macrobond labels it quarterly, but the ten-year
+          questions are asked once a year, so there is one new reading each Q1 and
+          34 in total since 1992 — the revision is an annual signal carried for
+          twelve months.
 
       - id: cand_hlw_trend_growth
         name: Revision to trend growth inside r*
@@ -239,6 +260,7 @@ drivers:
       - id: cand_cbo_potential_revision
         name: Revision to CBO potential GDP for 2035
         status: candidate
+        preselect: true
         horizon: long
         nature: structural
         kind: model
@@ -267,14 +289,22 @@ drivers:
         where: macrobond
         code: usfcst4842
         refers: >-
-          The long real rate — what the market charges for real resources a decade
-          out, and the closest thing to a traded price of long-run growth. Pairs with
-          the 10-year expected inflation already in the set: the two are the nominal
-          yield split in half.
+          The long real rate — what lenders charge for real resources a decade out.
+          It is here to fill the market slot in the survey/model/market spread, and
+          it does drift rather than cycle: decade averages run 5.26, 3.30, 1.87, 0.54
+          and 1.09, only 29% of its variance is deviation from its own trend, and it
+          correlates just 0.23 with the unemployment rate.
+          CAUTION — the drift is real but it is mostly not about growth. US trend
+          growth did not fall from 5% to 0.5%; global savings, demographics, safe
+          asset demand and the term premium did most of that work. It also duplicates
+          two monetary candidates, the real TIPS yield and r*. The weakest of the
+          eight: it wins its slot on symmetry rather than on content, and a 5y5y
+          forward real rate — the same trick the 5y5y breakeven uses to strip the
+          cycle out of the front end — would be the better market leg if it can be
+          built.
         measured: >-
           Cleveland Fed, the real leg of the same decomposition that produces
-          EXPINF10YR. Monthly since 1982, 81 vintages. It carries a term premium as
-          well as growth, which is the honest caveat on reading it as growth alone.
+          EXPINF10YR. Monthly since 1982, 81 vintages.
 
       - id: cand_analyst_ltg
         name: Revision to analysts' long-term growth expectations

@@ -27,6 +27,7 @@ bench = bn.load()
 cfg = load_config(INDICATORS())
 all_rows = bn.rows(bench)
 live_ids = set(bn.in_set_ids(bench))
+opening = set(bn.opening_ids(bench))
 
 
 def key_of(row_id: str) -> str:
@@ -42,10 +43,11 @@ def seed(ids: set[str]) -> None:
         st.session_state[key_of(r["id"])] = r["id"] in ids
 
 
-# The set we actually score is the starting point, so the discussion begins from
-# what is true rather than from an empty page.
+# The scored set plus whatever config puts forward, so the discussion begins
+# from a proposal rather than a blank page. Preselected candidates still count
+# as additions in the diff, so nothing here is mistaken for what ships.
 if not st.session_state.get(SEEDED):
-    seed(live_ids)
+    seed(opening)
     st.session_state[SEEDED] = True
 
 
@@ -67,8 +69,10 @@ st.html('<div class="mr-custom"><b>Nothing here is scored.</b> Selections stay i
 # Every row carries two tags because the two questions come apart, and the gap
 # between them is the case for changing the set.
 st.html(
-    '<div style="display:grid;gap:0.6rem 1.5rem;grid-template-columns:repeat(auto-fit,'
-    f'minmax(15rem,1fr));border-left:2px solid {ui.MUTED};padding:0.5rem 0 0.5rem 1rem;'
+    # Two columns, not three: four definitions across three columns leaves the
+    # fourth alone on a second row with half the width empty beside it.
+    '<div style="display:grid;gap:0.6rem 2rem;grid-template-columns:repeat(auto-fit,'
+    f'minmax(24rem,1fr));border-left:2px solid {ui.MUTED};padding:0.5rem 0 0.5rem 1rem;'
     'margin:0.4rem 0 0.2rem">'
     f'<div><b>Horizon</b> — how far ahead it looks. <span style="color:{ui.INK_2}">'
     'ST weeks to a quarter · MT one to three years · LT structural or a market\'s '
@@ -84,14 +88,7 @@ st.html(
     'movement in an estimate of the same future target between publications — the '
     'level of a ten-year forecast barely moves, so only its revision carries '
     'information. Nothing in the model is scored this way today.</span></div>'
-    f'<div style="grid-column:1/-1;color:{ui.INK_2}">The test for nature: does it move '
-    'the speed limit, or tell you where you are against it? Capacity utilisation tells '
-    'you where you are; the growth of capacity moves the limit. Four live indicators are '
-    'tagged LT but mean-revert inside a cycle, which is how the set came to read 27% '
-    'long-horizon while carrying 18% structural. The test for source type is whether two '
-    'readings could ever disagree — five agency statistics cannot, a market price and a '
-    'survey routinely do, and inflation expectations works because it is built that way.'
-    '</div></div>')
+    '</div>')
 
 
 # ---------- toolbar ----------
@@ -119,8 +116,9 @@ query = bar[5].text_input("Search", "", placeholder="name or description")
 # Buttons run before any checkbox is drawn: Streamlit will not let a widget's
 # state be rewritten in the same run that renders it.
 if bar[6].button("Reset", use_container_width=True,
-                 help="Back to the set that is scored today."):
-    seed(live_ids)
+                 help="Back to how this page opened: the scored set plus the "
+                      "candidates put forward for discussion."):
+    seed(opening)
     st.rerun()
 if bar[7].button("Clear", use_container_width=True,
                  help="Untick everything and build up from nothing."):
