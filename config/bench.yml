@@ -739,9 +739,13 @@ drivers:
           Effective funds rate less a rule built from core PCE, the unemployment gap
           and r*. r* is the FOMC's own longer-run median, or HLW before 2012.
 
+      # Opens unticked. The shortest-horizon input in the driver: a weekly index
+      # of market prices that turns on news and says nothing about the stance
+      # policy is actually set at.
       - id: financial_conditions
         name: Financial conditions index
         status: in_set
+        preselect: false
         horizon: short
         nature: cyclical
         kind: model
@@ -770,9 +774,13 @@ drivers:
           cycle rather than drifting.
         measured: Treasury constant-maturity yields from the daily par curve, monthly averages.
 
+      # Opens unticked. One measure of the stance is enough: this and the real
+      # rate below are both the Taylor gap with a term swapped, and all three
+      # move together. The anchor above is kept because it is the most complete.
       - id: taylor_gap_expected
         name: Taylor gap on expected inflation
         status: in_set
+        preselect: false
         horizon: medium
         nature: cyclical
         kind: model
@@ -785,7 +793,7 @@ drivers:
           available weeks earlier.
 
       - id: balance_sheet_impulse
-        name: Fed securities held, 12-month change
+        name: Fed securities held, 3-year annualised change
         status: in_set
         horizon: medium
         nature: cyclical
@@ -793,14 +801,23 @@ drivers:
         enters: change
         where: macrobond
         code: WSHOSHO / GDPNOM
-        refers: Quantitative easing and tightening — the stance a policy rate cannot show.
+        refers: >-
+          Quantitative easing and tightening — the stance a policy rate cannot show.
+          PROPOSED CHANGE: read over three years annualised rather than twelve months.
+          QE and QT run for years, and a one-year window turns a single multi-year
+          programme into a run of on-and-off pulses that whipsaw the driver.
         measured: >-
           H.4.1 weekly balance sheet, Thursdays. Securities held outright rather than
-          total assets, which also swing with repo and emergency facilities.
+          total assets, which also swing with repo and emergency facilities. The
+          three-year window needs a transform the model does not have yet.
 
+      # Opens unticked, for the same reason: the Taylor gap without the rule's
+      # coefficients. A useful cross-check when the driver had room for it, but
+      # a third reading of one stance crowds out everything else.
       - id: real_fed_funds
         name: Real fed funds less neutral
         status: in_set
+        preselect: false
         horizon: medium
         nature: cyclical
         kind: model
@@ -829,18 +846,69 @@ drivers:
           Holston-Laubach-Williams or Lubik-Matthes model estimate, quarterly. Highly
           uncertain, which is itself worth having on screen.
 
-      - id: cand_real_tips_yield
-        name: Real 10-year TIPS yield
+      # --- Has the target been delivered, and do people believe it will be?
+      # The rest of this driver measures how tight policy is. None of it
+      # measures whether policy is believed, which is what decides whether a
+      # given stance is enough. The real 10-year TIPS yield was dropped from
+      # here: the 5y5y forward real rate in demand now covers it better.
+
+      - id: cand_target_miss_rate
+        name: Share of the last 36 months off target
         status: candidate
+        preselect: true
         horizon: long
         nature: structural
-        kind: market
+        kind: official
         enters: level
-        where: macrobond_check
+        where: macrobond
+        code: PCEPILFE
         refers: >-
-          The discount rate every long-duration asset and capital project is valued
-          against — the economy-wide cost of patient capital.
-        measured: Treasury constant-maturity inflation-indexed yield. Daily, never revised.
+          The track record: how much of the last three years core inflation spent
+          outside a 1.5–2.5% band. A central bank that has missed for three years is
+          believed less than one that has not, whatever its current stance.
+        measured: >-
+          Rolling share computed from core PCE, already in the set. Needs a
+          share-outside-a-band transform the model does not have yet.
+
+      - id: cand_inflation_volatility
+        name: Inflation volatility, 36 months
+        status: candidate
+        preselect: true
+        horizon: long
+        nature: structural
+        kind: official
+        enters: level
+        where: macrobond
+        code: PCEPILFE
+        refers: >-
+          How steady inflation has been, not where it sat. Distinct from the miss
+          rate: through the 2010s inflation was persistently below target but very
+          stable, a credible undershoot. In 2021–23 it was both off target and
+          violent, which is a different regime entirely.
+        measured: >-
+          Rolling standard deviation of core PCE year-over-year over 36 months.
+          Needs a rolling-volatility transform.
+
+      - id: cand_forecaster_disagreement
+        name: Forecaster disagreement on inflation
+        status: candidate
+        preselect: true
+        horizon: medium
+        nature: cyclical
+        kind: survey
+        enters: level
+        where: macrobond
+        code: usfcst2854
+        refers: >-
+          How far apart professional forecasters are on inflation. Agreement is what
+          an anchor looks like from the outside; when forecasters scatter, nobody is
+          sure what the central bank will tolerate.
+          CAUTION — the published dispersion is four quarters ahead, not ten years,
+          so some of it is uncertainty about oil rather than about the anchor.
+          Long-run dispersion would be better and is not published here.
+        measured: >-
+          Philadelphia Fed SPF cross-sectional dispersion, GDP price index four
+          quarters ahead, quarterly from 1968 with 30 vintages.
 
       - id: cand_term_premium
         name: Term premium
