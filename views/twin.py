@@ -121,24 +121,49 @@ st.html(f'<p style="margin-top:0.8rem;font-size:1rem">{latest:%B %Y}: the live m
 st.html(ui.section_head("The two calls through time",
                         caption="Each band is the regime the model called that month."))
 colors = {k: v.get("color", "#999") for k, v in reg["regimes"].items()}
-colors.update({"transitional": "#c9c9c9", "unclassified": "#e6e6e6"})
+# Dark enough to read against the white page, so an unclassified month is not
+# mistaken for a month neither model scored (those are left blank).
+colors.update({"transitional": "#b3b3b3", "unclassified": "#d6d6d6"})
 long = (calls.reset_index(names="month")
         .melt("month", var_name="model", value_name="regime").dropna())
 long["model"] = long["model"].map({"live": "Live (presented)", "twin": "Twin (proposed)"})
 long["label"] = long["regime"].map(lambda r: rlabel.get(r, r))
+# One band per run of consecutive months with the same call, from the start of
+# its first month to the start of the month after its last. Drawn month by
+# month, each rect is under two pixels wide and the seams show as stripes; as
+# runs they are solid, and hovering names the whole episode.
+long["start"] = long["month"].dt.to_period("M").dt.to_timestamp()
+long = long.sort_values(["model", "start"])
+new_run = ((long["regime"] != long.groupby("model")["regime"].shift())
+           | (long["start"] != long.groupby("model")["start"].shift() + pd.offsets.MonthBegin(1)))
+long["run"] = new_run.groupby(long["model"]).cumsum()
+long = (long.groupby(["model", "run"], as_index=False)
+        .agg(regime=("regime", "first"), label=("label", "first"),
+             start=("start", "first"), last=("start", "last")))
+long["end"] = long["last"] + pd.offsets.MonthBegin(1)
+long["months"] = ((long["end"].dt.year - long["start"].dt.year) * 12
+                  + long["end"].dt.month - long["start"].dt.month)
 domain = [r for r in colors if r in set(long["regime"])]
-chart = (alt.Chart(long).mark_rect()
-         .encode(x=alt.X("yearmonth(month):T", title=None),
-                 y=alt.Y("model:N", title=None, sort=["Live (presented)", "Twin (proposed)"]),
+chart = (alt.Chart(long).mark_rect(strokeWidth=0)
+         .encode(x=alt.X("start:T", title=None, axis=alt.Axis(format="%Y", tickCount=12)),
+                 x2="end:T",
+                 y=alt.Y("model:N", title=None, sort=["Live (presented)", "Twin (proposed)"],
+                         scale=alt.Scale(paddingInner=0.3),
+                         axis=alt.Axis(labelLimit=200, labelFontSize=12, ticks=False,
+                                       domain=False, labelPadding=8)),
                  color=alt.Color("regime:N", title=None,
                                  scale=alt.Scale(domain=domain, range=[colors[r] for r in domain]),
                                  legend=alt.Legend(orient="bottom",
                                                    labelExpr=" + ".join(
                                                        f"(datum.label == '{r}' ? '{rlabel.get(r, r)}' : '')"
                                                        for r in domain))),
-                 tooltip=[alt.Tooltip("yearmonth(month):T", title="Month"),
-                          alt.Tooltip("model:N"), alt.Tooltip("label:N", title="Regime")])
-         .properties(height=110))
+                 tooltip=[alt.Tooltip("model:N"), alt.Tooltip("label:N", title="Regime"),
+                          alt.Tooltip("start:T", title="From", format="%b %Y"),
+                          alt.Tooltip("last:T", title="To", format="%b %Y"),
+                          alt.Tooltip("months:Q", title="Months")])
+         # A fixed height per row: a total height was being shrunk to fit, which
+         # squeezed both rows into a sliver.
+         .properties(height=alt.Step(44)))
 st.altair_chart(ui.style(chart), use_container_width=True)
 
 
