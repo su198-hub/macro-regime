@@ -139,6 +139,22 @@ def cmd_ciq_probe(args) -> None:
              " — adjust CiqSource._rows to match the shape above"))
 
 
+def cmd_twin_build(args) -> None:
+    """Build the twin's own store: the main store plus the twin-only series.
+
+    Separate so the Bloomberg series never enter the store `publish` pushes.
+    Rerun it to refresh; it recopies the main store each time, so the twin never
+    scores older data than the presentation does.
+    """
+    from src import twin as tw
+
+    live = load_config(args.config)
+    cfg = tw.build_config(live, tw.load_overlay())
+    target = args.twin_db or tw.default_db()
+    tw.build_store(args.db, target, live, cfg, load_sources(args.sources), route, open_vendor)
+    print(f"\nTwin store ready at {target}. Open localhost:8501/twin to compare.")
+
+
 def open_vendor(vendor: str):
     if vendor == "macrobond":
         from src.sources.macrobond import MacrobondSource
@@ -382,6 +398,12 @@ def main():
                      ("coverage", cmd_coverage), ("publish", cmd_publish),
                      ("demo", cmd_demo)]:
         sub.add_parser(name).set_defaults(func=fn)
+    twin = sub.add_parser(
+        "twin-build",
+        help="Build the twin's store (main store + proposed series) for the /twin page.")
+    twin.add_argument("--twin-db", default=None,
+                      help="Where to write it (default %%LOCALAPPDATA%%\\macro-regime\\twin.duckdb).")
+    twin.set_defaults(func=cmd_twin_build)
     login = sub.add_parser(
         "ciq-login",
         help="Store Capital IQ credentials from a masked prompt, as Windows user "

@@ -21,6 +21,9 @@ st.navigation(
     [st.Page("views/dashboard.py", title="Dashboard", default=True),
      st.Page("views/control.py", title="Control room", url_path="control"),
      st.Page("views/methodology.py", title="Methodology", url_path="methodology"),
-     st.Page("views/bench.py", title="Bench", url_path="bench")],
+     st.Page("views/bench.py", title="Bench", url_path="bench"),
+     # Hidden: reachable at /twin, never in the nav, so the presentation is
+     # untouched while the proposed indicator set is being weighed.
+     st.Page("views/twin.py", title="Twin", url_path="twin", visibility="hidden")],
     position="top",
 ).run()

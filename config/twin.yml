@@ -1,0 +1,170 @@
+# The twin: the live US model with the bench's proposed indicator set swapped in.
+#
+# Not a second copy of indicators.yml. The twin is built at run time as the live
+# config plus the differences listed here, so a change to the live model flows
+# into the twin automatically and the two differ only where this file says they
+# do. That is what makes the comparison mean something: any gap between the two
+# calls is caused by the indicators, not by a centre or a salience drifting
+# apart unnoticed.
+#
+# RULE FOR WEIGHTS. Each new indicator takes the weight of the one it replaces,
+# and nothing else moves: same centres, scales, salience, archetypes and
+# settings for everything kept. The comparison then isolates the indicator
+# change itself.
+#
+# Centres and scales for the new indicators come from each series' own history
+# to 2019 where it has one (the live model's convention), otherwise from all of
+# it; revisions are centred on zero, because no revision is the neutral reading.
+#
+# JUDGEMENT CALLS, flagged because each one moves the result:
+#   - Credibility enters the monetary axis as behind-the-curve: a bank that has
+#     missed its target, lets inflation swing, or leaves forecasters scattered
+#     reads as DOVISH (direction -1). The monetary axis runs dovish to hawkish,
+#     and credibility is not naturally on it; this is the reading that matches
+#     the high-growth, high-inflation archetype.
+#   - CBO potential GDP is revised as its five-year-ahead GROWTH RATE, not its
+#     level. The level jumps 10-14% at each BEA rebasing (2000, 2010, 2014, 2024)
+#     because the whole projection changes units; growth rates are immune.
+#   - The labour force is revised as its five-year-ahead LEVEL, in persons, which
+#     rebasing does not touch and which is how the 2024 immigration upgrade shows.
+#
+# Local only. Sovereign CDS and high yield spreads come from the Bloomberg
+# terminal, so the twin reads its own store (see src/twin.py) and never the one
+# `publish` pushes.
+
+swaps:
+  demand:
+    - out: payrolls_3m_ann
+      in:
+        id: spf_growth_revision
+        label: Revision to forecasters' 10-year GDP growth
+        source: {fred: SPF10GDP}
+        transform: diff_12m
+        normalize: {method: gap, center: 0.0, scale: 0.19}
+        direction: 1
+        carry_forward_periods: 2
+        horizon: long
+        why: >-
+          Expected lifetime income, re-rated: the change in what forecasters think
+          the economy can grow at over a decade.
+    - out: jobless_claims_yoy
+      in:
+        id: cbo_growth_revision
+        label: Revision to CBO five-year potential growth
+        source: {fred: CBO_POTGROWTH_REV}
+        transform: level
+        normalize: {method: gap, center: 0.0, scale: 0.16}
+        direction: 1
+        carry_forward_periods: 2
+        horizon: long
+        why: How much CBO has just marked the economy's speed limit up or down.
+
+  supply:
+    - out: supply_chain_pressure
+      in:
+        id: cbo_labour_force_revision
+        label: Revision to CBO potential labour force
+        source: {fred: CBO_LABFORCE_REV}
+        transform: level
+        normalize: {method: gap, center: 0.0, scale: 0.54}
+        direction: -1
+        carry_forward_periods: 2
+        horizon: long
+        why: More future workers loosens the constraint; the L in Solow, revised.
+
+  monetary:
+    - out: financial_conditions
+      in:
+        id: target_miss_rate
+        label: Share of the last 36 months off target
+        source: {fred: PCEPILFE}
+        transform: off_target_share_36m
+        normalize: {method: gap, center: 42.8, scale: 30.7}
+        direction: -1
+        horizon: long
+        why: Track record. A bank that keeps missing is behind the curve.
+    - out: taylor_gap_expected
+      in:
+        id: inflation_volatility
+        label: Inflation volatility, 36 months
+        source: {fred: PCEPILFE}
+        transform: vol_36m
+        normalize: {method: gap, center: 0.29, scale: 0.12}
+        direction: -1
+        horizon: long
+        why: Unanchored inflation swings; steady inflation is what credibility looks like.
+    - out: real_fed_funds
+      in:
+        id: forecaster_disagreement
+        label: Forecaster disagreement on inflation
+        source: {fred: SPFDISP}
+        transform: level
+        normalize: {method: gap, center: 0.68, scale: 0.21}
+        direction: -1
+        carry_forward_periods: 2
+        horizon: medium
+        why: Forecasters scatter when nobody is sure what the bank will tolerate.
+
+  fiscal:
+    - out: primary_balance_gdp
+      in:
+        id: primary_balance_3y
+        label: Primary balance, 3-year change
+        source:
+          expr: (balance_12m + interest_12m) / GDPNOM * 100
+          fred: [MTSBAL, MTSNETINT, GDPNOM]
+          derived:
+            balance_12m: {fred: MTSBAL, transform: sum_12m}
+            interest_12m: {fred: MTSNETINT, transform: sum_12m}
+        transform: diff_36m_ann
+        normalize: {method: gap, center: 0.0, scale: 1.16}
+        direction: 1
+        horizon: medium
+        why: The government's sustained posture over a budget and its follow-through.
+    - out: debt_sustainability_gap
+      in:
+        id: sovereign_cds
+        label: US sovereign CDS, 5-year
+        source: {fred: CDS5Y_US}
+        transform: level
+        absolute_level: true
+        normalize: {method: gap, center: 46.7, scale: 10.2}
+        direction: 1
+        horizon: long
+        why: >-
+          The one fiscal reading priced by someone with money at stake. A level,
+          because a default-risk price means something as it stands.
+
+  investment:
+    - out: building_permits_yoy
+      in:
+        id: capital_age
+        label: Average age of the capital stock, change
+        source: {fred: CAPAGE}
+        transform: diff_12m
+        normalize: {method: gap, center: 0.14, scale: 0.14}
+        direction: -1
+        carry_forward_periods: 2
+        horizon: long
+        why: An ageing capital stock means investment is not keeping up with retirement.
+    - out: ci_lending_standards
+      in:
+        id: hy_spread_change
+        label: Change in high yield spreads
+        source: {fred: HYOAS}
+        transform: diff_12m
+        normalize: {method: gap, center: 0.0, scale: 2.97}
+        direction: -1
+        horizon: medium
+        why: The repricing of credit risk, not its level, is what stops capex.
+
+# Indicators kept but read differently.
+changes:
+  balance_sheet_impulse:
+    label: Fed securities held, 3-year annualised change, % of GDP
+    transform: diff_36m_ann
+    normalize: {method: gap, center: 0.0, scale: 1.32}
+  equity_risk_premium:
+    label: Change in the equity risk premium
+    transform: diff_12m
+    normalize: {method: gap, center: 0.0, scale: 0.92}

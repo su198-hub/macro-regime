@@ -206,3 +206,44 @@ series:
       Reserve. Monthly since 1973. The part of corporate bond spreads left after
       removing compensation for expected default: the price of bearing credit
       risk rather than the risk itself. Mean zero by construction.
+
+  # Twin-only series (config/twin.yml). Nothing in the live model reads these.
+  SPF10GDP:
+    macrobond: usfcst0722
+    note: >-
+      SPF mean expected real GDP growth over the next ten years. Asked once a
+      year despite the quarterly label, so the revision is annual.
+  SPFDISP:
+    macrobond: usfcst2854
+    note: >-
+      SPF cross-sectional dispersion, GDP price index four quarters ahead,
+      quarterly from 1968. Near-term, not ten-year: long-run dispersion is not
+      published.
+  CAPAGE:
+    macrobond: bea001_106e1ptotl1es00_a
+    note: BEA current-cost average age of private fixed assets, equipment. Annual from 1925.
+  CDS5Y_US:
+    use: bloomberg
+    bloomberg: "US CDS USD SR 5Y D14 Corp"
+    note: >-
+      US sovereign CDS, 5-year, dollar contract, from August 2018. The euro
+      contract is missing 2017 and 2019-23 and is not spliced on.
+  HYOAS:
+    use: bloomberg
+    bloomberg: "LF98OAS Index"
+    note: Bloomberg US Corporate High Yield option-adjusted spread, from 1994.
+  # Built by src/twin.py from Macrobond's vintage history, not fetched: a
+  # target-dated projection has to be turned into a dated revision first.
+  CBO_POTGROWTH_REV:
+    use: derived
+    derived_from: usfcst1985
+    note: >-
+      Revision to CBO's five-year-ahead potential growth rate between
+      consecutive projections, in points. Growth rather than level, because the
+      level jumps at every BEA rebasing.
+  CBO_LABFORCE_REV:
+    use: derived
+    derived_from: usfcst0572
+    note: >-
+      Revision to CBO's five-year-ahead potential labour force between
+      consecutive projections, in log percent.

@@ -74,6 +74,49 @@ def dev_5y_pct(s: pd.Series) -> pd.Series:
     return (s / base - 1.0) * 100
 
 
+def diff_36m_ann(s: pd.Series) -> pd.Series:
+    """Change over three years, per year.
+
+    For stances that are set over a policy cycle rather than a calendar year.
+    QE and QT run for years, and a budget takes a year or two to follow
+    through; a twelve-month window turns one sustained programme into a run of
+    on-and-off pulses. Annualised so its scale reads like the one-year change.
+    """
+    n = 3 * _periods_per_year(s)
+    return (s - s.shift(n)) / 3
+
+
+def _inflation(s: pd.Series) -> pd.Series:
+    return s.pct_change(_periods_per_year(s)) * 100
+
+
+def off_target_share_36m(s: pd.Series) -> pd.Series:
+    """Share of the last three years inflation spent outside 1.5-2.5%, in %.
+
+    Takes a price index and works out the inflation itself, so the indicator
+    reads straight off the core PCE series already in the set. A track record:
+    a central bank that has missed for three years is believed less than one
+    that has not, whatever its stance today. Counts misses in both directions,
+    because an undershoot the bank could not fix is also a credibility cost.
+    """
+    infl = _inflation(s)
+    n = 3 * _periods_per_year(s)
+    off = ((infl < 1.5) | (infl > 2.5)).astype(float).where(infl.notna())
+    return off.rolling(n, min_periods=n).mean() * 100
+
+
+def vol_36m(s: pd.Series) -> pd.Series:
+    """Standard deviation of inflation over the last three years, in points.
+
+    Distinct from the miss rate: inflation through the 2010s was persistently
+    below target but very steady, a credible undershoot, where 2021-23 was
+    both off target and violent. One statistic cannot tell those apart.
+    """
+    infl = _inflation(s)
+    n = 3 * _periods_per_year(s)
+    return infl.rolling(n, min_periods=n).std()
+
+
 TRANSFORMS = {
     "level": level,
     "yoy_pct": yoy_pct,
@@ -82,6 +125,9 @@ TRANSFORMS = {
     "sum_12m": sum_12m,
     "dev_5y_pct": dev_5y_pct,
     "pct_change_5y_ann": pct_change_5y_ann,
+    "diff_36m_ann": diff_36m_ann,
+    "off_target_share_36m": off_target_share_36m,
+    "vol_36m": vol_36m,
 }
 
 

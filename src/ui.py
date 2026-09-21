@@ -1043,6 +1043,9 @@ TRANSFORM_TEXT = {
     "diff_12m": "Change from a year earlier, in units",
     "sum_12m": "Sum over the last twelve months",
     "dev_5y_pct": "Difference from its own five-year average, %",
+    "diff_36m_ann": "Change over 3 years, per year",
+    "off_target_share_36m": "Share of the last 3 years with inflation outside 1.5-2.5%",
+    "vol_36m": "Volatility of inflation over the last 3 years",
 }
 UP, DOWN = "#e34948", "#2a78d6"   # diverging poles: pushes the driver up / down
 
