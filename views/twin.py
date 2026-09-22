@@ -18,6 +18,7 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 
+from src import backtest as bt
 from src import twin as tw
 from src import ui
 from src.drivers import compute, load_config
@@ -52,6 +53,8 @@ def _score(db_path: str, stamp: float, vintage: dt.date):
             res = compute(store, cfg, vintage)
             res.update(run(res["drivers"], reg))
             out[name] = {k: res[k] for k in ("drivers", "calls", "probabilities", "indicators")}
+        # The benchmark needs only three series every store already holds.
+        out["actual"] = store.as_of(["UNRATE", "NROU", "PCEPILFE"], vintage)
         return out
     finally:
         store.close()
@@ -114,6 +117,42 @@ st.html(f'<p style="margin-top:0.8rem;font-size:1rem">{latest:%B %Y}: the live m
         f'<b>{ui.esc(rlabel.get(now_live, now_live))}</b>, the twin calls '
         f'<b>{ui.esc(rlabel.get(now_twin, now_twin))}</b>'
         f'{" — the same call." if same else " — they disagree."}</p>')
+
+
+# ---------- the backtest ----------
+
+st.html(ui.section_head(
+    "How each did, after the fact",
+    caption="Each month's call against what the economy actually did in the six months "
+            "either side. An NBER recession anywhere in that window is a hard landing. "
+            "Otherwise growth held if the unemployment gap rose by no more than 0.1 "
+            "points, and inflation was high if core PCE averaged above 2.5%. Slow growth "
+            "with low inflation and no recession fits no archetype, so declining to call "
+            "it counts as right."))
+
+truth = bt.realised(res["actual"])
+# `calls` is already limited to months both models fully scored.
+scored = {"live": calls["live"], "twin": calls["twin"]}
+board = bt.scorecard(scored, truth, since="1990")
+since03 = bt.scorecard(scored, truth, since="2003")
+pct = lambda x: f"{x:.0%}"
+rows_bt = []
+for measure in board.index:
+    fmt_ = (lambda v: f"{int(v)}") if measure.endswith("months") else pct
+    rows_bt.append([measure, fmt_(board.loc[measure, "live"]), fmt_(board.loc[measure, "twin"])])
+    if measure == "Months called correctly":
+        rows_bt.append(["…since 2003", pct(since03.loc[measure, "live"]),
+                        pct(since03.loc[measure, "twin"])])
+st.html(ui.table(["Measure", "Live (presented)", "Twin (proposed)"], rows_bt, numeric={1, 2}))
+naive_regime, naive_share = board.attrs["naive"]
+st.caption(
+    f"{board.attrs['months']} months, {board.attrs['first'].strftime('%b %Y')} to "
+    f"{board.attrs['last'].strftime('%b %Y')}. "
+    f"A costly error is a recession called a good regime, or a hard landing called in "
+    f"Goldilocks. For scale: always calling {rlabel.get(naive_regime, naive_regime)} "
+    f"would get {naive_share:.0%} of months right, while saying nothing about recessions. "
+    f"Both models are scored on today's revised data, so the absolute numbers flatter "
+    f"both; the comparison between them is like for like.")
 
 
 # ---------- the two calls through time ----------
