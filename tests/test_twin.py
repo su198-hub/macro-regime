@@ -41,11 +41,23 @@ def test_the_twin_swaps_exactly_what_twin_yml_lists():
 
 
 def test_a_new_indicator_takes_the_weight_of_the_one_it_replaces():
+    """Unless `reweight` says otherwise, which is the only way a weight moves."""
     live_w = {i["id"]: i["weight"] for d in LIVE["drivers"].values() for i in d["indicators"]}
     twin_w = {i["id"]: i["weight"] for d in TWIN["drivers"].values() for i in d["indicators"]}
+    deliberate = OVERLAY.get("reweight") or {}
     for swaps in OVERLAY["swaps"].values():
         for s in swaps:
-            assert twin_w[s["in"]["id"]] == live_w[s["out"]], s["in"]["id"]
+            ind_id = s["in"]["id"]
+            if ind_id in deliberate:
+                continue
+            assert twin_w[ind_id] == live_w[s["out"]], ind_id
+
+
+def test_every_reweight_is_an_actual_change():
+    """A reweight that matches the live weight is a stale line, not a decision."""
+    live_w = {i["id"]: i["weight"] for d in LIVE["drivers"].values() for i in d["indicators"]}
+    for ind_id, weight in (OVERLAY.get("reweight") or {}).items():
+        assert live_w.get(ind_id) != weight, ind_id
 
 
 def test_everything_not_swapped_is_identical():
@@ -92,6 +104,36 @@ def test_derived_series_have_a_builder():
 def test_a_bad_overlay_names_the_problem():
     with pytest.raises(KeyError, match="does not have"):
         tw.build_config(LIVE, {"swaps": {"demand": [{"out": "nonexistent", "in": {"id": "x"}}]}})
+
+
+def test_an_addition_joins_its_driver_and_counts_as_added():
+    cfg = tw.build_config(LIVE, {"adds": {"demand": [
+        {"id": "extra", "weight": 0.0, "source": {"fred": "X"}, "horizon": "long"}]}})
+    assert "extra" in {i["id"] for i in cfg["drivers"]["demand"]["indicators"]}
+    assert "extra" in cfg["meta"]["horizons"]["long"]
+    assert tw.swapped_ids({"adds": {"demand": [{"id": "extra"}]}})[1] == {"extra"}
+
+
+def test_an_addition_without_a_weight_is_refused():
+    """A swap can inherit one; an addition has nothing to inherit from."""
+    with pytest.raises(KeyError, match="without a weight"):
+        tw.build_config(LIVE, {"adds": {"demand": [{"id": "extra", "source": {"fred": "X"}}]}})
+
+
+def test_a_reweight_changes_only_the_weight():
+    ind = LIVE["drivers"]["demand"]["indicators"][0]["id"]
+    cfg = tw.build_config(LIVE, {"reweight": {ind: 0.01}})
+    got = next(i for i in cfg["drivers"]["demand"]["indicators"] if i["id"] == ind)
+    live = next(i for i in LIVE["drivers"]["demand"]["indicators"] if i["id"] == ind)
+    assert got["weight"] == 0.01
+    assert {k: v for k, v in got.items() if k != "weight"} == \
+           {k: v for k, v in live.items() if k != "weight"}
+    assert ind in tw.swapped_ids({"reweight": {ind: 0.01}})[2]
+
+
+def test_a_reweight_of_something_absent_names_the_problem():
+    with pytest.raises(KeyError, match="does not have"):
+        tw.build_config(LIVE, {"reweight": {"nonexistent": 0.1}})
 
 
 # ---------- transforms ----------

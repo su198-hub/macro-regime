@@ -70,6 +70,25 @@ def build_config(live: dict, overlay: dict) -> dict:
             inds[pos] = incoming
             retag(swap["out"], incoming["id"], horizon)
 
+    # Additions and reweights. A swap keeps a driver the same size; these let
+    # one grow and let an existing indicator's weight fall — which is how a
+    # driver says an input matters less without dropping it.
+    for driver, adds in (overlay.get("adds") or {}).items():
+        for spec in adds:
+            incoming = copy.deepcopy(spec)
+            horizon = incoming.pop("horizon", None)
+            if "weight" not in incoming:
+                raise KeyError(f"twin.yml adds {incoming['id']} without a weight")
+            cfg["drivers"][driver]["indicators"].append(incoming)
+            retag(None, incoming["id"], horizon)
+
+    for ind_id, weight in (overlay.get("reweight") or {}).items():
+        target = next((i for d in cfg["drivers"].values() for i in d["indicators"]
+                       if i["id"] == ind_id), None)
+        if target is None:
+            raise KeyError(f"twin.yml reweights {ind_id}, which the twin does not have")
+        target["weight"] = weight
+
     for ind_id, patch in (overlay.get("changes") or {}).items():
         target = next((i for d in cfg["drivers"].values() for i in d["indicators"]
                        if i["id"] == ind_id), None)
@@ -80,13 +99,20 @@ def build_config(live: dict, overlay: dict) -> dict:
 
 
 def swapped_ids(overlay: dict) -> tuple[set[str], set[str], set[str]]:
-    """(removed, added, changed) indicator ids, for labelling the comparison."""
+    """(removed, added, changed) indicator ids, for labelling the comparison.
+
+    Added covers both halves of a swap and any outright addition; changed
+    covers indicators kept but read differently or given a new weight.
+    """
     out, into = set(), set()
     for swaps in (overlay.get("swaps") or {}).values():
         for s in swaps:
             out.add(s["out"])
             into.add(s["in"]["id"])
-    return out, into, set((overlay.get("changes") or {}))
+    for adds in (overlay.get("adds") or {}).values():
+        into.update(spec["id"] for spec in adds)
+    changed = set(overlay.get("changes") or {}) | set(overlay.get("reweight") or {})
+    return out, into, changed - into
 
 
 # ---------- series built from vintages rather than fetched ----------

@@ -99,7 +99,7 @@ st.html(ui.section_head(
     "How often the two agree", meta=f"latest confirmed month {latest:%B %Y}",
     caption="Share of months where both models called the same regime. The windows "
             "matter: some proposed series start late — sovereign CDS in 2018, CBO's "
-            "labour-force revisions in 2003, its potential-growth revisions in 1997 — and "
+            "labour-force revisions in 2003 — and "
             "before then the twin scores those drivers on fewer indicators."))
 cells = []
 for label, since in windows:
@@ -229,8 +229,10 @@ else:
 
 st.html(ui.section_head(
     "Which drivers the new indicators move",
-    caption="Driver scores under each model. Inflation expectations is unchanged by "
-            "construction; everywhere else, the gap is the effect of the swapped indicators."))
+    caption="Driver scores under each model. The gap is the effect of the proposed "
+            "indicators — largest on demand, where the unemployment gap has been cut to "
+            "0.15 and the CBO revision dropped, and slightest on inflation expectations, "
+            "which only adds a 5% revision alongside the anchors it already reads."))
 now = latest
 rows = []
 for d in live_cfg["drivers"]:
@@ -263,19 +265,37 @@ st.altair_chart(ui.style(line), use_container_width=True)
 # ---------- what changed ----------
 
 st.html(ui.section_head("What the twin changes",
-                        caption="Read from config/twin.yml. Each new indicator takes the "
-                                "weight of the one it replaces; nothing else moves."))
+                        caption="Read from config/twin.yml. A swapped-in indicator takes the "
+                                "weight of the one it replaces, so the only weights that move "
+                                "are the two listed here as deliberate cuts."))
 names = {i["id"]: i.get("label", i["id"]) for d in live_cfg["drivers"].values()
          for i in d["indicators"]}
+live_w = {i["id"]: i.get("weight", 0) for d in live_cfg["drivers"].values()
+          for i in d["indicators"]}
 tnames = {i["id"]: (i.get("label", i["id"]), i.get("weight", 0), d_key)
           for d_key, d in twin_cfg["drivers"].items() for i in d["indicators"]}
+reweighted = overlay.get("reweight") or {}
 table = []
 for driver, swaps in (overlay.get("swaps") or {}).items():
     for s in swaps:
         nid = s["in"]["id"]
         table.append([dlabel[driver], names.get(s["out"], s["out"]), tnames[nid][0],
                       f"{tnames[nid][1]:.0%}"])
-for ind_id in changed:
+for driver, adds in (overlay.get("adds") or {}).items():
+    for spec in adds:
+        table.append([dlabel[driver], "— added, nothing dropped —",
+                      tnames[spec["id"]][0], f"{tnames[spec['id']][1]:.0%}"])
+for ind_id in (overlay.get("changes") or {}):
     table.append([dlabel[tnames[ind_id][2]], names.get(ind_id, ind_id),
                   f"{tnames[ind_id][0]} (read differently)", f"{tnames[ind_id][1]:.0%}"])
+for ind_id, weight in reweighted.items():
+    was = live_w.get(ind_id)
+    # A swapped-in indicator has no live weight of its own; it inherited the
+    # weight of what it replaced, so that is what the cut is measured from.
+    if was is None:
+        was = next(live_w[s["out"]] for sw in (overlay.get("swaps") or {}).values()
+                   for s in sw if s["in"]["id"] == ind_id)
+    verb = "weight cut" if weight < was else "weight raised"
+    table.append([dlabel[tnames[ind_id][2]], names.get(ind_id, tnames[ind_id][0]),
+                  f"{tnames[ind_id][0]} ({verb} from {was:.0%})", f"{weight:.0%}"])
 st.html(ui.table(["Driver", "Out", "In", "Weight"], table, numeric={3}))
