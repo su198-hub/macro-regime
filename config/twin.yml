@@ -1,238 +1,56 @@
-# The twin: the live US model with the bench's proposed indicator set swapped in.
+# The twin: the live US model with a proposed indicator set swapped in.
 #
-# Not a second copy of indicators.yml. The twin is built at run time as the live
-# config plus the differences listed here, so a change to the live model flows
-# into the twin automatically and the two differ only where this file says they
-# do. That is what makes the comparison mean something: any gap between the two
-# calls is caused by the indicators, not by a centre or a salience drifting
-# apart unnoticed.
+# EMPTY ON PURPOSE, as of 24 September 2026. Every swap that was here has been
+# adopted into config/indicators.yml, so there is nothing left for the twin to
+# differ by and the /twin page reports the two models as identical. That is the
+# proposal having been accepted, not the file having been abandoned.
 #
-# RULE FOR WEIGHTS. Each new indicator takes the weight of the one it replaces,
-# and nothing else moves: same centres, scales, salience, archetypes and
-# settings for everything kept. The comparison then isolates the indicator
-# change itself.
+# HOW IT WORKS. The twin is built at run time as the live config plus the
+# differences listed here, so a change to the live model flows into the twin
+# automatically and the two differ only where this file says. That is what
+# makes the comparison mean something: any gap between the two calls is caused
+# by the indicators, not by a centre or a salience drifting apart unnoticed.
 #
-# Two weights break that rule on purpose, and both are listed under `reweight`
-# below so they can be read off in one place: the unemployment gap is cut from
-# 0.25 to 0.15 as a lagging read of demand, and the long-run CPI level gives up
-# 0.05 to its own revision. Every other weight is inherited.
+# TO PROPOSE SOMETHING NEW, add it back under one of four keys:
 #
-# Centres and scales for the new indicators come from each series' own history
-# to 2019 where it has one (the live model's convention), otherwise from all of
-# it; revisions are centred on zero, because no revision is the neutral reading.
+#   swaps      one indicator out, one in. The incoming one inherits the
+#              outgoing one's weight unless it states its own, so the driver
+#              stays the same size.
+#   adds       an indicator joins a driver outright. It must state a weight,
+#              having nothing to inherit.
+#   reweight   an existing weight changes. A value equal to the live one fails
+#              a test rather than sitting there looking like a decision.
+#   changes    an indicator is kept but read differently -- a new transform,
+#              centre or scale.
 #
-# JUDGEMENT CALLS, flagged because each one moves the result:
-#   - Credibility enters the monetary axis as behind-the-curve: a bank that has
-#     missed its target, lets inflation swing, or leaves forecasters scattered
-#     reads as DOVISH (direction -1). The monetary axis runs dovish to hawkish,
-#     and credibility is not naturally on it; this is the reading that matches
-#     the high-growth, high-inflation archetype.
-#   - CBO potential GDP is revised as its five-year-ahead GROWTH RATE, not its
-#     level. The level jumps 10-14% at each BEA rebasing (2000, 2010, 2014, 2024)
-#     because the whole projection changes units; growth rates are immune.
-#   - The labour force is revised as its five-year-ahead LEVEL, in persons, which
-#     rebasing does not touch and which is how the 2024 immigration upgrade shows.
+# Centres and scales for anything new come from the series' own history to 2019
+# where it has one (the live model's convention), otherwise from all of it.
+# A revision to a growth RATE is centred on zero, because no revision is the
+# neutral reading; a revision to a nominal LEVEL is not, because the level
+# drifts with inflation and trend growth.
 #
-# Local only. Sovereign CDS and high yield spreads come from the Bloomberg
-# terminal, so the twin reads its own store (see src/twin.py) and never the one
-# `publish` pushes.
+# WHAT WAS LEARNED HERE, so the next proposal does not relitigate it:
+#
+#   - The ex-post scorecard cannot rank two reasonable indicator choices. Every
+#     variant tried sat inside roughly a 15-point interval and overlapped the
+#     naive always-Goldilocks baseline. Use it as a floor test, not a ranking.
+#   - Nor can a forward-looking test, at the horizon these indicators are for.
+#     Simulated on 55 years of monthly data, the three-year test finds a TRUE
+#     correlation of 0.3 only 38% of the time. Failing it is weak evidence.
+#   - So indicators are chosen on construct validity, and the tests that do
+#     have power are the negative ones: the CBO potential-growth revision
+#     correlating +0.44 with growth already published; analysts' expected
+#     growth RATE rising through all four recessions because its base is the
+#     near-term year that collapses; homebuilders scoring +0.68 to 2012 and
+#     -0.00 after, one housing episode wearing an indicator's clothes.
+#   - Always split the sample before believing a headline correlation.
+#
+# LICENSING. Four series in the live set now come from the Bloomberg terminal
+# (CDS5Y_US, HYOAS, SPX_RETL, SPX_CONS). `ingest.py publish` refuses to push
+# them unless --allow-licensed is passed, which is deliberate and recorded in
+# the snapshot manifest.
 
-swaps:
-  demand:
-    # THE SLOT JOBLESS CLAIMS AND THE CBO REVISION USED TO HOLD.
-    #
-    # CBO's potential-growth revision was dropped as backward-looking: it
-    # correlates +0.44 with growth already published when CBO writes, and only
-    # +0.21 with the growth of the year that follows.
-    #
-    # Seven replacements were tested. The question asked of each was the one
-    # this driver actually cares about: does it say anything about CONSUMPTION
-    # to come. Correlation with real consumer spending over the next year, with
-    # a moving-block bootstrap interval:
-    #
-    #   retailers / staples, 12m change   +0.29  [+0.08, +0.51]   leads 9m
-    #   Conference Board expectations     +0.30  [+0.11, +0.50]   coincident
-    #   homebuilders / S&P vs 5y avg      +0.29  [+0.11, +0.71]   one episode
-    #   HLW trend growth revision         -0.03  [-0.19, +0.14]
-    #   5y5y forward real rate            +0.07  [-0.27, +0.40]
-    #   analyst 3FY EPS revision          +0.01  [-0.05, +0.07]
-    #   net worth to income               -0.14  [-0.32, +0.04]
-    #
-    # Retailers against staples wins the slot. It is a relative price, so the
-    # discount rate largely cancels -- both legs are valued off the same curve
-    # -- and what is left is the market's view of the consumer. It survives the
-    # test that killed the others: with the 2004-12 housing cycle removed it
-    # still adds information beyond simply extrapolating current spending
-    # (partial correlation +0.24, 95% [+0.02, +0.44]).
-    #
-    # WHAT IT IS NOT. Its correlation with spending two and three years out is
-    # +0.08 and +0.08 -- zero. This is a three-quarter signal, and it is tagged
-    # medium-horizon and cyclical on the bench for that reason. It does not
-    # make the driver more structural; it makes it more accurate about the
-    # consumer. Do not present it as the long-horizon measure.
-    #
-    # WHY THERE IS NO LONG-HORIZON MEASURE HERE. Six valuation-based equity
-    # measures were tried at the three-year horizon -- relative cyclically
-    # adjusted earnings, dividend yield, market cap to GDP, growth versus value
-    # -- and none survived. That is weaker evidence than it looks: a simulation
-    # of this exact test, on 55 years of monthly data, finds a TRUE three-year
-    # correlation of 0.3 only 38% of the time. Sixty years holds about twenty
-    # independent three-year windows. Long-horizon indicators cannot be chosen
-    # on demonstrated predictive power, because no achievable sample can
-    # demonstrate it; they have to be chosen on construct validity. The
-    # negative tests in this file -- the +0.49 echo, the wrong-signed growth
-    # rate, the one-episode housing measure -- are the ones with power.
-    #
-    # Dividend futures would answer the long-horizon question directly, being
-    # the market's quote on distant cash flows. The US contracts start in
-    # November 2015: 130 readings, too few to test.
-    - out: jobless_claims_yoy
-      in:
-        id: retail_vs_staples
-        label: Retailers against consumer staples, 12-month change
-        source:
-          expr: SPX_RETL / SPX_CONS * 100
-          fred: [SPX_RETL, SPX_CONS]
-        transform: yoy_pct
-        # Centred on +6.0, not zero: retailers beat staples by six points a
-        # year on average to 2019, so a flat year is already the consumer being
-        # marked down.
-        normalize: {method: gap, center: 6.0, scale: 18.7}
-        direction: 1
-        horizon: medium
-        why: >-
-          The market's read on the consumer, with the discount rate divided
-          out: both legs are valued off the same curve, so what is left is how
-          households are expected to spend.
-
-  supply:
-    - out: supply_chain_pressure
-      in:
-        id: cbo_labour_force_revision
-        label: Revision to CBO potential labour force
-        source: {fred: CBO_LABFORCE_REV}
-        transform: level
-        normalize: {method: gap, center: 0.0, scale: 0.54}
-        direction: -1
-        carry_forward_periods: 2
-        horizon: long
-        why: More future workers loosens the constraint; the L in Solow, revised.
-
-  monetary:
-    - out: financial_conditions
-      in:
-        id: target_miss_rate
-        label: Share of the last 36 months off target
-        source: {fred: PCEPILFE}
-        transform: off_target_share_36m
-        normalize: {method: gap, center: 42.8, scale: 30.7}
-        direction: -1
-        horizon: long
-        why: Track record. A bank that keeps missing is behind the curve.
-    - out: taylor_gap_expected
-      in:
-        id: inflation_volatility
-        label: Inflation volatility, 36 months
-        source: {fred: PCEPILFE}
-        transform: vol_36m
-        normalize: {method: gap, center: 0.29, scale: 0.12}
-        direction: -1
-        horizon: long
-        why: Unanchored inflation swings; steady inflation is what credibility looks like.
-    - out: real_fed_funds
-      in:
-        id: forecaster_disagreement
-        label: Forecaster disagreement on inflation
-        source: {fred: SPFDISP}
-        transform: level
-        normalize: {method: gap, center: 0.68, scale: 0.21}
-        direction: -1
-        carry_forward_periods: 2
-        horizon: medium
-        why: Forecasters scatter when nobody is sure what the bank will tolerate.
-
-  fiscal:
-    - out: primary_balance_gdp
-      in:
-        id: primary_balance_3y
-        label: Primary balance, 3-year change
-        source:
-          expr: (balance_12m + interest_12m) / GDPNOM * 100
-          fred: [MTSBAL, MTSNETINT, GDPNOM]
-          derived:
-            balance_12m: {fred: MTSBAL, transform: sum_12m}
-            interest_12m: {fred: MTSNETINT, transform: sum_12m}
-        transform: diff_36m_ann
-        normalize: {method: gap, center: 0.0, scale: 1.16}
-        direction: 1
-        horizon: medium
-        why: The government's sustained posture over a budget and its follow-through.
-    - out: debt_sustainability_gap
-      in:
-        id: sovereign_cds
-        label: US sovereign CDS, 5-year
-        source: {fred: CDS5Y_US}
-        transform: level
-        absolute_level: true
-        normalize: {method: gap, center: 46.7, scale: 10.2}
-        direction: 1
-        horizon: long
-        why: >-
-          The one fiscal reading priced by someone with money at stake. A level,
-          because a default-risk price means something as it stands.
-
-  investment:
-    - out: building_permits_yoy
-      in:
-        id: capital_age
-        label: Average age of the capital stock, change
-        source: {fred: CAPAGE}
-        transform: diff_12m
-        normalize: {method: gap, center: 0.14, scale: 0.14}
-        direction: -1
-        carry_forward_periods: 2
-        horizon: long
-        why: An ageing capital stock means investment is not keeping up with retirement.
-    - out: ci_lending_standards
-      in:
-        id: hy_spread_change
-        label: Change in high yield spreads
-        source: {fred: HYOAS}
-        transform: diff_12m
-        normalize: {method: gap, center: 0.0, scale: 2.97}
-        direction: -1
-        horizon: medium
-        why: The repricing of credit risk, not its level, is what stops capex.
-
-# Indicators added outright, with an existing weight cut to make room.
-#
-# The inflation axis is the one place a revision cannot simply replace a level.
-# An anchor is a statement about WHERE expectations sit against 2%, and a
-# revision throws that away: expectations stuck at 4% would score zero the
-# moment they stopped moving, which is the opposite of what de-anchored means.
-# The evidence says the same. Over 1991-2026 neither the level nor the revision
-# forecasts realised CPI (correlations with the next three, five and ten years
-# are 0.02/0.01/0.05 for the level, 0.05/0.03/-0.03 for the revision), so
-# nothing is gained by trading one for the other. What the revision adds is the
-# moment the anchor moves: +0.48 through 2022, -0.63 through 2023, invisible in
-# a level that only ever travels between 2.1 and 2.6.
-#
-# So both, at 0.10 each. They are not two readings of the same thing: the level
-# and its own twelve-month change correlate -0.14 and disagree in sign in 51%
-# of quarters, which is the case the pair exists for -- an anchor above target
-# but falling is not an anchor stuck above target. At 0.05 the revision was
-# nearly inert (it moved the driver by 0.03 on average, and 0.005 in the latest
-# month); at 0.10 it can actually speak in a disinflation, which is the one
-# moment it has something to say. Its largest contributions are 1993 and 1995,
-# when the level read 3.3% and 3.0% while the revision ran -0.43 and -0.46, and
-# it pulled the driver 0.21 back toward neutral.
-# Indicators kept but read differently.
-changes:
-  balance_sheet_impulse:
-    label: Fed securities held, 3-year annualised change, % of GDP
-    transform: diff_36m_ann
-    normalize: {method: gap, center: 0.0, scale: 1.32}
-  equity_risk_premium:
-    label: Change in the equity risk premium
-    transform: diff_12m
-    normalize: {method: gap, center: 0.0, scale: 0.92}
+swaps: {}
+adds: {}
+reweight: {}
+changes: {}

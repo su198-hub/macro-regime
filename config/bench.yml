@@ -155,9 +155,9 @@ drivers:
       # past it: average unemployment lasts about six months, so a claims print
       # is absorbed within two quarters and carries no information about year
       # five by construction.
-      - id: jobless_claims_yoy
+      - id: cand_jobless_claims_yoy
         name: Initial jobless claims
-        status: in_set
+        status: candidate
         preselect: false
         horizon: short
         nature: news
@@ -293,10 +293,9 @@ drivers:
           one needs the vintage-diff transform: this vintage's 2035 estimate less the
           previous vintage's.
 
-      - id: cand_retail_vs_staples
+      - id: retail_vs_staples
         name: Retailers against consumer staples
-        status: candidate
-        preselect: true
+        status: in_set
         horizon: medium
         nature: cyclical
         kind: market
@@ -642,9 +641,9 @@ drivers:
       # Opens unticked, with the potential labour force revision in its place.
       # The most news-bound input in supply: it turns in weeks and says nothing
       # about whether the economy's capacity to produce is growing.
-      - id: supply_chain_pressure
+      - id: cand_supply_chain_pressure
         name: Global supply chain pressure
-        status: in_set
+        status: candidate
         preselect: false
         horizon: short
         nature: news
@@ -734,10 +733,9 @@ drivers:
           series as a denominator; its growth rate says whether the limit is rising.
         measured: Federal Reserve G.17 capacity index, monthly, re-estimated annually.
 
-      - id: cand_cbo_labour_force_revision
+      - id: cbo_labour_force_revision
         name: Revision to CBO potential labour force
-        status: candidate
-        preselect: true
+        status: in_set
         horizon: long
         nature: structural
         kind: model
@@ -819,9 +817,9 @@ drivers:
       # Opens unticked. The shortest-horizon input in the driver: a weekly index
       # of market prices that turns on news and says nothing about the stance
       # policy is actually set at.
-      - id: financial_conditions
+      - id: cand_financial_conditions
         name: Financial conditions index
-        status: in_set
+        status: candidate
         preselect: false
         horizon: short
         nature: cyclical
@@ -854,9 +852,9 @@ drivers:
       # Opens unticked. One measure of the stance is enough: this and the real
       # rate below are both the Taylor gap with a term swapped, and all three
       # move together. The anchor above is kept because it is the most complete.
-      - id: taylor_gap_expected
+      - id: cand_taylor_gap_expected
         name: Taylor gap on expected inflation
-        status: in_set
+        status: candidate
         preselect: false
         horizon: medium
         nature: cyclical
@@ -891,9 +889,9 @@ drivers:
       # Opens unticked, for the same reason: the Taylor gap without the rule's
       # coefficients. A useful cross-check when the driver had room for it, but
       # a third reading of one stance crowds out everything else.
-      - id: real_fed_funds
+      - id: cand_real_fed_funds
         name: Real fed funds less neutral
-        status: in_set
+        status: candidate
         preselect: false
         horizon: medium
         nature: cyclical
@@ -929,10 +927,9 @@ drivers:
       # given stance is enough. The real 10-year TIPS yield was dropped from
       # here: the 5y5y forward real rate in demand now covers it better.
 
-      - id: cand_target_miss_rate
+      - id: target_miss_rate
         name: Share of the last 36 months off target
-        status: candidate
-        preselect: true
+        status: in_set
         horizon: long
         nature: structural
         kind: official
@@ -947,10 +944,9 @@ drivers:
           Rolling share computed from core PCE, already in the set. Needs a
           share-outside-a-band transform the model does not have yet.
 
-      - id: cand_inflation_volatility
+      - id: inflation_volatility
         name: Inflation volatility, 36 months
-        status: candidate
-        preselect: true
+        status: in_set
         horizon: long
         nature: structural
         kind: official
@@ -966,10 +962,9 @@ drivers:
           Rolling standard deviation of core PCE year-over-year over 36 months.
           Needs a rolling-volatility transform.
 
-      - id: cand_forecaster_disagreement
+      - id: forecaster_disagreement
         name: Forecaster disagreement on inflation
-        status: candidate
-        preselect: true
+        status: in_set
         horizon: medium
         nature: cyclical
         kind: survey
@@ -1045,9 +1040,9 @@ drivers:
     label: Fiscal policy
     items:
       # Opens unticked: the three-year change and the impulse carry the stance.
-      - id: primary_balance_gdp
+      - id: cand_primary_balance_gdp
         name: Primary balance
-        status: in_set
+        status: candidate
         preselect: false
         horizon: medium
         nature: cyclical
@@ -1075,9 +1070,9 @@ drivers:
       # Opens unticked as a row of its own, but not discarded: r minus g is the
       # input to the debt-stabilising balance below, which is a more legible
       # number than the spread on its own.
-      - id: debt_sustainability_gap
+      - id: cand_debt_sustainability_gap
         name: 10-year yield less nominal GDP growth
-        status: in_set
+        status: candidate
         preselect: false
         horizon: long
         nature: structural
@@ -1114,10 +1109,9 @@ drivers:
         refers: What the debt ratio actually did, against what r−g says it should.
         measured: Fed Financial Accounts (Z.1), quarterly at ~73 days — the slowest release in the set.
 
-      - id: cand_primary_balance_3y
+      - id: primary_balance_3y
         name: Primary balance, 3-year change
-        status: candidate
-        preselect: true
+        status: in_set
         horizon: medium
         nature: structural
         kind: official
@@ -1202,10 +1196,9 @@ drivers:
           Treasury quarterly refunding and auction results. Bill-heavy funding is very
           different for markets than duration-heavy.
 
-      - id: cand_sovereign_cds
+      - id: sovereign_cds
         name: Sovereign CDS on Treasuries
-        status: candidate
-        preselect: true
+        status: in_set
         horizon: long
         nature: structural
         kind: market
@@ -1256,9 +1249,9 @@ drivers:
       # Opens unticked. A good housing-cycle timer with a nine to twelve month
       # lead, but purely cyclical, and the driver had nothing structural at all.
       # Swapped for the average age of the capital stock below.
-      - id: building_permits_yoy
+      - id: cand_building_permits_yoy
         name: Building permits
-        status: in_set
+        status: candidate
         preselect: false
         horizon: medium
         nature: cyclical
@@ -1300,9 +1293,9 @@ drivers:
       # Opens unticked. A quarterly survey of what banks say they will do, and
       # the change in high yield spreads below prices the same credit conditions
       # daily and from people with money at stake.
-      - id: ci_lending_standards
+      - id: cand_ci_lending_standards
         name: Banks tightening lending standards
-        status: in_set
+        status: candidate
         preselect: false
         horizon: medium
         nature: cyclical
@@ -1345,10 +1338,9 @@ drivers:
           change in how corporate America uses cash, not a cyclical swing.
         measured: Announced repurchase authorisations against reported capex, aggregated.
 
-      - id: cand_capital_age
+      - id: capital_age
         name: Average age of the capital stock
-        status: candidate
-        preselect: true
+        status: in_set
         horizon: long
         nature: structural
         kind: official
@@ -1407,10 +1399,9 @@ drivers:
           corporate analogue of the fiscal interest burden already carried.
         measured: EBIT over interest expense, aggregated by rating bucket. Quarterly.
 
-      - id: cand_hy_oas
+      - id: hy_spread_change
         name: Change in high yield spreads
-        status: candidate
-        preselect: true
+        status: in_set
         horizon: medium
         nature: cyclical
         kind: market

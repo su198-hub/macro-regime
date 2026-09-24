@@ -161,8 +161,14 @@ def test_the_page_opens_on_a_proposal_that_could_itself_ship():
 
 
 def test_the_opening_proposal_reads_as_a_swap_against_what_ships():
+    """Nothing is preselected now, and that is the proposal having been adopted.
+
+    Every candidate that opened ticked was taken into the set in September 2026,
+    so the page opens on what ships. The invariant still worth holding is that
+    if something is put forward again, it reads as a coherent swap rather than
+    as a row that quietly disagrees with the set.
+    """
     pre, drop = set(bn.preselect_ids(BENCH)), set(bn.predrop_ids(BENCH))
-    assert pre, "nothing is preselected; drop this test if that is deliberate"
     assert not (pre & set(bn.in_set_ids(BENCH))), "a scored row is marked preselect: true"
     d = bn.diff(BENCH, set(bn.opening_ids(BENCH)))
     assert {r["id"] for r in d["added"]} == pre
@@ -189,11 +195,17 @@ def test_each_driver_offers_a_short_readable_list():
         assert 5 <= len(candidates) <= 8, f"{key} offers {len(candidates)} candidates"
 
 
-def test_summary_reports_the_structural_share_and_the_empty_drivers():
+def test_every_driver_now_has_structural_content():
+    """This test used to assert the gap; it now guards the fix.
+
+    The bench existed because four drivers out of six had no structural content
+    at all. After the September 2026 adoption every driver has some — the whole
+    set went from 18% structural to 38% — so the summary no longer reports the
+    gap, and this fails if one reopens.
+    """
     text = bn.summary(BENCH, set(bn.in_set_ids(BENCH)))
     assert "structural" in text
-    assert "no structural content at all in:" in text, \
-        "the live set has drivers with no structural content; the summary should say so"
+    assert "no structural content at all in:" not in text, text
 
 
 def test_diff_and_summary_report_a_swap():

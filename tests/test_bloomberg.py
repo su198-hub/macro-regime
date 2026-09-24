@@ -93,4 +93,41 @@ def test_publish_refuses_a_store_holding_licensed_data(tmp_path, vendor):
     store.record_meta("CDS", vendor)
     store.close()
     with pytest.raises(SystemExit, match="do not allow redistribution"):
-        ingest.cmd_publish(argparse.Namespace(db=str(db)))
+        ingest.cmd_publish(argparse.Namespace(db=str(db), allow_licensed=False))
+
+
+@pytest.mark.parametrize("vendor", sorted(ingest.RESTRICTED_VENDORS))
+def test_allow_licensed_gets_past_the_guard_and_says_so(tmp_path, vendor, capsys):
+    """The override exists for a vendor agreement, and must leave a trace.
+
+    It gets no further than the guard here: publishing needs git and a remote,
+    so the test asserts the refusal is lifted and the decision announced, not
+    that the push succeeds.
+    """
+    db = tmp_path / "store.duckdb"
+    store = Store(db)
+    store.upsert_observations(pd.DataFrame({
+        "series_id": ["CDS"], "observation_date": [dt.date(2026, 1, 2)],
+        "vintage_date": [dt.date(2026, 1, 2)], "value": [31.0]}))
+    store.record_meta("CDS", vendor)
+    store.close()
+    try:
+        ingest.cmd_publish(argparse.Namespace(db=str(db), allow_licensed=True))
+    except SystemExit as exc:                     # any exit must not be the guard
+        assert "do not allow redistribution" not in str(exc)
+    except Exception:
+        pass                                      # git/remote missing is fine here
+    assert "--allow-licensed" in capsys.readouterr().out
+
+
+def test_the_guard_is_the_default(tmp_path):
+    """A publish that forgets the flag entirely still refuses."""
+    db = tmp_path / "store.duckdb"
+    store = Store(db)
+    store.upsert_observations(pd.DataFrame({
+        "series_id": ["CDS"], "observation_date": [dt.date(2026, 1, 2)],
+        "vintage_date": [dt.date(2026, 1, 2)], "value": [31.0]}))
+    store.record_meta("CDS", "bloomberg")
+    store.close()
+    with pytest.raises(SystemExit, match="do not allow redistribution"):
+        ingest.cmd_publish(argparse.Namespace(db=str(db)))   # no attribute at all

@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import json
 import os
 import sys
 
@@ -196,6 +197,22 @@ def _pull(args, full_history: bool):
     failed = 0
     for i, sid in enumerate(series, 1):
         try:
+            entry = (sources.get("series") or {}).get(sid) or {}
+            if entry.get("use") == "derived" and not args.source:
+                # Built from a vendor's vintage history rather than fetched: a
+                # target-dated projection has to be turned into a dated revision
+                # first. Same builders the twin store uses, so the two agree.
+                from src import twin as tw
+                if "macrobond" not in vendors:
+                    vendors["macrobond"] = open_vendor("macrobond")
+                df = tw.DERIVED[sid](vendors["macrobond"].api).assign(series_id=sid)
+                n = store.upsert_observations(df)
+                code = entry.get("derived_from", sid)
+                store.record_meta(sid, "macrobond", source_code=code,
+                                  title=str(entry.get("note", sid)).strip()[:120],
+                                  units="", frequency="irregular", has_vintages=True)
+                print(f"  [{i:>2}/{len(series)}] {sid:<12} derived:{code:<20} {n:>7} rows")
+                continue
             vendor, code = route(sid, sources, args.source)
             if vendor not in vendors:
                 vendors[vendor] = open_vendor(vendor)
@@ -277,14 +294,19 @@ def cmd_publish(args):
     if "demo" in store.sources():
         sys.exit(f"{args.db} holds demo data; refusing to publish it as real data.")
     restricted = sorted(set(store.sources()) & RESTRICTED_VENDORS)
-    if restricted:
+    if restricted and not getattr(args, "allow_licensed", False):
         store.close()
         sys.exit(
             f"{args.db} holds series from {', '.join(restricted)}, whose licences do "
-            f"not allow redistribution, and publish pushes to a public branch. Refusing "
-            f"rather than dropping them quietly, which would make the hosted app score a "
-            f"different model from the local one. Decide first whether those series "
-            f"belong in the published model at all.")
+            f"not allow redistribution by default, and publish pushes to a public "
+            f"branch. Refusing rather than dropping them quietly, which would make the "
+            f"hosted app score a different model from the local one.\n\n"
+            f"If the vendor has agreed to this, pass --allow-licensed. That is a "
+            f"deliberate act and it is recorded: the flag is in your shell history, and "
+            f"the snapshot's manifest names the vendors it carries.")
+    if restricted:
+        print(f"--allow-licensed: publishing {', '.join(restricted)} data to a PUBLIC "
+              f"branch on the stated authority of the vendor. Recorded in the manifest.")
 
     git = shutil.which("git") or r"C:\Program Files\Git\cmd\git.exe"
     root = os.path.dirname(os.path.abspath(__file__))
@@ -299,6 +321,15 @@ def cmd_publish(args):
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
         manifest = export_snapshot(store, tmp)
         store.close()
+        if restricted:
+            # The audit trail. Anyone who finds this snapshot can see which
+            # licensed vendors it carries and that it was published knowingly.
+            manifest["licensed_vendors"] = restricted
+            manifest["licensed_note"] = (
+                "Published with --allow-licensed on the stated authority of the "
+                "vendor. Contains data from: " + ", ".join(restricted))
+            with open(os.path.join(tmp, "manifest.json"), "w") as f:
+                json.dump(manifest, f, indent=2, default=str)
         with open(os.path.join(tmp, "README.md"), "w") as f:
             f.write(DATA_README)
 
@@ -395,9 +426,16 @@ def main():
                                                   "data/regime.duckdb"))
     sub = p.add_subparsers(dest="cmd", required=True)
     for name, fn in [("backfill", cmd_backfill), ("sync", cmd_sync),
-                     ("coverage", cmd_coverage), ("publish", cmd_publish),
-                     ("demo", cmd_demo)]:
+                     ("coverage", cmd_coverage), ("demo", cmd_demo)]:
         sub.add_parser(name).set_defaults(func=fn)
+    pub = sub.add_parser("publish", help="Export the store to the public data branch.")
+    pub.add_argument(
+        "--allow-licensed", action="store_true",
+        help="Publish even though the store holds vendor data whose default terms "
+             "forbid redistribution. Only with the vendor's agreement: this pushes to "
+             "a PUBLIC branch read by a public app. The choice is recorded in the "
+             "snapshot manifest.")
+    pub.set_defaults(func=cmd_publish)
     twin = sub.add_parser(
         "twin-build",
         help="Build the twin's store (main store + proposed series) for the /twin page.")

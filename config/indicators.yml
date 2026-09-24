@@ -70,19 +70,17 @@ meta:
   # the 2% target is meant to be read as a level, since the target is a policy
   # commitment rather than an average that drifts.
   horizons:
-    short: [jobless_claims_yoy, umich_1y, supply_chain_pressure,
-            financial_conditions]
+    short: [umich_1y]
     medium: [real_pce_yoy, unemployment_gap, wage_growth_yoy, capacity_utilisation,
-             vacancies_per_unemployed, unit_labour_costs_yoy, oil_inventory_tightness,
-             taylor_gap, taylor_gap_expected, real_fed_funds, balance_sheet_impulse,
-             primary_balance_gdp, fiscal_impulse, debt_trajectory,
-             core_capex_orders_yoy, real_nonres_investment_yoy,
-             building_permits_yoy, excess_bond_premium, ci_lending_standards]
+            vacancies_per_unemployed, unit_labour_costs_yoy, oil_inventory_tightness,
+            taylor_gap, balance_sheet_impulse, fiscal_impulse, debt_trajectory,
+            core_capex_orders_yoy, real_nonres_investment_yoy, excess_bond_premium,
+            retail_vs_staples, forecaster_disagreement, primary_balance_3y,
+            hy_spread_change]
     long: [breakeven_5y5y, spf_long_run, spf_cpi_revision, spf_growth_revision,
-           inflation_risk_premium, cleveland_10y, productivity_yoy,
-           interest_burden_gdp, debt_sustainability_gap, equity_risk_premium,
-           yield_curve_slope]
-
+          inflation_risk_premium, cleveland_10y, productivity_yoy, interest_burden_gdp,
+          equity_risk_premium, yield_curve_slope, cbo_labour_force_revision,
+          target_miss_rate, inflation_volatility, sovereign_cds, capital_age]
 drivers:
 
   demand:
@@ -174,18 +172,28 @@ drivers:
           weight went to the ten-year growth revision above, the same question
           asked forward instead of backward.
 
-      # The weekly economic index was dropped here: it is a composite whose
-      # components are mostly jobless claims and retail sales, so next to the
-      # claims series below it was the same week's news counted twice, and it
-      # was the shortest-horizon input in the model.
-      - id: jobless_claims_yoy
-        label: Initial jobless claims, year over year
-        source: {fred: IC4WSA}
+      # Jobless claims were here and are out: the shortest-horizon input in
+      # the set, absorbed within two quarters and carrying nothing about the
+      # years the driver is meant to describe. This is the market's read on
+      # the consumer instead. A relative price, so the discount rate largely
+      # divides out -- both legs are valued off the same curve. It leads
+      # consumer spending by nine months (+0.29, 95% [+0.08, +0.51]) and
+      # keeps adding information beyond persistence once the 2004-12 housing
+      # cycle is removed. A three-quarter signal, not a structural one: its
+      # two-year correlation is +0.08.
+      - id: retail_vs_staples
+        label: Retailers against consumer staples, 12-month change
+        source:
+          expr: SPX_RETL / SPX_CONS * 100
+          fred: [SPX_RETL, SPX_CONS]
         transform: yoy_pct
-        normalize: {method: gap, center: 0.0, scale: 20.0}
-        direction: -1
-        weight: 0.10
-        why: Weekly and early at turning points. Rising claims mean weakening demand.
+        normalize: {method: gap, center: 6.0, scale: 18.7}
+        direction: 1
+        weight: 0.1
+        why: >-
+          The market's read on the consumer, with the discount rate divided
+          out: both legs are valued off the same curve, so what is left is how
+          households are expected to spend.
 
   inflation_expectations:
     label: Inflation expectations
@@ -368,31 +376,23 @@ drivers:
           Faster productivity growth relieves the constraint, so it enters
           inverted. Paired with unit labor costs, which is this net of wages.
 
-      - id: supply_chain_pressure
-        label: Global supply chain pressure
-        source: {fred: GSCPI}
+      # Global supply chain pressure was here and is out: a 2020-22 artefact
+      # that sat near zero for most of its history. The binding constraint
+      # over a regime is how many people there will be to employ, so this is
+      # the L in Solow, revised -- how much CBO has changed its view of the
+      # labour force five years out. A LEVEL revision in persons, because
+      # rebasing does not touch it, and because that is how the 2024
+      # immigration upgrade shows up.
+      - id: cbo_labour_force_revision
+        label: Revision to CBO potential labour force
+        source: {fred: CBO_LABFORCE_REV}
         transform: level
-        normalize: {method: gap, center: 0.0, scale: 1.0}
-        direction: 1
+        normalize: {method: gap, center: 0.0, scale: 0.54}
+        direction: -1
         weight: 0.15
-        why: Input bottlenecks from shipping, delivery times and backlogs, out days after month end.
-
-  # Policy is split in two, as on the scenario slide. Monetary and fiscal
-  # stance often move in opposite directions and regimes differ on each, so a
-  # single combined score would let them cancel out.
-  # Monetary policy reads "too hawkish / too dovish" against what conditions
-  # call for, so its core is a Taylor-rule gap: the fed funds rate less the
-  # rate the rule recommends.
-  #
-  #   Taylor rate = r* + inflation + 0.5 x (inflation - 2) + 0.5 x output gap
-  #
-  # r* (real neutral rate) is the FOMC's longer-run fed funds median less the
-  # 2% target where published (2012 on), otherwise the NY Fed's one-sided
-  # Holston-Laubach-Williams estimate. The output gap is 2 x (CBO noncyclical
-  # unemployment rate - unemployment rate), an Okun's-law proxy that updates
-  # monthly. The recommended rate is floored at 0.125%, the middle of the zero
-  # lower-bound range, so years at zero do not read as too hawkish.
-  # Coefficients (0.5, 0.5, 2) and the floor are Taylor (1993) choices to argue with.
+        carry_forward_periods: 2
+        why: >-
+          More future workers loosens the constraint; the L in Solow, revised.
   monetary:
     label: Monetary policy
     description: How restrictive policy is against what inflation and slack call for, plus financial conditions.
@@ -424,56 +424,36 @@ drivers:
         carry_forward_periods: 6
         why: Policy against what inflation and slack call for. Below zero, the Fed is behind the curve.
 
-      - id: taylor_gap_expected
-        label: Fed funds rate less Taylor rule rate, using expected inflation
-        source:
-          expr: "FEDFUNDS - taylor_rate_expected"
-          fred: [FEDFUNDS, EXPINF1YR, UNRATE, NROU, SEPLR, HLWRSTAR]
-          derived:
-            neutral_sep: {expr: "SEPLR - 2"}
-            neutral_rate: {first_of: [neutral_sep, HLWRSTAR]}
-            output_gap: {expr: "2 * (NROU - UNRATE)"}
-            taylor_rate_expected:
-              expr: "neutral_rate + EXPINF1YR + 0.5 * (EXPINF1YR - 2) + 0.5 * output_gap"
-              floor: 0.125
-        transform: level
-        normalize: {method: gap, center: 0.0, scale: 1.5}
-        direction: 1
+      - id: inflation_volatility
+        label: Inflation volatility, 36 months
+        source: {fred: PCEPILFE}
+        transform: vol_36m
+        normalize: {method: gap, center: 0.29, scale: 0.12}
+        direction: -1
         weight: 0.15
-        carry_forward_periods: 6
-        why: Forward-looking version of the rule, available weeks before core PCE.
+        why: >-
+          Unanchored inflation swings; steady inflation is what credibility
+          looks like.
 
-      - id: real_fed_funds
-        label: Real fed funds rate less neutral rate
-        source:
-          expr: "FEDFUNDS - core_pce_yoy - neutral_rate"
-          fred: [FEDFUNDS, PCEPILFE, UNRATE, NROU, SEPLR, HLWRSTAR]
-          derived: *taylor_inputs
+      - id: forecaster_disagreement
+        label: Forecaster disagreement on inflation
+        source: {fred: SPFDISP}
         transform: level
-        normalize: {method: gap, center: 0.0, scale: 1.5}
-        direction: 1
-        weight: 0.10
-        carry_forward_periods: 6
-        release: PCE report
-        why: Plain stance check with no rule coefficients. Guards against the Taylor rule's uncertain inputs.
-
-      - id: financial_conditions
-        label: Financial conditions index
-        source: {fred: NFCI}
-        transform: level
-        normalize: {method: gap, center: 0.0, scale: 0.5}
-        direction: 1
-        weight: 0.20
-        why: Captures credit spreads and leverage the funds rate misses.
-
-      # The rule-based indicators above judge the stance against what today's
-      # inflation and slack call for. The curve is the other question: what the
-      # market thinks that stance will do. An inverted curve says short rates
-      # are expected to fall, which is the bond market's verdict that policy is
-      # tight enough to break something. Inverted before every postwar
-      # recession, with two false positives, 1966 and the 28-month inversion of
-      # 2022 to 2024 — so it is carried at a weight that informs rather than
-      # decides.
+        normalize: {method: gap, center: 0.68, scale: 0.21}
+        direction: -1
+        weight: 0.1
+        carry_forward_periods: 2
+        why: >-
+          Forecasters scatter when nobody is sure what the bank will tolerate.
+      - id: target_miss_rate
+        label: Share of the last 36 months off target
+        source: {fred: PCEPILFE}
+        transform: off_target_share_36m
+        normalize: {method: gap, center: 42.8, scale: 30.7}
+        direction: -1
+        weight: 0.2
+        why: >-
+          Track record. A bank that keeps missing is behind the curve.
       - id: yield_curve_slope
         label: Yield curve, 10-year less 1-year
         source:
@@ -494,12 +474,12 @@ drivers:
       # QE and QT actually move, against GDP, so it is a flow like the fiscal
       # impulse: buying is easing, running off is tightening.
       - id: balance_sheet_impulse
-        label: Fed securities held, change over a year, % of GDP
+        label: Fed securities held, 3-year annualised change, % of GDP
         source:
           expr: "WSHOSHO / GDPNOM * 100"
           fred: [WSHOSHO, GDPNOM]
-        transform: diff_12m
-        normalize: {method: gap, center: 0.0, scale: 2.0}
+        transform: diff_36m_ann
+        normalize: {method: gap, center: 0.0, scale: 1.32}
         direction: -1
         weight: 0.15
         why: >-
@@ -520,20 +500,21 @@ drivers:
       mid: {phrase: fiscal policy is roughly neutral}
       reverse: true
     indicators:
-      - id: primary_balance_gdp
-        label: Primary balance, % of GDP
+      - id: primary_balance_3y
+        label: Primary balance, 3-year change
         source:
-          expr: "(balance_12m + interest_12m) / GDPNOM * 100"
+          expr: (balance_12m + interest_12m) / GDPNOM * 100
           fred: [MTSBAL, MTSNETINT, GDPNOM]
           derived:
             balance_12m: {fred: MTSBAL, transform: sum_12m}
             interest_12m: {fred: MTSNETINT, transform: sum_12m}
-        transform: level
-        normalize: {method: gap, center: -1.0, scale: 3.0}
+        transform: diff_36m_ann
+        normalize: {method: gap, center: 0.0, scale: 1.16}
         direction: 1
         weight: 0.35
-        release: Monthly Treasury Statement
-        why: The budget balance before interest. The government's own stance, stripped of past debt costs.
+        why: >-
+          The government's sustained posture over a budget and its
+          follow-through.
 
       - id: fiscal_impulse
         label: Fiscal impulse, change in primary balance over a year
@@ -561,30 +542,17 @@ drivers:
         weight: 0.10
         why: Debt rising faster than usual means fiscal is adding to demand. Inverted.
 
-      # Whether the debt stabilises on its own comes down to one difference: the
-      # rate paid on the debt against the growth of the economy carrying it.
-      # Above zero the stock compounds and the room for support narrows whatever
-      # this year's deficit is; below zero it erodes quietly. A spread, so it
-      # cycles rather than drifting the way a level of debt does.
-      - id: debt_sustainability_gap
-        label: 10-year yield less nominal GDP growth
-        source:
-          expr: "DGS10 - gdp_growth"
-          fred: [DGS10, GDPNOM]
-          derived:
-            # Trend growth, not this year's: a year-on-year rate would carry
-            # whichever recession sits in the window and read 2020 as the
-            # moment fiscal room vanished, which is backwards.
-            gdp_growth: {fred: GDPNOM, transform: pct_change_5y_ann}
+      - id: sovereign_cds
+        label: US sovereign CDS, 5-year
+        source: {fred: CDS5Y_US}
         transform: level
-        normalize: {method: gap, center: -0.25, scale: 1.2}
+        normalize: {method: gap, center: 46.7, scale: 10.2}
         direction: 1
+        absolute_level: true
         weight: 0.15
-        carry_forward_periods: 2
         why: >-
-          r minus g, the term that decides whether debt compounds. Positive
-          narrows the room for fiscal support, so it pushes toward the small
-          fiscal end even when the deficit is wide.
+          The one fiscal reading priced by someone with money at stake. A
+          level, because a default-risk price means something as it stands.
 
       - id: interest_burden_gdp
         label: Net interest outlays, % of GDP
@@ -627,26 +595,21 @@ drivers:
         weight: 0.20
         why: The actual spend. Quarterly and heavily revised, hence vintages.
 
-      # Housing is the most cyclical sector in the economy and the longest
-      # leading one, turning four to six quarters before business capex, and
-      # the model had no residential exposure at all. Permits rather than
-      # starts: the decision to build, before ground is broken.
-      - id: building_permits_yoy
-        label: Building permits, year over year
-        source: {fred: PERMIT}
-        transform: yoy_pct
-        normalize: {method: gap, center: 1.65, scale: 17.0}
-        direction: 1
+      # Building permits were here and are out: housing starts are a
+      # short-horizon read on one sector, and the driver is about the capital
+      # stock. An ageing stock means investment is not keeping up with
+      # retirement, which is the K in Solow going backwards.
+      - id: capital_age
+        label: Average age of the capital stock, change
+        source: {fred: CAPAGE}
+        transform: diff_12m
+        normalize: {method: gap, center: 0.14, scale: 0.14}
+        direction: -1
         weight: 0.15
+        carry_forward_periods: 2
         why: >-
-          The earliest read on residential investment, monthly since 1954.
-          Replaces manufacturing construction, which saw only the reshoring and
-          chip-fab building and missed the housing cycle entirely.
-
-      # The price of credit risk, stripped of the compensation for expected
-      # default: what lenders charge for bearing it. Rises when credit is being
-      # rationed for reasons unconnected to the borrower, which is what stops
-      # investment. Mean zero by construction, so the center needs no judgment.
+          An ageing capital stock means investment is not keeping up with
+          retirement.
       - id: excess_bond_premium
         label: Excess bond premium
         source: {fred: EBP}
@@ -659,38 +622,22 @@ drivers:
           risk. Inverted: a wide premium means credit is dear and capex is next
           to stop. Forecasts investment better than a raw spread does.
 
-      - id: ci_lending_standards
-        label: Banks tightening business lending standards, net %
-        source: {fred: DRTSCILM}
-        transform: level
-        normalize: {method: gap, center: 5.0, scale: 20.0}
+      - id: hy_spread_change
+        label: Change in high yield spreads
+        source: {fred: HYOAS}
+        transform: diff_12m
+        normalize: {method: gap, center: 0.0, scale: 2.97}
         direction: -1
-        weight: 0.10
+        weight: 0.1
         why: >-
-          Net tightening chokes capex with roughly two quarters of lag. Held at
-          a lower weight now that the excess bond premium prices the same
-          credit conditions from the market side rather than the survey side.
-
-      # The NFIB capex-plans survey was dropped here. It was the shortest
-      # horizon input in the driver, covered small business only, and the
-      # financing measures now in its place — the cost of equity, the price of
-      # credit risk, the availability of bank credit — say more about whether
-      # the next round of investment happens than an intentions survey does.
-
-      # Everything else in this driver measures investment that has already
-      # happened or been ordered. This is what it costs to fund the next round:
-      # the earnings yield on equity over a ten-year real rate, which is the
-      # hurdle capital has to clear. Cheap equity finance supports capex, so a
-      # thin premium reads as supportive; the counter-argument, that a thin
-      # premium is froth that ends badly, is about what happens next rather
-      # than about conditions now, which is what this driver measures.
+          The repricing of credit risk, not its level, is what stops capex.
       - id: equity_risk_premium
-        label: Equity risk premium over the real 10-year yield
+        label: Change in the equity risk premium
         source:
           expr: "100 / CAPE - (DGS10 - EXPINF10YR)"
           fred: [CAPE, DGS10, EXPINF10YR]
-        transform: level
-        normalize: {method: gap, center: 2.1, scale: 1.4}
+        transform: diff_12m
+        normalize: {method: gap, center: 0.0, scale: 0.92}
         direction: -1
         weight: 0.15
         why: >-

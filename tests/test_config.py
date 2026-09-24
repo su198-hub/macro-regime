@@ -78,15 +78,27 @@ def test_long_horizon_inputs_are_never_raw_levels_by_accident():
     trend, or a spread — or else say in config that its level is the point, as
     an inflation expectation measured against the target is. The flag is there
     to make that a decision rather than an oversight.
+
+    A series that is ALREADY a revision is the third case. Its observations are
+    differences between consecutive projections, so reading it at `level` reads
+    a difference: it is centred on zero and stationary by construction, and
+    differencing it again would score the change in the change.
     """
     horizon = ui.horizons(CFG)
-    changes = {"yoy_pct", "diff_12m", "dev_5y_pct", "pct_change_5y_ann", "pct_change_3m_ann"}
+    # Dispersion and share-of-time statistics belong here too: a rolling
+    # standard deviation, or a count of months spent off target, is already
+    # detrended and cannot score which decade it is the way a raw level can.
+    changes = {"yoy_pct", "diff_12m", "dev_5y_pct", "pct_change_5y_ann",
+               "pct_change_3m_ann", "diff_36m_ann", "vol_36m", "off_target_share_36m"}
     for d in DRIVERS.values():
         for i in d["indicators"]:
             if horizon.get(i["id"]) != "long":
                 continue
             transform = i.get("transform", "level")
             is_spread = "-" in i["source"].get("expr", "")
-            assert transform in changes or is_spread or i.get("absolute_level"), (
+            already_a_revision = any(
+                str(s).endswith("_REV") for s in i["source"].values() if isinstance(s, str))
+            assert (transform in changes or is_spread or i.get("absolute_level")
+                    or already_a_revision), (
                 f"{i['id']} is long-horizon and enters as a raw level: difference it, "
                 f"or set absolute_level: true and say why in its reason")
