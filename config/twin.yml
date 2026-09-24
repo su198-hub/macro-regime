@@ -12,6 +12,11 @@
 # settings for everything kept. The comparison then isolates the indicator
 # change itself.
 #
+# Two weights break that rule on purpose, and both are listed under `reweight`
+# below so they can be read off in one place: the unemployment gap is cut from
+# 0.25 to 0.15 as a lagging read of demand, and the long-run CPI level gives up
+# 0.05 to its own revision. Every other weight is inherited.
+#
 # Centres and scales for the new indicators come from each series' own history
 # to 2019 where it has one (the live model's convention), otherwise from all of
 # it; revisions are centred on zero, because no revision is the neutral reading.
@@ -47,17 +52,71 @@ swaps:
         why: >-
           Expected lifetime income, re-rated: the change in what forecasters think
           the economy can grow at over a decade.
+    # THE SLOT JOBLESS CLAIMS AND THE CBO REVISION USED TO HOLD.
+    #
+    # CBO's potential-growth revision was dropped as backward-looking: it
+    # correlates +0.44 with growth already published when CBO writes, and only
+    # +0.21 with the growth of the year that follows.
+    #
+    # Seven replacements were tested. The question asked of each was the one
+    # this driver actually cares about: does it say anything about CONSUMPTION
+    # to come. Correlation with real consumer spending over the next year, with
+    # a moving-block bootstrap interval:
+    #
+    #   retailers / staples, 12m change   +0.29  [+0.08, +0.51]   leads 9m
+    #   Conference Board expectations     +0.30  [+0.11, +0.50]   coincident
+    #   homebuilders / S&P vs 5y avg      +0.29  [+0.11, +0.71]   one episode
+    #   HLW trend growth revision         -0.03  [-0.19, +0.14]
+    #   5y5y forward real rate            +0.07  [-0.27, +0.40]
+    #   analyst 3FY EPS revision          +0.01  [-0.05, +0.07]
+    #   net worth to income               -0.14  [-0.32, +0.04]
+    #
+    # Retailers against staples wins the slot. It is a relative price, so the
+    # discount rate largely cancels -- both legs are valued off the same curve
+    # -- and what is left is the market's view of the consumer. It survives the
+    # test that killed the others: with the 2004-12 housing cycle removed it
+    # still adds information beyond simply extrapolating current spending
+    # (partial correlation +0.24, 95% [+0.02, +0.44]).
+    #
+    # WHAT IT IS NOT. Its correlation with spending two and three years out is
+    # +0.08 and +0.08 -- zero. This is a three-quarter signal, and it is tagged
+    # medium-horizon and cyclical on the bench for that reason. It does not
+    # make the driver more structural; it makes it more accurate about the
+    # consumer. Do not present it as the long-horizon measure.
+    #
+    # WHY THERE IS NO LONG-HORIZON MEASURE HERE. Six valuation-based equity
+    # measures were tried at the three-year horizon -- relative cyclically
+    # adjusted earnings, dividend yield, market cap to GDP, growth versus value
+    # -- and none survived. That is weaker evidence than it looks: a simulation
+    # of this exact test, on 55 years of monthly data, finds a TRUE three-year
+    # correlation of 0.3 only 38% of the time. Sixty years holds about twenty
+    # independent three-year windows. Long-horizon indicators cannot be chosen
+    # on demonstrated predictive power, because no achievable sample can
+    # demonstrate it; they have to be chosen on construct validity. The
+    # negative tests in this file -- the +0.49 echo, the wrong-signed growth
+    # rate, the one-episode housing measure -- are the ones with power.
+    #
+    # Dividend futures would answer the long-horizon question directly, being
+    # the market's quote on distant cash flows. The US contracts start in
+    # November 2015: 130 readings, too few to test.
     - out: jobless_claims_yoy
       in:
-        id: cbo_growth_revision
-        label: Revision to CBO five-year potential growth
-        source: {fred: CBO_POTGROWTH_REV}
-        transform: level
-        normalize: {method: gap, center: 0.0, scale: 0.16}
+        id: retail_vs_staples
+        label: Retailers against consumer staples, 12-month change
+        source:
+          expr: SPX_RETL / SPX_CONS * 100
+          fred: [SPX_RETL, SPX_CONS]
+        transform: yoy_pct
+        # Centred on +6.0, not zero: retailers beat staples by six points a
+        # year on average to 2019, so a flat year is already the consumer being
+        # marked down.
+        normalize: {method: gap, center: 6.0, scale: 18.7}
         direction: 1
-        carry_forward_periods: 2
-        horizon: long
-        why: How much CBO has just marked the economy's speed limit up or down.
+        horizon: medium
+        why: >-
+          The market's read on the consumer, with the discount rate divided
+          out: both legs are valued off the same curve, so what is left is how
+          households are expected to spend.
 
   supply:
     - out: supply_chain_pressure
@@ -157,6 +216,59 @@ swaps:
         direction: -1
         horizon: medium
         why: The repricing of credit risk, not its level, is what stops capex.
+
+# Indicators added outright, with an existing weight cut to make room.
+#
+# The inflation axis is the one place a revision cannot simply replace a level.
+# An anchor is a statement about WHERE expectations sit against 2%, and a
+# revision throws that away: expectations stuck at 4% would score zero the
+# moment they stopped moving, which is the opposite of what de-anchored means.
+# The evidence says the same. Over 1991-2026 neither the level nor the revision
+# forecasts realised CPI (correlations with the next three, five and ten years
+# are 0.02/0.01/0.05 for the level, 0.05/0.03/-0.03 for the revision), so
+# nothing is gained by trading one for the other. What the revision adds is the
+# moment the anchor moves: +0.48 through 2022, -0.63 through 2023, invisible in
+# a level that only ever travels between 2.1 and 2.6.
+#
+# So both, at 0.10 each. They are not two readings of the same thing: the level
+# and its own twelve-month change correlate -0.14 and disagree in sign in 51%
+# of quarters, which is the case the pair exists for -- an anchor above target
+# but falling is not an anchor stuck above target. At 0.05 the revision was
+# nearly inert (it moved the driver by 0.03 on average, and 0.005 in the latest
+# month); at 0.10 it can actually speak in a disinflation, which is the one
+# moment it has something to say. Its largest contributions are 1993 and 1995,
+# when the level read 3.3% and 3.0% while the revision ran -0.43 and -0.46, and
+# it pulled the driver 0.21 back toward neutral.
+adds:
+  inflation_expectations:
+    - id: spf_cpi_revision
+      label: Revision to forecasters' 10-year CPI
+      source: {fred: SPFCPI10}
+      transform: diff_12m          # quarterly series, so a year of revisions
+      normalize: {method: gap, center: 0.0, scale: 0.14}
+      direction: 1
+      weight: 0.10
+      carry_forward_periods: 2
+      horizon: long
+      release: Survey of Professional Forecasters
+      why: >-
+        The anchor moving rather than where it sits. Small weight: it is the
+        only reading here that goes to zero when expectations are merely wrong
+        and stable, so it supplements the level and cannot stand in for it.
+
+# Weights changed outright.
+reweight:
+  spf_long_run: 0.10             # was 0.20, split evenly with its own revision
+                                 # below, so the SPF question still carries 0.20
+                                 # in total and nothing else moves.
+  # Slack is a lagging read of demand: the unemployment rate turns after the
+  # spending that causes it, and the gap depends on CBO's noncyclical rate,
+  # which is itself revised backwards. Cut from a quarter of the driver to
+  # 0.15. The released weight goes to the ten-year growth revision, which is
+  # the same question -- how much demand can this economy sustain -- asked
+  # forward instead of backward.
+  unemployment_gap: 0.15         # was 0.25
+  spf_growth_revision: 0.30      # was 0.20, the weight payrolls used to carry
 
 # Indicators kept but read differently.
 changes:

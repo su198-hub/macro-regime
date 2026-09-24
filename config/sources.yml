@@ -232,6 +232,35 @@ series:
     use: bloomberg
     bloomberg: "LF98OAS Index"
     note: Bloomberg US Corporate High Yield option-adjusted spread, from 1994.
+  HLW_TREND_G:
+    use: macrobond
+    macrobond: usfcst2426
+    note: >-
+      New York Fed Holston-Laubach-Williams trend growth, the g inside r*,
+      quarterly from 1961. One-sided estimates, so each quarter's figure uses
+      only data available then; the revision is the change between consecutive
+      quarters of that filtered path. Not a true vintage diff -- the model is
+      re-estimated, so the whole path moves a little -- but the one-sided
+      series is the standard real-time reading.
+  # The two sector indices behind the retail-versus-staples read. Kept as two
+  # series rather than one ratio so the ratio is formed in the indicator, where
+  # it can be seen.
+  SPX_RETL:
+    use: bloomberg
+    bloomberg: "S5RETL Index"
+    note: S&P 500 retailing industry group, daily from September 1989.
+  SPX_CONS:
+    use: bloomberg
+    bloomberg: "S5CONS Index"
+    note: S&P 500 consumer staples sector, daily from September 1989.
+  SPX_EPS_3FY:
+    use: bloomberg
+    bloomberg: "SPX Index|BEST_EPS|3FY"
+    note: >-
+      Consensus S&P 500 earnings for the third fiscal year out, monthly from
+      1990. The period override is what fixes the horizon at three years; plain
+      BEST_EPS means the current year, whose distance ahead shrinks as the year
+      runs on. Scored as a revision, never as a level.
   # Built by src/twin.py from Macrobond's vintage history, not fetched: a
   # target-dated projection has to be turned into a dated revision first.
   CBO_POTGROWTH_REV:

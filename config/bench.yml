@@ -108,7 +108,12 @@ drivers:
         enters: spread
         where: macrobond
         code: UNRATE − NROU
-        refers: Labour market slack measured against full employment rather than against zero.
+        refers: >-
+          Labour market slack measured against full employment rather than against
+          zero. KEPT BUT DEMOTED — weight cut from 0.25 to 0.15 in the proposed set.
+          Unemployment turns after the spending that causes it, and the benchmark it
+          is measured against is CBO's noncyclical rate, which is itself revised
+          backwards. The released weight goes to the ten-year growth revision.
         measured: >-
           Rate from the BLS household survey of ~60,000 households, first Friday.
           Noncyclical rate is CBO's estimate, updated once or twice a year.
@@ -242,18 +247,30 @@ drivers:
         code: usfcst2426
         refers: >-
           How much the New York Fed has moved its estimate of the economy's trend
-          growth rate — the g that sits inside r*. A model marking the speed limit up
-          or down, to set against the forecasters doing the same thing and the market
-          pricing it.
+          growth rate — the g that sits inside r*. The one candidate with NO
+          measurable echo of the past: it correlates +0.01 with growth already
+          published, against +0.44 for the CBO revision it replaces and +0.49 for the
+          analyst one, and it leads the unemployment gap by eighteen months. It is
+          not, however, demonstrably forward-looking — its correlation with the next
+          year's growth is +0.10, 95% [−0.03, +0.23], indistinguishable from zero.
+          NOT IN THE PROPOSED SET, and the reason is placement rather than quality:
+          against consumer spending, the thing this driver is about, it scores −0.03,
+          95% [−0.19, +0.14]. Trend growth of potential output is a SUPPLY quantity,
+          and it sat in demand only through the permanent-income argument, which the
+          data does not show. Worth moving to the supply driver, where the speed
+          limit belongs — an open decision, not a rejection. Note also that the New
+          York Fed suspended publication for 32 months, from August 2020 to May 2023.
         measured: >-
-          Holston-Laubach-Williams one-sided estimate, quarterly from 1961, using only
-          data available at each date. Re-estimated every quarter, so the series is
-          already a sequence of revisions.
+          Holston-Laubach-Williams one-sided estimate, quarterly from 1961 — 262
+          readings against the CBO revision's 67, with 33 vintages in Macrobond.
+          Scored as the four-quarter change, which moves more than 0.05 points in 69%
+          of quarters. Caveat: the model is re-estimated each quarter, so the whole
+          filtered path shifts a little; this is the standard real-time reading, not
+          a strict vintage difference.
 
       - id: cand_cbo_potential_revision
         name: Revision to CBO potential GDP for 2035
         status: candidate
-        preselect: true
         horizon: long
         nature: structural
         kind: model
@@ -262,53 +279,81 @@ drivers:
         code: usfcst1985
         refers: >-
           How much CBO has changed its estimate of what the economy will be capable of
-          producing in 2035 since it last published. A downgrade is a permanent-income
-          shock dated today — the clearest single example of scoring the revision
-          rather than the level, since the level itself is a number about a year that
-          has not happened.
+          producing in 2035 since it last published. Looks like the cleanest revision
+          in the set and is not: it correlates +0.44 with growth already published
+          when CBO writes, and only +0.21 with the growth of the year that follows.
+          CBO re-reads the recent past into its speed limit, so much of the series is
+          a slow echo of data the model has already scored. DROPPED for that reason —
+          though note the analyst revision that replaces it scores +0.49 on the same
+          backward test, so the swap is justified by frequency and by dropping a news
+          indicator, not by forward-lookingness.
         measured: >-
           CBO 10-Year Economic Projections, quarterly, currently running to 2036, with
           67 vintages in the store. Target-dated rather than forecast-dated, so this
           one needs the vintage-diff transform: this vintage's 2035 estimate less the
           previous vintage's.
 
-      - id: cand_real_5y5y
-        name: 5y5y forward real rate
+      - id: cand_retail_vs_staples
+        name: Retailers against consumer staples
         status: candidate
-        horizon: long
-        nature: structural
+        preselect: true
+        horizon: medium
+        nature: cyclical
         kind: market
-        enters: level
-        where: macrobond
-        code: us10ygov, us5ygov, ust5yifr
+        enters: change
+        where: bloomberg
+        code: S5RETL Index / S5CONS Index
+        vendor: Bloomberg
         refers: >-
-          The real rate the market prices for years six to ten — its view of trend
-          growth, since in equilibrium the real rate sits near the economy's growth
-          rate. Starting five years out strips the cycle, the same trick the 5y5y
-          breakeven uses. Carries a term premium too, so read it as growth plus noise.
+          What the market pays for the companies households spend at, against the
+          ones they cannot stop spending at. A relative price, so the discount rate
+          largely divides out — both legs are valued off the same curve — leaving the
+          market's view of the consumer. It predicts real consumer spending a year
+          out at +0.29, 95% [+0.08, +0.51], leads spending by nine months, and keeps
+          adding information beyond simple persistence with the 2004–12 housing cycle
+          removed (partial +0.24, 95% [+0.02, +0.44]). Its two- and three-year
+          correlations are +0.08: this is a three-quarter signal and nothing longer.
+          Preferred over the 5y5y forward real rate, the other market-priced
+          candidate, which is the cleaner idea — the real rate the market sets for
+          years six to ten is its view of trend growth — but scores +0.07, 95%
+          [−0.27, +0.40], against consumer spending.
         measured: >-
-          Built here, not published: the 5y5y nominal forward from the 5- and 10-year
-          benchmarks, less the 5y5y breakeven already in the set. Monthly from 2003,
-          currently 2.8% against a 2010s average of 0.9%.
+          S&P 500 retailing industry group over the consumer staples sector, daily
+          from September 1989, scored as the 12-month percent change. Centred on +6.0
+          rather than zero, because retailers beat staples by six points a year on
+          average to 2019, so a flat year is already a downgrade of the consumer.
 
       - id: cand_analyst_ltg
-        name: Revision to analysts' long-term growth expectations
+        name: Revision to analysts' three-year outlook
         status: candidate
         horizon: long
         nature: structural
         kind: survey
         enters: revision
-        where: external
-        vendor: CIQ / IBES
+        where: bloomberg
+        code: SPX Index|BEST_EPS|3FY
+        vendor: Bloomberg BEst / IBES
         refers: >-
-          The change in the 3-to-5 year earnings growth rate analysts attach to the
-          index — the bottom-up version of the same question, from people paid to be
-          right about individual companies rather than about the aggregate. The level
-          is known to be biased high, which is precisely why only the drift is usable.
+          The change in the three-year-ahead earnings analysts attach to the index —
+          the bottom-up version of the speed-limit question. Tested against the claim
+          that it is the forward-looking one, it FAILS: it correlates +0.49 with
+          growth already published, worse than the +0.44 of the CBO revision it was
+          meant to replace, and −0.08 with the next year's growth. It scores 4 points
+          better on the ex-post scorecard since 2003, but the interval on that gap is
+          [0.0, +11.5] — the backtest cannot separate the two — so the slot is decided
+          on the echo instead, and HLW holds it. Untick HLW and tick this to swap.
+          NOT the expected growth RATE, which is the natural reading and is
+          disqualified: measured from the near-term year, which is what collapses in a
+          recession, the rate ROSE through every recession in the sample — 2007 11.9 to
+          16.8, 2020 8.8 to 21.9, onset to six months in — and it follows the
+          unemployment gap by fourteen months. A ten-year earnings base fixes that sign
+          but still correlates +0.45 with past growth.
         measured: >-
-          Consensus long-term growth estimates aggregated across constituents,
-          refreshed monthly. Forecast-dated, so the revision is the change from the
-          previous month.
+          Consensus S&P 500 EPS for the third fiscal year out, monthly from 1990 — 438
+          readings. Scored as the 12-month percent revision, centred on +7.0 rather
+          than zero: it revises a nominal level that analysts mark up by 7% a year on
+          average, so an unchanged number is already bad news. Needs the
+          BEST_FPERIOD_OVERRIDE, or the horizon shortens as each year runs on.
 
       # --- The stock that permanent income is actually drawn from. Not
       # expectations, but not news either: these move over decades and set how
@@ -386,10 +431,43 @@ drivers:
         enters: level
         where: macrobond
         code: SPFCPI10
-        refers: What professional forecasters expect inflation to average over a decade.
+        refers: >-
+          What professional forecasters expect inflation to average over a decade.
+          Stays a LEVEL, and keeps half its weight: an anchor is a statement about
+          where expectations sit against 2%, so a revision alone would score
+          expectations stuck at 4% as neutral the moment they stopped moving. The
+          other half goes to the revision below — the two correlate −0.14 and
+          disagree in sign in 51% of quarters, so they are not one reading twice.
         measured: >-
           Philadelphia Fed survey of ~35 forecasters, quarterly since 1968, published
           mid-quarter. Centred on 2.3 because it forecasts CPI, not PCE.
+
+      # The revision half of the row above, added alongside it rather than in
+      # place of it. Neither version forecasts realised inflation, so there is
+      # nothing to gain by trading the level away; what the revision adds is
+      # the moment the anchor moves, which a level travelling between 2.1 and
+      # 2.6 for thirty years cannot show.
+      - id: cand_spf_cpi_revision
+        name: Revision to forecasters' 10-year CPI
+        status: candidate
+        preselect: true
+        horizon: long
+        nature: structural
+        kind: survey
+        enters: revision
+        where: macrobond
+        code: SPFCPI10
+        refers: >-
+          The anchor moving rather than where it sits. Ran +0.48 through 2022 as
+          forecasters marked the decade up, then −0.63 through 2023 as they took it
+          back — both invisible in a level that never left a half-point band. Small
+          Held at the same weight as the level, not more: it reads zero when
+          expectations are merely wrong and stable, which is the one thing a
+          de-anchoring measure must not miss.
+        measured: >-
+          Same Philadelphia Fed survey, scored as the four-quarter change: one
+          quarter's revision moves more than 0.1 points only a quarter of the time,
+          a year's accumulated revision about half the time.
 
       - id: umich_1y
         name: Household expectations, 1 year
