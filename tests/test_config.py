@@ -107,3 +107,29 @@ def test_long_horizon_inputs_are_never_raw_levels_by_accident():
                     or already_a_revision), (
                 f"{i['id']} is long-horizon and enters as a raw level: difference it, "
                 f"or set absolute_level: true and say why in its reason")
+
+
+def test_only_series_fred_actually_publishes_claim_a_fred_page():
+    """`fred_page` decides whether the methodology page links to FRED.
+
+    The page once linked all 38 series to fred.stlouisfed.org, and 20 of those
+    links went nowhere: the names are FRED-style by convention whatever the
+    vendor. The flag was set from a live check of fred.stlouisfed.org, so this
+    test cannot re-verify it offline. What it can hold is the shape: the flag
+    is boolean, it is only claimed for series the config knows about, and it is
+    never claimed for a series built here, which by definition FRED has no page
+    for.
+    """
+    import yaml
+    sources = yaml.safe_load(open("config/sources.yml", encoding="utf-8"))["series"]
+    flagged = {sid for sid, e in sources.items() if (e or {}).get("fred_page")}
+    for sid, entry in sources.items():
+        value = (entry or {}).get("fred_page", False)
+        assert isinstance(value, bool), f"{sid}: fred_page should be true or absent"
+        if value:
+            assert (entry or {}).get("use") != "derived", \
+                f"{sid} is built here, so FRED has no page for it"
+    scored = set(required_series(CFG))
+    assert flagged & scored, "no scored series links to FRED; check the flag survived"
+    orphans = flagged - set(sources)
+    assert not orphans, orphans

@@ -64,8 +64,8 @@ def prose(markup: str) -> None:
 
 
 @st.cache_data(ttl=900, show_spinner=False)
-def series_vendors() -> dict:
-    """Which vendor each series actually comes from, read from sources.yml."""
+def series_sources() -> dict:
+    """Vendor and whether FRED also publishes it, per series, from sources.yml."""
     import yaml
     try:
         with open("config/sources.yml", encoding="utf-8") as fh:
@@ -73,22 +73,25 @@ def series_vendors() -> dict:
     except OSError:
         return {}
     default = cfg.get("default", "fred")
-    return {sid: (entry or {}).get("use", default)
+    return {sid: ((entry or {}).get("use", default), bool((entry or {}).get("fred_page")))
             for sid, entry in (cfg.get("series") or {}).items()}
 
 
 def series_link(sid: str) -> str:
-    """A link only where one exists.
+    """A link where a page exists, and the vendor where it does not.
 
-    Series names in indicators.yml are FRED-style whatever the vendor, so that
-    an expression reads the same everywhere. That is not a reason to send a
-    reader to FRED for a Bloomberg ticker: the page used to link every series
-    to fred.stlouisfed.org, which for the Bloomberg and Macrobond ones led to a
-    page about something else or to nothing at all. Only FRED series get a
-    link; the rest say where they come from.
+    The question is not who we buy the data from, it is whether a reader has
+    somewhere to go and read about it. Macrobond redistributes much of FRED, so
+    most of these names are real FRED series and their FRED page documents the
+    same underlying data — 18 of the 38 behind the call. The other 20 have no
+    FRED entry: invented names for things FRED has no equivalent of, vendor
+    series, or series built here. Those get their vendor named instead.
+
+    The page previously linked all 38 to fred.stlouisfed.org, so 20 of the
+    links went to a page about a different series, or to nothing.
     """
-    vendor = series_vendors().get(sid, "fred")
-    if vendor == "fred":
+    vendor, has_page = series_sources().get(sid, ("fred", True))
+    if has_page or vendor == "fred":
         return (f'<a href="https://fred.stlouisfed.org/series/{ui.esc(sid)}" target="_blank" '
                 f'rel="noopener">{ui.esc(sid)}</a>')
     label = {"macrobond": "Macrobond", "bloomberg": "Bloomberg terminal",

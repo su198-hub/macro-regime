@@ -44,10 +44,20 @@
 # which pushes a snapshot to a public branch. The same question is open for the
 # proprietary Macrobond series already in the set.
 
+# `fred_page: true` marks a series that FRED also publishes, so the methodology
+# page can link to its FRED entry even though the data is pulled from Macrobond
+# — Macrobond redistributes much of FRED, and the FRED page documents the same
+# underlying series. Set from a check of fred.stlouisfed.org on 24 September
+# 2026: 18 of the 38 series behind the call resolve, 20 do not. The ones that
+# do not are either invented names for series FRED has no equivalent of
+# (SPFCPI10, GSCPI, NFIBCAPEX), vendor series (CDS5Y_US, HYOAS, SPX_*), or
+# built here (CBO_LABFORCE_REV). Re-check it if a series is added.
+
 default: macrobond
 
 series:
   PCEC96:
+    fred_page: true
     macrobond: usnaac0591
     note: Real PCE quantity index. Same growth as chained dollars, history from 1959 not 2007.
   RSAFS:
@@ -55,38 +65,51 @@ series:
   PAYEMS:
     macrobond: uslama1060
   UNRATE:
+    fred_page: true
     macrobond: uslama1849
   NROU:
+    fred_page: true
     macrobond: usfcst0668
     note: CBO noncyclical rate. Projections beyond each vintage date are dropped.
   T5YIFR:
+    fred_page: true
     macrobond: ust5yifr
   T10YIE:
     macrobond: us10ybei
     note: Macrobond benchmark 10-year breakeven, not the H.15 constant-maturity difference.
   MICH:
+    fred_page: true
     macrobond: ussurv3140
   EXPINF10YR:
+    fred_page: true
     macrobond: usfcst0110
   TCU:
+    fred_page: true
     macrobond: usprod1071
   JTSJOL:
+    fred_page: true
     macrobond: bls_jts00000000jol
   UNEMPLOY:
+    fred_page: true
     macrobond: uslama1795
   ULCNFB:
+    fred_page: true
     macrobond: uslama0208
   LNS12300060:
     macrobond: uslama6229
   FEDFUNDS:
+    fred_page: true
     macrobond: usrate1948
   PCEPILFE:
+    fred_page: true
     macrobond: uspric0006
   NFCI:
     macrobond: ussurv0386
   NEWORDER:
+    fred_page: true
     macrobond: usprod1425
   PNFIC1:
+    fred_page: true
     macrobond: usnaac0301
     note: Real nonresidential investment quantity index. Same growth as chained dollars.
   TLMFGCONS:
@@ -138,6 +161,7 @@ series:
   # Wages, productivity, the Fed's balance sheet and corporate leverage, added
   # to match the drivers on the scenario slide.
   ECIWAG:
+    fred_page: true
     macrobond: uslama4604
     note: >-
       Employment cost index, wages and salaries, private industry, SA. Quarterly
@@ -147,6 +171,7 @@ series:
     macrobond: uslama0202
     note: Nonfarm business labor productivity, output per hour, index, SA. Quarterly since 1947.
   WSHOSHO:
+    fred_page: true
     macrobond: usbank0144
     note: >-
       Securities held outright by the Federal Reserve, total, weekly average.
@@ -175,6 +200,7 @@ series:
       since 1881. A market price, so never revised: a single vintage is correct
       here rather than a gap in the record.
   DGS10:
+    fred_page: true
     macrobond: us10yfedgov_m
     note: 10-year Treasury constant maturity yield, monthly average, since 1941.
   SPFCPI10:
@@ -192,6 +218,7 @@ series:
       Monthly since 1982. Pairs with EXPINF10YR, the expectations half of the
       same decomposition.
   DGS1:
+    fred_page: true
     macrobond: us12mfedgov_m
     note: >-
       1-year Treasury constant maturity yield, monthly, since 1953. Paired with
