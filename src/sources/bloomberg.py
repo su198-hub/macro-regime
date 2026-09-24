@@ -9,10 +9,17 @@ not install it, and has no terminal to talk to anyway). Install it locally with:
 
     pip install --index-url=https://blpapi.bloomberg.com/repository/releases/python/simple/ blpapi
 
-Codes are a Bloomberg ticker, optionally with a field after a bar:
+Codes are a Bloomberg ticker, optionally with a field after a bar, and
+optionally a forecast period after a second bar:
 
     "US CDS USD SR 5Y D14 Corp"          PX_LAST by default
     "LF98OAS Index|PX_LAST"
+    "SPX Index|BEST_EPS|3FY"             consensus for the third fiscal year out
+
+The third part sets BEST_FPERIOD_OVERRIDE, which is how the terminal is asked
+for a consensus estimate at a fixed distance ahead rather than for the current
+fiscal year. Without it, BEST_EPS means "this year" and the horizon it refers
+to shortens as the year runs on, which would make the series a mix of horizons.
 
 LICENSING. Desktop API data is for use on this machine. It must not be
 redistributed, and `ingest.py publish` pushes a snapshot to a public branch, so
@@ -20,7 +27,10 @@ publish refuses to run while any Bloomberg series is in the store.
 
 ON VINTAGES. What this adapter is for — CDS spreads, index spreads — are traded
 prices, never revised, so each value is dated at its own observation. Same
-treatment as CAPE and the breakevens.
+treatment as CAPE and the breakevens. A consensus estimate is the same shape of
+thing for a different reason: the number on a given date is what analysts
+thought on that date, and later changes of mind arrive as new observations
+rather than as corrections to old ones.
 """
 
 from __future__ import annotations
@@ -78,14 +88,18 @@ class BloombergSource:
             if ev.eventType() == blpapi.Event.TIMEOUT:
                 raise RuntimeError("Bloomberg did not answer in time.")
 
-    def _history(self, ticker: str, field: str,
-                 start: dt.date | None) -> list[tuple[dt.date, float]]:
+    def _history(self, ticker: str, field: str, start: dt.date | None,
+                 period: str | None = None) -> list[tuple[dt.date, float]]:
         svc = self._service()
         r = svc.createRequest("HistoricalDataRequest")
         r.getElement("securities").appendValue(ticker)
         r.getElement("fields").appendValue(field)
         r.set("startDate", (start or dt.date(1900, 1, 1)).strftime("%Y%m%d"))
         r.set("endDate", dt.date.today().strftime("%Y%m%d"))
+        if period:
+            o = r.getElement("overrides").appendElement()
+            o.setElement("fieldId", "BEST_FPERIOD_OVERRIDE")
+            o.setElement("value", period)
         self._session.sendRequest(r)
         rows = []
         for m in self._drain():
@@ -123,9 +137,11 @@ class BloombergSource:
     # ---------- the Source interface ----------
 
     @staticmethod
-    def split(code: str) -> tuple[str, str]:
-        ticker, _, field = code.partition("|")
-        return ticker.strip(), (field.strip() or DEFAULT_FIELD)
+    def split(code: str) -> tuple[str, str, str | None]:
+        ticker, _, rest = code.partition("|")
+        field, _, period = rest.partition("|")
+        return (ticker.strip(), (field.strip() or DEFAULT_FIELD),
+                period.strip() or None)
 
     @staticmethod
     def _frame(series_id: str, rows, vintage: dt.date | None) -> pd.DataFrame:
@@ -141,18 +157,21 @@ class BloombergSource:
         })
 
     def fetch_with_vintages(self, series_id: str, start: dt.date | None = None) -> pd.DataFrame:
-        ticker, field = self.split(series_id)
-        return tidy_vintages(self._frame(series_id, self._history(ticker, field, start), None))
+        ticker, field, period = self.split(series_id)
+        rows = self._history(ticker, field, start, period)
+        return tidy_vintages(self._frame(series_id, rows, None))
 
     def fetch_current(self, series_id: str) -> pd.DataFrame:
-        ticker, field = self.split(series_id)
+        ticker, field, period = self.split(series_id)
         recent = dt.date.today() - dt.timedelta(days=14)
-        return self._frame(series_id, self._history(ticker, field, recent), dt.date.today())
+        rows = self._history(ticker, field, recent, period)
+        return self._frame(series_id, rows, dt.date.today())
 
     def describe(self, series_id: str) -> dict:
-        ticker, field = self.split(series_id)
+        ticker, field, period = self.split(series_id)
         info = self._reference(ticker, ["NAME"])
-        return {"title": info.get("NAME", ticker), "units": field,
+        units = f"{field} @{period}" if period else field
+        return {"title": info.get("NAME", ticker), "units": units,
                 "frequency": "D", "has_vintages": True}
 
     def close(self) -> None:

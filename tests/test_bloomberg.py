@@ -20,7 +20,8 @@ ROWS = [(dt.date(2026, 1, 2), 31.0), (dt.date(2026, 1, 5), 31.4), (dt.date(2026,
 
 def source(rows=ROWS, name="Name"):
     s = BloombergSource(session=object())
-    s._history = lambda ticker, field, start: (s.calls.append((ticker, field, start)) or rows)
+    s._history = lambda ticker, field, start, period=None: (
+        s.calls.append((ticker, field, start, period)) or rows)
     s._reference = lambda ticker, fields: {"NAME": name}
     s.calls = []
     return s
@@ -28,8 +29,18 @@ def source(rows=ROWS, name="Name"):
 
 def test_a_ticker_defaults_to_the_last_price():
     assert BloombergSource.split("US CDS USD SR 5Y D14 Corp") == (
-        "US CDS USD SR 5Y D14 Corp", "PX_LAST")
-    assert BloombergSource.split("LF98OAS Index|PX_MID") == ("LF98OAS Index", "PX_MID")
+        "US CDS USD SR 5Y D14 Corp", "PX_LAST", None)
+    assert BloombergSource.split("LF98OAS Index|PX_MID") == ("LF98OAS Index", "PX_MID", None)
+
+
+def test_a_forecast_period_after_a_second_bar_is_passed_as_an_override():
+    """Without it BEST_EPS means the current year, so the horizon would drift."""
+    assert BloombergSource.split("SPX Index|BEST_EPS|3FY") == (
+        "SPX Index", "BEST_EPS", "3FY")
+    s = source()
+    s.fetch_with_vintages("SPX Index|BEST_EPS|3FY")
+    assert s.calls[0][1:] == ("BEST_EPS", None, "3FY")
+    assert s.describe("SPX Index|BEST_EPS|3FY")["units"] == "BEST_EPS @3FY"
 
 
 def test_a_traded_price_is_dated_at_its_own_observation():
@@ -43,7 +54,7 @@ def test_a_traded_price_is_dated_at_its_own_observation():
 def test_the_field_after_the_bar_is_what_gets_requested():
     s = source()
     s.fetch_with_vintages("LF98OAS Index|PX_MID", start=dt.date(2000, 1, 1))
-    assert s.calls[0] == ("LF98OAS Index", "PX_MID", dt.date(2000, 1, 1))
+    assert s.calls[0] == ("LF98OAS Index", "PX_MID", dt.date(2000, 1, 1), None)
 
 
 def test_fetch_current_stamps_today_and_asks_only_for_recent_days():
