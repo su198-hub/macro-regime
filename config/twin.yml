@@ -252,9 +252,13 @@ adds:
       horizon: long
       release: Survey of Professional Forecasters
       why: >-
-        The anchor moving rather than where it sits. Small weight: it is the
-        only reading here that goes to zero when expectations are merely wrong
-        and stable, so it supplements the level and cannot stand in for it.
+        The anchor moving rather than where it sits. The two are complements,
+        not a reading counted twice: the level says how far expectations are
+        from 2%, this says which way they are travelling, and in half of all
+        quarters the two point opposite ways. Neither works alone -- a level
+        cannot tell an anchor that is high and falling from one that is stuck,
+        and a revision reads zero when expectations are merely wrong and
+        stable.
 
 # Weights changed outright.
 reweight:

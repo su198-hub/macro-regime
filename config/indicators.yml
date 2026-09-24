@@ -199,8 +199,8 @@ drivers:
         release: Survey of Professional Forecasters
         why: >-
           The survey-against-target reading, from the forecasters the Fed itself
-          watches. Replaces the 10-year breakeven, which was a second reading of
-          the same TIPS market as the 5y5y.
+          watches. A level, because what makes an anchor an anchor is where it
+          sits relative to 2%, not whether it moved this quarter.
 
       # A breakeven is expected inflation plus payment for bearing inflation
       # risk. Without the second term you cannot tell a rise in expectations
