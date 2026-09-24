@@ -108,7 +108,7 @@ def test_a_bad_overlay_names_the_problem():
 
 def test_an_addition_joins_its_driver_and_counts_as_added():
     cfg = tw.build_config(LIVE, {"adds": {"demand": [
-        {"id": "extra", "weight": 0.0, "source": {"fred": "X"}, "horizon": "long"}]}})
+        {"id": "extra", "weight": 0.0, "source": {"series": "X"}, "horizon": "long"}]}})
     assert "extra" in {i["id"] for i in cfg["drivers"]["demand"]["indicators"]}
     assert "extra" in cfg["meta"]["horizons"]["long"]
     assert tw.swapped_ids({"adds": {"demand": [{"id": "extra"}]}})[1] == {"extra"}
@@ -117,7 +117,7 @@ def test_an_addition_joins_its_driver_and_counts_as_added():
 def test_an_addition_without_a_weight_is_refused():
     """A swap can inherit one; an addition has nothing to inherit from."""
     with pytest.raises(KeyError, match="without a weight"):
-        tw.build_config(LIVE, {"adds": {"demand": [{"id": "extra", "source": {"fred": "X"}}]}})
+        tw.build_config(LIVE, {"adds": {"demand": [{"id": "extra", "source": {"series": "X"}}]}})
 
 
 def test_a_reweight_changes_only_the_weight():

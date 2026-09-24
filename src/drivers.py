@@ -43,14 +43,14 @@ def required_series(cfg: dict) -> list[str]:
     for driver in cfg["drivers"].values():
         for ind in driver["indicators"]:
             src = ind["source"]
-            fred = src.get("fred")
-            if isinstance(fred, str):
-                ids.add(fred)
-            elif isinstance(fred, list):
-                ids.update(fred)
+            named = src.get("series")
+            if isinstance(named, str):
+                ids.add(named)
+            elif isinstance(named, list):
+                ids.update(named)
             for d in (src.get("derived") or {}).values():
-                if isinstance(d.get("fred"), str):
-                    ids.add(d["fred"])
+                if isinstance(d.get("series"), str):
+                    ids.add(d["series"])
     return sorted(ids)
 
 
@@ -74,7 +74,7 @@ def _build_input(ind: dict, wide: pd.DataFrame, carry: int = 0) -> pd.Series | N
     transform = TRANSFORMS[ind.get("transform", "level")]
 
     if not expr:
-        col = src["fred"]
+        col = src["series"]
         if col not in wide.columns:
             return None
         return to_monthly(transform(wide[col].dropna()), end, carry)
@@ -83,20 +83,20 @@ def _build_input(ind: dict, wide: pd.DataFrame, carry: int = 0) -> pd.Series | N
     # at that frequency, transformed there, and carried afterwards. Mixed
     # frequencies cannot: the monthly side has to drive the index, so those
     # combine first and transform after, as before.
-    natives = {_periods_per_year(wide[c].dropna()) for c in src.get("fred", [])
+    natives = {_periods_per_year(wide[c].dropna()) for c in src.get("series", [])
                if c in wide.columns}
     native_first = len(natives) == 1 and natives.pop() < 12 and not src.get("derived")
 
     env: dict[str, pd.Series] = {}
     native: dict[str, pd.Series] = {}
-    for col in src.get("fred", []):
+    for col in src.get("series", []):
         if col not in wide.columns:
             return None
         native[col] = wide[col].dropna()
         env[col] = native[col] if native_first else to_monthly(native[col], end, carry)
 
     # Derived inputs are built in order, so each can use the ones before it:
-    #   {fred: X, transform: t}      a transform of one source series
+    #   {series: X, transform: t}    a transform of one source series
     #   {expr: "...", floor: f}      a formula over inputs so far, optionally floored
     #   {first_of: [a, b]}           a where available, otherwise b
     for alias, spec in (src.get("derived") or {}).items():
@@ -119,14 +119,14 @@ def _build_input(ind: dict, wide: pd.DataFrame, carry: int = 0) -> pd.Series | N
                                     float(spec["floor"]))
             env[alias] = value
         else:
-            base = env.get(spec["fred"])
+            base = env.get(spec["series"])
             if base is None:
                 return None
             fn = TRANSFORMS[spec.get("transform", "level")]
             # Same rule as the indicator's own transform: take the change at
             # the series' own frequency, then carry. A quarterly series carried
             # first and differenced after loses a quarter at the ragged edge.
-            raw = native.get(spec["fred"])
+            raw = native.get(spec["series"])
             if raw is not None and not native_first and _periods_per_year(raw) < 12:
                 env[alias] = to_monthly(fn(raw), end, carry)
             else:
@@ -265,8 +265,9 @@ def indicator_inputs(cfg: dict) -> dict[str, list[str]]:
     out = {}
     for driver_name, driver in cfg["drivers"].items():
         for ind in driver["indicators"]:
-            fred = ind["source"].get("fred")
-            out[f"{driver_name}::{ind['id']}"] = [fred] if isinstance(fred, str) else list(fred or [])
+            named = ind["source"].get("series")
+            out[f"{driver_name}::{ind['id']}"] = ([named] if isinstance(named, str)
+                                                 else list(named or []))
     return out
 
 

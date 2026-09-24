@@ -10,10 +10,10 @@ from src.drivers import (driver_scores, expected_release, indicator_frames, medi
 CFG = {
     "meta": {"min_reported_share": 0.6, "provisional": {"fill_months": 2, "min_reported_share": 0.5}},
     "drivers": {"demand": {"indicators": [
-        {"id": "hard", "source": {"fred": "H"}, "transform": "level",
+        {"id": "hard", "source": {"series": "H"}, "transform": "level",
          "normalize": {"method": "gap", "center": 0.0, "scale": 1.0},
          "direction": 1, "weight": 0.3, "anchor": True},
-        {"id": "fast", "source": {"fred": "F"}, "transform": "level",
+        {"id": "fast", "source": {"series": "F"}, "transform": "level",
          "normalize": {"method": "gap", "center": 0.0, "scale": 1.0},
          "direction": 1, "weight": 0.7},
     ]}},

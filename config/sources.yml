@@ -1,9 +1,13 @@
 # Where each series comes from.
 #
-# Keys are the series names used in indicators.yml. They stay the FRED codes
-# so expressions like "UNRATE - NROU" read the same whatever the vendor; the
-# store saves every series under this name. `use` picks the vendor for a
-# series, falling back to `default`. For FRED the code is the key itself.
+# Keys are the series names used in indicators.yml, where they appear under
+# `series:`. They keep FRED-style names so an expression like "UNRATE - NROU"
+# reads the same whatever the vendor, and the store saves every series under
+# this name. That is a naming convention, NOT a claim about where the data
+# comes from: `use` picks the vendor, falling back to `default`, and most of
+# these now come from Macrobond or a Bloomberg terminal. The methodology page
+# reads this file to decide what to link, so only genuine FRED series get a
+# fred.stlouisfed.org link. For FRED the code is the key itself.
 #
 # Macrobond codes were matched on description, frequency, seasonal adjustment
 # and units, preferring the longest revision history. Notes flag where the
@@ -253,6 +257,17 @@ series:
     use: bloomberg
     bloomberg: "S5CONS Index"
     note: S&P 500 consumer staples sector, daily from September 1989.
+  SPX_ENERGY_CAPEX_3FY:
+    use: bloomberg
+    bloomberg: "S5ENRS Index|BEST_CAPEX|3FY"
+    note: >-
+      Consensus capital spending of the S&P 500 energy sector for the third
+      fiscal year out, monthly from December 2007. US-listed but globally
+      operating majors, so it carries the long-cycle deepwater and LNG spending
+      rather than only US shale. Reported as a negative (a cash outflow), so
+      the indicator reads its absolute change. No vendor break above 25% in 225
+      months, unlike the MSCI World and STOXX Europe energy capex series, which
+      both jump in August 2026.
   SPX_CAPEX_3FY:
     use: bloomberg
     bloomberg: "SPX Index|BEST_CAPEX|3FY"

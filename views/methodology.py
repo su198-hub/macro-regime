@@ -63,9 +63,38 @@ def prose(markup: str) -> None:
     st.html(f'<div class="m-body">{markup}</div>')
 
 
-def fred_link(sid: str) -> str:
-    return (f'<a href="https://fred.stlouisfed.org/series/{ui.esc(sid)}" target="_blank" '
-            f'rel="noopener">{ui.esc(sid)}</a>')
+@st.cache_data(ttl=900, show_spinner=False)
+def series_vendors() -> dict:
+    """Which vendor each series actually comes from, read from sources.yml."""
+    import yaml
+    try:
+        with open("config/sources.yml", encoding="utf-8") as fh:
+            cfg = yaml.safe_load(fh) or {}
+    except OSError:
+        return {}
+    default = cfg.get("default", "fred")
+    return {sid: (entry or {}).get("use", default)
+            for sid, entry in (cfg.get("series") or {}).items()}
+
+
+def series_link(sid: str) -> str:
+    """A link only where one exists.
+
+    Series names in indicators.yml are FRED-style whatever the vendor, so that
+    an expression reads the same everywhere. That is not a reason to send a
+    reader to FRED for a Bloomberg ticker: the page used to link every series
+    to fred.stlouisfed.org, which for the Bloomberg and Macrobond ones led to a
+    page about something else or to nothing at all. Only FRED series get a
+    link; the rest say where they come from.
+    """
+    vendor = series_vendors().get(sid, "fred")
+    if vendor == "fred":
+        return (f'<a href="https://fred.stlouisfed.org/series/{ui.esc(sid)}" target="_blank" '
+                f'rel="noopener">{ui.esc(sid)}</a>')
+    label = {"macrobond": "Macrobond", "bloomberg": "Bloomberg terminal",
+             "ciq": "Capital IQ", "derived": "built here"}.get(vendor, vendor)
+    return (f'{ui.esc(sid)}<span style="color:{ui.INK_2};font-size:0.8rem"> '
+            f'&middot; {ui.esc(label)}</span>')
 
 
 def signed(x: float) -> str:
@@ -248,7 +277,7 @@ cov = cov[cov["series_id"].isin(required_series(cfg))]
 
 def code_cell(r) -> ui.Raw:
     if r.source == "fred":
-        return ui.Raw(fred_link(r.source_code or r.series_id))
+        return ui.Raw(series_link(r.source_code or r.series_id))
     return ui.Raw(f'{ui.esc(r.source_code or r.series_id)}<br><span style="color:{ui.INK_2};'
                   f'font-size:0.8rem">{ui.esc(r.source.capitalize())}</span>')
 
@@ -342,12 +371,12 @@ for n in driver_names:
             # One pass over whole words. Replacing series one at a time breaks
             # when one name contains another: linking DGS10 first, then DGS1,
             # rewrote the markup of the link just inserted.
-            links = {s: fred_link(s) for s in src.get("fred", [])}
+            links = {s: series_link(s) for s in src.get("series", [])}
             source = re.sub(r"[A-Za-z_][A-Za-z0-9_]*",
                             lambda m: links.get(m.group(0), m.group(0)),
                             ui.esc(src["expr"]))
         else:
-            source = fred_link(src["fred"])
+            source = series_link(src["series"])
         norm = i["normalize"]
         if norm.get("method") == "gap":
             center = f'{float(norm["center"]):g}'.replace("-", "−")

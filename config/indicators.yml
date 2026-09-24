@@ -76,7 +76,7 @@ meta:
             core_capex_orders_yoy, real_nonres_investment_yoy, excess_bond_premium,
             retail_vs_staples, forecaster_disagreement, primary_balance_3y,
             hy_spread_change]
-    long: [capex_revision, cbo_lfpr_revision, breakeven_5y5y, spf_long_run, spf_cpi_revision, spf_growth_revision,
+    long: [energy_capex_revision, cbo_lfpr_revision, breakeven_5y5y, spf_long_run, spf_cpi_revision, spf_growth_revision,
           inflation_risk_premium, cleveland_10y, interest_burden_gdp,
           equity_risk_premium, yield_curve_slope, cbo_labour_force_revision,
           target_miss_rate, inflation_volatility, sovereign_cds, capital_age]
@@ -95,7 +95,7 @@ drivers:
     indicators:
       - id: real_pce_yoy
         label: Real consumer spending, year over year
-        source: {fred: PCEC96}
+        source: {series: PCEC96}
         transform: yoy_pct
         normalize: {method: gap, center: 2.4, scale: 1.6}
         direction: 1
@@ -111,7 +111,7 @@ drivers:
       # the sample, and would have scored the collapse as a hot labor market.
       - id: wage_growth_yoy
         label: Employment cost index, wages, year over year
-        source: {fred: ECIWAG}
+        source: {series: ECIWAG}
         transform: yoy_pct
         normalize: {method: gap, center: 2.9, scale: 0.75}
         direction: 1
@@ -138,7 +138,7 @@ drivers:
       # spans zero.
       - id: spf_growth_revision
         label: Revision to forecasters' 10-year GDP growth
-        source: {fred: SPF10GDP}
+        source: {series: SPF10GDP}
         transform: diff_12m
         normalize: {method: gap, center: 0.0, scale: 0.19}
         direction: 1
@@ -155,7 +155,7 @@ drivers:
         label: Unemployment rate less its long-run level
         source:
           expr: "UNRATE - NROU"
-          fred: [UNRATE, NROU]
+          series: [UNRATE, NROU]
         transform: level
         normalize: {method: gap, center: 0.0, scale: 0.8}
         direction: -1
@@ -184,7 +184,7 @@ drivers:
         label: Retailers against consumer staples, 12-month change
         source:
           expr: SPX_RETL / SPX_CONS * 100
-          fred: [SPX_RETL, SPX_CONS]
+          series: [SPX_RETL, SPX_CONS]
         transform: yoy_pct
         normalize: {method: gap, center: 6.0, scale: 18.7}
         direction: 1
@@ -204,7 +204,7 @@ drivers:
     indicators:
       - id: breakeven_5y5y
         label: 5-year inflation expectations, 5 years ahead
-        source: {fred: T5YIFR}
+        source: {series: T5YIFR}
         transform: level
         normalize: {method: gap, center: 2.3, scale: 0.35}
         direction: 1
@@ -222,7 +222,7 @@ drivers:
       # above the PCE measure the Fed targets.
       - id: spf_long_run
         label: Professional forecasters, CPI over the next ten years
-        source: {fred: SPFCPI10}
+        source: {series: SPFCPI10}
         transform: level
         normalize: {method: gap, center: 2.3, scale: 0.35}
         direction: 1
@@ -246,7 +246,7 @@ drivers:
       # accumulated revision about half.
       - id: spf_cpi_revision
         label: Revision to forecasters' 10-year CPI
-        source: {fred: SPFCPI10}
+        source: {series: SPFCPI10}
         transform: diff_12m
         normalize: {method: gap, center: 0.0, scale: 0.14}
         direction: 1
@@ -264,7 +264,7 @@ drivers:
       # from a rise in uncertainty, and they mean different things.
       - id: inflation_risk_premium
         label: Inflation risk premium, 10 year
-        source: {fred: INFRISKPREM}
+        source: {series: INFRISKPREM}
         transform: level
         normalize: {method: gap, center: 0.41, scale: 0.07}
         direction: 1
@@ -277,7 +277,7 @@ drivers:
 
       - id: umich_1y
         label: Household inflation expectations, 1 year
-        source: {fred: MICH}
+        source: {series: MICH}
         transform: level
         normalize: {method: gap, center: 3.0, scale: 1.2}
         direction: 1
@@ -290,7 +290,7 @@ drivers:
 
       - id: cleveland_10y
         label: Cleveland Fed 10-year expected inflation
-        source: {fred: EXPINF10YR}
+        source: {series: EXPINF10YR}
         transform: level
         normalize: {method: gap, center: 2.0, scale: 0.4}
         direction: 1
@@ -311,7 +311,7 @@ drivers:
     indicators:
       - id: capacity_utilisation
         label: Capacity utilization
-        source: {fred: TCU}
+        source: {series: TCU}
         transform: level
         normalize: {method: gap, center: 79.6, scale: 2.5}
         direction: 1
@@ -322,7 +322,7 @@ drivers:
         label: Job openings per unemployed person
         source:
           expr: "JTSJOL / UNEMPLOY"
-          fred: [JTSJOL, UNEMPLOY]
+          series: [JTSJOL, UNEMPLOY]
         transform: level
         normalize: {method: gap, center: 0.95, scale: 0.35}
         direction: 1
@@ -331,58 +331,54 @@ drivers:
 
       - id: unit_labour_costs_yoy
         label: Unit labor costs, year over year
-        source: {fred: ULCNFB}
+        source: {series: ULCNFB}
         transform: yoy_pct
         normalize: {method: gap, center: 2.2, scale: 1.5}
         direction: 1
         weight: 0.25
         why: Where wage pressure turns into price pressure.
 
-      # The K in Solow, which this driver has never had. It read labour three
-      # ways, the use of the capital stock, and energy, but nothing about the
-      # stock itself growing. Capex expectations fill that: money companies
-      # expect to spend three years out is capacity that will exist.
+      # Energy investment now is energy supply later: money the majors commit to
+      # wells, deepwater and LNG becomes barrels and molecules years out. Read
+      # inverted -- more capital coming means a looser constraint.
       #
-      # THE ONE LONG-HORIZON INPUT IN THE SET WITH EVIDENCE BEHIND IT. Against
-      # industrial capacity three years ahead it scores +0.46, 95% [+0.07,
-      # +0.69], and unlike almost everything else tried it survives every cut:
-      # +0.55 with the financial crisis removed, +0.60 in the first half, +0.46
-      # with the entire AI capex era removed. The point estimate never leaves
-      # 0.41-0.60. Compare the measures it beat for this slot -- the EIA gas
-      # balance (-0.08), the gas futures curve (-0.19), capacity growth itself
-      # (+0.16, sign-flipping), energy-sector capex (+0.26, interval [-0.32,
-      # +0.83]) -- none of which could be distinguished from zero.
+      # WHAT THE EVIDENCE DOES AND DOES NOT SAY. Against world oil supply five
+      # years out it scores +0.26, 95% [-0.32, +0.83], and the same test on
+      # three other regions gives +0.35, +0.41 and +0.24 -- all the same sign,
+      # none individually distinguishable from zero. Against inflation it shows
+      # nothing at all. So this is in the driver on MECHANISM, not on a
+      # demonstrated link to price pressure, and it should be argued for that
+      # way. The honest version: four regions agree on the direction, the
+      # mechanism is well understood, and Bloomberg's capex history starts in
+      # 2007, which leaves two or three independent five-year windows. No
+      # achievable sample settles it.
       #
-      # IT IS PROCYCLICAL IN THE SHORT RUN, which is the honest cost: firms
-      # plan capex when demand is strong, so it correlates +0.38 with unit
-      # labour costs and +0.22 with next-year inflation. Capex is demand now
-      # and supply later; this slot is buying the later half deliberately.
+      # NOT US SHALE, deliberately. US rigs became barrels in about six months
+      # once shale took over around 2010, so US measures read as short-cycle
+      # activity rather than as the ceiling. The majors in this index operate
+      # globally, where a project still takes five years or more.
       #
-      # CENTRED AND SCALED ON HISTORY TO 2019 (mean +3.2, sd 9.0), the model's
-      # convention, which means today's reading is off the scale: analysts have
-      # marked three-year-out capex up 62% in a year, against a pre-2019 range
-      # of -17 to +18. The score therefore sits at its clip and will stay there
-      # while the AI capex cycle runs. That is the clip doing its job -- saying
-      # "as extreme as this scale can express" -- rather than a calibration to
-      # fix. Widening the scale to fit the current episode is exactly what the
-      # pre-2019 convention exists to prevent.
-      - id: capex_revision
-        label: Revision to analysts' three-year capex plans
-        source: {fred: SPX_CAPEX_3FY}
+      # Preferred over total S&P capex, which has the better evidence (+0.46
+      # against industrial capacity three years out) but two problems: its link
+      # from capacity to the CONSTRAINT this driver scores is not demonstrated
+      # either, and at 62% year-on-year it currently sits pinned at the clip,
+      # contributing a constant. This one reads +5% and still moves.
+      - id: energy_capex_revision
+        label: Revision to energy majors' three-year capex plans
+        source: {series: SPX_ENERGY_CAPEX_3FY}
         transform: yoy_pct
-        normalize: {method: gap, center: 3.2, scale: 9.0}
+        normalize: {method: gap, center: 0.0, scale: 14.9}
         direction: -1
         weight: 0.15
         release: Bloomberg consensus
         why: >-
-          More capital coming means a looser constraint, so it enters inverted.
-          What companies are expected to spend three years out is the capacity
-          that will exist then, which is the half of the supply question this
-          driver could not previously see.
+          What the majors expect to spend three years out is the supply that
+          will exist then. Enters inverted: more investment now means a looser
+          constraint later.
 
       - id: cbo_labour_force_revision
         label: Revision to CBO potential labour force
-        source: {fred: CBO_LABFORCE_REV}
+        source: {series: CBO_LABFORCE_REV}
         transform: level
         normalize: {method: gap, center: 0.0, scale: 0.54}
         direction: -1
@@ -404,7 +400,7 @@ drivers:
       # it measures rather than on evidence that does not exist yet.
       - id: cbo_lfpr_revision
         label: Revision to CBO potential participation rate
-        source: {fred: CBO_LFPR_REV}
+        source: {series: CBO_LFPR_REV}
         transform: level
         normalize: {method: gap, center: 0.0, scale: 0.27}
         direction: -1
@@ -427,9 +423,9 @@ drivers:
         label: Fed funds rate less Taylor rule rate
         source:
           expr: "FEDFUNDS - taylor_rate"
-          fred: [FEDFUNDS, PCEPILFE, UNRATE, NROU, SEPLR, HLWRSTAR]
+          series: [FEDFUNDS, PCEPILFE, UNRATE, NROU, SEPLR, HLWRSTAR]
           derived: &taylor_inputs
-            core_pce_yoy: {fred: PCEPILFE, transform: yoy_pct}
+            core_pce_yoy: {series: PCEPILFE, transform: yoy_pct}
             neutral_sep: {expr: "SEPLR - 2"}
             neutral_rate: {first_of: [neutral_sep, HLWRSTAR]}
             output_gap: {expr: "2 * (NROU - UNRATE)"}
@@ -447,7 +443,7 @@ drivers:
 
       - id: inflation_volatility
         label: Inflation volatility, 36 months
-        source: {fred: PCEPILFE}
+        source: {series: PCEPILFE}
         transform: vol_36m
         normalize: {method: gap, center: 0.29, scale: 0.12}
         direction: -1
@@ -458,7 +454,7 @@ drivers:
 
       - id: forecaster_disagreement
         label: Forecaster disagreement on inflation
-        source: {fred: SPFDISP}
+        source: {series: SPFDISP}
         transform: level
         normalize: {method: gap, center: 0.68, scale: 0.21}
         direction: -1
@@ -468,7 +464,7 @@ drivers:
           Forecasters scatter when nobody is sure what the bank will tolerate.
       - id: target_miss_rate
         label: Share of the last 36 months off target
-        source: {fred: PCEPILFE}
+        source: {series: PCEPILFE}
         transform: off_target_share_36m
         normalize: {method: gap, center: 42.8, scale: 30.7}
         direction: -1
@@ -479,7 +475,7 @@ drivers:
         label: Yield curve, 10-year less 1-year
         source:
           expr: "DGS10 - DGS1"
-          fred: [DGS10, DGS1]
+          series: [DGS10, DGS1]
         transform: level
         normalize: {method: gap, center: 1.47, scale: 1.05}
         direction: -1
@@ -498,7 +494,7 @@ drivers:
         label: Fed securities held, 3-year annualised change, % of GDP
         source:
           expr: "WSHOSHO / GDPNOM * 100"
-          fred: [WSHOSHO, GDPNOM]
+          series: [WSHOSHO, GDPNOM]
         transform: diff_36m_ann
         normalize: {method: gap, center: 0.0, scale: 1.32}
         direction: -1
@@ -525,10 +521,10 @@ drivers:
         label: Primary balance, 3-year change
         source:
           expr: (balance_12m + interest_12m) / GDPNOM * 100
-          fred: [MTSBAL, MTSNETINT, GDPNOM]
+          series: [MTSBAL, MTSNETINT, GDPNOM]
           derived:
-            balance_12m: {fred: MTSBAL, transform: sum_12m}
-            interest_12m: {fred: MTSNETINT, transform: sum_12m}
+            balance_12m: {series: MTSBAL, transform: sum_12m}
+            interest_12m: {series: MTSNETINT, transform: sum_12m}
         transform: diff_36m_ann
         normalize: {method: gap, center: 0.0, scale: 1.16}
         direction: 1
@@ -541,10 +537,10 @@ drivers:
         label: Fiscal impulse, change in primary balance over a year
         source:
           expr: "(balance_12m + interest_12m) / GDPNOM * 100"
-          fred: [MTSBAL, MTSNETINT, GDPNOM]
+          series: [MTSBAL, MTSNETINT, GDPNOM]
           derived:
-            balance_12m: {fred: MTSBAL, transform: sum_12m}
-            interest_12m: {fred: MTSNETINT, transform: sum_12m}
+            balance_12m: {series: MTSBAL, transform: sum_12m}
+            interest_12m: {series: MTSNETINT, transform: sum_12m}
         transform: diff_12m
         normalize: {method: gap, center: 0.0, scale: 1.7}
         direction: 1
@@ -556,7 +552,7 @@ drivers:
         label: Debt held by the public, change in % of GDP over a year
         source:
           expr: "DEBTPUB / GDPNOM * 100"
-          fred: [DEBTPUB, GDPNOM]
+          series: [DEBTPUB, GDPNOM]
         transform: diff_12m
         normalize: {method: gap, center: 1.3, scale: 3.4}
         direction: -1
@@ -565,7 +561,7 @@ drivers:
 
       - id: sovereign_cds
         label: US sovereign CDS, 5-year
-        source: {fred: CDS5Y_US}
+        source: {series: CDS5Y_US}
         transform: level
         normalize: {method: gap, center: 46.7, scale: 10.2}
         direction: 1
@@ -579,9 +575,9 @@ drivers:
         label: Net interest outlays, % of GDP
         source:
           expr: "interest_12m / GDPNOM * 100"
-          fred: [MTSNETINT, GDPNOM]
+          series: [MTSNETINT, GDPNOM]
           derived:
-            interest_12m: {fred: MTSNETINT, transform: sum_12m}
+            interest_12m: {series: MTSNETINT, transform: sum_12m}
         transform: level
         normalize: {method: gap, center: 2.0, scale: 0.7}
         direction: 1
@@ -600,7 +596,7 @@ drivers:
     indicators:
       - id: core_capex_orders_yoy
         label: Core capital goods orders, year over year
-        source: {fred: NEWORDER}
+        source: {series: NEWORDER}
         transform: yoy_pct
         normalize: {method: gap, center: 3.5, scale: 3.0}
         direction: 1
@@ -609,7 +605,7 @@ drivers:
 
       - id: real_nonres_investment_yoy
         label: Real business investment, year over year
-        source: {fred: PNFIC1}
+        source: {series: PNFIC1}
         transform: yoy_pct
         normalize: {method: gap, center: 3.5, scale: 3.0}
         direction: 1
@@ -622,7 +618,7 @@ drivers:
       # retirement, which is the K in Solow going backwards.
       - id: capital_age
         label: Average age of the capital stock, change
-        source: {fred: CAPAGE}
+        source: {series: CAPAGE}
         transform: diff_12m
         normalize: {method: gap, center: 0.14, scale: 0.14}
         direction: -1
@@ -633,7 +629,7 @@ drivers:
           retirement.
       - id: excess_bond_premium
         label: Excess bond premium
-        source: {fred: EBP}
+        source: {series: EBP}
         transform: level
         normalize: {method: gap, center: 0.08, scale: 0.63}
         direction: -1
@@ -645,7 +641,7 @@ drivers:
 
       - id: hy_spread_change
         label: Change in high yield spreads
-        source: {fred: HYOAS}
+        source: {series: HYOAS}
         transform: diff_12m
         normalize: {method: gap, center: 0.0, scale: 2.97}
         direction: -1
@@ -656,7 +652,7 @@ drivers:
         label: Change in the equity risk premium
         source:
           expr: "100 / CAPE - (DGS10 - EXPINF10YR)"
-          fred: [CAPE, DGS10, EXPINF10YR]
+          series: [CAPE, DGS10, EXPINF10YR]
         transform: diff_12m
         normalize: {method: gap, center: 0.0, scale: 0.92}
         direction: -1

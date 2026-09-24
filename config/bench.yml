@@ -610,38 +610,6 @@ drivers:
           JOLTS survey of ~21,000 establishments at ~33 days over the household
           survey's unemployment level at ~6 days.
 
-      - id: cand_gas_balance_forward
-        name: EIA projected gas balance, 18 months out
-        status: candidate
-        preselect: false
-        horizon: long
-        nature: structural
-        kind: model
-        enters: change
-        where: macrobond
-        code: eiasteo0251
-        refers: >-
-          Where the EIA says the gas balance will be, rather than where the physical
-          market is today — the long-run half of the energy constraint, which is what
-          a regime call needs and what crude inventories could not give. Read the
-          evidence before defending it: against core inflation a year out it scores
-          −0.08, 95% [−0.60, +0.43], and against headline −0.34, 95% [−0.65, +0.04].
-          Neither is distinguishable from zero, and neither were the futures-curve
-          versions tried alongside it (gas 3-year slope −0.19, oil 5-year −0.14 on
-          headline). No energy measure tested, old or new, predicts inflation. This
-          one is here because the slot should look forward, at a smaller weight.
-          OPEC spare capacity was dropped from the bench at the same time: a third
-          reading of a question that has now been tested three ways and answered
-          the same way each time.
-        measured: >-
-          From each monthly Short Term Energy Outlook vintage, the projected
-          working-gas stock eighteen months out against the same calendar month a
-          year earlier in that same vintage. Same month on both sides, so the
-          seasonal swing cancels rather than being modelled. 132 usable publications
-          from 2005, against 14 vintages for the Annual Energy Outlook, whose 2050
-          horizon is the right one and cannot be tested.
-          DROPPED after a day, and the reason is worth keeping: it was added to answer the long-run energy question and then tested against the alternatives for the same slot. The general capex revision scores +0.46 against capacity three years out and survives every subsample; this scores −0.08 against core and −0.34 against headline, both spanning zero. Energy has now failed in this driver four ways — inventories, futures curve, projected balance, sector capex — and belongs on the forecast page as a scenario lever rather than as a weight here.
-
       - id: cand_oil_inventory_tightness
         name: Crude inventories vs 5-year average
         status: candidate
@@ -756,9 +724,40 @@ drivers:
           accumulates into, and the set measures only the flow.
         measured: BEA fixed asset accounts over employment. Annual from 1925.
 
-      - id: capex_revision
-        name: Revision to analysts' three-year capex plans
+      - id: energy_capex_revision
+        name: Revision to energy majors' three-year capex plans
         status: in_set
+        horizon: long
+        nature: structural
+        kind: survey
+        enters: revision
+        where: bloomberg
+        code: S5ENRS Index|BEST_CAPEX|3FY
+        vendor: Bloomberg BEst
+        refers: >-
+          Energy investment now is energy supply later: what the majors commit to
+          wells, deepwater and LNG becomes barrels years out. Read inverted, so more
+          capital coming means a looser constraint. IN ON MECHANISM, NOT ON A
+          DEMONSTRATED LINK TO PRICES — against world oil supply five years out it
+          scores +0.26, 95% [−0.32, +0.83], with three other regions at +0.35, +0.41
+          and +0.24, all the same sign and none individually clear of zero; against
+          inflation it shows nothing. Deliberately not a US shale measure: US rigs
+          became barrels in about six months once shale took over, so US series read
+          short-cycle activity rather than the ceiling. It replaced the EIA's projected
+          gas balance, which was dropped from the bench entirely: −0.08 against core and
+          −0.34 against headline, and the fourth energy measure in a row to show nothing.
+        measured: >-
+          Bloomberg consensus capex for the S&P 500 energy sector, third fiscal year
+          out, monthly from December 2007, scored as the 12-month percent revision and
+          centred on zero. Preferred over total S&P capex, which has stronger evidence
+          for its first link (+0.46 against industrial capacity at three years) but is
+          currently pinned at its clip at 62% year-on-year, where this reads +5% and
+          still moves.
+
+      - id: cand_capex_revision
+        name: Revision to analysts' three-year capex plans, whole index
+        status: candidate
+        preselect: false
         horizon: long
         nature: structural
         kind: survey
@@ -767,24 +766,18 @@ drivers:
         code: SPX Index|BEST_CAPEX|3FY
         vendor: Bloomberg BEst
         refers: >-
-          The K in Solow, which this driver never had: it read labour three ways and the
-          use of the capital stock, but nothing about the stock itself growing. What
-          companies are expected to spend three years out is the capacity that will
-          exist then. Manufacturing capacity growth was the alternative for this slot and
-          was dropped from the bench with it: production over utilisation IS the capacity
-          index, and its growth scores +0.16 against inflation ahead and flips sign after
-          2012. THE ONE LONG-HORIZON INPUT IN THE SET WITH EVIDENCE BEHIND IT —
-          +0.46 against industrial capacity three years ahead, 95% [+0.07, +0.69], and
-          it survives every cut: +0.55 without the financial crisis, +0.60 in the first
-          half, +0.46 with the whole AI capex era removed. The honest cost is that it
-          is procyclical in the short run (+0.38 with unit labour costs): capex is
-          demand now and supply later, and this slot buys the later half.
+          The K in Solow for the whole market rather than for energy. The best-evidenced
+          FIRST link in the set: +0.46 against industrial capacity three years out, 95%
+          [+0.09, +0.69], point estimate between 0.41 and 0.60 in every subsample though
+          the interval clears zero in four of six. What is NOT shown is the rest of the
+          chain — capacity growth to core inflation is +0.16 and this measure to core
+          inflation is +0.22 at one year and −0.01 at three, none distinguishable from
+          zero. So it predicts capacity, not the constraint the driver scores.
         measured: >-
-          Bloomberg consensus capital spending for the third fiscal year out, monthly
-          from December 2007, scored as the 12-month percent revision. Centred on +3.2
-          with scale 9.0 from history to 2019, so the current reading — analysts have
-          marked three-year capex up 62% in a year — sits at the clip and will stay
-          there while the AI cycle runs.
+          Bloomberg consensus capex, third fiscal year out, monthly from December 2007.
+          Sits at the clip today: analysts have marked three-year capex up 62% in a year
+          against a pre-2019 range of −17 to +18, which is the AI cycle and is real (the
+          level went 99 to 259 since 2022 with no vendor break).
 
       - id: cbo_labour_force_revision
         name: Revision to CBO potential labour force

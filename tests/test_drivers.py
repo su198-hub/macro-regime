@@ -7,10 +7,10 @@ import pytest
 from src.drivers import driver_breakdown, driver_scores, indicator_frames
 
 CFG = {"drivers": {"demand": {"indicators": [
-    {"id": "a", "source": {"fred": "A"}, "transform": "level",
+    {"id": "a", "source": {"series": "A"}, "transform": "level",
      "normalize": {"method": "gap", "center": 0.0, "scale": 1.0},
      "direction": 1, "weight": 0.6},
-    {"id": "b", "source": {"fred": "B"}, "transform": "level",
+    {"id": "b", "source": {"series": "B"}, "transform": "level",
      "normalize": {"method": "gap", "center": 1.0, "scale": 0.5},
      "direction": -1, "weight": 0.4},
 ]}}}
@@ -28,7 +28,7 @@ def test_taylor_style_derived_inputs_fall_back_and_floor():
         "normalize": {"method": "gap", "center": 0.0, "scale": 1.0},
         "source": {
             "expr": "FF - rule",
-            "fred": ["FF", "PI", "SEP", "HLW"],
+            "series": ["FF", "PI", "SEP", "HLW"],
             "derived": {
                 "sep_real": {"expr": "SEP - 2"},
                 "neutral": {"first_of": ["sep_real", "HLW"]},
@@ -58,12 +58,12 @@ def test_quarterly_year_on_year_survives_the_ragged_edge():
     growth printed as 2.3%.
     """
     cfg = {"drivers": {"demand": {"indicators": [
-        {"id": "q", "source": {"fred": "Q"}, "transform": "yoy_pct",
+        {"id": "q", "source": {"series": "Q"}, "transform": "yoy_pct",
          "normalize": {"method": "gap", "center": 0.0, "scale": 1.0},
          "direction": 1, "weight": 1.0, "carry_forward_periods": 2},
         # A monthly series that reaches further than the quarterly one, so the
         # quarterly value has to be carried past its own last observation.
-        {"id": "m", "source": {"fred": "M"}, "transform": "level",
+        {"id": "m", "source": {"series": "M"}, "transform": "level",
          "normalize": {"method": "gap", "center": 0.0, "scale": 1.0},
          "direction": 1, "weight": 1.0},
     ]}}}
