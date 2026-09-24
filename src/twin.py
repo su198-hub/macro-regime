@@ -164,9 +164,35 @@ def level_revision(api, code: str, series_id: str, ahead: int = 5) -> pd.DataFra
     return _frame(series_id, rows)
 
 
+def forward_balance(api, code: str, series_id: str, horizon: int = 18) -> pd.DataFrame:
+    """What a forecaster expects a stock to be doing `horizon` months out.
+
+    From each vintage, the projected level at the horizon against the same
+    calendar month a year earlier in that same vintage. Same month on both
+    sides, so a seasonal swing -- gas storage peaks in November and empties by
+    March -- cancels instead of having to be modelled, and what is left is
+    whether the balance is expected to build a surplus or tighten.
+    """
+    rows = []
+    for v in _vintages(api, code):
+        stamp = v.revision_time_stamp
+        idx = pd.to_datetime(pd.Series(v.dates)).dt.tz_localize(None)
+        s = pd.Series(v.values, index=idx.values).dropna()
+        if s.empty:
+            continue
+        far = pd.Timestamp(stamp.date()).normalize().replace(day=1) \
+            + pd.DateOffset(months=horizon)
+        near = far - pd.DateOffset(years=1)
+        if far in s.index and near in s.index and s[near] > 0:
+            rows.append((stamp.date(), 100 * (s[far] / s[near] - 1)))
+    return _frame(series_id, rows)
+
+
 DERIVED = {
     "CBO_POTGROWTH_REV": lambda api: growth_revision(api, "usfcst1985", "CBO_POTGROWTH_REV"),
     "CBO_LABFORCE_REV": lambda api: level_revision(api, "usfcst0572", "CBO_LABFORCE_REV"),
+    "CBO_LFPR_REV": lambda api: level_revision(api, "usfcst4766", "CBO_LFPR_REV"),
+    "GAS_BALANCE_FWD": lambda api: forward_balance(api, "eiasteo0251", "GAS_BALANCE_FWD"),
 }
 
 

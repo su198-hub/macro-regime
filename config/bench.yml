@@ -610,9 +610,40 @@ drivers:
           JOLTS survey of ~21,000 establishments at ~33 days over the household
           survey's unemployment level at ~6 days.
 
-      - id: oil_inventory_tightness
-        name: Crude inventories vs 5-year average
+      - id: gas_balance_forward
+        name: EIA projected gas balance, 18 months out
         status: in_set
+        horizon: long
+        nature: structural
+        kind: model
+        enters: change
+        where: macrobond
+        code: eiasteo0251
+        refers: >-
+          Where the EIA says the gas balance will be, rather than where the physical
+          market is today — the long-run half of the energy constraint, which is what
+          a regime call needs and what crude inventories could not give. Read the
+          evidence before defending it: against core inflation a year out it scores
+          −0.08, 95% [−0.60, +0.43], and against headline −0.34, 95% [−0.65, +0.04].
+          Neither is distinguishable from zero, and neither were the futures-curve
+          versions tried alongside it (gas 3-year slope −0.19, oil 5-year −0.14 on
+          headline). No energy measure tested, old or new, predicts inflation. This
+          one is here because the slot should look forward, at a smaller weight.
+          OPEC spare capacity was dropped from the bench at the same time: a third
+          reading of a question that has now been tested three ways and answered
+          the same way each time.
+        measured: >-
+          From each monthly Short Term Energy Outlook vintage, the projected
+          working-gas stock eighteen months out against the same calendar month a
+          year earlier in that same vintage. Same month on both sides, so the
+          seasonal swing cancels rather than being modelled. 132 usable publications
+          from 2005, against 14 vintages for the Annual Energy Outlook, whose 2050
+          horizon is the right one and cannot be tested.
+
+      - id: cand_oil_inventory_tightness
+        name: Crude inventories vs 5-year average
+        status: candidate
+        preselect: false
         horizon: medium
         nature: cyclical
         kind: official
@@ -623,6 +654,7 @@ drivers:
         measured: >-
           EIA mandatory weekly survey of refiners, terminals and pipelines, Wednesdays.
           Commercial stocks only; the SPR is excluded deliberately.
+          DROPPED September 2026: no measurable relationship with inflation ahead (+0.16, 95% [−0.06, +0.30] against core; −0.06 against headline), while carrying a fifth of the driver. Replaced by the EIA's forward gas balance, which looks ahead instead of at last week's tanks.
 
       - id: unit_labour_costs_yoy
         name: Unit labour costs
@@ -656,9 +688,10 @@ drivers:
           NY Fed index of global freight rates plus survey delivery times across seven
           economies, with demand effects removed. Monthly, ~6 days.
 
-      - id: productivity_yoy
+      - id: cand_productivity_yoy
         name: Labour productivity
-        status: in_set
+        status: candidate
+        preselect: false
         horizon: long
         nature: cyclical
         kind: official
@@ -672,6 +705,7 @@ drivers:
         measured: >-
           BLS, nonfarm business output over hours. Quarterly, among the most revised
           series in macro.
+          DROPPED September 2026: it scored +0.24 against core inflation a year out, the weakest real reading in the driver, flipped sign after 2012 (+0.34 to −0.16), and correlates 0.50 with unit labour costs, which is the same quantity net of wages and scores +0.74.
 
       - id: cand_tfp
         name: Total factor productivity
@@ -751,9 +785,9 @@ drivers:
           CBO Potential GDP and Underlying Inputs, annual, running to 2036 with 52
           vintages. Target-dated, so the revision is a vintage diff.
 
-      - id: cand_cbo_lfpr_revision
+      - id: cbo_lfpr_revision
         name: Revision to CBO potential participation rate
-        status: candidate
+        status: in_set
         horizon: long
         nature: structural
         kind: model
@@ -767,6 +801,7 @@ drivers:
         measured: >-
           CBO 10-Year Economic Projections, quarterly, running to 2036 with 22
           vintages. Currently 62.0%. Target-dated, so the revision is a vintage diff.
+          IN THE SET since September 2026, at 0.10 and on construct grounds only: Macrobond holds 22 vintages from 2019, which is too few to validate against anything. It correlates just +0.32 with the labour-force revision beside it, so it is not that reading twice.
 
       - id: cand_capex_to_depreciation
         name: Capex-to-depreciation ratio, S&P 500
@@ -781,21 +816,6 @@ drivers:
           Whether the corporate capital stock is growing or quietly eroding. Below
           one, firms are not replacing what wears out.
         measured: Aggregated capital expenditure over depreciation and amortisation, bottom-up.
-
-      - id: cand_spare_oil_capacity
-        name: Global spare oil capacity
-        status: candidate
-        horizon: medium
-        nature: cyclical
-        kind: model
-        enters: level
-        where: external
-        vendor: IEA / EIA
-        refers: OPEC's cushion — whether an outage becomes a shock.
-        measured: >-
-          IEA and EIA estimates of production that could be brought on within 30 days.
-          Monthly. Inventories show a shock after the fact; this shows the capacity
-          to absorb one.
 
   monetary:
     label: Monetary policy

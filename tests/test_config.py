@@ -79,11 +79,16 @@ def test_long_horizon_inputs_are_never_raw_levels_by_accident():
     an inflation expectation measured against the target is. The flag is there
     to make that a decision rather than an oversight.
 
-    A series that is ALREADY a revision is the third case. Its observations are
-    differences between consecutive projections, so reading it at `level` reads
-    a difference: it is centred on zero and stationary by construction, and
-    differencing it again would score the change in the change.
+    A DERIVED series is the third case. Every one of them is built as a
+    difference — a revision between consecutive projections, or a projected
+    stock against the same month a year earlier — so reading it at `level`
+    already reads a change. It is stationary by construction, and differencing
+    it again would score the change in the change. Which series those are is
+    read from sources.yml rather than guessed from the name.
     """
+    import yaml
+    derived = {k for k, v in (yaml.safe_load(open("config/sources.yml"))["series"] or {}).items()
+               if (v or {}).get("use") == "derived"}
     horizon = ui.horizons(CFG)
     # Dispersion and share-of-time statistics belong here too: a rolling
     # standard deviation, or a count of months spent off target, is already
@@ -97,7 +102,7 @@ def test_long_horizon_inputs_are_never_raw_levels_by_accident():
             transform = i.get("transform", "level")
             is_spread = "-" in i["source"].get("expr", "")
             already_a_revision = any(
-                str(s).endswith("_REV") for s in i["source"].values() if isinstance(s, str))
+                s in derived for s in i["source"].values() if isinstance(s, str))
             assert (transform in changes or is_spread or i.get("absolute_level")
                     or already_a_revision), (
                 f"{i['id']} is long-horizon and enters as a raw level: difference it, "

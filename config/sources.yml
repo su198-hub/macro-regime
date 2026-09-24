@@ -270,6 +270,24 @@ series:
       Revision to CBO's five-year-ahead potential growth rate between
       consecutive projections, in points. Growth rather than level, because the
       level jumps at every BEA rebasing.
+  CBO_LFPR_REV:
+    use: derived
+    derived_from: usfcst4766
+    note: >-
+      Revision to CBO's five-year-ahead potential labour force PARTICIPATION
+      RATE between consecutive projections, in log percent. The participation
+      half of the labour force question on its own: how many of the people who
+      exist choose to work, which is where a swing in female participation
+      shows and which population growth cannot see. Only 22 vintages, from
+      2019, so it cannot be validated on history.
+  GAS_BALANCE_FWD:
+    use: derived
+    derived_from: eiasteo0251
+    note: >-
+      The EIA's projected working-gas stock eighteen months out against the same
+      calendar month a year earlier, from each monthly Short Term Energy Outlook
+      vintage. Same month on both sides, so the seasonal swing cancels. 132
+      usable publications from 2005.
   CBO_LABFORCE_REV:
     use: derived
     derived_from: usfcst0572
