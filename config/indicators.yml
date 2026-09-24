@@ -76,7 +76,7 @@ meta:
             core_capex_orders_yoy, real_nonres_investment_yoy, excess_bond_premium,
             retail_vs_staples, forecaster_disagreement, primary_balance_3y,
             hy_spread_change]
-    long: [gas_balance_forward, cbo_lfpr_revision, breakeven_5y5y, spf_long_run, spf_cpi_revision, spf_growth_revision,
+    long: [capex_revision, cbo_lfpr_revision, breakeven_5y5y, spf_long_run, spf_cpi_revision, spf_growth_revision,
           inflation_risk_premium, cleveland_10y, interest_burden_gdp,
           equity_risk_premium, yield_curve_slope, cbo_labour_force_revision,
           target_miss_rate, inflation_volatility, sovereign_cds, capital_age]
@@ -338,36 +338,47 @@ drivers:
         weight: 0.25
         why: Where wage pressure turns into price pressure.
 
-      # Energy is the supply shock that has actually caused stagflation, and
-      # this is the forward half of it: not where the physical market IS but
-      # where the EIA says it will BE. Replaces crude inventories against their
-      # five-year average, which reads today's tightness and showed no
-      # measurable relationship with inflation ahead (+0.16, 95% [-0.06,
-      # +0.30] against core; -0.06 against headline).
+      # The K in Solow, which this driver has never had. It read labour three
+      # ways, the use of the capital stock, and energy, but nothing about the
+      # stock itself growing. Capex expectations fill that: money companies
+      # expect to spend three years out is capacity that will exist.
       #
-      # HONEST WARNING, because this is the manager's question and the answer
-      # is not the hoped-for one: this measure does no better. Against core
-      # inflation a year out it scores -0.08, 95% [-0.60, +0.43]; against
-      # headline -0.34, 95% [-0.65, +0.04]. Neither is distinguishable from
-      # zero, and nor were the two futures-curve versions tried alongside it
-      # (gas 3-year slope -0.19, oil 5-year slope -0.14 on headline). It is
-      # here because the slot should look forward rather than at last week's
-      # tanks, and at a lower weight than the backward version carried, not
-      # because the data says energy forecasts predict inflation. They do not.
-      - id: gas_balance_forward
-        label: EIA projected gas balance, 18 months out
-        source: {fred: GAS_BALANCE_FWD}
-        transform: level
-        normalize: {method: gap, center: -1.5, scale: 3.7}
+      # THE ONE LONG-HORIZON INPUT IN THE SET WITH EVIDENCE BEHIND IT. Against
+      # industrial capacity three years ahead it scores +0.46, 95% [+0.07,
+      # +0.69], and unlike almost everything else tried it survives every cut:
+      # +0.55 with the financial crisis removed, +0.60 in the first half, +0.46
+      # with the entire AI capex era removed. The point estimate never leaves
+      # 0.41-0.60. Compare the measures it beat for this slot -- the EIA gas
+      # balance (-0.08), the gas futures curve (-0.19), capacity growth itself
+      # (+0.16, sign-flipping), energy-sector capex (+0.26, interval [-0.32,
+      # +0.83]) -- none of which could be distinguished from zero.
+      #
+      # IT IS PROCYCLICAL IN THE SHORT RUN, which is the honest cost: firms
+      # plan capex when demand is strong, so it correlates +0.38 with unit
+      # labour costs and +0.22 with next-year inflation. Capex is demand now
+      # and supply later; this slot is buying the later half deliberately.
+      #
+      # CENTRED AND SCALED ON HISTORY TO 2019 (mean +3.2, sd 9.0), the model's
+      # convention, which means today's reading is off the scale: analysts have
+      # marked three-year-out capex up 62% in a year, against a pre-2019 range
+      # of -17 to +18. The score therefore sits at its clip and will stay there
+      # while the AI capex cycle runs. That is the clip doing its job -- saying
+      # "as extreme as this scale can express" -- rather than a calibration to
+      # fix. Widening the scale to fit the current episode is exactly what the
+      # pre-2019 convention exists to prevent.
+      - id: capex_revision
+        label: Revision to analysts' three-year capex plans
+        source: {fred: SPX_CAPEX_3FY}
+        transform: yoy_pct
+        normalize: {method: gap, center: 3.2, scale: 9.0}
         direction: -1
         weight: 0.15
-        carry_forward_periods: 2
-        release: Short Term Energy Outlook
+        release: Bloomberg consensus
         why: >-
-          A surplus building over the next year and a half loosens the
-          constraint, so it enters inverted. From each monthly STEO vintage,
-          the projected stock against the same calendar month a year earlier,
-          which cancels the seasonal swing rather than modelling it.
+          More capital coming means a looser constraint, so it enters inverted.
+          What companies are expected to spend three years out is the capacity
+          that will exist then, which is the half of the supply question this
+          driver could not previously see.
 
       - id: cbo_labour_force_revision
         label: Revision to CBO potential labour force

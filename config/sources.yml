@@ -253,6 +253,15 @@ series:
     use: bloomberg
     bloomberg: "S5CONS Index"
     note: S&P 500 consumer staples sector, daily from September 1989.
+  SPX_CAPEX_3FY:
+    use: bloomberg
+    bloomberg: "SPX Index|BEST_CAPEX|3FY"
+    note: >-
+      Consensus S&P 500 capital spending for the third fiscal year out, monthly
+      from December 2007. Reported as a negative (a cash outflow), so the
+      indicator reads its absolute change. Checked for vendor breaks: none
+      above 25% in 225 months, unlike the MSCI World and STOXX Europe energy
+      capex series, which both jump in August 2026 and are unusable.
   SPX_EPS_3FY:
     use: bloomberg
     bloomberg: "SPX Index|BEST_EPS|3FY"
