@@ -110,7 +110,7 @@ drivers:
         code: UNRATE − NROU
         refers: >-
           Labour market slack measured against full employment rather than against
-          zero. KEPT BUT DEMOTED — weight cut from 0.25 to 0.15 in the proposed set.
+          zero. KEPT BUT DEMOTED — weight cut from 0.25 to 0.15 in September 2026.
           Unemployment turns after the spending that causes it, and the benchmark it
           is measured against is CBO's noncyclical rate, which is itself revised
           backwards. The released weight goes to the ten-year growth revision.
@@ -118,12 +118,13 @@ drivers:
           Rate from the BLS household survey of ~60,000 households, first Friday.
           Noncyclical rate is CBO's estimate, updated once or twice a year.
 
-      # Opens unticked, with the two revisions in its place. A payroll bump a
-      # household reads as temporary barely moves consumption, because spending
-      # follows expected lifetime resources rather than this month's income.
-      - id: payrolls_3m_ann
+      # DROPPED from the set in September 2026, kept here so it can be put
+      # back. A payroll bump a household reads as temporary barely moves
+      # consumption, because spending follows expected lifetime resources
+      # rather than this month's income.
+      - id: cand_payrolls_3m_ann
         name: Payroll growth, 3 months annualised
-        status: in_set
+        status: candidate
         preselect: false
         horizon: short
         nature: news
@@ -192,10 +193,9 @@ drivers:
       #                   transform, which the point-in-time store can support
       #                   and almost no other dashboard could.
 
-      - id: cand_spf_lt_growth
+      - id: spf_growth_revision
         name: Revision to forecasters' 10-year GDP growth
-        status: candidate
-        preselect: true
+        status: in_set
         horizon: long
         nature: structural
         kind: survey
@@ -433,7 +433,7 @@ drivers:
         code: SPFCPI10
         refers: >-
           What professional forecasters expect inflation to average over a decade.
-          Stays a LEVEL, and keeps half its weight: an anchor is a statement about
+          Stays a LEVEL, and keeps half its weight since September 2026: an anchor is a statement about
           where expectations sit against 2%, so a revision alone would score
           expectations stuck at 4% as neutral the moment they stopped moving. The
           other half goes to the revision below — the two correlate −0.14 and
@@ -447,10 +447,9 @@ drivers:
       # nothing to gain by trading the level away; what the revision adds is
       # the moment the anchor moves, which a level travelling between 2.1 and
       # 2.6 for thirty years cannot show.
-      - id: cand_spf_cpi_revision
+      - id: spf_cpi_revision
         name: Revision to forecasters' 10-year CPI
-        status: candidate
-        preselect: true
+        status: in_set
         horizon: long
         nature: structural
         kind: survey

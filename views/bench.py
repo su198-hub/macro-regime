@@ -87,7 +87,8 @@ st.html(
     'Most rows enter as a level, a change or a spread. A row marked ↻ enters as the '
     'movement in an estimate of the same future target between publications — the '
     'level of a ten-year forecast barely moves, so only its revision carries '
-    'information. Nothing in the model is scored this way today.</span></div>'
+    'information. Nothing was scored this way until September 2026; the ten-year '
+    'growth and CPI revisions now are.</span></div>'
     '</div>')
 
 

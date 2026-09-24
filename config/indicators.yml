@@ -70,7 +70,7 @@ meta:
   # the 2% target is meant to be read as a level, since the target is a policy
   # commitment rather than an average that drifts.
   horizons:
-    short: [payrolls_3m_ann, jobless_claims_yoy, umich_1y, supply_chain_pressure,
+    short: [jobless_claims_yoy, umich_1y, supply_chain_pressure,
             financial_conditions]
     medium: [real_pce_yoy, unemployment_gap, wage_growth_yoy, capacity_utilisation,
              vacancies_per_unemployed, unit_labour_costs_yoy, oil_inventory_tightness,
@@ -78,7 +78,8 @@ meta:
              primary_balance_gdp, fiscal_impulse, debt_trajectory,
              core_capex_orders_yoy, real_nonres_investment_yoy,
              building_permits_yoy, excess_bond_premium, ci_lending_standards]
-    long: [breakeven_5y5y, spf_long_run, inflation_risk_premium, cleveland_10y, productivity_yoy,
+    long: [breakeven_5y5y, spf_long_run, spf_cpi_revision, spf_growth_revision,
+           inflation_risk_premium, cleveland_10y, productivity_yoy,
            interest_burden_gdp, debt_sustainability_gap, equity_risk_premium,
            yield_curve_slope]
 
@@ -125,14 +126,33 @@ drivers:
           rather than 2% plus trend productivity, which would mark almost the
           whole sample as cool because the labor share fell through it.
 
-      - id: payrolls_3m_ann
-        label: Payroll growth, 3 months annualized
-        source: {fred: PAYEMS}
-        transform: pct_change_3m_ann
-        normalize: {method: gap, center: 1.0, scale: 1.0}
+      # Payroll growth was here and is out. A household reads a payroll bump it
+      # believes is temporary as almost nothing, because spending follows
+      # expected lifetime resources rather than this month's income, and the
+      # driver already has three readings of what has just happened.
+      #
+      # This is the same question asked forward: not what the economy is
+      # earning now but what forecasters think it can sustain over a decade,
+      # and specifically the CHANGE in that view. The level sits near 2% for
+      # years and cannot tell one month from another; the revision is the
+      # economy being re-rated, and it is the one measure in this driver whose
+      # correlation with growth still to come survives testing -- +0.36 against
+      # the next year, 95% [+0.05, +0.62], where every other candidate tried
+      # spans zero.
+      - id: spf_growth_revision
+        label: Revision to forecasters' 10-year GDP growth
+        source: {fred: SPF10GDP}
+        transform: diff_12m
+        normalize: {method: gap, center: 0.0, scale: 0.19}
         direction: 1
-        weight: 0.20
-        why: Labor demand, monthly, with a long and clean vintage record.
+        weight: 0.30
+        carry_forward_periods: 2
+        release: Survey of Professional Forecasters
+        why: >-
+          Expected lifetime income, re-rated: the change in what forecasters
+          think the economy can grow at over a decade. Asked once a year, so it
+          is an annual signal carried through the year, which is the honest
+          cost of reading this far ahead.
 
       - id: unemployment_gap
         label: Unemployment rate less its long-run level
@@ -142,11 +162,17 @@ drivers:
         transform: level
         normalize: {method: gap, center: 0.0, scale: 0.8}
         direction: -1
-        weight: 0.25
+        weight: 0.15
         # CBO revises its noncyclical rate once or twice a year and it moves
         # slowly, so hold it for up to six quarters rather than two.
         carry_forward_periods: 6
-        why: Slack relative to CBO's estimate of the noncyclical rate.
+        why: >-
+          Slack relative to CBO's estimate of the noncyclical rate. Cut from a
+          quarter of the driver to 0.15: unemployment turns after the spending
+          that causes it, and the benchmark it is measured against is CBO's
+          noncyclical rate, which is itself revised backwards. The released
+          weight went to the ten-year growth revision above, the same question
+          asked forward instead of backward.
 
       # The weekly economic index was dropped here: it is a composite whose
       # components are mostly jobless claims and retail sales, so next to the
@@ -194,13 +220,37 @@ drivers:
         normalize: {method: gap, center: 2.3, scale: 0.35}
         direction: 1
         absolute_level: true   # an expectation measured against the 2% target
-        weight: 0.20
+        weight: 0.10
         carry_forward_periods: 2
         release: Survey of Professional Forecasters
         why: >-
           The survey-against-target reading, from the forecasters the Fed itself
           watches. A level, because what makes an anchor an anchor is where it
-          sits relative to 2%, not whether it moved this quarter.
+          sits relative to 2%, not whether it moved this quarter. Half the
+          weight of this question; the revision below carries the other half.
+
+      # The same survey read as a change. Not the level counted twice: the two
+      # correlate -0.14 and disagree in sign in 51% of quarters, which is the
+      # difference between an anchor above target and falling and one stuck
+      # above target. Neither works alone -- a level cannot separate those two,
+      # and a revision reads zero when expectations are simply wrong and
+      # stable. Scored over four quarters rather than one: a single quarter
+      # moves more than 0.1 points only a quarter of the time, a year's
+      # accumulated revision about half.
+      - id: spf_cpi_revision
+        label: Revision to forecasters' 10-year CPI
+        source: {fred: SPFCPI10}
+        transform: diff_12m
+        normalize: {method: gap, center: 0.0, scale: 0.14}
+        direction: 1
+        weight: 0.10
+        carry_forward_periods: 2
+        release: Survey of Professional Forecasters
+        why: >-
+          The anchor moving rather than where it sits. It ran +0.48 through 2022
+          as forecasters marked the decade up and -0.63 through 2023 as they
+          took it back, neither of which shows in a level that has never left a
+          half-point band.
 
       # A breakeven is expected inflation plus payment for bearing inflation
       # risk. Without the second term you cannot tell a rise in expectations

@@ -55,15 +55,18 @@ def test_every_row_says_how_it_would_be_scored():
         assert r.get("enters") in bn.ENTERS_ORDER, f"{r['id']} has enters {r.get('enters')!r}"
 
 
-def test_nothing_scored_today_enters_as_a_revision():
-    """Guards the claim the page makes on screen.
+def test_the_scored_set_now_uses_revisions():
+    """This test used to assert the opposite, and that is the point.
 
-    If an indicator is ever added that scores a revision, this fails and the
-    wording that says nothing does has to be revisited rather than quietly
-    becoming untrue.
+    The bench was built around an objection: a long-run forecast is dead weight
+    at its level, and nothing in the model read one as a change. Two now do, as
+    of September 2026 — the ten-year growth and CPI revisions — so the guard is
+    inverted. It fails if they are ever dropped without the wording that claims
+    the set reads revisions being revisited.
     """
     live = [r for r in ROWS if r.get("status") == "in_set"]
-    assert not bn.revisions(live), [r["id"] for r in bn.revisions(live)]
+    ids = {r["id"] for r in bn.revisions(live)}
+    assert {"spf_growth_revision", "spf_cpi_revision"} <= ids, sorted(ids)
 
 
 def test_most_demand_candidates_enter_as_a_revision():
@@ -93,17 +96,27 @@ def test_demand_candidates_answer_the_horizon_and_source_criticism():
     what answers the source half of the criticism.
     """
     cands = [i for i in bn.by_driver(BENCH, "demand") if i.get("status") == "candidate"]
-    soft = [c for c in cands if c["nature"] != "structural"]
+    # Rows that open unticked are parked, not offered: a dropped indicator is
+    # kept so it can be put back, and it is not part of what the bench proposes.
+    offered = [c for c in cands if c.get("preselect", True)]
+    soft = [c for c in offered if c["nature"] != "structural"]
     assert len(soft) <= 1, [c["id"] for c in soft]
     assert all(c["kind"] == "market" for c in soft), [c["id"] for c in soft]
     assert len(bn.kinds_present(cands)) >= 3, \
         f"demand candidates draw on only {bn.kinds_present(cands)}"
 
 
-def test_the_live_demand_driver_is_the_single_source_case():
-    """Guards the claim the page makes on screen, so it cannot go stale."""
+def test_the_live_demand_driver_no_longer_reads_one_source_only():
+    """The criticism the bench was built on, and the evidence it was answered.
+
+    Demand was five official statistics about what had already happened, which
+    was the whole case for the bench. Since September 2026 it also carries the
+    forecasters' ten-year growth revision, so the page can no longer say the
+    driver reads a single kind of source.
+    """
     live = [i for i in bn.by_driver(BENCH, "demand") if i.get("status") == "in_set"]
-    assert bn.kinds_present(live) == ["official"], bn.kinds_present(live)
+    kinds = bn.kinds_present(live)
+    assert "official" in kinds and len(kinds) > 1, kinds
 
 
 def test_nature_is_not_just_horizon_under_another_name():
