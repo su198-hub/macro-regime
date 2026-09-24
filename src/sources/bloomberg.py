@@ -169,10 +169,14 @@ class BloombergSource:
 
     def describe(self, series_id: str) -> dict:
         ticker, field, period = self.split(series_id)
-        info = self._reference(ticker, ["NAME"])
+        # LONG_COMP_NAME first: NAME is abbreviated to fit a terminal column and
+        # loses the distinction that matters here. S5RETL comes back as "S&P 500
+        # CONS DISCR", which is the parent sector, not the retail industry group
+        # the ticker actually is.
+        info = self._reference(ticker, ["LONG_COMP_NAME", "NAME"])
         units = f"{field} @{period}" if period else field
-        return {"title": info.get("NAME", ticker), "units": units,
-                "frequency": "D", "has_vintages": True}
+        return {"title": info.get("LONG_COMP_NAME") or info.get("NAME", ticker),
+                "units": units, "frequency": "D", "has_vintages": True}
 
     def close(self) -> None:
         if self._session is not None:
