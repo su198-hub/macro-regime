@@ -72,11 +72,10 @@ meta:
   horizons:
     short: [umich_1y]
     medium: [real_pce_yoy, unemployment_gap, wage_growth_yoy, capacity_utilisation,
-            vacancies_per_unemployed, unit_labour_costs_yoy,             taylor_gap, balance_sheet_impulse, fiscal_impulse, debt_trajectory,
-            core_capex_orders_yoy, real_nonres_investment_yoy, excess_bond_premium,
+            vacancies_per_unemployed, unit_labour_costs_yoy,             taylor_gap, balance_sheet_impulse, fiscal_impulse, core_capex_orders_yoy, real_nonres_investment_yoy, excess_bond_premium,
             retail_vs_staples, forecaster_disagreement, primary_balance_3y,
             hy_spread_change]
-    long: [energy_capex_revision, cbo_lfpr_revision, breakeven_5y5y, spf_long_run, spf_cpi_revision, spf_growth_revision,
+    long: [locked_in_refinancing, energy_capex_revision, cbo_lfpr_revision, breakeven_5y5y, spf_long_run, spf_cpi_revision, spf_growth_revision,
           inflation_risk_premium, cleveland_10y, interest_burden_gdp,
           equity_risk_premium, yield_curve_slope, cbo_labour_force_revision,
           target_miss_rate, inflation_volatility, sovereign_cds, capital_age]
@@ -528,7 +527,7 @@ drivers:
         transform: diff_36m_ann
         normalize: {method: gap, center: 0.0, scale: 1.16}
         direction: 1
-        weight: 0.35
+        weight: 0.20
         why: >-
           The government's sustained posture over a budget and its
           follow-through.
@@ -548,16 +547,58 @@ drivers:
         release: Monthly Treasury Statement
         why: Direction matters as much as level. A shrinking deficit withdraws demand even if it is still large.
 
-      - id: debt_trajectory
-        label: Debt held by the public, change in % of GDP over a year
+      # Debt growth was here and is out: it correlated 0.68 with the fiscal
+      # impulse beside it, so the driver was reading the same deficit twice.
+      #
+      # This replaces it with the one thing in the driver that is genuinely
+      # about years ahead, and it is ARITHMETIC RATHER THAN A FORECAST:
+      #
+      #   points of GDP added to the interest bill each year
+      #     = (1 / average maturity)   how much of the stock reprices
+      #     x (5-year yield - the rate actually being paid)
+      #                                how much dearer it is to replace
+      #     x (debt / GDP)             how big the stock is
+      #
+      # Every term is observable today and the product is cost already
+      # committed unless rates fall back. Nothing is estimated, so there is no
+      # coefficient to break when the regime changes -- which is why it is here
+      # and the two obvious alternatives are not. The interest burden LEVEL
+      # scores -0.61 against the debt path over the full sample and nothing
+      # from 2000 (-0.18) or from 2012 (-0.16): a forty-year trend of a falling
+      # interest bill against rising debt. Average maturity scores -0.44 and
+      # FLIPS to +0.80 after 2012, when the Treasury termed out while
+      # deficits grew. Both are spurious; this uses the same inputs mechanically
+      # instead of fitting them.
+      #
+      # It reads the 2010s correctly as a fiscal tailwind nobody scored: from
+      # 2012 to 2021 it runs -0.18 to -0.05, because maturing debt was being
+      # replaced at lower rates and the interest bill fell on its own. It turns
+      # positive in 2022 and is +0.12 now.
+      #
+      # Centred on ZERO rather than its own average, breaking the usual
+      # convention on purpose: zero means the debt rolls at the rate it already
+      # pays, which is the real neutral. The 2000-2019 average of -0.04 is an
+      # artefact of a twenty-year bull market in bonds, and centring on it
+      # would score "rates stopped falling" as fiscal tightening.
+      - id: locked_in_refinancing
+        label: Interest cost already locked in, points of GDP a year
         source:
-          expr: "DEBTPUB / GDPNOM * 100"
-          series: [DEBTPUB, GDPNOM]
-        transform: diff_12m
-        normalize: {method: gap, center: 1.3, scale: 3.4}
-        direction: -1
-        weight: 0.10
-        why: Debt rising faster than usual means fiscal is adding to demand. Inverted.
+          expr: rolls_per_year * repricing_gap * debt_share
+          series: [AVGMAT, DGS5, MTSNETINT, DEBTPUB, GDPNOM]
+          derived:
+            interest_12m: {series: MTSNETINT, transform: sum_12m}
+            eff_rate: {expr: interest_12m / DEBTPUB * 100}
+            rolls_per_year: {expr: 12 / AVGMAT}
+            repricing_gap: {expr: DGS5 - eff_rate}
+            debt_share: {expr: DEBTPUB / GDPNOM}
+        transform: level
+        normalize: {method: gap, center: 0.0, scale: 0.07}
+        direction: 1
+        weight: 0.25
+        why: >-
+          What the debt already outstanding will cost as it rolls over at
+          today's yields. A rising bill narrows the room for fiscal support, so
+          it enters on the restrictive side.
 
       - id: sovereign_cds
         label: US sovereign CDS, 5-year

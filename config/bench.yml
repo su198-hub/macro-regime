@@ -1129,9 +1129,10 @@ drivers:
         refers: Debt service as a claim on the budget.
         measured: Monthly Treasury Statement interest paid net of received, twelve-month sum over GDP.
 
-      - id: debt_trajectory
+      - id: cand_debt_trajectory
         name: Debt held by the public, 12-month change
-        status: in_set
+        status: candidate
+        preselect: false
         horizon: medium
         nature: structural
         kind: official
@@ -1139,7 +1140,40 @@ drivers:
         where: macrobond
         code: DEBTPUB
         refers: What the debt ratio actually did, against what r−g says it should.
-        measured: Fed Financial Accounts (Z.1), quarterly at ~73 days — the slowest release in the set.
+        measured: >-
+          Fed Financial Accounts (Z.1), quarterly at ~73 days — the slowest release in
+          the set. DROPPED September 2026, because it correlated 0.68 with the fiscal
+          impulse beside it, so the driver was reading the same deficit twice, and it is
+          the weaker of the two against the debt path.
+
+      - id: locked_in_refinancing
+        name: Interest cost already locked in
+        status: in_set
+        horizon: long
+        nature: structural
+        kind: official
+        enters: level
+        where: macrobond
+        code: AVGMAT, DGS5, MTSNETINT, DEBTPUB, GDPNOM
+        refers: >-
+          What the debt already outstanding will cost as it rolls over at today's
+          yields, in points of GDP a year. ARITHMETIC, NOT A FORECAST: a sixth of the
+          stock reprices annually at 71 months' average maturity, currently 1.5 points
+          dearer than the 3.2% being paid, on a stock of 97% of GDP. Nothing is
+          estimated, so there is no coefficient to break when the regime changes —
+          which is the point. It reads the 2010s correctly as a fiscal tailwind
+          (−0.18 to −0.05, debt rolling into cheaper rates) and turns positive in 2022.
+        measured: >-
+          (12 / average maturity) × (5-year yield − interest paid over the last 12
+          months as a share of debt) × (debt / GDP). Monthly from 2000, limited by the
+          maturity series. Centred on zero, not on its own average: zero means the debt
+          rolls at the rate it already pays, while the 2000–19 mean of −0.04 is an
+          artefact of a twenty-year bond bull market.
+          PREFERRED OVER the two obvious alternatives, both of which are spurious. The
+          interest-burden LEVEL scores −0.61 against the debt path in full but −0.18
+          from 2000 and −0.16 from 2012 — a forty-year trend of a falling interest bill
+          against rising debt. Average maturity scores −0.44 and FLIPS to +0.80 after
+          2012, when the Treasury termed out while deficits grew.
 
       - id: primary_balance_3y
         name: Primary balance, 3-year change

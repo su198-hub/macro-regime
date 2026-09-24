@@ -100,7 +100,13 @@ def test_long_horizon_inputs_are_never_raw_levels_by_accident():
             if horizon.get(i["id"]) != "long":
                 continue
             transform = i.get("transform", "level")
-            is_spread = "-" in i["source"].get("expr", "")
+            # A difference can sit in a derived step rather than the top-level
+            # expression: the locked-in interest measure multiplies three terms
+            # together, one of which is a yield less a rate. Looking only at
+            # the outer expression missed that.
+            exprs = [i["source"].get("expr", "")] + [
+                str(d.get("expr", "")) for d in (i["source"].get("derived") or {}).values()]
+            is_spread = any("-" in e for e in exprs)
             already_a_revision = any(
                 s in derived for s in i["source"].values() if isinstance(s, str))
             assert (transform in changes or is_spread or i.get("absolute_level")

@@ -284,6 +284,20 @@ series:
     use: bloomberg
     bloomberg: "S5CONS Index"
     note: S&P 500 consumer staples sector, daily from September 1989.
+  AVGMAT:
+    use: macrobond
+    macrobond: usgpfi0465
+    note: >-
+      Average maturity of marketable Treasury debt, in months, from 2000. How
+      much of the stock reprices each year: at 71 months about a sixth of it.
+  DGS5:
+    use: macrobond
+    macrobond: us5yfedgov_m
+    note: >-
+      Five-year Treasury constant maturity yield, monthly from 1953. The
+      refinancing rate for the locked-in interest measure, chosen because five
+      years is the constant maturity closest to the debt's own average of about
+      six.
   SPX_ENERGY_CAPEX_3FY:
     use: bloomberg
     bloomberg: "S5ENRS Index|BEST_CAPEX|3FY"
