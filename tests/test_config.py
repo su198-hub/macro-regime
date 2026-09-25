@@ -139,3 +139,13 @@ def test_only_series_fred_actually_publishes_claim_a_fred_page():
     assert flagged & scored, "no scored series links to FRED; check the flag survived"
     orphans = flagged - set(sources)
     assert not orphans, orphans
+
+
+def test_the_forecast_page_is_hidden_and_registered():
+    """It answers a different question from the dashboard, so it stays off the nav
+    until its shape is settled — same treatment the twin page had."""
+    src = open("app.py", encoding="utf-8").read()
+    assert 'url_path="forecast"' in src
+    assert 'views/forecast.py' in src
+    page = src.split('views/forecast.py')[1].split(")")[0]
+    assert 'visibility="hidden"' in page, "the forecast page should not be in the nav yet"

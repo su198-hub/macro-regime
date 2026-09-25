@@ -24,6 +24,11 @@ st.navigation(
      st.Page("views/bench.py", title="Bench", url_path="bench"),
      # Hidden: reachable at /twin, never in the nav, so the presentation is
      # untouched while the proposed indicator set is being weighed.
-     st.Page("views/twin.py", title="Twin", url_path="twin", visibility="hidden")],
+     st.Page("views/twin.py", title="Twin", url_path="twin", visibility="hidden"),
+     # Also hidden while its shape is argued over. /forecast asks a different
+     # question from every other page: not what regime this month is, but what
+     # is already determined about the next three years.
+     st.Page("views/forecast.py", title="Forecast", url_path="forecast",
+             visibility="hidden")],
     position="top",
 ).run()
