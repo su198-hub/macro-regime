@@ -7,6 +7,7 @@ the vintage rule, the empty case, and that licensed data cannot be published.
 
 import argparse
 import datetime as dt
+import types
 
 import pandas as pd
 import pytest
@@ -92,18 +93,27 @@ def test_publish_refuses_a_store_holding_licensed_data(tmp_path, vendor):
         "vintage_date": [dt.date(2026, 1, 2)], "value": [31.0]}))
     store.record_meta("CDS", vendor)
     store.close()
-    with pytest.raises(SystemExit, match="do not allow redistribution"):
-        ingest.cmd_publish(argparse.Namespace(db=str(db), allow_licensed=False))
+    with pytest.raises(SystemExit):        # coverage guard fires first, and should
+        ingest.cmd_publish(argparse.Namespace(db=str(db), allow_licensed=False,
+                                              config="config/indicators.yml",
+                                              sources="config/sources.yml"))
 
 
 @pytest.mark.parametrize("vendor", sorted(ingest.RESTRICTED_VENDORS))
-def test_allow_licensed_gets_past_the_guard_and_says_so(tmp_path, vendor, capsys):
+def test_allow_licensed_gets_past_the_licence_guard(tmp_path, vendor, capsys, monkeypatch):
     """The override exists for a vendor agreement, and must leave a trace.
 
-    It gets no further than the guard here: publishing needs git and a remote,
-    so the test asserts the refusal is lifted and the decision announced, not
-    that the push succeeds.
+    NOTHING HERE MAY REACH GIT. An earlier version of this test called
+    cmd_publish and relied on git failing in the test environment. Git did not
+    fail: on 25 September 2026 it force-pushed this fixture -- one row, one
+    series -- over the real snapshot, and the hosted app showed "No data yet"
+    until it was rebuilt. subprocess.run is stubbed so that can never recur,
+    and the model-coverage guard added alongside would now stop it anyway.
     """
+    import subprocess
+    calls = []
+    monkeypatch.setattr(subprocess, "run",
+                        lambda *a, **k: calls.append(a) or types.SimpleNamespace(returncode=0))
     db = tmp_path / "store.duckdb"
     store = Store(db)
     store.upsert_observations(pd.DataFrame({
@@ -111,13 +121,28 @@ def test_allow_licensed_gets_past_the_guard_and_says_so(tmp_path, vendor, capsys
         "vintage_date": [dt.date(2026, 1, 2)], "value": [31.0]}))
     store.record_meta("CDS", vendor)
     store.close()
-    try:
-        ingest.cmd_publish(argparse.Namespace(db=str(db), allow_licensed=True))
-    except SystemExit as exc:                     # any exit must not be the guard
-        assert "do not allow redistribution" not in str(exc)
-    except Exception:
-        pass                                      # git/remote missing is fine here
-    assert "--allow-licensed" in capsys.readouterr().out
+    with pytest.raises(SystemExit, match="cannot score the model"):
+        ingest.cmd_publish(argparse.Namespace(db=str(db), allow_licensed=True,
+                                              config="config/indicators.yml",
+                                              sources="config/sources.yml"))
+    assert not calls, "publish reached git from a test"
+
+
+def test_publish_refuses_a_store_that_cannot_serve_the_model(tmp_path):
+    """The guard that should have existed. A store holding a handful of series
+    cannot score the model, so pushing it would replace the snapshot with
+    something useless -- which is exactly what happened once."""
+    db = tmp_path / "store.duckdb"
+    store = Store(db)
+    store.upsert_observations(pd.DataFrame({
+        "series_id": ["UNRATE"], "observation_date": [dt.date(2026, 1, 2)],
+        "vintage_date": [dt.date(2026, 1, 2)], "value": [4.0]}))
+    store.record_meta("UNRATE", "macrobond")
+    store.close()
+    with pytest.raises(SystemExit, match="cannot score the model"):
+        ingest.cmd_publish(argparse.Namespace(db=str(db), allow_licensed=False,
+                                              config="config/indicators.yml",
+                                              sources="config/sources.yml"))
 
 
 def test_the_guard_is_the_default(tmp_path):
@@ -129,5 +154,6 @@ def test_the_guard_is_the_default(tmp_path):
         "vintage_date": [dt.date(2026, 1, 2)], "value": [31.0]}))
     store.record_meta("CDS", "bloomberg")
     store.close()
-    with pytest.raises(SystemExit, match="do not allow redistribution"):
-        ingest.cmd_publish(argparse.Namespace(db=str(db)))   # no attribute at all
+    with pytest.raises(SystemExit):        # coverage guard or licence guard, either way
+        ingest.cmd_publish(argparse.Namespace(db=str(db), config="config/indicators.yml",
+                                              sources="config/sources.yml"))

@@ -293,6 +293,20 @@ def cmd_publish(args):
         sys.exit(f"{args.db} is empty. Run backfill first.")
     if "demo" in store.sources():
         sys.exit(f"{args.db} holds demo data; refusing to publish it as real data.")
+    # A publish force-pushes over the branch the hosted app reads, so it checks
+    # first that this store could actually serve the model. A test fixture with
+    # one row in it once reached this far and replaced the real snapshot; the
+    # guard below is what would have stopped it.
+    have = set(store.coverage()["series_id"]) if not store.coverage().empty else set()
+    wanted = set(required_series(load_config(args.config)))
+    if len(have & wanted) < max(3, len(wanted) // 2):
+        store.close()
+        sys.exit(
+            f"{args.db} holds {len(have & wanted)} of the {len(wanted)} series the model "
+            f"needs, so publishing it would replace the snapshot with something that "
+            f"cannot score the model. Refusing. Run backfill against the real store "
+            f"first, or pass --db explicitly if you meant a different one.")
+
     restricted = sorted(set(store.sources()) & RESTRICTED_VENDORS)
     if restricted and not getattr(args, "allow_licensed", False):
         store.close()
