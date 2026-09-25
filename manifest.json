@@ -1,0 +1,14 @@
+{
+  "published_at": "2026-09-25T03:36:46+00:00",
+  "rows": 1077906,
+  "series": 61,
+  "sources": [
+    "bloomberg",
+    "macrobond"
+  ],
+  "latest_vintage": "2026-09-24",
+  "licensed_vendors": [
+    "bloomberg"
+  ],
+  "licensed_note": "Published with --allow-licensed on the stated authority of the vendor. Contains data from: bloomberg"
+}
