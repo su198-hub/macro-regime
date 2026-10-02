@@ -104,41 +104,74 @@ st.html(ui.section_head(
     "The two markers",
     caption="ASR separates AI Boom from Energy First by whether power demand surges and "
             "whether supply expands to meet it. Each dot is a month; the line is the last "
-            "three years, the large dot the latest. Above the diagonal band, demand is running "
-            "ahead of supply."))
+            "three years, the large dot the latest. The shading is the rule the label uses."))
+
+
+def regions(mid: float) -> pd.DataFrame:
+    """The four labelled regions, as bands between a lower and an upper edge.
+
+    Drawn from the same rule as en.scenario_for, so the picture cannot disagree
+    with the label: above the demand line, supply within `mid` of demand is AI
+    Boom and further left is Energy First; below it, supply shrinking past
+    `mid` is Energy First and the rest Current Policies.
+    """
+    rows = []
+    for name, pts_ in {
+        "Energy First": [(-1, mid, 1), (0, mid, 1), (1 - mid, 1, 1)],
+        "AI Boom": [(0, mid, mid), (1 - mid, mid, 1), (1, mid, 1)],
+        "Energy First (supply-led)": [(-1, -1, mid), (-mid, -1, mid)],
+        "Current Policies": [(-mid, -1, mid), (1, -1, mid)],
+    }.items():
+        rows += [{"region": name, "x": x, "lo": lo, "hi": hi} for x, lo, hi in pts_]
+    return pd.DataFrame(rows)
+
+
+REGION_COLOR = {"AI Boom": SCENARIO_COLOR["ai_boom"], "Energy First": SCENARIO_COLOR["energy_first"],
+                "Energy First (supply-led)": SCENARIO_COLOR["energy_first"],
+                "Current Policies": SCENARIO_COLOR["current_policies"]}
 
 if {"power_demand", "power_supply"} <= set(blocks.columns):
     pts = blocks[["power_demand", "power_supply"]].dropna().copy()
     pts["month"] = ui.month_mid(pts.index)
     pts["scenario"] = scen.reindex(pts.index).map(lambda k: en.SCENARIOS.get(k, ("",))[0])
     recent = pts[pts.index >= pts.index.max() - pd.DateOffset(months=36)]
-    dom = alt.Scale(domain=[-1, 1])
-    band = pd.DataFrame({"x": [-1, 1, 1, -1], "y": [-1 + mid, 1 + mid, 1 - mid, -1 - mid], "o": range(4)})
+    latest = recent.tail(1).assign(label=lambda d: d.index.strftime("%b %Y"))
+    dom = alt.Scale(domain=[-1.05, 1.05], nice=False)
+    ticks = [-1, -0.5, 0, 0.5, 1]
     labels = pd.DataFrame([
-        {"x": 0.62, "y": 0.92, "t": "AI Boom"},
-        {"x": -0.62, "y": 0.92, "t": "Energy First"},
-        {"x": -0.62, "y": -0.92, "t": "Energy First (supply-led)"},
-        {"x": 0.55, "y": -0.92, "t": "Current Policies"},
+        {"x": -0.5, "y": 0.72, "t": "Energy First"},
+        {"x": 0.72, "y": 0.42, "t": "AI Boom"},
+        {"x": -0.58, "y": -0.55, "t": "Energy First"},
+        {"x": -0.58, "y": -0.68, "t": "(supply-led)"},
+        {"x": 0.45, "y": -0.6, "t": "Current Policies"},
     ])
-    base = alt.Chart(pts)
+    region_scale = alt.Scale(domain=list(REGION_COLOR), range=list(REGION_COLOR.values()))
     chart = alt.layer(
-        alt.Chart(band).mark_area(opacity=0.08, color=ui.INK).encode(
-            x=alt.X("x:Q", scale=dom), y=alt.Y("y:Q", scale=dom), order="o:O"),
+        alt.Chart(regions(mid)).mark_area(opacity=0.10, clip=True).encode(
+            x=alt.X("x:Q", scale=dom, title="Supply expanding →",
+                    axis=alt.Axis(values=ticks, format="+.1f", grid=False)),
+            y=alt.Y("lo:Q", scale=dom, title="Demand surging →",
+                    axis=alt.Axis(values=ticks, format="+.1f", grid=False)),
+            y2="hi:Q",
+            color=alt.Color("region:N", scale=region_scale, legend=None),
+            detail="region:N"),
         alt.Chart(pd.DataFrame({"v": [0]})).mark_rule(color=ui.AXIS).encode(x="v:Q"),
         alt.Chart(pd.DataFrame({"v": [0]})).mark_rule(color=ui.AXIS).encode(y="v:Q"),
-        base.mark_circle(size=18, color=ui.MUTED, opacity=0.35).encode(
-            x=alt.X("power_supply:Q", scale=dom, title="Supply expanding →"),
-            y=alt.Y("power_demand:Q", scale=dom, title="Demand surging →"),
+        alt.Chart(pts).mark_circle(size=22, color=ui.MUTED, opacity=0.45, clip=True).encode(
+            x="power_supply:Q", y="power_demand:Q",
             tooltip=[ui.month_tip("month"), alt.Tooltip("power_demand:Q", format="+.2f", title="Demand"),
                      alt.Tooltip("power_supply:Q", format="+.2f", title="Supply"),
                      alt.Tooltip("scenario:N", title="Reads like")]),
-        alt.Chart(recent).mark_line(color=ui.INK, strokeWidth=1.5).encode(
+        alt.Chart(recent).mark_line(color=ui.INK, strokeWidth=1.4, clip=True).encode(
             x="power_supply:Q", y="power_demand:Q", order="month:T"),
-        alt.Chart(recent.tail(1)).mark_circle(size=170, color=SCENARIO_COLOR.get(scen_now, ui.INK),
-                                              stroke="white", strokeWidth=1.5).encode(
+        alt.Chart(latest).mark_circle(size=180, color=SCENARIO_COLOR.get(scen_now, ui.INK),
+                                      stroke="white", strokeWidth=1.5, opacity=1).encode(
             x="power_supply:Q", y="power_demand:Q"),
-        alt.Chart(labels).mark_text(color=ui.MUTED, fontSize=12).encode(x="x:Q", y="y:Q", text="t:N"),
-    ).properties(height=380)
+        alt.Chart(latest).mark_text(dy=-16, fontSize=11, color=ui.INK).encode(
+            x="power_supply:Q", y="power_demand:Q", text="label:N"),
+        alt.Chart(labels).mark_text(color=ui.INK_2, fontSize=12, fontWeight="bold").encode(
+            x="x:Q", y="y:Q", text="t:N"),
+    ).properties(height=420)
     left, right = st.columns([3, 2])
     left.altair_chart(ui.style(chart), width="stretch")
     first = pts.index.min()
