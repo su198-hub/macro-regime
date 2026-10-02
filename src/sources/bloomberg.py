@@ -103,13 +103,10 @@ class BloombergSource:
         self._session.sendRequest(r)
         rows = []
         for m in self._drain():
+            self.raise_on_error(ticker, m)
             if not m.hasElement("securityData"):
                 continue
-            sd = m.getElement("securityData")
-            if sd.hasElement("securityError"):
-                raise RuntimeError(f"Bloomberg: {ticker}: "
-                                   f"{sd.getElement('securityError').getElementAsString('message')}")
-            fd = sd.getElement("fieldData")
+            fd = m.getElement("securityData").getElement("fieldData")
             for i in range(fd.numValues()):
                 p = fd.getValueAsElement(i)
                 if p.hasElement(field):
@@ -126,6 +123,7 @@ class BloombergSource:
         self._session.sendRequest(r)
         out: dict = {}
         for m in self._drain():
+            self.raise_on_error(ticker, m)
             if not m.hasElement("securityData"):
                 continue
             arr = m.getElement("securityData")
@@ -133,6 +131,26 @@ class BloombergSource:
                 fd = arr.getValueAsElement(i).getElement("fieldData")
                 out.update({f: fd.getElementAsString(f) for f in fields if fd.hasElement(f)})
         return out
+
+    @staticmethod
+    def raise_on_error(ticker: str, msg) -> None:
+        """Turn a refusal into an error rather than an empty series.
+
+        A whole-request refusal (responseError) carries no securityData at all,
+        so without this check it reads as "no data" -- which is how a terminal
+        whose API access Bloomberg had suspended ("LIMIT", "Access pending
+        review") passed for a run of empty series.
+        """
+        if msg.hasElement("responseError"):
+            e = msg.getElement("responseError")
+            raise RuntimeError(f"Bloomberg refused {ticker}: "
+                               f"{e.getElementAsString('category')}: "
+                               f"{e.getElementAsString('message').strip()}")
+        if msg.hasElement("securityData"):
+            sd = msg.getElement("securityData")
+            if not sd.isArray() and sd.hasElement("securityError"):
+                raise RuntimeError(f"Bloomberg: {ticker}: "
+                                   f"{sd.getElement('securityError').getElementAsString('message')}")
 
     # ---------- the Source interface ----------
 

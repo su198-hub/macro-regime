@@ -71,6 +71,43 @@ def test_no_data_returns_the_right_empty_shape():
     assert list(df.columns) == ["series_id", "observation_date", "vintage_date", "value"]
 
 
+class Element:
+    """Just enough of a blpapi message or element for the error check."""
+
+    def __init__(self, children=None, strings=None, array=False):
+        self.children, self.strings, self.array = children or {}, strings or {}, array
+
+    def hasElement(self, name):  # noqa: N802 - blpapi's spelling
+        return name in self.children
+
+    def getElement(self, name):  # noqa: N802
+        return self.children[name]
+
+    def getElementAsString(self, name):  # noqa: N802
+        return self.strings[name]
+
+    def isArray(self):  # noqa: N802
+        return self.array
+
+
+def test_a_refused_request_is_an_error_not_an_empty_series():
+    """A suspended terminal answers every request with a responseError and no data."""
+    refused = Element({"responseError": Element(strings={
+        "category": "LIMIT", "message": "Access pending review. [nid:53245] "})})
+    with pytest.raises(RuntimeError, match="LIMIT: Access pending review"):
+        BloombergSource.raise_on_error("SPX Index", refused)
+
+
+def test_a_bad_ticker_is_an_error_and_good_data_passes():
+    bad = Element({"securityData": Element({"securityError": Element(
+        strings={"message": "Unknown/Invalid security"})})})
+    with pytest.raises(RuntimeError, match="Unknown/Invalid security"):
+        BloombergSource.raise_on_error("NOPE Index", bad)
+    BloombergSource.raise_on_error("SPX Index", Element({"securityData": Element(
+        {"fieldData": Element()})}))
+    BloombergSource.raise_on_error("SPX Index", Element({"securityData": Element(array=True)}))
+
+
 def test_describe_uses_the_terminal_name():
     assert source(name="United States of America").describe("US CDS USD SR 5Y D14 Corp")[
         "title"] == "United States of America"
