@@ -16,7 +16,7 @@ first column, a row of years over a row of month names, and one column per
 month across a six-year window.
 
 THE 860M ARCHIVE. A monthly inventory of every generator operating, planned,
-retired or cancelled, from July 2015. The files are large (about 14 MB), so the
+retired or canceled, from July 2015. The files are large (about 14 MB), so the
 history is sampled quarterly; the latest file is always read.
 
 Downloads are cached outside the repo and outside OneDrive, and a release that
@@ -269,14 +269,14 @@ def _when(df: pd.DataFrame, year_col: str, month_col: str) -> pd.Series:
     return out
 
 
-def gen_summary(planned: pd.DataFrame, operating: pd.DataFrame, cancelled: pd.DataFrame,
+def gen_summary(planned: pd.DataFrame, operating: pd.DataFrame, canceled: pd.DataFrame,
                 month: pd.Timestamp, years: int = 3) -> dict[str, float]:
     """Capacity due on and off over the next `years`, from one inventory.
 
     Net additions are planned summer capacity due within the window less
     operating capacity scheduled to retire within it, as a share of what is
-    operating now, so the number reads as growth in the fleet. The cancelled
-    share is cancelled-or-postponed capacity against that plus what is still
+    operating now, so the number reads as growth in the fleet. The canceled
+    share is canceled-or-postponed capacity against that plus what is still
     planned: a rising share means projects are falling away faster.
     """
     end = month + pd.DateOffset(years=years)
@@ -287,7 +287,7 @@ def gen_summary(planned: pd.DataFrame, operating: pd.DataFrame, cancelled: pd.Da
     fleet = operating["mw"].sum()
     src = window["Energy Source Code"].astype(str).str.strip().str.upper()
     add = window["mw"].sum()
-    cancelled_mw = cancelled["mw"].sum()
+    canceled_mw = canceled["mw"].sum()
     planned_all = planned["mw"].sum()
     return {
         "net_add_36m_pct": (add - retiring["mw"].sum()) / fleet * 100,
@@ -295,7 +295,7 @@ def gen_summary(planned: pd.DataFrame, operating: pd.DataFrame, cancelled: pd.Da
         "gas_add_36m_gw": window.loc[src.isin(GAS), "mw"].sum() / 1000,
         "clean_add_36m_gw": window.loc[src.isin(CLEAN), "mw"].sum() / 1000,
         "retire_36m_gw": retiring["mw"].sum() / 1000,
-        "cancel_share_pct": cancelled_mw / (cancelled_mw + planned_all) * 100,
+        "cancel_share_pct": canceled_mw / (canceled_mw + planned_all) * 100,
         "fleet_gw": fleet / 1000,
     }
 

@@ -1,4 +1,4 @@
-"""The energy page: parsing EIA's files, summarising them, scoring the result.
+"""The energy page: parsing EIA's files, summarizing them, scoring the result.
 
 No network and no workbooks: the parsers take rows as the readers return them,
 so the tests build those rows by hand.
@@ -73,8 +73,8 @@ def test_capacity_due_inside_three_years_less_retirements():
         {"Net Summer Capacity (MW)": 1000, "Planned Retirement Year": 2027, "Planned Retirement Month": 3},
         {"Net Summer Capacity (MW)": 9000, "Planned Retirement Year": None, "Planned Retirement Month": None},
     ])
-    cancelled = gens([{"Net Summer Capacity (MW)": 601}])
-    out = eia.gen_summary(planned, operating, cancelled, month)
+    canceled = gens([{"Net Summer Capacity (MW)": 601}])
+    out = eia.gen_summary(planned, operating, canceled, month)
     assert out["add_36m_gw"] == pytest.approx(0.4)
     assert out["gas_add_36m_gw"] == pytest.approx(0.1)
     assert out["clean_add_36m_gw"] == pytest.approx(0.3)
@@ -131,6 +131,12 @@ def synthetic_wide():
         "EN_STEO_OPEC_SPARE": 3 + rng.normal(0, 0.5, len(idx)),
         "EN_STEO_OIL_DRAW": rng.normal(0, 0.5, len(idx)),
         "EN_STEO_HENRY_HUB": 4 + rng.normal(0, 0.5, len(idx)),
+        "EN_CENSUS_DC": np.where(idx > "2022-12-31", 60000.0, 5000.0) + rng.normal(0, 300, len(idx)),
+        "PRPWRCONS": 100000 + rng.normal(0, 3000, len(idx)),
+        "GDP": 20000 * np.exp(np.linspace(0, 0.5, len(idx))),
+        "WPU0542": np.exp(np.linspace(0, 0.5, len(idx))) * 100,
+        "WPU0543": np.exp(np.linspace(0, 0.5, len(idx))) * 100,
+        "EN_GPR": 100 + rng.normal(0, 15, len(idx)),
     }, index=idx)
 
 
@@ -162,3 +168,21 @@ def test_every_series_the_config_names_is_required():
     assert {"PPIACO", "EN_EPOCH_US_POWER", "EN_STEO_ELEC_FWD"} <= req
     for _, ind in en.indicators(cfg):
         assert {"id", "label", "series", "transform", "sign", "weight", "why", "link"} <= set(ind)
+
+
+def test_a_flow_against_gdp_and_a_twelve_month_average():
+    idx = pd.date_range("2020-01-31", periods=24, freq="ME")
+    wide = pd.DataFrame({"X": 5000.0, "GDP": 25000.0, "R": np.arange(24.0)}, index=idx)
+    share = en.indicator_value({"series": ["X"], "transform": "share", "denominator": "GDP",
+                                "factor": 0.1}, wide, idx[-1])
+    assert share.iloc[-1] == pytest.approx(5000 / 25000 * 0.1 * 1)  # 0.02% of GDP
+    avg = en.indicator_value({"series": ["R"], "transform": "mean_12m"}, wide, idx[-1])
+    assert avg.index[0] == idx[11] and avg.iloc[0] == pytest.approx(5.5)
+
+
+def test_every_indicator_explains_itself_briefly():
+    """Two short paragraphs at most, so the page stays readable."""
+    cfg = en.load_config()
+    for _, ind in en.indicators(cfg):
+        why = ind["why"] if isinstance(ind["why"], list) else [ind["why"]]
+        assert len(why) <= 2 and all(len(p) <= 140 for p in why), ind["id"]

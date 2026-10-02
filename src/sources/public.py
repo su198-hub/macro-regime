@@ -1,4 +1,4 @@
-"""Two small public feeds for the energy page: FRED price series and Epoch AI.
+"""Small public feeds for the energy page: FRED, Census, Epoch AI and the GPR index.
 
 FRED. Read from fredgraph.csv, which needs no key. That returns the series as
 revised now, not its vintages, so these are stored as single-vintage and are
@@ -23,6 +23,8 @@ import pandas as pd
 import requests
 
 FRED_CSV = "https://fred.stlouisfed.org/graph/fredgraph.csv?id={sid}"
+CENSUS_PRIVATE = "https://www.census.gov/construction/c30/xlsx/privsatime.xlsx"
+GPR_XLS = "https://www.matteoiacoviello.com/gpr_files/data_gpr_export.xls"
 EPOCH_SITES = "https://epoch.ai/data/data_centers/data_centers.csv"
 EPOCH_TIMELINES = "https://epoch.ai/data/data_centers/data_center_timelines.csv"
 HEADERS = {"User-Agent": "macro-regime research (energy page)"}
@@ -87,3 +89,29 @@ def as_observations(series_id: str, s: pd.Series, vintage=None,
                          "observation_date": obs.date,
                          "vintage_date": pd.DatetimeIndex(vint).date,
                          "value": s.to_numpy(dtype=float)})
+
+
+def census_data_centers() -> pd.Series:
+    """Private data center construction, $ millions at a seasonally adjusted annual rate.
+
+    Census broke data centers out of private office construction in 2024, with
+    monthly estimates back to January 2014. It is not on FRED, so it is read
+    from the Census workbook, whose dates read "Aug-26p" (p preliminary, r revised).
+    """
+    r = requests.get(CENSUS_PRIVATE, headers={"User-Agent": "Mozilla/5.0"}, timeout=60)
+    r.raise_for_status()
+    raw = pd.read_excel(io.BytesIO(r.content), header=None)
+    head = next(i for i in range(10) if any(str(v).strip() == "Data center" for v in raw.iloc[i]))
+    col = next(j for j, v in enumerate(raw.iloc[head]) if str(v).strip() == "Data center")
+    body = raw.iloc[head + 1:, [0, col]].dropna()
+    body = body[body[0].astype(str).str.match(r"^[A-Z][a-z]{2}-\d{2}")]
+    idx = pd.to_datetime(body[0].astype(str).str[:6], format="%b-%y")
+    return pd.Series(body[col].astype(float).to_numpy(), index=idx).sort_index()
+
+
+def geopolitical_risk() -> pd.Series:
+    """Caldara and Iacoviello's monthly geopolitical risk index, 1985 on."""
+    r = requests.get(GPR_XLS, timeout=60)
+    r.raise_for_status()
+    df = pd.read_excel(io.BytesIO(r.content))
+    return df.set_index(pd.to_datetime(df["month"]))["GPR"].dropna().astype(float)

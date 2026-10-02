@@ -37,7 +37,8 @@ def indicators(cfg: dict):
 def required_series(cfg: dict) -> list[str]:
     out = []
     for _, ind in indicators(cfg):
-        out += list(ind["series"]) + ([ind["deflator"]] if ind.get("deflator") else [])
+        out += list(ind["series"])
+        out += [ind[k] for k in ("deflator", "denominator") if ind.get(k)]
     out += [c["series"] for c in cfg.get("context", [])]
     return sorted(set(out))
 
@@ -71,22 +72,29 @@ def indicator_value(ind: dict, wide: pd.DataFrame, end) -> pd.Series:
             return pd.Series(dtype=float)
         return rel_36m_ann(series, deflator).dropna()
     s = pd.concat(series, axis=1).mean(axis=1)
+    if ind["transform"] == "share":
+        # A spending flow against GDP, so it reads the same in 2015 dollars and
+        # 2026 dollars. `factor` reconciles units ($ millions over $ billions).
+        denom = _monthly(wide, ind["denominator"], end)
+        return (s / denom.reindex(s.index) * float(ind.get("factor", 100))).dropna()
     if ind["transform"] == "pct_36m_ann":
         return (((s / s.shift(36)) ** (1 / 3) - 1) * 100).dropna()
+    if ind["transform"] == "mean_12m":
+        return s.rolling(12, min_periods=12).mean().dropna()
     return TRANSFORMS[ind["transform"]](s).dropna()
 
 
-def score(values: pd.Series, centre_to: str, min_months: int) -> tuple[pd.Series, dict]:
-    """z-score against history to `centre_to`; all of it if that is too short."""
-    base = values[values.index <= pd.Timestamp(centre_to)]
+def score(values: pd.Series, center_to: str, min_months: int) -> tuple[pd.Series, dict]:
+    """z-score against history to `center_to`; all of it if that is too short."""
+    base = values[values.index <= pd.Timestamp(center_to)]
     basis = "history to 2019"
     if len(base) < min_months:
         base, basis = values, "all history (too little before 2020)"
-    centre, scale = float(base.mean()), float(base.std())
+    center, scale = float(base.mean()), float(base.std())
     if not scale or np.isnan(scale):
-        return pd.Series(np.nan, index=values.index), {"centre": centre, "scale": scale, "basis": basis}
-    z = ((values - centre) / scale).clip(-CLIP, CLIP)
-    return z, {"centre": centre, "scale": scale, "basis": basis}
+        return pd.Series(np.nan, index=values.index), {"center": center, "scale": scale, "basis": basis}
+    z = ((values - center) / scale).clip(-CLIP, CLIP)
+    return z, {"center": center, "scale": scale, "basis": basis}
 
 
 def compute(cfg: dict, wide: pd.DataFrame) -> dict:
@@ -102,7 +110,7 @@ def compute(cfg: dict, wide: pd.DataFrame) -> dict:
         v = indicator_value(ind, wide, end)
         if v.empty:
             continue
-        z, norm = score(v, meta.get("centre_to", "2019-12-31"), int(meta.get("min_history_months", 36)))
+        z, norm = score(v, meta.get("center_to", "2019-12-31"), int(meta.get("min_history_months", 36)))
         values[key], scores[key], norms[key] = v, z * float(ind.get("sign", 1)), norm
     values = pd.DataFrame(values).sort_index()
     scores = pd.DataFrame(scores).sort_index()

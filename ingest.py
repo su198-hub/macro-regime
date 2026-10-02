@@ -276,7 +276,8 @@ def cmd_energy(args):
     which names the vendors behind the presented model -- is unchanged.
     """
     from src.sources import eia
-    from src.sources.public import as_observations, epoch_power_path, fred_series
+    from src.sources.public import (as_observations, census_data_centers, epoch_power_path,
+                                    fred_series, geopolitical_risk)
 
     store = Store(args.db)
     refuse_demo_store(store, args.db)
@@ -323,14 +324,18 @@ def cmd_energy(args):
          "Solar, wind, storage, nuclear, hydro and geothermal due in the next 3 years", "GW"),
         ("retire_36m_gw", "EN_860M_RETIRE", "Capacity scheduled to retire in the next 3 years", "GW"),
         ("cancel_share_pct", "EN_860M_CANCEL_SHARE",
-         "Cancelled or postponed capacity, % of cancelled plus planned", "%"),
+         "Canceled or postponed capacity, % of canceled plus planned", "%"),
     ]:
         # An inventory is published about two months after the month it describes.
         add(sid, as_observations(sid, gen[col], lag_days=55), "energy-eia", title, units,
             "Quarterly", code="860M")
 
-    print("FRED producer prices and copper ...")
+    print("FRED producer prices, copper, power construction and GDP ...")
     for sid, title, units in [
+        ("WPU0542", "PPI: commercial electric power", "index"),
+        ("WPU0543", "PPI: industrial electric power", "index"),
+        ("PRPWRCONS", "Private construction spending: power", "$ millions, SAAR"),
+        ("GDP", "Gross domestic product", "$ billions, SAAR"),
         ("PCU335311335311", "PPI: power, distribution and specialty transformers", "index"),
         ("PCU335313335313", "PPI: switchgear and switchboard apparatus", "index"),
         ("PPIACO", "PPI: all commodities", "index 1982=100"),
@@ -339,10 +344,20 @@ def cmd_energy(args):
         add(sid, as_observations(sid, fred_series(sid), lag_days=45), "energy-fred", title,
             units, "Monthly", vintages=False)
 
+    print("Census data center construction ...")
+    add("EN_CENSUS_DC", as_observations("EN_CENSUS_DC", census_data_centers(), lag_days=32),
+        "energy-census", "Private construction spending: data centers", "$ millions, SAAR",
+        "Monthly", code="privsatime.xlsx", vintages=False)
+
+    print("Geopolitical risk index ...")
+    add("EN_GPR", as_observations("EN_GPR", geopolitical_risk(), lag_days=5),
+        "energy-gpr", "Geopolitical risk index (Caldara and Iacoviello)", "index, 1985-2019 = 100",
+        "Monthly", code="GPR", vintages=False)
+
     print("Epoch AI Frontier Data Centers ...")
     add("EN_EPOCH_US_POWER",
         as_observations("EN_EPOCH_US_POWER", epoch_power_path(), vintage=dt.date.today()),
-        "energy-epoch", "Power of the US AI data centres Epoch tracks, built and planned",
+        "energy-epoch", "Power of the US AI data centers Epoch tracks, built and planned",
         "GW", "Monthly", code="data_center_timelines.csv")
 
     print(f"Stored {sum(stored)} observations across {len(stored)} series in {args.db}.")

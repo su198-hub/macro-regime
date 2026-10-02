@@ -58,12 +58,19 @@ def last(s: pd.Series):
     return (s.index[-1], float(s.iloc[-1])) if len(s) else (None, np.nan)
 
 
+def why_html(why) -> str:
+    """One or two short paragraphs under an indicator."""
+    parts = why if isinstance(why, list) else [why]
+    return "".join(f'<p style="margin:.2rem 0 0;font-size:.8rem;color:{ui.MUTED};'
+                   f'max-width:34rem">{ui.esc(x)}</p>' for x in parts)
+
+
 def tile(title: str, value: float, phrase: str, note: str = "") -> str:
     color = ui.INK if pd.isna(value) or abs(value) <= mid else (TIGHT if value > 0 else LOOSE)
     num = "–" if pd.isna(value) else ui.signed(value)
     return (f'<div style="border-top:2px solid {ui.INK};padding-top:.45rem">'
-            f'<div style="font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;'
-            f'color:{ui.MUTED}">{ui.esc(title)}</div>'
+            f'<div style="font-size:.82rem;font-weight:600;'
+            f'color:{ui.INK_2}">{ui.esc(title)}</div>'
             f'<div style="font-family:{ui.HEADING_FONT};font-weight:700;font-size:2rem;'
             f'line-height:1.15;color:{color}">{num}</div>'
             f'<div style="font-size:.86rem;color:{ui.INK}">{ui.esc(phrase)}</div>'
@@ -89,7 +96,7 @@ cols[1].html(tile("Power", power_now, read(power_now), "Demand, less supply expa
 cols[2].html(tile("Oil and gas", fuels_now, read(fuels_now), "Spare capacity, inventories, gas price."))
 cols[3].html(
     f'<div style="border-top:2px solid {ui.INK};padding-top:.45rem">'
-    f'<div style="font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:{ui.MUTED}">'
+    f'<div style="font-size:.82rem;font-weight:600;color:{ui.INK_2}">'
     f'Reads like ASR\'s</div>'
     f'<div style="font-family:{ui.HEADING_FONT};font-weight:700;font-size:2rem;line-height:1.15;'
     f'color:{SCENARIO_COLOR.get(scen_now, ui.INK)}">{ui.esc(scen_label)}</div>'
@@ -235,10 +242,9 @@ for block_id, block in cfg["blocks"].items():
         t, x = last(v)
         _, zx = last(z)
         rows.append([
-            ui.Raw(f'{ui.esc(ind["label"])}<div style="font-size:.78rem;color:{ui.MUTED};'
-                   f'margin-top:.2rem">{ui.esc(ind["why"])}</div>'),
+            ui.Raw(f'{ui.esc(ind["label"])}{why_html(ind["why"])}'),
             f"{x:,.2f} {ind['units']}", f"{t:%b %Y}", ui.signed(zx),
-            f"from {v.dropna().index.min():%Y}; centred on {res['norms'][key]['basis']}",
+            f"From {v.dropna().index.min():%Y}; scored against {res['norms'][key]['basis']}",
             ui.Raw(f'<a href="{ind["link"]}" target="_blank">{ui.esc(ind["source"])}</a>'),
         ])
         charts.append((ind["label"], spark(v, ind["units"])))
@@ -283,7 +289,7 @@ for c in cfg.get("context", []):
     ahead_txt = "; ".join(f"{v:.1f} GW by the end of {y}" for y, v in ahead.items())
     right.html(
         f'<div class="m-body"><p><b>{now_gw:.1f} GW</b> today across the sites Epoch tracks; '
-        f'on current plans {ahead_txt}.</p><p style="color:{ui.MUTED}">{ui.esc(c["why"])}</p>'
+        f'on current plans {ahead_txt}.</p>{why_html(c["why"])}'
         f'<p><a href="{c["link"]}" target="_blank">{ui.esc(c["source"])}</a></p></div>')
 
 manual = cfg.get("manual", [])
