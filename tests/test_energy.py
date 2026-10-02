@@ -1,0 +1,164 @@
+"""The energy page: parsing EIA's files, summarising them, scoring the result.
+
+No network and no workbooks: the parsers take rows as the readers return them,
+so the tests build those rows by hand.
+"""
+
+import numpy as np
+import pandas as pd
+import pytest
+
+from src import energy as en
+from src.sources import eia
+from src.sources.public import as_observations, us_power_path
+
+
+def steo_sheet(codes: dict[str, list[float]], start_year=2024, years=3):
+    """A table sheet as STEO lays it out: years over months, codes in column 0."""
+    n = 12 * years
+    year_row = ("Forecast date:", None) + tuple(
+        start_year + i // 12 if i % 12 == 0 else None for i in range(n))
+    month_row = ("Thursday, September 4, 2025", None) + tuple(
+        m.title() for _ in range(years) for m in eia.MONTHS)
+    rows = [("Table of Contents", "Table 7a"), (None, "STEO"), year_row, month_row]
+    rows += [(code, "label") + tuple(vals) for code, vals in codes.items()]
+    return {"7atab": rows}
+
+
+def test_steo_rows_become_monthly_series_and_codes_ignore_case():
+    sheets = steo_sheet({"eltctwh": list(range(36)), "OTHER": [1.0] * 36})
+    out = eia.parse_steo(sheets)
+    assert set(out) == {"ELTCTWH"}
+    s = out["ELTCTWH"]
+    assert s.index[0] == pd.Timestamp("2024-01-01") and s.index[-1] == pd.Timestamp("2026-12-01")
+    assert s[pd.Timestamp("2025-03-01")] == 14
+
+
+def test_the_release_date_is_read_from_the_sheet():
+    assert str(eia.release_date(steo_sheet({}), pd.Timestamp("2025-09-01"))) == "2025-09-04"
+
+
+def test_twelve_months_ahead_against_the_twelve_before():
+    # Sales of 100 a month through August 2025, 110 from September.
+    vals = [100.0] * 20 + [110.0] * 16
+    out = eia.steo_summary(eia.parse_steo(steo_sheet({"ELTCTWH": vals})), pd.Timestamp("2025-09-01"))
+    assert out["elec_growth_12m"] == pytest.approx(10.0)
+    # Codes the release does not carry are missing, not zero.
+    assert np.isnan(out["opec_spare_12m"])
+
+
+def test_older_releases_use_the_daily_sales_code():
+    vals = [10.0] * 20 + [11.0] * 16
+    out = eia.steo_summary(eia.parse_steo(steo_sheet({"EXTCPUS": vals})), pd.Timestamp("2025-09-01"))
+    assert out["elec_growth_12m"] == pytest.approx(10.0)
+
+
+def gens(rows):
+    df = pd.DataFrame(rows)
+    df["mw"] = df["Net Summer Capacity (MW)"].astype(float)
+    return df
+
+
+def test_capacity_due_inside_three_years_less_retirements():
+    month = pd.Timestamp("2026-08-01")
+    planned = gens([
+        {"Net Summer Capacity (MW)": 100, "Energy Source Code": "NG",
+         "Planned Operation Year": 2027, "Planned Operation Month": 6},
+        {"Net Summer Capacity (MW)": 300, "Energy Source Code": "SUN",
+         "Planned Operation Year": 2028, "Planned Operation Month": 1},
+        {"Net Summer Capacity (MW)": 999, "Energy Source Code": "NG",   # outside the window
+         "Planned Operation Year": 2031, "Planned Operation Month": 1},
+    ])
+    operating = gens([
+        {"Net Summer Capacity (MW)": 1000, "Planned Retirement Year": 2027, "Planned Retirement Month": 3},
+        {"Net Summer Capacity (MW)": 9000, "Planned Retirement Year": None, "Planned Retirement Month": None},
+    ])
+    cancelled = gens([{"Net Summer Capacity (MW)": 601}])
+    out = eia.gen_summary(planned, operating, cancelled, month)
+    assert out["add_36m_gw"] == pytest.approx(0.4)
+    assert out["gas_add_36m_gw"] == pytest.approx(0.1)
+    assert out["clean_add_36m_gw"] == pytest.approx(0.3)
+    assert out["net_add_36m_pct"] == pytest.approx((400 - 1000) / 10000 * 100)
+    assert out["cancel_share_pct"] == pytest.approx(601 / (601 + 1399) * 100)
+
+
+def test_each_site_holds_its_power_until_its_next_milestone():
+    sites = pd.DataFrame({"Name": ["A", "B", "C"], "Country": ["United States", "United States", "China"]})
+    tl = pd.DataFrame({
+        "Data center": ["A", "A", "B", "C"],
+        "Date": ["2025-01-15", "2027-01-01", "2026-06-01", "2025-01-01"],
+        "Power (MW)": [100, 500, 200, 9999],
+    })
+    gw = us_power_path(sites, tl, start="2025-01", end="2027-12")
+    assert gw[pd.Timestamp("2025-01-01")] == 0          # A starts mid-month
+    assert gw[pd.Timestamp("2025-02-01")] == pytest.approx(0.1)
+    assert gw[pd.Timestamp("2026-06-01")] == pytest.approx(0.3)
+    assert gw[pd.Timestamp("2027-12-01")] == pytest.approx(0.7)  # China excluded
+
+
+def test_observations_carry_a_lag_or_a_fixed_vintage():
+    s = pd.Series([1.0, 2.0], index=pd.to_datetime(["2026-01-01", "2026-02-01"]))
+    lagged = as_observations("X", s, lag_days=45)
+    assert str(lagged["vintage_date"].iloc[0]) == "2026-02-15"
+    fixed = as_observations("X", s, vintage="2026-10-02")
+    assert set(map(str, fixed["vintage_date"])) == {"2026-10-02"}
+
+
+@pytest.mark.parametrize("demand, supply, want", [
+    (0.6, 0.55, "ai_boom"),           # surge, supply keeping pace
+    (0.6, 0.2, "energy_first"),       # surge, supply falling behind
+    (0.0, -0.4, "energy_first"),      # no surge, supply shrinking
+    (0.05, 0.3, "current_policies"),
+    (np.nan, 0.3, None),
+])
+def test_the_two_markers_read_as_asr_scenarios(demand, supply, want):
+    assert en.scenario_for(demand, supply) == want
+
+
+def synthetic_wide():
+    idx = pd.date_range("2009-01-31", "2026-08-31", freq="ME")
+    rng = np.random.default_rng(0)
+    growth = np.where(idx > "2021-12-31", 0.025, 0.0) / 12 + rng.normal(0, 0.0005, len(idx))
+    return pd.DataFrame({
+        "EN_STEO_ELEC_FWD": 3700 * np.exp(np.cumsum(growth)),
+        "EN_860M_NET_ADD": 5 + rng.normal(0, 1, len(idx)),
+        "EN_860M_GAS_ADD": 20 + rng.normal(0, 3, len(idx)),
+        "EN_860M_CANCEL_SHARE": 30 + rng.normal(0, 2, len(idx)),
+        "PCU335311335311": np.exp(np.linspace(0, 1.2, len(idx))) * 100,
+        "PCU335313335313": np.exp(np.linspace(0, 1.0, len(idx))) * 100,
+        "PPIACO": np.exp(np.linspace(0, 0.4, len(idx))) * 100,
+        "PCOPPUSDM": 8000 + rng.normal(0, 300, len(idx)),
+        "EN_STEO_OPEC_SPARE": 3 + rng.normal(0, 0.5, len(idx)),
+        "EN_STEO_OIL_DRAW": rng.normal(0, 0.5, len(idx)),
+        "EN_STEO_HENRY_HUB": 4 + rng.normal(0, 0.5, len(idx)),
+    }, index=idx)
+
+
+def test_a_demand_surge_scores_tight_and_everything_stays_in_range():
+    cfg = en.load_config()
+    res = en.compute(cfg, synthetic_wide())
+    comp, blocks = res["composite"], res["blocks"]
+    assert set(blocks.columns) == {"power_demand", "power_supply", "power_prices", "fuels"}
+    assert blocks["power_demand"].iloc[-1] > 0.5
+    assert comp["power"].iloc[-1] > 0
+    for frame in (blocks, comp):
+        assert frame.abs().max().max() <= 1
+    # Grid equipment outran all producer prices, so it scores tight.
+    assert res["values"]["power_prices::grid_equipment"].iloc[-1] > 0
+
+
+def test_supply_enters_power_tightness_with_its_sign_flipped():
+    cfg = en.load_config()
+    wide = synthetic_wide()
+    loose = en.compute(cfg, wide)["composite"]["power"].iloc[-1]
+    wide["EN_860M_NET_ADD"] = wide["EN_860M_NET_ADD"].where(wide.index < "2025-01-01", 20.0)
+    more_supply = en.compute(cfg, wide)["composite"]["power"].iloc[-1]
+    assert more_supply < loose
+
+
+def test_every_series_the_config_names_is_required():
+    cfg = en.load_config()
+    req = set(en.required_series(cfg))
+    assert {"PPIACO", "EN_EPOCH_US_POWER", "EN_STEO_ELEC_FWD"} <= req
+    for _, ind in en.indicators(cfg):
+        assert {"id", "label", "series", "transform", "sign", "weight", "why", "link"} <= set(ind)

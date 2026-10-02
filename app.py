@@ -29,6 +29,9 @@ st.navigation(
      # question from every other page: not what regime this month is, but what
      # is already determined about the next three years.
      st.Page("views/forecast.py", title="Forecast", url_path="forecast",
-             visibility="hidden")],
+             visibility="hidden"),
+     # Hidden while it is argued over: is energy demand outrunning supply?
+     # Scored on its own, not yet feeding the regime model.
+     st.Page("views/energy.py", title="Energy", url_path="energy", visibility="hidden")],
     position="top",
 ).run()

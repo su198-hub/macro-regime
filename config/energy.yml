@@ -1,0 +1,228 @@
+# The energy page: is energy demand outrunning supply?
+#
+# PROTOTYPE, built 2 October 2026 for the manager's request to track the energy
+# scenario. It is scored on its own page (/energy, hidden) and does NOT feed the
+# regime model yet. The proposal is that one number from here -- energy
+# tightness -- enters the supply driver, through the twin first.
+#
+# THE QUESTION, borrowed from ASR's Transition Quarterly: two markers separate
+# their AI Boom scenario from Energy First. One is whether energy demand
+# surges; the other is whether supply expands to meet it. So the page scores
+# those two, adds prices as the check that a gap is really opening, and keeps
+# oil and gas as a block of their own, since oil is the channel with the
+# clearest history of moving growth and inflation.
+#
+# SCORING follows the main model. Each indicator is turned into a z-score
+# against its own history up to the end of `centre_to`, clipped at ±3, and
+# signed so that positive always means TIGHTER energy (for supply: positive
+# means supply EXPANDING, and it enters tightness negatively). A block is the
+# weighted mean of its indicators, divided by 2 and clipped to ±1, which is how
+# the six regime drivers are scaled.
+#
+# HISTORY IS SHORT. The planned-capacity series start in 2015 and there has
+# been one power-demand boom since. Nothing here can be validated by a
+# backtest; each indicator is here because of what it measures. Read the
+# `why` fields as the argument, and argue with them.
+
+meta:
+  centre_to: "2019-12-31"
+  min_history_months: 36
+  mid_band: 0.15     # scores inside this read as "close to normal", as on the dashboard
+  carry_months: 2    # a score holds its last reading this long while its next release is due
+
+blocks:
+
+  power_demand:
+    label: Power demand
+    question: Is electricity demand surging?
+    indicators:
+      - id: elec_growth
+        label: Growth in EIA's expected US electricity sales, 3 years a year
+        series: [EN_STEO_ELEC_FWD]
+        transform: pct_36m_ann
+        sign: 1
+        weight: 1.0
+        units: "% a year"
+        source: EIA Short-Term Energy Outlook
+        link: https://www.eia.gov/outlooks/steo/
+        why: >-
+          What each month's outlook expects US electricity sales to total over
+          the next twelve months, against what the outlook three years earlier
+          expected for its own next twelve. Forecast against forecast, so the
+          weather drops out (a forecast assumes normal weather; actual sales do
+          not). Flat for a decade to 2021, about 2% a year since: the surge
+          itself. Built from every archived release since 2009, so each value is
+          what was knowable at the time.
+
+  power_supply:
+    label: Power supply
+    question: Is supply expanding to meet it?
+    indicators:
+      - id: net_additions
+        label: Planned net additions over the next 3 years, % of the fleet
+        series: [EN_860M_NET_ADD]
+        transform: level
+        sign: 1
+        weight: 0.4
+        units: "%"
+        source: EIA Form 860M
+        link: https://www.eia.gov/electricity/data/eia860m/
+        why: >-
+          Nameplate capacity due online in the next three years less what is
+          scheduled to retire, against what operates now. Regulatory filings,
+          so harder than any forecast, though plans run ahead of builds.
+      - id: gas_additions
+        label: Gas capacity due in the next 3 years
+        series: [EN_860M_GAS_ADD]
+        transform: level
+        sign: 1
+        weight: 0.3
+        units: GW
+        source: EIA Form 860M
+        link: https://www.eia.gov/electricity/data/eia860m/
+        why: >-
+          Firm, around-the-clock capacity, which is what data centres need and
+          what solar and batteries cannot fully replace. Turbine lead times make
+          this the binding piece of the build.
+      - id: cancel_share
+        label: Share of planned capacity cancelled or postponed
+        series: [EN_860M_CANCEL_SHARE]
+        transform: level
+        sign: -1
+        weight: 0.3
+        units: "%"
+        source: EIA Form 860M
+        link: https://www.eia.gov/electricity/data/eia860m/
+        why: >-
+          Projects falling away against those still planned. Rising means the
+          pipeline is leaking: interconnection waits, equipment, financing.
+
+  power_prices:
+    label: Power-sector prices
+    question: Is the gap showing in prices?
+    indicators:
+      - id: grid_equipment
+        label: Transformer and switchgear prices against all producer prices, 3-year change a year
+        series: [PCU335311335311, PCU335313335313]
+        deflator: PPIACO
+        transform: rel_36m_ann
+        sign: 1
+        weight: 0.6
+        units: "% a year"
+        source: BLS producer prices, via FRED
+        link: https://fred.stlouisfed.org/series/PCU335311335311
+        why: >-
+          The equipment every new connection needs, priced against everything
+          else, so general inflation drops out. A scarcity price for grid build.
+      - id: copper
+        label: Copper against all producer prices, 3-year change a year
+        series: [PCOPPUSDM]
+        deflator: PPIACO
+        transform: rel_36m_ann
+        sign: 1
+        weight: 0.4
+        units: "% a year"
+        source: IMF primary commodity prices, via FRED
+        link: https://fred.stlouisfed.org/series/PCOPPUSDM
+        why: >-
+          The metal of wiring, transformers and generators. Also a global growth
+          price, which is why it carries less weight than the equipment itself.
+
+  fuels:
+    label: Oil and gas
+    question: Is fuel supply tight?
+    indicators:
+      - id: opec_spare
+        label: OPEC spare capacity EIA expects over the next 12 months
+        series: [EN_STEO_OPEC_SPARE]
+        transform: level
+        sign: -1
+        weight: 0.4
+        units: million b/d
+        source: EIA Short-Term Energy Outlook
+        link: https://www.eia.gov/outlooks/steo/
+        why: >-
+          The world's buffer. With little spare capacity a supply shock goes
+          straight to price; with plenty it is absorbed. The Middle East channel.
+      - id: oil_draws
+        label: World oil inventory draws EIA expects over the next 12 months
+        series: [EN_STEO_OIL_DRAW]
+        transform: level
+        sign: 1
+        weight: 0.3
+        units: million b/d
+        source: EIA Short-Term Energy Outlook
+        link: https://www.eia.gov/outlooks/steo/
+        why: >-
+          Consumption running ahead of production empties tanks. Positive means
+          expected draws, a tightening balance; negative means builds.
+      - id: gas_price
+        label: Henry Hub price EIA expects over the next 12 months, against its 5-year average
+        series: [EN_STEO_HENRY_HUB]
+        transform: dev_5y_pct
+        sign: 1
+        weight: 0.3
+        units: "%"
+        source: EIA Short-Term Energy Outlook
+        link: https://www.eia.gov/outlooks/steo/
+        why: >-
+          The fuel of the new gas plants, and since LNG exports the link between
+          US power and the world gas market.
+
+# How the blocks combine. Power tightness is demand pressure, less supply
+# expanding, plus prices, each a block score; energy tightness weighs power
+# against fuels. Both weights are opinions, set even until argued otherwise.
+combine:
+  power: {power_demand: 1, power_supply: -1, power_prices: 1}
+  energy: {power: 0.5, fuels: 0.5}
+
+# Shown on the page, not scored.
+context:
+  - id: epoch_pipeline
+    series: EN_EPOCH_US_POWER
+    label: Power of the large US AI data centres Epoch tracks, built and planned
+    units: GW
+    source: Epoch AI, Frontier Data Centers (CC BY)
+    link: https://epoch.ai/data/data-centers
+    why: >-
+      The most direct measure of AI load, but not scored: the dataset covers
+      frontier AI sites only (Epoch puts its coverage at 43% of global AI
+      compute), and it publishes only its latest estimate, so there is no
+      history to score against. Each ingest now keeps a copy, so revisions to
+      the planned path build up from October 2026.
+
+# Read from published reports by hand; cited, not scored. Update when a new
+# report is out, and keep the citation with the number.
+manual:
+  - label: Data centre capacity under construction, primary North American markets
+    value: "7,481 MW (record), up 24.8% in H1"
+    as_of: H1 2026
+    source: CBRE, North America Data Center Trends H1 2026
+    link: https://www.cbre.com/insights/books/north-america-data-center-trends-h1-2026
+  - label: Data centre vacancy, primary markets
+    value: "1.4% (record low)"
+    as_of: H1 2026
+    source: CBRE, North America Data Center Trends H1 2026
+    link: https://www.cbre.com/insights/books/north-america-data-center-trends-h1-2026
+  - label: Utilities' 5-year forecast of US peak load growth
+    value: "166 GW, of which about 90 GW data centres (24 GW three years earlier)"
+    as_of: "2025 report"
+    source: Grid Strategies, National Load Growth Report 2025
+    link: https://gridstrategiesllc.com/wp-content/uploads/Grid-Strategies-National-Load-Growth-Report-2025.pdf
+
+# Proposed and not yet in, with what stands in the way.
+pending:
+  - item: Utilities' capex-to-sales, 12 months forward (ASR's Chart 4)
+    blocker: Bloomberg API access is on hold pending Bloomberg's review.
+  - item: Hyperscaler capex revisions (MSFT, GOOGL, AMZN, META, ORCL)
+    blocker: Bloomberg, as above.
+  - item: Energy majors' 3-year capex revision, moved here from the supply driver
+    blocker: Bloomberg, as above.
+  - item: Brent and Henry Hub 2-3 years forward
+    blocker: Macrobond coverage not yet checked.
+  - item: PJM capacity auction price
+    blocker: Annual, entered by hand from PJM's results; not yet entered.
+  - item: Grid interconnection queue (Berkeley Lab)
+    blocker: Annual workbook, manual download.
+  - item: Geopolitical risk index (Caldara-Iacoviello)
+    blocker: Free monthly download; not yet wired in.

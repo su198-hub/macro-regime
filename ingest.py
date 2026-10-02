@@ -6,6 +6,7 @@
     python ingest.py sync                 # refresh, for scheduled runs
     python ingest.py coverage             # what you actually have
     python ingest.py publish              # push a snapshot for the hosted app
+    python ingest.py energy               # the /energy page's public series
 
 Which vendor each series comes from is set in config/sources.yml; pass
 --source to override for a run. Point --db (or MACRO_REGIME_DB) at a file that
@@ -267,6 +268,87 @@ def cmd_coverage(args):
     store.close()
 
 
+def cmd_energy(args):
+    """Pull everything the /energy page reads: EIA, FRED prices, Epoch AI.
+
+    Every source here is public, so the result can be published. Sources are
+    tagged energy-*, not fred or eia, so the dashboard's own source line --
+    which names the vendors behind the presented model -- is unchanged.
+    """
+    from src.sources import eia
+    from src.sources.public import as_observations, epoch_power_path, fred_series
+
+    store = Store(args.db)
+    refuse_demo_store(store, args.db)
+    stored = []
+
+    # Each series is written as soon as it is fetched, so a timeout late in the
+    # run (FRED is the usual one) does not throw away the slow EIA work before it.
+    def add(sid, frame, source, title, units, freq, code=None, vintages=True):
+        if frame.empty:
+            print(f"  {sid}: nothing to store")
+            return
+        stored.append(store.upsert_observations(frame))
+        store.record_meta(sid, source, title=title, units=units, frequency=freq,
+                          has_vintages=vintages, source_code=code or sid)
+
+    print("EIA Short-Term Energy Outlook, every release since 2009 ...")
+    steo = eia.steo_history(log=print)
+    for col, sid, title, units in [
+        ("elec_fwd_12m_twh", "EN_STEO_ELEC_FWD",
+         "EIA expected US electricity sales over the next 12 months", "billion kWh"),
+        ("elec_growth_12m", "EN_STEO_ELEC_GROWTH",
+         "EIA expected growth in US electricity sales, next 12 vs last 12 months", "%"),
+        ("oil_draw_12m", "EN_STEO_OIL_DRAW",
+         "EIA expected world liquids inventory draws, next 12 months", "million b/d"),
+        ("opec_spare_12m", "EN_STEO_OPEC_SPARE",
+         "EIA expected OPEC surplus production capacity, next 12 months", "million b/d"),
+        ("henry_hub_12m", "EN_STEO_HENRY_HUB",
+         "EIA expected Henry Hub spot price, next 12 months", "$/Mcf"),
+    ]:
+        s = steo.set_index("month")[col].dropna()
+        released = pd.Series(pd.to_datetime(steo.set_index("month")["released"]))
+        frame = pd.DataFrame({"series_id": sid, "observation_date": s.index.date,
+                              "vintage_date": released.reindex(s.index).dt.date.to_numpy(),
+                              "value": s.to_numpy()})
+        add(sid, frame, "energy-eia", title, units, "Monthly", code="STEO")
+
+    print("EIA Form 860M, quarterly since July 2015 plus the latest ...")
+    gen = eia.gen_history(log=print).set_index("month")
+    for col, sid, title, units in [
+        ("net_add_36m_pct", "EN_860M_NET_ADD",
+         "Planned net capacity additions over the next 3 years, % of operating fleet", "%"),
+        ("gas_add_36m_gw", "EN_860M_GAS_ADD", "Gas capacity due online in the next 3 years", "GW"),
+        ("clean_add_36m_gw", "EN_860M_CLEAN_ADD",
+         "Solar, wind, storage, nuclear, hydro and geothermal due in the next 3 years", "GW"),
+        ("retire_36m_gw", "EN_860M_RETIRE", "Capacity scheduled to retire in the next 3 years", "GW"),
+        ("cancel_share_pct", "EN_860M_CANCEL_SHARE",
+         "Cancelled or postponed capacity, % of cancelled plus planned", "%"),
+    ]:
+        # An inventory is published about two months after the month it describes.
+        add(sid, as_observations(sid, gen[col], lag_days=55), "energy-eia", title, units,
+            "Quarterly", code="860M")
+
+    print("FRED producer prices and copper ...")
+    for sid, title, units in [
+        ("PCU335311335311", "PPI: power, distribution and specialty transformers", "index"),
+        ("PCU335313335313", "PPI: switchgear and switchboard apparatus", "index"),
+        ("PPIACO", "PPI: all commodities", "index 1982=100"),
+        ("PCOPPUSDM", "Global price of copper (IMF)", "$/tonne"),
+    ]:
+        add(sid, as_observations(sid, fred_series(sid), lag_days=45), "energy-fred", title,
+            units, "Monthly", vintages=False)
+
+    print("Epoch AI Frontier Data Centers ...")
+    add("EN_EPOCH_US_POWER",
+        as_observations("EN_EPOCH_US_POWER", epoch_power_path(), vintage=dt.date.today()),
+        "energy-epoch", "Power of the US AI data centres Epoch tracks, built and planned",
+        "GW", "Monthly", code="data_center_timelines.csv")
+
+    print(f"Stored {sum(stored)} observations across {len(stored)} series in {args.db}.")
+    store.close()
+
+
 DATA_BRANCH = "data"
 DATA_README = """# Data snapshot
 
@@ -442,6 +524,11 @@ def main():
     for name, fn in [("backfill", cmd_backfill), ("sync", cmd_sync),
                      ("coverage", cmd_coverage), ("demo", cmd_demo)]:
         sub.add_parser(name).set_defaults(func=fn)
+    sub.add_parser(
+        "energy",
+        help="Pull the /energy page's public series: EIA outlooks and 860M, FRED prices, "
+             "Epoch AI. Slow the first time (it reads every archived release); cached after.",
+    ).set_defaults(func=cmd_energy)
     pub = sub.add_parser("publish", help="Export the store to the public data branch.")
     pub.add_argument(
         "--allow-licensed", action="store_true",
