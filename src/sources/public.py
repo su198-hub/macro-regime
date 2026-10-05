@@ -85,6 +85,11 @@ def as_observations(series_id: str, s: pd.Series, vintage=None,
     obs = pd.to_datetime(s.index)
     vint = ([pd.Timestamp(vintage)] * len(s) if vintage is not None
             else obs + pd.Timedelta(days=lag_days))
+    # A value in hand today was published by today, whatever the usual lag
+    # says; a later date would hide it from a view of what is known now.
+    today = pd.Timestamp.today().normalize()
+    vint = pd.DatetimeIndex(vint)
+    vint = vint.where(vint <= today, today)
     return pd.DataFrame({"series_id": series_id,
                          "observation_date": obs.date,
                          "vintage_date": pd.DatetimeIndex(vint).date,

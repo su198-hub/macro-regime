@@ -114,6 +114,12 @@ def test_observations_carry_a_lag_or_a_fixed_vintage():
     assert set(map(str, fixed["vintage_date"])) == {"2026-10-02"}
 
 
+def test_a_value_in_hand_is_never_dated_after_today():
+    today = pd.Timestamp.today().normalize()
+    s = pd.Series([1.0], index=[today - pd.Timedelta(days=10)])
+    assert as_observations("X", s, lag_days=45)["vintage_date"].iloc[0] == today.date()
+
+
 @pytest.mark.parametrize("demand, supply, want", [
     (0.6, 0.55, "ai_boom"),           # surge, supply keeping pace
     (0.6, 0.2, "energy_first"),       # surge, supply falling behind
