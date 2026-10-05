@@ -106,6 +106,57 @@ cols[3].html(
     f'Net Zero and High Damage are not read from them.</div></div>')
 
 
+# ---------- how the score is built ----------
+
+def pct(x: float) -> str:
+    return f"{100 * x:.0f}%"
+
+
+meta_cfg = cfg["meta"]
+comb = cfg["combine"]
+power_w = {k: abs(float(v)) for k, v in comb["power"].items()}
+energy_w = {k: float(v) for k, v in comb["energy"].items()}
+
+
+def share_in_energy(block_id: str) -> float:
+    """How much of energy tightness one block carries, by the combine weights."""
+    if block_id in energy_w:
+        return energy_w[block_id] / sum(energy_w.values())
+    return (power_w.get(block_id, 0) / sum(power_w.values())
+            * energy_w.get("power", 0) / sum(energy_w.values()))
+
+
+center_year = pd.Timestamp(meta_cfg["center_to"]).year
+st.html(ui.section_head("How the score is built",
+                        caption="Each step reads from config/energy.yml, so the numbers here "
+                                "match the ones used."))
+st.html(ui.table(["Step", "How it works"], [
+    ["1. Indicator score",
+     f"Each indicator against its own average up to {center_year}, divided by its standard "
+     f"deviation over its full history, and capped at ±3. Positive always means tighter energy; "
+     f"for supply, positive means supply is expanding."],
+    ["2. Block score",
+     "The weighted average of its indicator scores (weights in the tables below), passed "
+     "through tanh(x / 2), so it runs from −1 to +1 without sticking at either end. A block "
+     f"is scored only when at least {pct(float(meta_cfg.get('min_coverage', 0.5)))} of its "
+     "weight has data."],
+    ["3. Power tightness",
+     "Demand, minus supply, plus prices, averaged: (demand − supply + prices) / 3. "
+     "Supply enters with its sign flipped, since more supply means less tightness."],
+    ["4. Energy tightness",
+     f"Power tightness and oil and gas, {pct(share_in_energy('fuels'))} each when both are "
+     "scored; it needs every block. This is the number proposed for the regime model."],
+    ["5. Scenario label",
+     f"From the demand and supply blocks only. With demand above {mid:+.2f}, supply within "
+     f"{mid:.2f} of it reads as AI Boom and further behind as Energy First; otherwise supply "
+     f"below −{mid:.2f} is Energy First, and the rest Current Policies."],
+    ["6. Timing",
+     f"A late release holds its last score for up to {int(meta_cfg.get('carry_months', 2))} "
+     "months. EIA's oil and gas forecasts are averaged over its last three outlooks, since "
+     "each one revises the last."],
+]))
+
+
 # ---------- the two markers ----------
 
 st.html(ui.section_head(
@@ -230,27 +281,30 @@ def spark(values: pd.Series, units: str) -> alt.Chart:
 
 for block_id, block in cfg["blocks"].items():
     when_b, val_b = last(blocks.get(block_id, pd.Series(dtype=float)))
-    meta = f"Block score {ui.signed(val_b)}" if not pd.isna(val_b) else "Not scored"
+    sign = " (sign flipped)" if float(comb["power"].get(block_id, 1)) < 0 else ""
+    meta = ((f"Block score {ui.signed(val_b)}" if not pd.isna(val_b) else "Not scored")
+            + f" · {pct(share_in_energy(block_id))} of energy tightness{sign}")
     st.html(ui.section_head(f"{block['label']}: {block['question']}", meta=meta))
     rows, charts = [], []
     for ind in block["indicators"]:
         key = f"{block_id}::{ind['id']}"
         v, z = res["values"].get(key), res["scores"].get(key)
         if v is None or v.dropna().empty:
-            rows.append([ind["label"], "–", "–", "–", "No data yet",
+            rows.append([ind["label"], pct(float(ind["weight"])), "–", "–", "–", "No data yet",
                          ui.Raw(f'<a href="{ind["link"]}" target="_blank">{ui.esc(ind["source"])}</a>')])
             continue
         t, x = last(v)
         _, zx = last(z)
         rows.append([
             ui.Raw(f'{ui.esc(ind["label"])}{why_html(ind["why"])}'),
+            pct(float(ind["weight"])),
             f"{x:,.2f} {ind['units']}", f"{t:%b %Y}", ui.signed(zx),
             f"From {v.dropna().index.min():%Y}; scored against {res['norms'][key]['basis']}",
             ui.Raw(f'<a href="{ind["link"]}" target="_blank">{ui.esc(ind["source"])}</a>'),
         ])
         charts.append((ind["label"], spark(v, ind["units"])))
-    st.html(ui.table(["Indicator", "Latest", "As of", "Score", "History", "Source"], rows,
-                     numeric={1, 3}))
+    st.html(ui.table(["Indicator", "Weight", "Latest", "As of", "Score", "History", "Source"],
+                     rows, numeric={1, 2, 4}))
     if charts:
         grid = st.columns(min(3, len(charts)))
         for i, (label, ch) in enumerate(charts):
