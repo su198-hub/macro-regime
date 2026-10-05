@@ -22,6 +22,9 @@ st.navigation(
      st.Page("views/control.py", title="Control room", url_path="control"),
      st.Page("views/methodology.py", title="Methodology", url_path="methodology"),
      st.Page("views/bench.py", title="Bench", url_path="bench"),
+     # In the menu but marked work in progress: is energy demand outrunning
+     # supply? Scored on its own, not yet feeding the regime model.
+     st.Page("views/energy.py", title="Energy (WIP)", url_path="energy"),
      # Hidden: reachable at /twin, never in the nav, so the presentation is
      # untouched while the proposed indicator set is being weighed.
      st.Page("views/twin.py", title="Twin", url_path="twin", visibility="hidden"),
@@ -29,9 +32,6 @@ st.navigation(
      # question from every other page: not what regime this month is, but what
      # is already determined about the next three years.
      st.Page("views/forecast.py", title="Forecast", url_path="forecast",
-             visibility="hidden"),
-     # Hidden while it is argued over: is energy demand outrunning supply?
-     # Scored on its own, not yet feeding the regime model.
-     st.Page("views/energy.py", title="Energy", url_path="energy", visibility="hidden")],
+             visibility="hidden")],
     position="top",
 ).run()

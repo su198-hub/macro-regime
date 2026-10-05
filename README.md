@@ -118,7 +118,7 @@ app.py                  Streamlit entry point: page setup and navigation
 views/dashboard.py      the dashboard page
 views/control.py        control room: change the assumptions, per session
 views/methodology.py    methodology page, generated from the live config
-views/energy.py         energy page (hidden, /energy): is energy demand outrunning supply?
+views/energy.py         energy page ("Energy (WIP)", /energy): is energy demand outrunning supply?
 config/energy.yml       its indicators, weights and reasons; not part of the regime model
 src/energy.py           scores it: blocks, power and fuels tightness, ASR's two markers
 src/sources/eia.py      EIA outlook archive and Form 860M inventories, summarised per release

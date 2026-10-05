@@ -1,6 +1,6 @@
 """The energy page: is energy demand outrunning supply?
 
-PROTOTYPE, hidden at /energy. Built on the manager's request to track the
+Work in progress, in the menu as "Energy (WIP)". Built on the manager's request to track the
 energy scenario, with ASR's two markers as the frame: whether demand surges,
 and whether supply expands to meet it. Scored on its own; the regime model is
 untouched. The proposal is that the one number at the top -- energy tightness

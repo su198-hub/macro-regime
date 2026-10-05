@@ -1,7 +1,7 @@
 # The energy page: is energy demand outrunning supply?
 #
 # Prototype, built 2 October 2026 for the manager's request to track the energy
-# scenario. Scored on its own page (/energy, hidden); it does not feed the
+# scenario. Scored on its own page (/energy, "Energy (WIP)" in the menu); it does not feed the
 # regime model. The proposal is that one number from here, energy tightness,
 # enters the supply driver through the twin first.
 #
