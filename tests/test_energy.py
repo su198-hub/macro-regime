@@ -80,6 +80,16 @@ def test_capacity_due_inside_three_years_less_retirements():
     assert out["clean_add_36m_gw"] == pytest.approx(0.3)
     assert out["net_add_36m_pct"] == pytest.approx((400 - 1000) / 10000 * 100)
     assert out["cancel_share_pct"] == pytest.approx(601 / (601 + 1399) * 100)
+    # Firm: gas at 0.75 and solar at 0.10 come in; the retiring unit has no
+    # fuel recorded, so it and the fleet count at the default 0.60.
+    firm_in = 100 * 0.75 + 300 * 0.10
+    assert out["firm_net_add_36m_pct"] == pytest.approx((firm_in - 600) / 6000 * 100)
+
+
+def test_a_solar_megawatt_counts_for_less_than_a_gas_one_at_the_peak():
+    units = pd.DataFrame({"Energy Source Code": ["SUN", "NG", "NG", "NUC", "XYZ"],
+                          "Prime Mover Code": ["PV", "CT", "GT", "ST", "ST"]})
+    assert eia.firm_credit(units).tolist() == [0.10, 0.75, 0.60, 0.95, 0.60]
 
 
 def test_each_site_holds_its_power_until_its_next_milestone():
@@ -121,8 +131,7 @@ def synthetic_wide():
     growth = np.where(idx > "2021-12-31", 0.025, 0.0) / 12 + rng.normal(0, 0.0005, len(idx))
     return pd.DataFrame({
         "EN_STEO_ELEC_FWD": 3700 * np.exp(np.cumsum(growth)),
-        "EN_860M_NET_ADD": 5 + rng.normal(0, 1, len(idx)),
-        "EN_860M_GAS_ADD": 20 + rng.normal(0, 3, len(idx)),
+        "EN_860M_FIRM_NET_ADD": 3 + rng.normal(0, 0.5, len(idx)),
         "EN_860M_CANCEL_SHARE": 30 + rng.normal(0, 2, len(idx)),
         "PCU335311335311": np.exp(np.linspace(0, 1.2, len(idx))) * 100,
         "PCU335313335313": np.exp(np.linspace(0, 1.0, len(idx))) * 100,
@@ -137,6 +146,9 @@ def synthetic_wide():
         "WPU0542": np.exp(np.linspace(0, 0.5, len(idx))) * 100,
         "WPU0543": np.exp(np.linspace(0, 0.5, len(idx))) * 100,
         "EN_GPR": 100 + rng.normal(0, 15, len(idx)),
+        "B935RC1Q027SBEA": 100 + rng.normal(0, 5, len(idx)),
+        "PRMFGCONS": 80000 + rng.normal(0, 3000, len(idx)),
+        "EN_EIA_CI_SALES": 250000 * np.exp(np.cumsum(growth)),
     }, index=idx)
 
 
@@ -145,7 +157,7 @@ def test_a_demand_surge_scores_tight_and_everything_stays_in_range():
     res = en.compute(cfg, synthetic_wide())
     comp, blocks = res["composite"], res["blocks"]
     assert set(blocks.columns) == {"power_demand", "power_supply", "power_prices", "fuels"}
-    assert blocks["power_demand"].iloc[-1] > 0.5
+    assert blocks["power_demand"].iloc[-1] > 0.3
     assert comp["power"].iloc[-1] > 0
     for frame in (blocks, comp):
         assert frame.abs().max().max() <= 1
@@ -157,7 +169,7 @@ def test_supply_enters_power_tightness_with_its_sign_flipped():
     cfg = en.load_config()
     wide = synthetic_wide()
     loose = en.compute(cfg, wide)["composite"]["power"].iloc[-1]
-    wide["EN_860M_NET_ADD"] = wide["EN_860M_NET_ADD"].where(wide.index < "2025-01-01", 20.0)
+    wide["EN_860M_FIRM_NET_ADD"] = wide["EN_860M_FIRM_NET_ADD"].where(wide.index < "2025-01-01", 9.0)
     more_supply = en.compute(cfg, wide)["composite"]["power"].iloc[-1]
     assert more_supply < loose
 
@@ -186,3 +198,20 @@ def test_every_indicator_explains_itself_briefly():
     for _, ind in en.indicators(cfg):
         why = ind["why"] if isinstance(ind["why"], list) else [ind["why"]]
         assert len(why) <= 2 and all(len(p) <= 140 for p in why), ind["id"]
+
+
+def test_a_block_approaches_but_never_sticks_at_the_bound():
+    """More indicators at an extreme must still read higher, and never reach 1."""
+    idx = pd.date_range("2010-01-31", periods=200, freq="ME")
+    calm = np.r_[np.zeros(120), np.zeros(80)]
+    cfg = {"meta": {"center_to": "2019-12-31", "min_history_months": 36},
+           "blocks": {"b": {"indicators": [
+               {"id": f"i{k}", "series": [f"S{k}"], "transform": "level", "sign": 1, "weight": 1}
+               for k in range(3)]}},
+           "combine": {"power": {"b": 1}, "energy": {"power": 1}}}
+    wide = pd.DataFrame({f"S{k}": calm + np.r_[np.random.default_rng(k).normal(0, 1, 120),
+                                                np.full(80, 50.0)] for k in range(3)}, index=idx)
+    three = en.compute(cfg, wide)["blocks"]["b"].iloc[-1]
+    wide["S2"] = wide["S2"].where(wide.index < idx[120], 0.0)
+    two = en.compute(cfg, wide)["blocks"]["b"].iloc[-1]
+    assert two < three < 1

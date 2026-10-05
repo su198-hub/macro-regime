@@ -1,9 +1,14 @@
 """Energy tightness: is energy demand outrunning supply?
 
-Scores the indicators in config/energy.yml the way the main model scores its
-own (z-score against history to 2019, clipped at ±3, signed, block = weighted
-mean / 2, clipped to ±1), then combines the blocks into power tightness, fuels
-tightness and one energy tightness number. Also places each month on ASR's two
+Scores the indicators in config/energy.yml much as the main model scores its
+own: each is centered on its average to 2019, signed so positive means tighter,
+and clipped at ±3. Two departures, both because the years to 2019 were
+unusually calm for energy. The spread is measured over the full history, so a
+series that barely moved before 2020 does not read every later move as an
+extreme; and a block maps its weighted mean through tanh(x / 2) rather than
+dividing by 2 and clipping, so it approaches ±1 without sticking there. It then
+combines the blocks into power tightness, fuels tightness and one energy
+tightness number. Also places each month on ASR's two
 markers -- demand surging, supply expanding -- to say which of their energy
 scenarios it looks like.
 
@@ -61,7 +66,17 @@ def rel_36m_ann(series: list[pd.Series], deflator: pd.Series) -> pd.Series:
 
 
 def indicator_value(ind: dict, wide: pd.DataFrame, end) -> pd.Series:
-    """The indicator in its own units, monthly, before scoring."""
+    """The indicator in its own units, monthly, before scoring.
+
+    `smooth_months` averages the result over that many months, for series that
+    are a fresh forecast each month and swing between releases.
+    """
+    v = _indicator_value(ind, wide, end)
+    n = int(ind.get("smooth_months", 1))
+    return v.rolling(n, min_periods=n).mean().dropna() if n > 1 and not v.empty else v
+
+
+def _indicator_value(ind: dict, wide: pd.DataFrame, end) -> pd.Series:
     series = [_monthly(wide, sid, end) for sid in ind["series"]]
     series = [s for s in series if not s.empty]
     if not series:
@@ -78,19 +93,30 @@ def indicator_value(ind: dict, wide: pd.DataFrame, end) -> pd.Series:
         denom = _monthly(wide, ind["denominator"], end)
         return (s / denom.reindex(s.index) * float(ind.get("factor", 100))).dropna()
     if ind["transform"] == "pct_36m_ann":
+        if ind.get("sum_months"):
+            n = int(ind["sum_months"])
+            s = s.rolling(n, min_periods=n).sum()
         return (((s / s.shift(36)) ** (1 / 3) - 1) * 100).dropna()
     if ind["transform"] == "mean_12m":
         return s.rolling(12, min_periods=12).mean().dropna()
     return TRANSFORMS[ind["transform"]](s).dropna()
 
 
-def score(values: pd.Series, center_to: str, min_months: int) -> tuple[pd.Series, dict]:
-    """z-score against history to `center_to`; all of it if that is too short."""
+def score(values: pd.Series, center_to: str, min_months: int,
+          full_spread: bool = True) -> tuple[pd.Series, dict]:
+    """z-score centered on history to `center_to`, spread from all of it.
+
+    The center is what normal looked like before the boom. The spread comes
+    from the whole history, so the scale reflects how far the series has
+    actually ranged; with `full_spread` off it comes from the same years as
+    the center, as in the main model.
+    """
     base = values[values.index <= pd.Timestamp(center_to)]
-    basis = "history to 2019"
+    basis = "average to 2019"
     if len(base) < min_months:
         base, basis = values, "all history (too little before 2020)"
-    center, scale = float(base.mean()), float(base.std())
+    center = float(base.mean())
+    scale = float((values if full_spread else base).std())
     if not scale or np.isnan(scale):
         return pd.Series(np.nan, index=values.index), {"center": center, "scale": scale, "basis": basis}
     z = ((values - center) / scale).clip(-CLIP, CLIP)
@@ -110,7 +136,8 @@ def compute(cfg: dict, wide: pd.DataFrame) -> dict:
         v = indicator_value(ind, wide, end)
         if v.empty:
             continue
-        z, norm = score(v, meta.get("center_to", "2019-12-31"), int(meta.get("min_history_months", 36)))
+        z, norm = score(v, meta.get("center_to", "2019-12-31"), int(meta.get("min_history_months", 36)),
+                        bool(meta.get("full_spread", True)))
         values[key], scores[key], norms[key] = v, z * float(ind.get("sign", 1)), norm
     values = pd.DataFrame(values).sort_index()
     scores = pd.DataFrame(scores).sort_index()
@@ -124,6 +151,7 @@ def compute(cfg: dict, wide: pd.DataFrame) -> dict:
         scores = scores.reindex(idx).ffill(limit=carry)
 
     blocks = {}
+    w_all = {b: sum(float(i["weight"]) for i in blk["indicators"]) for b, blk in cfg["blocks"].items()}
     for block_id, block in cfg["blocks"].items():
         cols = [f"{block_id}::{i['id']}" for i in block["indicators"] if f"{block_id}::{i['id']}" in scores]
         if not cols:
@@ -136,7 +164,11 @@ def compute(cfg: dict, wide: pd.DataFrame) -> dict:
         with np.errstate(invalid="ignore", divide="ignore"):
             num = np.nansum(part.to_numpy() * w, axis=1)
             val = np.where(denom > 0, num / denom, np.nan)
-        blocks[block_id] = pd.Series(np.clip(val / DRIVER_SCALE, -1, 1), index=part.index)
+        # A block needs at least `min_coverage` of its weight reporting, so
+        # early history resting on one long-running indicator is left blank
+        # rather than presented as the whole block.
+        val = np.where(denom >= float(meta.get("min_coverage", 0.5)) * w_all[block_id], val, np.nan)
+        blocks[block_id] = pd.Series(np.tanh(val / DRIVER_SCALE), index=part.index)
     blocks = pd.DataFrame(blocks).sort_index()
 
     def combine(weights: dict, frame: pd.DataFrame) -> pd.Series:
@@ -148,7 +180,9 @@ def compute(cfg: dict, wide: pd.DataFrame) -> dict:
         mag = w.abs()
         present = part.notna().mul(mag, axis=1).sum(axis=1)
         out = part.mul(mag, axis=1).sum(axis=1, min_count=1) / present.replace(0, np.nan)
-        return out.clip(-1, 1)
+        # Every component must report: power without supply, or energy
+        # without fuels, would be a different measure under the same name.
+        return out.where(part.notna().all(axis=1)).clip(-1, 1)
 
     composite = pd.DataFrame(index=blocks.index)
     composite["power"] = combine(cfg["combine"]["power"], blocks)

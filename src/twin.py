@@ -210,6 +210,10 @@ def build_store(main_db: str, twin_db: str, live: dict, twin: dict, sources: dic
 
     needed = sorted(set(required_series(twin)) - set(required_series(live)))
     store = Store(twin_db)
+    # Series the main store already holds (the energy page's composite, say)
+    # came across with the copy and need no vendor.
+    held = set(store.coverage()["series_id"]) if not store.coverage().empty else set()
+    needed = [sid for sid in needed if sid not in held]
     vendors: dict = {}
     failed = []
     try:

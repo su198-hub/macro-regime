@@ -319,6 +319,9 @@ def cmd_energy(args):
     for col, sid, title, units in [
         ("net_add_36m_pct", "EN_860M_NET_ADD",
          "Planned net capacity additions over the next 3 years, % of operating fleet", "%"),
+        ("firm_net_add_36m_pct", "EN_860M_FIRM_NET_ADD",
+         "Firm capacity due in the next 3 years net of retirements, % of firm fleet", "%"),
+        ("firm_add_36m_gw", "EN_860M_FIRM_ADD", "Firm capacity due online in the next 3 years", "GW"),
         ("gas_add_36m_gw", "EN_860M_GAS_ADD", "Gas capacity due online in the next 3 years", "GW"),
         ("clean_add_36m_gw", "EN_860M_CLEAN_ADD",
          "Solar, wind, storage, nuclear, hydro and geothermal due in the next 3 years", "GW"),
@@ -336,6 +339,9 @@ def cmd_energy(args):
         ("WPU0543", "PPI: industrial electric power", "index"),
         ("PRPWRCONS", "Private construction spending: power", "$ millions, SAAR"),
         ("GDP", "Gross domestic product", "$ billions, SAAR"),
+        ("PRMFGCONS", "Private construction spending: manufacturing", "$ millions, SAAR"),
+        ("B935RC1Q027SBEA", "Private fixed investment: computers and peripheral equipment",
+         "$ billions, SAAR"),
         ("PCU335311335311", "PPI: power, distribution and specialty transformers", "index"),
         ("PCU335313335313", "PPI: switchgear and switchboard apparatus", "index"),
         ("PPIACO", "PPI: all commodities", "index 1982=100"),
@@ -343,6 +349,11 @@ def cmd_energy(args):
     ]:
         add(sid, as_observations(sid, fred_series(sid), lag_days=45), "energy-fred", title,
             units, "Monthly", vintages=False)
+
+    print("EIA commercial and industrial electricity sales ...")
+    add("EN_EIA_CI_SALES", as_observations("EN_EIA_CI_SALES", eia.retail_sales(), lag_days=55),
+        "energy-eia", "US electricity sales to commercial and industrial customers",
+        "million kWh", "Monthly", code="electricity/retail-sales", vintages=False)
 
     print("Census data center construction ...")
     add("EN_CENSUS_DC", as_observations("EN_CENSUS_DC", census_data_centers(), lag_days=32),
@@ -359,6 +370,22 @@ def cmd_energy(args):
         as_observations("EN_EPOCH_US_POWER", epoch_power_path(), vintage=dt.date.today()),
         "energy-epoch", "Power of the US AI data centers Epoch tracks, built and planned",
         "GW", "Monthly", code="data_center_timelines.csv")
+
+    # The composite itself, so the regime model can read energy tightness as one
+    # series. Recomputed from today's data, so it is as-revised, not
+    # point-in-time; each month is dated a release cycle after it.
+    from src import energy as en
+    ecfg = en.load_config()
+    wide = store.as_of(en.required_series(ecfg), dt.date.today()).astype(float)
+    comp = en.compute(ecfg, wide)["composite"]
+    # Replaced whole, so a month the rules now leave blank does not linger.
+    store.con.execute("DELETE FROM observations WHERE series_id IN "
+                      "('EN_ENERGY_TIGHTNESS', 'EN_POWER_TIGHTNESS', 'EN_FUELS_TIGHTNESS')")
+    for col, sid, title in [("energy", "EN_ENERGY_TIGHTNESS", "Energy tightness (energy page composite)"),
+                            ("power", "EN_POWER_TIGHTNESS", "Power tightness (energy page)"),
+                            ("fuels", "EN_FUELS_TIGHTNESS", "Oil and gas tightness (energy page)")]:
+        add(sid, as_observations(sid, comp[col], lag_days=45), "energy-composite", title,
+            "score, -1 to +1", "Monthly", code="config/energy.yml", vintages=False)
 
     print(f"Stored {sum(stored)} observations across {len(stored)} series in {args.db}.")
     store.close()

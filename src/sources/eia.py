@@ -65,6 +65,32 @@ STEO_CODES = {
 GAS = {"NG"}
 CLEAN = {"SUN", "WND", "MWH", "NUC", "WAT", "GEO"}
 
+# How much of a megawatt counts at the summer peak, by fuel. Approximate, in
+# the spirit of PJM's effective load carrying capability (ELCC) class ratings:
+# a solar megawatt is worth about a tenth of a nuclear one when it matters, so
+# nameplate additions overstate firm supply in a solar-led build. Gas peakers
+# (combustion turbines, engines) rate lower than combined cycle.
+FIRM_CREDIT = {
+    "NUC": 0.95, "GEO": 0.90,
+    "BIT": 0.80, "SUB": 0.80, "LIG": 0.80, "RC": 0.80, "WC": 0.80, "ANT": 0.80,
+    "NG": 0.75, "DFO": 0.60, "RFO": 0.60, "JF": 0.60, "KER": 0.60, "WO": 0.60,
+    "WAT": 0.50, "MWH": 0.50, "WND": 0.30, "SUN": 0.10,
+}
+PEAKER_PRIME_MOVERS = {"GT", "IC"}
+OTHER_CREDIT = 0.60  # biomass, waste, landfill gas and the rest
+
+
+def firm_credit(df: pd.DataFrame) -> pd.Series:
+    """Each unit's peak-hour credit, from its fuel and, for gas, its prime mover."""
+    if "Energy Source Code" not in df:
+        return pd.Series(OTHER_CREDIT, index=df.index)
+    src = df["Energy Source Code"].astype(str).str.strip().str.upper()
+    credit = src.map(FIRM_CREDIT).fillna(OTHER_CREDIT)
+    if "Prime Mover Code" in df:
+        pm = df["Prime Mover Code"].astype(str).str.strip().str.upper()
+        credit = credit.where(~((src == "NG") & pm.isin(PEAKER_PRIME_MOVERS)), 0.60)
+    return credit
+
 
 def cache_dir() -> Path:
     base = os.environ.get("LOCALAPPDATA") or str(Path.home() / ".cache")
@@ -275,7 +301,9 @@ def gen_summary(planned: pd.DataFrame, operating: pd.DataFrame, canceled: pd.Dat
 
     Net additions are planned summer capacity due within the window less
     operating capacity scheduled to retire within it, as a share of what is
-    operating now, so the number reads as growth in the fleet. The canceled
+    operating now, so the number reads as growth in the fleet. The firm version
+    weighs every unit by its peak-hour credit (FIRM_CREDIT) before doing the
+    same sum, so it asks how much dependable supply is coming. The canceled
     share is canceled-or-postponed capacity against that plus what is still
     planned: a rising share means projects are falling away faster.
     """
@@ -289,8 +317,13 @@ def gen_summary(planned: pd.DataFrame, operating: pd.DataFrame, canceled: pd.Dat
     add = window["mw"].sum()
     canceled_mw = canceled["mw"].sum()
     planned_all = planned["mw"].sum()
+    firm_fleet = (operating["mw"] * firm_credit(operating)).sum()
+    firm_add = (window["mw"] * firm_credit(window)).sum()
+    firm_retire = (retiring["mw"] * firm_credit(retiring)).sum()
     return {
         "net_add_36m_pct": (add - retiring["mw"].sum()) / fleet * 100,
+        "firm_net_add_36m_pct": (firm_add - firm_retire) / firm_fleet * 100,
+        "firm_add_36m_gw": firm_add / 1000,
         "add_36m_gw": add / 1000,
         "gas_add_36m_gw": window.loc[src.isin(GAS), "mw"].sum() / 1000,
         "clean_add_36m_gw": window.loc[src.isin(CLEAN), "mw"].sum() / 1000,
@@ -338,3 +371,37 @@ def gen_history(start: str = "2015-07", every: int = 3, log=print) -> pd.DataFra
         rows.append({"month": as_of, **summary})
         log(f"  860M: {as_of:%b %Y} read")
     return pd.DataFrame(rows)
+
+
+# ---------- electricity sales, as they happened ----------
+
+RETAIL_API = "https://api.eia.gov/v2/electricity/retail-sales/data/"
+
+
+def api_key() -> str:
+    """EIA_API_KEY from the process, else from the Windows user environment."""
+    from src.sources.ciq import credential
+    key = credential("EIA_API_KEY")
+    if not key:
+        raise RuntimeError("EIA_API_KEY is not set. Get a free key at eia.gov/opendata "
+                           "and store it as a Windows user environment variable.")
+    return key
+
+
+def retail_sales(sectors=("COM", "IND")) -> pd.Series:
+    """US electricity sold to the given sectors, million kWh a month, from 2001.
+
+    Commercial is where most data centers are metered; industrial carries the
+    factories. Residential is left out: it moves with the weather and with
+    households, not with the build-out this page is about.
+    """
+    params = {"api_key": api_key(), "frequency": "monthly", "data[0]": "sales",
+              "facets[stateid][]": "US", "facets[sectorid][]": list(sectors),
+              "sort[0][column]": "period", "sort[0][direction]": "asc", "length": 5000}
+    r = requests.get(RETAIL_API, params=params, timeout=60)
+    r.raise_for_status()
+    rows = pd.DataFrame(r.json()["response"]["data"])
+    rows["sales"] = pd.to_numeric(rows["sales"], errors="coerce")
+    total = rows.groupby("period")["sales"].sum(min_count=len(sectors))
+    total.index = pd.to_datetime(total.index)
+    return total.dropna().sort_index()

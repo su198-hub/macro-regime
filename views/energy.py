@@ -87,11 +87,12 @@ scen_label, scen_text = en.SCENARIOS.get(scen_now, ("–", ""))
 asof = f"{when:%B %Y}" if when is not None else "–"
 
 st.html(ui.section_head("Where it stands", meta=f"Latest month {asof}",
-                        caption="Scores run from −1 to +1. Positive means tighter energy than "
-                                "the series' own history to 2019, the main model's convention."))
+                        caption="Scores run from −1 to +1. Positive means tighter energy than each "
+                                "series' average to 2019, against how far it has ranged since."))
 cols = st.columns(4)
 cols[0].html(tile("Energy tightness", energy_now, read(energy_now),
-                  "Power and fuels, equal weight. The number proposed for the supply driver."))
+                  "Power and fuels, equal weight. Proposed to replace the energy majors' capex "
+                  "revision in the supply driver."))
 cols[1].html(tile("Power", power_now, read(power_now), "Demand, less supply expanding, plus prices."))
 cols[2].html(tile("Oil and gas", fuels_now, read(fuels_now), "Spare capacity, inventories, gas price."))
 cols[3].html(

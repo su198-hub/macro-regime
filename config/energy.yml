@@ -11,11 +11,14 @@
 # are a block of their own, since oil has the clearest history of moving growth
 # and inflation.
 #
-# Scoring follows the main model. Each indicator becomes a z-score against its
-# own history up to `center_to`, clipped at ±3 and signed so that positive means
-# tighter energy (for supply, positive means supply expanding, which enters
-# tightness negatively). A block is the weighted mean of its indicators, divided
-# by 2 and clipped to ±1, as the six regime drivers are.
+# Scoring is close to the main model's. Each indicator is centered on its own
+# average up to `center_to`, signed so that positive means tighter energy (for
+# supply, positive means supply expanding, which enters tightness negatively),
+# and clipped at ±3. Two departures, because the years to 2019 were unusually
+# calm for energy: the spread comes from the full history (`full_spread`), so a
+# series that barely moved before 2020 does not read every later move as
+# extreme; and a block is tanh(weighted mean / 2), which approaches ±1 without
+# sticking there, where the drivers divide by 2 and clip.
 #
 # History is short: the planned-capacity series start in 2015, and there has
 # been one power-demand boom since. Nothing here can be validated by a
@@ -26,7 +29,9 @@
 
 meta:
   center_to: "2019-12-31"
+  full_spread: true
   min_history_months: 36
+  min_coverage: 0.5  # a block needs this share of its weight reporting to be scored
   mid_band: 0.15     # scores inside this read as "close to normal", as on the dashboard
   carry_months: 2    # a score holds its last reading this long while its next release is due
 
@@ -41,7 +46,7 @@ blocks:
         series: [EN_STEO_ELEC_FWD]
         transform: pct_36m_ann
         sign: 1
-        weight: 0.6
+        weight: 0.3
         units: "% a year"
         source: EIA Short-Term Energy Outlook
         link: https://www.eia.gov/outlooks/steo/
@@ -55,42 +60,71 @@ blocks:
         denominator: GDP
         factor: 0.1        # $ millions over $ billions, as a percent
         sign: 1
-        weight: 0.4
+        weight: 0.2
         units: "% of GDP"
         source: Census Bureau, construction spending
         link: https://www.census.gov/construction/c30/data/index.html
         why:
           - Private spending on data center construction, at an annual rate.
           - Buildings going up now are power demand in one to three years.
+      - id: it_investment
+        label: Investment in computers and servers, % of GDP
+        series: [B935RC1Q027SBEA]
+        transform: share
+        denominator: GDP
+        factor: 100
+        sign: 1
+        weight: 0.15
+        units: "% of GDP"
+        source: BEA, via FRED
+        link: https://fred.stlouisfed.org/series/B935RC1Q027SBEA
+        why:
+          - Business spending on computers and peripherals, which now means AI servers.
+          - The equipment that fills the data centers, and draws the power.
+      - id: mfg_construction
+        label: Factory construction spending, % of GDP
+        series: [PRMFGCONS]
+        transform: share
+        denominator: GDP
+        factor: 0.1
+        sign: 1
+        weight: 0.15
+        units: "% of GDP"
+        source: Census Bureau, via FRED
+        link: https://fred.stlouisfed.org/series/PRMFGCONS
+        why:
+          - Private spending on manufacturing plants, led by chip and battery fabs.
+          - Demand beyond AI, and power-hungry once the plants run.
+      - id: ci_sales_growth
+        label: Commercial and industrial electricity sales, 3-year growth, annualized
+        series: [EN_EIA_CI_SALES]
+        transform: pct_36m_ann
+        sum_months: 12
+        sign: 1
+        weight: 0.2
+        units: "% a year"
+        source: EIA electricity data
+        link: https://www.eia.gov/electricity/data/browser/
+        why:
+          - Power actually sold to businesses, summed over 12 months.
+          - The check that forecast demand is turning into real load.
 
   power_supply:
     label: Power supply
     question: Is supply expanding to meet it?
     indicators:
-      - id: net_additions
-        label: Planned net capacity additions, next 3 years, % of the fleet
-        series: [EN_860M_NET_ADD]
+      - id: firm_net_additions
+        label: Firm capacity due in the next 3 years, net of retirements, % of the firm fleet
+        series: [EN_860M_FIRM_NET_ADD]
         transform: level
         sign: 1
-        weight: 0.3
+        weight: 0.45
         units: "%"
         source: EIA Form 860M
         link: https://www.eia.gov/electricity/data/eia860m/
         why:
-          - Capacity due online in the next three years, less scheduled retirements.
-          - Regulatory filings, so firmer than a forecast, though plans run ahead of builds.
-      - id: gas_additions
-        label: Gas capacity due in the next 3 years
-        series: [EN_860M_GAS_ADD]
-        transform: level
-        sign: 1
-        weight: 0.25
-        units: GW
-        source: EIA Form 860M
-        link: https://www.eia.gov/electricity/data/eia860m/
-        why:
-          - Gas plants due online within three years.
-          - Round-the-clock power, which data centers need and solar cannot fully replace.
+          - Planned plants less retirements, each counted at what it delivers at the summer peak.
+          - A solar megawatt counts about a tenth of a nuclear one, so this asks about dependable supply.
       - id: cancel_share
         label: Share of planned capacity canceled or postponed
         series: [EN_860M_CANCEL_SHARE]
@@ -110,7 +144,7 @@ blocks:
         denominator: GDP
         factor: 0.1
         sign: 1
-        weight: 0.25
+        weight: 0.35
         units: "% of GDP"
         source: Census Bureau, via FRED
         link: https://fred.stlouisfed.org/series/PRPWRCONS
@@ -167,8 +201,9 @@ blocks:
     question: Is fuel supply tight?
     indicators:
       - id: opec_spare
-        label: OPEC spare capacity EIA expects, next 12 months
+        label: OPEC spare capacity EIA expects, next 12 months, last 3 outlooks
         series: [EN_STEO_OPEC_SPARE]
+        smooth_months: 3   # average of the last three outlooks
         transform: level
         sign: -1
         weight: 0.35
@@ -179,8 +214,9 @@ blocks:
           - The world's buffer against a supply shock.
           - With little spare, a shock goes straight to price.
       - id: oil_draws
-        label: World oil inventory draws EIA expects, next 12 months
+        label: World oil inventory draws EIA expects, next 12 months, last 3 outlooks
         series: [EN_STEO_OIL_DRAW]
+        smooth_months: 3   # average of the last three outlooks
         transform: level
         sign: 1
         weight: 0.25
@@ -191,8 +227,9 @@ blocks:
           - Positive means stocks are expected to fall, a tightening balance.
           - Negative means they are expected to build.
       - id: gas_price
-        label: Henry Hub price EIA expects, next 12 months, vs. its 5-year average
+        label: Henry Hub price EIA expects vs. its 5-year average, last 3 outlooks
         series: [EN_STEO_HENRY_HUB]
+        smooth_months: 3   # average of the last three outlooks
         transform: dev_5y_pct
         sign: 1
         weight: 0.25

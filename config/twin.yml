@@ -50,7 +50,29 @@
 # them unless --allow-licensed is passed, which is deliberate and recorded in
 # the snapshot manifest.
 
-swaps: {}
+# Proposed 5 October 2026: energy tightness from the energy page replaces the
+# energy majors' capex revision. The capex revision reads one input to future
+# oil supply; the composite reads power demand against firm supply, grid
+# prices, and oil and gas together, which is the constraint this driver
+# scores. It starts in July 2015, so the twin's supply driver has it for 4.5
+# years before 2020. Centered on its average to 2019 and scaled by its full
+# spread, as on the energy page.
+swaps:
+  supply:
+    - out: energy_capex_revision
+      in:
+        id: energy_tightness
+        label: Energy tightness (energy page composite)
+        source: {series: EN_ENERGY_TIGHTNESS}
+        transform: level
+        normalize: {method: gap, center: 0.05, scale: 0.11}
+        direction: 1
+        carry_forward_periods: 2
+        horizon: long
+        why: >-
+          Power demand against firm supply, grid prices, and oil and gas
+          balances, in one score from the energy page. Positive means energy
+          is a tighter constraint.
 adds: {}
 reweight: {}
 changes: {}
