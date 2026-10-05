@@ -79,7 +79,7 @@ def _store_for(version: str):
         safe = version.replace(":", "").replace("+", "_")
         path = Path(tempfile.gettempdir()) / "macro-regime" / f"snapshot-{safe}.duckdb"
         try:
-            return load_snapshot(data_url(), path)
+            return load_snapshot(data_url(), path, manifest=snapshot_manifest())
         except Exception as exc:
             st.warning(f"Could not load the published data ({exc}). Showing local data instead.")
 

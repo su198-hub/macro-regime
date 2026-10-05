@@ -3,6 +3,7 @@
 import datetime as dt
 
 import pandas as pd
+import pytest
 
 from src.snapshot import export_snapshot, load_snapshot, read_manifest
 from src.store import Store
@@ -31,3 +32,18 @@ def test_roundtrip_preserves_vintages_and_meta_but_not_judgement(tmp_path):
     assert copy.sources() == {"macrobond"}
     assert copy.con.execute("SELECT source_code FROM series_meta WHERE series_id='x'").fetchone()[0] == "mbx"
     assert copy.con.execute("SELECT COUNT(*) FROM judgement").fetchone()[0] == 0
+
+
+def test_a_snapshot_that_disagrees_with_its_manifest_is_refused(tmp_path):
+    """Stale files under a new manifest must not be cached as that version."""
+    store = Store(tmp_path / "src.duckdb")
+    store.upsert_observations(pd.DataFrame({
+        "series_id": ["A"], "observation_date": [dt.date(2026, 1, 1)],
+        "vintage_date": [dt.date(2026, 1, 2)], "value": [1.0]}))
+    manifest = export_snapshot(store, tmp_path / "snap")
+    store.close()
+    ok = load_snapshot(str(tmp_path / "snap"), tmp_path / "a.duckdb", manifest=manifest)
+    ok.close()
+    with pytest.raises(RuntimeError, match="manifest says"):
+        load_snapshot(str(tmp_path / "snap"), tmp_path / "b.duckdb",
+                      manifest={**manifest, "rows": manifest["rows"] + 1}, tries=1)

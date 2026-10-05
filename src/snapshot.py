@@ -20,6 +20,8 @@ import tempfile
 from pathlib import Path
 
 import requests
+import time
+from urllib.parse import quote
 
 from .store import Store
 
@@ -56,11 +58,18 @@ def export_snapshot(store: Store, out_dir: str | Path) -> dict:
     return manifest
 
 
-def _fetch(base: str, name: str, dest: Path, timeout: int = 120) -> Path:
-    """Copy one snapshot file from a URL or a local directory into dest."""
+def _fetch(base: str, name: str, dest: Path, timeout: int = 120, version: str = "") -> Path:
+    """Copy one snapshot file from a URL or a local directory into dest.
+
+    `version` is sent as a query string so a CDN cannot answer with the file
+    from the previous publish: raw.githubusercontent.com caches for about five
+    minutes, and a manifest read just after a publish could otherwise be
+    paired with the old observations.
+    """
     target = dest / name
     if base.startswith(("http://", "https://")):
-        with requests.get(f"{base.rstrip('/')}/{name}", stream=True, timeout=timeout) as r:
+        url = f"{base.rstrip('/')}/{name}" + (f"?v={quote(version)}" if version else "")
+        with requests.get(url, stream=True, timeout=timeout) as r:
             r.raise_for_status()
             with open(target, "wb") as f:
                 for chunk in r.iter_content(1 << 20):
@@ -78,14 +87,36 @@ def read_manifest(base: str, timeout: int = 20) -> dict:
     return json.loads((Path(base) / "manifest.json").read_text())
 
 
-def load_snapshot(base: str, db_path: str | Path) -> Store:
-    """Build a store at db_path from the snapshot at base (URL or directory)."""
+def load_snapshot(base: str, db_path: str | Path, manifest: dict | None = None,
+                  tries: int = 3) -> Store:
+    """Build a store at db_path from the snapshot at base (URL or directory).
+
+    With a manifest, the files are fetched for that publish and the row count
+    checked against it, retrying a few times: the app caches a store under the
+    manifest's version until the next publish, so loading stale files under a
+    new version would stick until then.
+    """
     db_path = Path(db_path)
     db_path.parent.mkdir(parents=True, exist_ok=True)
+    version = str((manifest or {}).get("published_at", ""))
+    for attempt in range(tries):
+        _build(base, db_path, version)
+        store = Store(db_path)
+        rows = store.con.execute("SELECT COUNT(*) FROM observations").fetchone()[0]
+        if manifest is None or rows == manifest.get("rows"):
+            return store
+        store.close()
+        if attempt < tries - 1:
+            time.sleep(5 * (attempt + 1))
+    raise RuntimeError(f"snapshot has {rows:,} rows, its manifest says {manifest.get('rows'):,}; "
+                       f"the files may still be from the previous publish")
+
+
+def _build(base: str, db_path: Path, version: str) -> None:
     with tempfile.TemporaryDirectory() as tmp:
         tmp = Path(tmp)
         for name in FILES[:2]:
-            _fetch(base, name, tmp)
+            _fetch(base, name, tmp, version=version)
         partial = db_path.with_suffix(".partial")
         for p in (partial, Path(str(partial) + ".wal")):
             if p.exists():
@@ -102,4 +133,3 @@ def load_snapshot(base: str, db_path: str | Path) -> Store:
         store.close()
     # Swap in only once complete, so a failed download never leaves half a store.
     os.replace(partial, db_path)
-    return Store(db_path)
