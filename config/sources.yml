@@ -359,3 +359,11 @@ series:
     note: >-
       Revision to CBO's five-year-ahead potential labour force between
       consecutive projections, in log percent.
+  # Built by `ingest.py energy` from the energy page (config/energy.yml), whose
+  # inputs are all public: EIA, Census, BEA and BLS via FRED, the GPR index.
+  # backfill and sync skip it; run `ingest.py energy` to refresh it.
+  EN_ENERGY_TIGHTNESS:
+    use: energy
+    note: >-
+      Energy tightness, the energy page's composite of power demand, firm
+      supply, power-sector prices, and oil and gas, from July 2015.

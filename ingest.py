@@ -199,6 +199,10 @@ def _pull(args, full_history: bool):
     for i, sid in enumerate(series, 1):
         try:
             entry = (sources.get("series") or {}).get(sid) or {}
+            if entry.get("use") == "energy" and not args.source:
+                # Built by `ingest.py energy` from public sources, not fetched here.
+                print(f"  [{i}/{len(series)}] {sid}: from `ingest.py energy`, skipped")
+                continue
             if entry.get("use") == "derived" and not args.source:
                 # Built from a vendor's vintage history rather than fetched: a
                 # target-dated projection has to be turned into a dated revision
