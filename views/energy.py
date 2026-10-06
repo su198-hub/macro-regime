@@ -20,7 +20,7 @@ import streamlit as st
 
 from src import energy as en
 from src import ui
-from views.common import get_store
+from views.common import get_store, published_note, refresh_button
 
 SCENARIO_COLOR = {"ai_boom": "#2a78d6", "energy_first": "#e34948", "current_policies": "#8c8c8c"}
 TIGHT, LOOSE = "#c0392b", "#2a78d6"
@@ -33,6 +33,7 @@ st.html('<h1 class="mr-title">Energy</h1>'
         '<p class="mr-sub">Is energy demand outrunning supply? A first cut for discussion. '
         'Not part of the regime model yet.</p>')
 st.html('<hr class="mr-rule">')
+refresh_button()
 
 if wide.empty:
     st.html('<div class="mr-custom"><b>No energy data in this store yet.</b> Pull it on the '
@@ -394,4 +395,4 @@ st.html(ui.table(["Indicator", "Blocker"], [[p["item"], p["blocker"]] for p in c
 st.html(f'<p class="mr-source">Sources: EIA Short-Term Energy Outlook (every archived release since '
         f'2009) and Form EIA-860M (quarterly inventories since July 2015); BLS producer prices '
         f'and IMF copper via FRED; Epoch AI Frontier Data Centers (CC BY). Definitions and '
-        f'reasons in <code>config/energy.yml</code>.</p>')
+        f'reasons in <code>config/energy.yml</code>. {ui.esc(published_note())}</p>')
