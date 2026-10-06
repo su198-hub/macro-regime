@@ -137,7 +137,7 @@ def synthetic_wide():
     rng = np.random.default_rng(0)
     growth = np.where(idx > "2021-12-31", 0.025, 0.0) / 12 + rng.normal(0, 0.0005, len(idx))
     return pd.DataFrame({
-        "EN_STEO_ELEC_FWD": 3700 * np.exp(np.cumsum(growth)),
+        "EN_STEO_COM_FWD": 1350 * np.exp(np.cumsum(growth)),
         "EN_860M_FIRM_NET_ADD": 3 + rng.normal(0, 0.5, len(idx)),
         "EN_860M_CANCEL_SHARE": 30 + rng.normal(0, 2, len(idx)),
         "PCU335311335311": np.exp(np.linspace(0, 1.2, len(idx))) * 100,
@@ -184,7 +184,7 @@ def test_supply_enters_power_tightness_with_its_sign_flipped():
 def test_every_series_the_config_names_is_required():
     cfg = en.load_config()
     req = set(en.required_series(cfg))
-    assert {"PPIACO", "EN_EPOCH_US_POWER", "EN_STEO_ELEC_FWD"} <= req
+    assert {"PPIACO", "EN_EPOCH_US_POWER", "EN_STEO_COM_FWD"} <= req
     for _, ind in en.indicators(cfg):
         assert {"id", "label", "series", "transform", "sign", "weight", "why", "link"} <= set(ind)
 
