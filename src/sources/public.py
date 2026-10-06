@@ -17,7 +17,10 @@ accumulates from now on.
 from __future__ import annotations
 
 import io
+import re
 import time
+
+import numpy as np
 
 import pandas as pd
 import requests
@@ -120,3 +123,70 @@ def geopolitical_risk() -> pd.Series:
     r.raise_for_status()
     df = pd.read_excel(io.BytesIO(r.content))
     return df.set_index(pd.to_datetime(df["month"]))["GPR"].dropna().astype(float)
+
+
+# ---------- PJM capacity prices ----------
+
+SOM_SEC5 = ("https://www.monitoringanalytics.com/reports/PJM_State_of_the_Market/"
+            "{year}/{year}-som-pjm-sec5.pdf")
+
+# When each delivery year's price became known: the month of its base residual
+# auction. The standard rule, May three years ahead, held for 2011/12 through
+# 2021/22. The transition years before it and the compressed schedule after are
+# listed; the four transition dates are approximate to the season.
+BRA_MONTH = {
+    2007: "2007-04", 2008: "2008-01", 2009: "2008-07", 2010: "2009-01",   # approximate
+    2022: "2021-05", 2023: "2022-06", 2024: "2022-12", 2025: "2024-07",
+    2026: "2025-07", 2027: "2025-12",
+}
+
+
+def parse_rpm_prices(text: str) -> pd.Series:
+    """Weighted average RPM price by delivery year, from the IMM's revenue table.
+
+    The table ("RPM revenue by delivery year") weighs every auction for a
+    delivery year by the capacity it cleared, so it is the price actually paid.
+    Keyed by the delivery year's first calendar year (2027 for 2027/2028).
+    """
+    pattern = r"(20\d\d)/20\d\d\s+\$([\d,.]+)\s+([\d,.]+)\s+(\d+)\s+\$([\d,]+)"
+    # The title appears in the text before the table itself; read the first
+    # occurrence that is followed by rows.
+    for m in re.finditer("RPM revenue by delivery year", text):
+        rows = re.findall(pattern, text[m.start():m.start() + 4000])
+        if rows:
+            return pd.Series({int(y): float(p.replace(",", "")) for y, p, *_ in rows}).sort_index()
+    raise ValueError("could not read an 'RPM revenue by delivery year' table in the report")
+
+
+def bra_month(delivery_year: int) -> pd.Timestamp:
+    return pd.Timestamp(BRA_MONTH.get(delivery_year, f"{delivery_year - 3}-05"))
+
+
+def forward_capacity_price(prices: pd.Series, end=None) -> pd.Series:
+    """Month by month, the price for the latest delivery year already auctioned.
+
+    That is what the market knew about the cost of capacity one to three years
+    out at each date. Uses the final weighted average for each year, so the
+    months between a base auction and its later incremental auctions carry a
+    little hindsight.
+    """
+    first = min(bra_month(y) for y in prices.index)
+    months = pd.date_range(first, end or pd.Timestamp.today(), freq="MS")
+    out = []
+    for m in months:
+        # the furthest delivery year known by m
+        years = [y for y in prices.index if bra_month(y) <= m]
+        out.append(prices[max(years)] if years else np.nan)
+    return pd.Series(out, index=months).dropna()
+
+
+def pjm_capacity_prices() -> pd.Series:
+    """Read the latest State of the Market capacity section that exists."""
+    import pymupdf
+    for year in range(pd.Timestamp.today().year, pd.Timestamp.today().year - 4, -1):
+        r = requests.get(SOM_SEC5.format(year=year), headers={"User-Agent": "Mozilla/5.0"},
+                         timeout=120)
+        if r.status_code == 200 and r.content[:4] == b"%PDF":
+            doc = pymupdf.open(stream=r.content, filetype="pdf")
+            return parse_rpm_prices("\n".join(p.get_text() for p in doc))
+    raise RuntimeError("no State of the Market capacity section found for the last four years")

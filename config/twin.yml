@@ -65,7 +65,7 @@ swaps:
         label: Energy tightness (energy page composite)
         source: {series: EN_ENERGY_TIGHTNESS}
         transform: level
-        normalize: {method: gap, center: 0.03, scale: 0.12}
+        normalize: {method: gap, center: 0.03, scale: 0.13}
         direction: 1
         carry_forward_periods: 2
         horizon: long

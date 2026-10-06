@@ -280,8 +280,9 @@ def cmd_energy(args):
     which names the vendors behind the presented model -- is unchanged.
     """
     from src.sources import eia
-    from src.sources.public import (as_observations, census_data_centers, epoch_power_path,
-                                    fred_series, geopolitical_risk)
+    from src.sources.public import (as_observations, bra_month, census_data_centers,
+                                    epoch_power_path, forward_capacity_price, fred_series,
+                                    geopolitical_risk, pjm_capacity_prices)
 
     store = Store(args.db)
     refuse_demo_store(store, args.db)
@@ -360,6 +361,13 @@ def cmd_energy(args):
     add("EN_EIA_CI_SALES", as_observations("EN_EIA_CI_SALES", eia.retail_sales(), lag_days=55),
         "energy-eia", "US electricity sales to commercial and industrial customers",
         "million kWh", "Monthly", code="electricity/retail-sales", vintages=False)
+
+    print("PJM capacity prices, from Monitoring Analytics ...")
+    # Each month is known from the base auction that set it, so it is dated there.
+    pjm = forward_capacity_price(pjm_capacity_prices())
+    add("EN_PJM_CAPACITY", as_observations("EN_PJM_CAPACITY", pjm, lag_days=0),
+        "energy-pjm", "PJM capacity price, latest delivery year auctioned (weighted average RPM)",
+        "$/MW-day", "Monthly", code="State of the Market, RPM revenue table", vintages=False)
 
     print("Census data center construction ...")
     add("EN_CENSUS_DC", as_observations("EN_CENSUS_DC", census_data_centers(), lag_days=32),

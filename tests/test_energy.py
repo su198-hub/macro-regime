@@ -10,7 +10,8 @@ import pytest
 
 from src import energy as en
 from src.sources import eia
-from src.sources.public import as_observations, us_power_path
+from src.sources.public import (as_observations, bra_month, forward_capacity_price,
+                                parse_rpm_prices, us_power_path)
 
 
 def steo_sheet(codes: dict[str, list[float]], start_year=2024, years=3):
@@ -238,3 +239,39 @@ def test_inventories_are_read_against_the_same_month_in_past_years():
     v = en.indicator_value({"series": ["S"], "transform": "dev_5y_same_month_pct"}, wide, idx[-1])
     assert v.iloc[-2] == pytest.approx(0.0)              # seasonal swing cancels
     assert v.iloc[-1] == pytest.approx(-10.0)
+
+
+IMM_TABLE = """Table 5-24 RPM revenue by delivery year: 2007/2008 through 2027/2028
+Delivery Year
+Weighted Average RPM
+Price ($ per MW-day)
+2007/2008
+$89.78
+129,409.2
+366
+$4,252,287,381
+2024/2025
+$45.57
+154,362.5
+365
+$2,567,425,124
+2025/2026
+$296.98
+137,733.6
+365
+$14,930,075,226
+"""
+
+
+def test_the_imm_revenue_table_reads_as_prices_by_delivery_year():
+    prices = parse_rpm_prices("intro mentions RPM revenue by delivery year in text\n" + IMM_TABLE)
+    assert prices.to_dict() == {2007: 89.78, 2024: 45.57, 2025: 296.98}
+
+
+def test_a_capacity_price_is_known_from_its_base_auction():
+    assert bra_month(2015) == pd.Timestamp("2012-05-01")   # standard: May, three years ahead
+    assert bra_month(2025) == pd.Timestamp("2024-07-01")   # the delayed schedule
+    prices = pd.Series({2024: 45.57, 2025: 296.98})
+    f = forward_capacity_price(prices, end=pd.Timestamp("2024-08-01"))
+    assert f[pd.Timestamp("2024-06-01")] == 45.57         # 2025/26 not yet auctioned
+    assert f[pd.Timestamp("2024-07-01")] == 296.98

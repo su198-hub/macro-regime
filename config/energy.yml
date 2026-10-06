@@ -171,13 +171,26 @@ blocks:
         deflator: PPIACO
         transform: rel_36m_ann
         sign: 1
-        weight: 0.45
+        weight: 0.35
         units: "% a year"
         source: BLS producer prices, via FRED
         link: https://fred.stlouisfed.org/series/PCU335311335311
         why:
           - The equipment every new connection needs, priced against everything else.
           - A scarcity price for building the grid.
+      - id: pjm_capacity
+        short: PJM capacity prices
+        label: PJM capacity price for the latest delivery year auctioned
+        series: [EN_PJM_CAPACITY]
+        transform: level
+        sign: 1
+        weight: 0.3
+        units: $/MW-day
+        source: Monitoring Analytics, PJM State of the Market
+        link: https://www.monitoringanalytics.com/reports/PJM_State_of_the_Market/2025.shtml
+        why:
+          - What the largest US grid pays to have capacity available one to three years out.
+          - A market price for scarcity, where data center load is growing fastest.
       - id: business_power_price
         short: business power prices
         label: Electricity prices paid by business vs. all producer prices, 3-year change
@@ -185,7 +198,7 @@ blocks:
         deflator: PPIACO
         transform: rel_36m_ann
         sign: 1
-        weight: 0.3
+        weight: 0.15
         units: "% a year"
         source: BLS producer prices, via FRED
         link: https://fred.stlouisfed.org/series/WPU0542
@@ -199,7 +212,7 @@ blocks:
         deflator: PPIACO
         transform: rel_36m_ann
         sign: 1
-        weight: 0.25
+        weight: 0.2
         units: "% a year"
         source: IMF commodity prices, via FRED
         link: https://fred.stlouisfed.org/series/PCOPPUSDM
@@ -317,11 +330,6 @@ manual:
     as_of: 2025 report
     source: Grid Strategies, National Load Growth Report 2025
     link: https://gridstrategiesllc.com/wp-content/uploads/Grid-Strategies-National-Load-Growth-Report-2025.pdf
-  - label: PJM capacity auction price, delivery years 2024/25 to 2028/29
-    value: "$28.92, $269.92, $329.17, $333.44, $325.00 per MW-day"
-    as_of: Auction of mid-2026
-    source: PJM Base Residual Auction results, compiled by Avalon Energy Services
-    link: https://avalonenergy.us/2026/07/pjm-2028-2029-base-residual-auction-clears-at-price-cap/
 
 # Proposed and not yet in, with what stands in the way.
 pending:
@@ -333,7 +341,7 @@ pending:
     blocker: Bloomberg, as above.
   - item: Brent and Henry Hub 2-3 years forward
     blocker: Macrobond coverage not yet checked.
-  - item: PJM capacity price as a scored series
-    blocker: Auctions before 2018 need PJM's own reports, which could not be reached from this machine.
-  - item: Grid interconnection queue (Berkeley Lab)
-    blocker: Annual workbook, downloaded by hand.
+  - item: Grid interconnection queue (Berkeley Lab's Queued Up, annual since about 2010)
+    blocker: The file sits behind a browser check and cannot be fetched automatically; download it once a year.
+  - item: Live queue totals by grid region (interconnection.fyi)
+    blocker: Free and crawlable, but today's totals only; history would build from when archiving starts.
