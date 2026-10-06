@@ -59,6 +59,7 @@ STEO_CODES = {
     "T3_STCHANGE_WORLD": "World liquids inventory net withdrawals, million b/d",
     "COPS_OPEC": "OPEC surplus crude oil production capacity, million b/d",
     "NGHHMCF": "Henry Hub spot natural gas, $/Mcf",
+    "PASC_OECD_T3": "OECD commercial oil inventories, million barrels, end of month",
 }
 
 # 860M energy source codes, grouped the way the supply question needs them.
@@ -218,6 +219,12 @@ def steo_summary(series: dict[str, pd.Series], month: pd.Timestamp) -> dict[str,
     out["oil_draw_12m"] = mean("T3_STCHANGE_WORLD", ahead)
     out["opec_spare_12m"] = mean("COPS_OPEC", ahead)
     out["henry_hub_12m"] = mean("NGHHMCF", ahead)
+    # Inventories are history, not forecast: the latest month a release
+    # reports as data is about two months before it.
+    stocks = series.get("PASC_OECD_T3")
+    latest = month - pd.DateOffset(months=2)
+    out["oecd_stocks"] = (float(stocks[latest]) if stocks is not None and latest in stocks.index
+                          else np.nan)
     return out
 
 

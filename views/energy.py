@@ -89,12 +89,37 @@ asof = f"{when:%B %Y}" if when is not None else "–"
 st.html(ui.section_head("Where it stands", meta=f"Latest month {asof}",
                         caption="Scores run from −1 to +1. Positive means tighter energy than each "
                                 "series' average to 2019, against how far it has ranged since."))
+# A score near zero can be quiet, or two big forces canceling; say which.
+SPLIT_INDICATOR, SPLIT_BLOCK = 1.0, 0.5   # in indicator z-scores and block scores
+
+
+def latest_block(block_id: str) -> float:
+    return last(blocks.get(block_id, pd.Series(dtype=float)))[1]
+
+
+fuels_split = en.split(en.latest_indicator_scores(cfg, res["scores"], "fuels"), SPLIT_INDICATOR)
+power_split = en.split({"power demand": latest_block("power_demand"),
+                        "firm supply": -latest_block("power_supply"),
+                        "power prices": latest_block("power_prices")}, SPLIT_BLOCK)
+
+
+def reading(x: float, split_pair) -> str:
+    if split_pair and abs(x) <= mid:
+        return f"Mixed: {split_pair[0]} reads tight, {split_pair[1]} loose"
+    return read(x)
+
+
 cols = st.columns(4)
-cols[0].html(tile("Energy tightness", energy_now, read(energy_now),
+cols[0].html(tile("Energy tightness", energy_now,
+                  read(energy_now) + (", with offsetting forces underneath"
+                                      if (power_split or fuels_split) and abs(energy_now) <= mid
+                                      else ""),
                   "Power and fuels, equal weight. Proposed to replace the energy majors' capex "
                   "revision in the supply driver."))
-cols[1].html(tile("Power", power_now, read(power_now), "Demand, less supply expanding, plus prices."))
-cols[2].html(tile("Oil and gas", fuels_now, read(fuels_now), "Spare capacity, inventories, gas price."))
+cols[1].html(tile("Power", power_now, reading(power_now, power_split),
+                  "Demand, less supply expanding, plus prices."))
+cols[2].html(tile("Oil and gas", fuels_now, reading(fuels_now, fuels_split),
+                  "Spare capacity, stocks, the oil balance, gas, geopolitics."))
 cols[3].html(
     f'<div style="border-top:2px solid {ui.INK};padding-top:.45rem">'
     f'<div style="font-size:.82rem;font-weight:600;color:{ui.INK_2}">'
@@ -150,7 +175,12 @@ st.html(ui.table(["Step", "How it works"], [
      f"From the demand and supply blocks only. With demand above {mid:+.2f}, supply within "
      f"{mid:.2f} of it reads as AI Boom and further behind as Energy First; otherwise supply "
      f"below −{mid:.2f} is Energy First, and the rest Current Policies."],
-    ["6. Timing",
+    ["6. Mixed",
+     "A score near zero can mean little is happening, or two large forces canceling. "
+     "When one indicator in a block reads at least one standard deviation tight and another "
+     "at least one loose (for power, one block at least 0.5 each way), a near-zero reading "
+     "is labeled mixed and names them."],
+    ["7. Timing",
      f"A late release holds its last score for up to {int(meta_cfg.get('carry_months', 2))} "
      "months. EIA's oil and gas forecasts are averaged over its last three outlooks, since "
      "each one revises the last."],
@@ -282,7 +312,9 @@ def spark(values: pd.Series, units: str) -> alt.Chart:
 for block_id, block in cfg["blocks"].items():
     when_b, val_b = last(blocks.get(block_id, pd.Series(dtype=float)))
     sign = " (sign flipped)" if float(comb["power"].get(block_id, 1)) < 0 else ""
+    block_split = en.split(en.latest_indicator_scores(cfg, res["scores"], block_id), SPLIT_INDICATOR)
     meta = ((f"Block score {ui.signed(val_b)}" if not pd.isna(val_b) else "Not scored")
+            + (" (mixed)" if block_split and not pd.isna(val_b) and abs(val_b) <= mid else "")
             + f" · {pct(share_in_energy(block_id))} of energy tightness{sign}")
     st.html(ui.section_head(f"{block['label']}: {block['question']}", meta=meta))
     rows, charts = [], []

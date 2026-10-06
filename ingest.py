@@ -310,6 +310,8 @@ def cmd_energy(args):
          "EIA expected OPEC surplus production capacity, next 12 months", "million b/d"),
         ("henry_hub_12m", "EN_STEO_HENRY_HUB",
          "EIA expected Henry Hub spot price, next 12 months", "$/Mcf"),
+        ("oecd_stocks", "EN_STEO_OECD_STOCKS",
+         "OECD commercial oil inventories, latest month reported", "million barrels"),
     ]:
         s = steo.set_index("month")[col].dropna()
         released = pd.Series(pd.to_datetime(steo.set_index("month")["released"]))

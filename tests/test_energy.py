@@ -221,3 +221,20 @@ def test_a_block_approaches_but_never_sticks_at_the_bound():
     wide["S2"] = wide["S2"].where(wide.index < idx[120], 0.0)
     two = en.compute(cfg, wide)["blocks"]["b"].iloc[-1]
     assert two < three < 1
+
+
+def test_a_quiet_score_is_told_apart_from_two_big_forces_canceling():
+    assert en.split({"spare": 1.4, "balance": -2.5, "gas": -0.2}, 1.0) == ("spare", "balance")
+    assert en.split({"spare": 0.4, "balance": -2.5}, 1.0) is None
+    assert en.split({"demand": 0.78, "supply": -0.67, "prices": 0.31}, 0.5) == ("demand", "supply")
+    assert en.split({"only": 2.0}, 1.0) is None
+
+
+def test_inventories_are_read_against_the_same_month_in_past_years():
+    idx = pd.date_range("2015-01-31", periods=84, freq="ME")
+    seasonal = np.tile([100.0, 110.0] * 6, 7)          # an even-odd monthly swing
+    wide = pd.DataFrame({"S": seasonal}, index=idx)
+    wide.iloc[-1, 0] = seasonal[-1] * 0.9                # last month 10% below its usual
+    v = en.indicator_value({"series": ["S"], "transform": "dev_5y_same_month_pct"}, wide, idx[-1])
+    assert v.iloc[-2] == pytest.approx(0.0)              # seasonal swing cancels
+    assert v.iloc[-1] == pytest.approx(-10.0)

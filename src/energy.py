@@ -99,6 +99,11 @@ def _indicator_value(ind: dict, wide: pd.DataFrame, end) -> pd.Series:
         return (((s / s.shift(36)) ** (1 / 3) - 1) * 100).dropna()
     if ind["transform"] == "mean_12m":
         return s.rolling(12, min_periods=12).mean().dropna()
+    if ind["transform"] == "dev_5y_same_month_pct":
+        # Against the same month in the five years before, as EIA reports
+        # inventories, so the seasonal build and draw cancel.
+        base = pd.concat([s.shift(12 * k) for k in range(1, 6)], axis=1).mean(axis=1, skipna=False)
+        return ((s / base - 1) * 100).dropna()
     return TRANSFORMS[ind["transform"]](s).dropna()
 
 
@@ -223,3 +228,28 @@ def scenario_for(demand: float, supply: float, mid: float = 0.15) -> str | None:
     if supply < -mid:
         return "energy_first"
     return "current_policies"
+
+
+def split(parts: dict[str, float], threshold: float) -> tuple[str, str] | None:
+    """The pair pulling hardest in opposite directions, if both pass `threshold`.
+
+    A score near zero can mean nothing is happening, or two big forces
+    canceling. This tells them apart: it returns (tightest, loosest) when one
+    part reads at least `threshold` tight and another at least as loose.
+    """
+    parts = {k: v for k, v in parts.items() if v is not None and not np.isnan(v)}
+    if len(parts) < 2:
+        return None
+    hi, lo = max(parts, key=parts.get), min(parts, key=parts.get)
+    return (hi, lo) if parts[hi] >= threshold and parts[lo] <= -threshold else None
+
+
+def latest_indicator_scores(cfg: dict, scores: pd.DataFrame, block_id: str,
+                            min_weight: float = 0.1) -> dict[str, float]:
+    """Each indicator's latest score in a block, by its short name."""
+    out = {}
+    for ind in cfg["blocks"][block_id]["indicators"]:
+        key = f"{block_id}::{ind['id']}"
+        if float(ind["weight"]) >= min_weight and key in scores and scores[key].notna().any():
+            out[ind.get("short", ind["label"])] = float(scores[key].dropna().iloc[-1])
+    return out

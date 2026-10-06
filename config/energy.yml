@@ -42,6 +42,7 @@ blocks:
     question: Is electricity demand surging?
     indicators:
       - id: elec_growth
+        short: EIA's demand outlook
         label: Growth in EIA's expected electricity sales, 3 years, annualized
         series: [EN_STEO_ELEC_FWD]
         transform: pct_36m_ann
@@ -54,6 +55,7 @@ blocks:
           - EIA's forecast of US electricity sales for the next 12 months, against its forecast three years earlier.
           - Forecast against forecast, so weather drops out. Flat from 2009 to 2021, about 2% a year since.
       - id: dc_construction
+        short: data center construction
         label: Data center construction spending, % of GDP
         series: [EN_CENSUS_DC]
         transform: share
@@ -68,6 +70,7 @@ blocks:
           - Private spending on data center construction, at an annual rate.
           - Buildings going up now are power demand in one to three years.
       - id: it_investment
+        short: server investment
         label: Investment in computers and servers, % of GDP
         series: [B935RC1Q027SBEA]
         transform: share
@@ -82,6 +85,7 @@ blocks:
           - Business spending on computers and peripherals, which now means AI servers.
           - The equipment that fills the data centers, and draws the power.
       - id: mfg_construction
+        short: factory construction
         label: Factory construction spending, % of GDP
         series: [PRMFGCONS]
         transform: share
@@ -96,6 +100,7 @@ blocks:
           - Private spending on manufacturing plants, led by chip and battery fabs.
           - Demand beyond AI, and power-hungry once the plants run.
       - id: ci_sales_growth
+        short: business power sales
         label: Commercial and industrial electricity sales, 3-year growth, annualized
         series: [EN_EIA_CI_SALES]
         transform: pct_36m_ann
@@ -114,6 +119,7 @@ blocks:
     question: Is supply expanding to meet it?
     indicators:
       - id: firm_net_additions
+        short: firm capacity pipeline
         label: Firm capacity due in the next 3 years, net of retirements, % of the firm fleet
         series: [EN_860M_FIRM_NET_ADD]
         transform: level
@@ -126,6 +132,7 @@ blocks:
           - Planned plants less retirements, each counted at what it delivers at the summer peak.
           - A solar megawatt counts about a tenth of a nuclear one, so this asks about dependable supply.
       - id: cancel_share
+        short: cancellations
         label: Share of planned capacity canceled or postponed
         series: [EN_860M_CANCEL_SHARE]
         transform: level
@@ -138,6 +145,7 @@ blocks:
           - Projects dropped or delayed, against those still planned.
           - A rising share means the pipeline is leaking.
       - id: power_construction
+        short: grid construction
         label: Power plant and grid construction spending, % of GDP
         series: [PRPWRCONS]
         transform: share
@@ -157,6 +165,7 @@ blocks:
     question: Is the gap showing in prices?
     indicators:
       - id: grid_equipment
+        short: grid equipment prices
         label: Transformer and switchgear prices vs. all producer prices, 3-year change
         series: [PCU335311335311, PCU335313335313]
         deflator: PPIACO
@@ -170,6 +179,7 @@ blocks:
           - The equipment every new connection needs, priced against everything else.
           - A scarcity price for building the grid.
       - id: business_power_price
+        short: business power prices
         label: Electricity prices paid by business vs. all producer prices, 3-year change
         series: [WPU0542, WPU0543]
         deflator: PPIACO
@@ -183,6 +193,7 @@ blocks:
           - Commercial and industrial power prices, the rates data centers pay.
           - Regulated prices move slowly, so a rise here has staying power.
       - id: copper
+        short: copper
         label: Copper vs. all producer prices, 3-year change
         series: [PCOPPUSDM]
         deflator: PPIACO
@@ -201,12 +212,13 @@ blocks:
     question: Is fuel supply tight?
     indicators:
       - id: opec_spare
+        short: OPEC spare capacity
         label: OPEC spare capacity EIA expects, next 12 months, last 3 outlooks
         series: [EN_STEO_OPEC_SPARE]
         smooth_months: 3   # average of the last three outlooks
         transform: level
         sign: -1
-        weight: 0.35
+        weight: 0.3
         units: million b/d
         source: EIA Short-Term Energy Outlook
         link: https://www.eia.gov/outlooks/steo/
@@ -214,25 +226,40 @@ blocks:
           - The world's buffer against a supply shock.
           - With little spare, a shock goes straight to price.
       - id: oil_draws
+        short: the 12-month oil balance
         label: World oil inventory draws EIA expects, next 12 months, last 3 outlooks
         series: [EN_STEO_OIL_DRAW]
         smooth_months: 3   # average of the last three outlooks
         transform: level
         sign: 1
-        weight: 0.25
+        weight: 0.15
         units: million b/d
         source: EIA Short-Term Energy Outlook
         link: https://www.eia.gov/outlooks/steo/
         why:
           - Positive means stocks are expected to fall, a tightening balance.
           - Negative means they are expected to build.
+      - id: oecd_stocks
+        short: OECD oil stocks
+        label: OECD commercial oil stocks vs. the same month over the last 5 years
+        series: [EN_STEO_OECD_STOCKS]
+        transform: dev_5y_same_month_pct
+        sign: -1
+        weight: 0.2
+        units: "%"
+        source: EIA Short-Term Energy Outlook
+        link: https://www.eia.gov/outlooks/steo/
+        why:
+          - Oil actually in storage in rich countries, against the usual level for the time of year.
+          - Below normal means less cushion, which reads as tight.
       - id: gas_price
+        short: the gas price outlook
         label: Henry Hub price EIA expects vs. its 5-year average, last 3 outlooks
         series: [EN_STEO_HENRY_HUB]
         smooth_months: 3   # average of the last three outlooks
         transform: dev_5y_pct
         sign: 1
-        weight: 0.25
+        weight: 0.2
         units: "%"
         source: EIA Short-Term Energy Outlook
         link: https://www.eia.gov/outlooks/steo/
@@ -240,6 +267,7 @@ blocks:
           - The fuel for new gas plants.
           - Through LNG exports, also the link to the world gas market.
       - id: geopolitical_risk
+        short: geopolitical risk
         label: Geopolitical risk index, 12-month average
         series: [EN_GPR]
         transform: mean_12m
