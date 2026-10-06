@@ -42,9 +42,9 @@ blocks:
     question: Is electricity demand surging?
     indicators:
       - id: elec_growth
-        short: EIA's demand outlook
-        label: Growth in EIA's expected electricity sales, 3 years, annualized
-        series: [EN_STEO_ELEC_FWD]
+        short: EIA's commercial demand outlook
+        label: Growth in EIA's expected commercial electricity sales, 3 years, annualized
+        series: [EN_STEO_COM_FWD]
         transform: pct_36m_ann
         sign: 1
         weight: 0.3
@@ -52,8 +52,8 @@ blocks:
         source: EIA Short-Term Energy Outlook
         link: https://www.eia.gov/outlooks/steo/
         why:
-          - EIA's forecast of US electricity sales for the next 12 months, against its forecast three years earlier.
-          - Forecast against forecast, so weather drops out. Flat from 2009 to 2021, about 2% a year since.
+          - EIA's forecast of commercial power sales for the next 12 months, against its forecast 3 years earlier.
+          - Commercial is where data centers are metered, as in ASR's Chart 2. Forecast against forecast, so weather drops out.
       - id: dc_construction
         short: data center construction
         label: Data center construction spending, % of GDP

@@ -60,7 +60,26 @@ STEO_CODES = {
     "COPS_OPEC": "OPEC surplus crude oil production capacity, million b/d",
     "NGHHMCF": "Henry Hub spot natural gas, $/Mcf",
     "PASC_OECD_T3": "OECD commercial oil inventories, million barrels, end of month",
+    # Commercial-sector sales, where most data centers are metered. Renamed
+    # twice: a daily rate to mid-2019, then monthly totals under two names.
+    "ELCCP_US": "US commercial electricity sales, billion kWh (from 2022)",
+    "ELCCTWH": "US commercial electricity sales, billion kWh (2019-2021)",
+    "EXCCPUS": "US commercial electricity sales, billion kWh per day (to 2019)",
 }
+COMMERCIAL = ("ELCCP_US", "ELCCTWH", "EXCCPUS")
+
+
+def monthly_twh(series: dict[str, pd.Series], codes) -> pd.Series | None:
+    """The first of `codes` a release carries, as billion kWh per month.
+
+    Codes ending in PUS are daily rates in the older releases, so each month
+    is scaled by its days.
+    """
+    for code in codes:
+        s = series.get(code)
+        if s is not None and not s.empty:
+            return s * s.index.days_in_month if code.endswith("PUS") else s
+    return None
 
 # 860M energy source codes, grouped the way the supply question needs them.
 GAS = {"NG"}
@@ -225,11 +244,19 @@ def steo_summary(series: dict[str, pd.Series], month: pd.Timestamp) -> dict[str,
     latest = month - pd.DateOffset(months=2)
     out["oecd_stocks"] = (float(stocks[latest]) if stocks is not None and latest in stocks.index
                           else np.nan)
+    com = monthly_twh(series, COMMERCIAL)
+    out["com_fwd_12m_twh"] = (float(com.reindex(ahead).sum())
+                              if com is not None and set(ahead) <= set(com.index) else np.nan)
     return out
 
 
-def steo_history(start: str = "2009-01", log=print) -> pd.DataFrame:
-    """One row per monthly release: its date and what it expected."""
+def steo_history(start: str = "2009-01", log=print, paths_out: list | None = None) -> pd.DataFrame:
+    """One row per monthly release: its date and what it expected.
+
+    Pass a list as `paths_out` to also collect each release's full monthly
+    path of commercial electricity sales, history and forecast, as
+    (release date, series) pairs.
+    """
     session, cache = requests, cache_dir()
     rows = []
     months = pd.date_range(start, pd.Timestamp.today().normalize(), freq="MS")
@@ -260,8 +287,12 @@ def steo_history(start: str = "2009-01", log=print) -> pd.DataFrame:
         rel_month = pd.Timestamp(released).to_period("M").to_timestamp()
         if any(r["month"] == rel_month for r in rows):
             continue  # the live file was last month's release, already read
-        summary = steo_summary(parse_steo(sheets), rel_month)
+        parsed = parse_steo(sheets)
+        summary = steo_summary(parsed, rel_month)
         rows.append({"month": rel_month, "released": released, **summary})
+        com = monthly_twh(parsed, COMMERCIAL)
+        if com is not None and paths_out is not None:
+            paths_out.append((released, com))
         if len(rows) % 24 == 0:
             log(f"  STEO: read {len(rows)} releases, latest {rel_month:%b %Y}")
     return pd.DataFrame(rows)

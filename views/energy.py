@@ -310,6 +310,66 @@ def spark(values: pd.Series, units: str) -> alt.Chart:
     ).properties(height=150)
 
 
+def outlook_vintages() -> None:
+    """ASR's Chart 2: EIA's commercial electricity outlook, one line per release.
+
+    Each line is a release's own path, history and forecast, summed over 12
+    months. Rising lines release after release are the upward revisions; the
+    black line is what was actually sold.
+    """
+    try:
+        rows = store.con.execute(
+            "SELECT observation_date, vintage_date, value FROM observations "
+            "WHERE series_id = 'EN_STEO_COM_PATH'").df()
+    except Exception:
+        return
+    if rows.empty:
+        return
+    rows["observation_date"] = pd.to_datetime(rows["observation_date"])
+    rows["vintage_date"] = pd.to_datetime(rows["vintage_date"])
+    vintages = sorted(rows["vintage_date"].unique())
+    latest = vintages[-1]
+    picks = [v for v in vintages if pd.Timestamp(v).month == 1 and pd.Timestamp(v).year >= 2017]
+    picks = sorted(set(picks + [latest]))
+    start = pd.Timestamp("2017-01-01")
+    lines = []
+    for v in picks:
+        path = rows[rows["vintage_date"] == v].set_index("observation_date")["value"].sort_index()
+        path = path[~path.index.duplicated(keep="last")]
+        summed = path.rolling(12, min_periods=12).sum().dropna()
+        summed = summed[summed.index >= start]
+        label = f"{pd.Timestamp(v):%b %Y} outlook"
+        lines.append(pd.DataFrame({"month": ui.month_mid(summed.index), "twh": summed.to_numpy(),
+                                   "series": label, "order": pd.Timestamp(v).value}))
+    sold = store.as_of(["EN_EIA_COM_SALES"], dt.date.today())
+    actual = sold["EN_EIA_COM_SALES"].astype(float) if "EN_EIA_COM_SALES" in sold else None
+    if actual is not None and actual.dropna().size:
+        a = (actual.dropna() / 1000).rolling(12, min_periods=12).sum().dropna()
+        a = a[a.index >= start]
+        lines.append(pd.DataFrame({"month": ui.month_mid(a.index), "twh": a.to_numpy(),
+                                   "series": "Actual sales", "order": 0}))
+    d = pd.concat(lines, ignore_index=True)
+    labels = [s for s in d.sort_values("order")["series"].unique() if s != "Actual sales"]
+    blues = [f"rgba(42,120,214,{0.25 + 0.75 * i / max(1, len(labels) - 1):.2f})"
+             for i in range(len(labels))]
+    chart = alt.Chart(d).mark_line().encode(
+        x=ui.time_x("month", d["month"].min(), d["month"].max()),
+        y=alt.Y("twh:Q", title="TWh, 12-month sum", scale=alt.Scale(zero=False)),
+        color=alt.Color("series:N", scale=alt.Scale(domain=labels + ["Actual sales"],
+                                                    range=blues + [ui.INK]),
+                        legend=alt.Legend(orient="right", title=None)),
+        strokeWidth=alt.condition(alt.datum.series == "Actual sales", alt.value(2.6),
+                                  alt.value(1.4)),
+        tooltip=[ui.month_tip("month"), "series:N", alt.Tooltip("twh:Q", format=",.0f", title="TWh")],
+    ).properties(height=300)
+    st.html(f"<p style=\"margin:.6rem 0 .2rem;font-weight:600\">EIA's commercial electricity "
+            f"outlook, by release</p><p style=\"margin:0;font-size:.82rem;color:{ui.MUTED}\">"
+            "Each line is one outlook's path, history and forecast, summed over 12 months: "
+            "the January release each year and the latest. Lines stepping up release after "
+            "release are the upward revisions, as in ASR's Chart 2.</p>")
+    st.altair_chart(ui.style(chart), width="stretch")
+
+
 for block_id, block in cfg["blocks"].items():
     when_b, val_b = last(blocks.get(block_id, pd.Series(dtype=float)))
     sign = " (sign flipped)" if float(comb["power"].get(block_id, 1)) < 0 else ""
@@ -343,6 +403,8 @@ for block_id, block in cfg["blocks"].items():
         for i, (label, ch) in enumerate(charts):
             grid[i % len(grid)].caption(label)
             grid[i % len(grid)].altair_chart(ui.style(ch), width="stretch")
+    if block_id == "power_demand":
+        outlook_vintages()
 
 
 # ---------- context, not scored ----------

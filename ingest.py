@@ -299,10 +299,13 @@ def cmd_energy(args):
                           has_vintages=vintages, source_code=code or sid)
 
     print("EIA Short-Term Energy Outlook, every release since 2009 ...")
-    steo = eia.steo_history(log=print)
+    com_paths: list = []
+    steo = eia.steo_history(log=print, paths_out=com_paths)
     for col, sid, title, units in [
         ("elec_fwd_12m_twh", "EN_STEO_ELEC_FWD",
          "EIA expected US electricity sales over the next 12 months", "billion kWh"),
+        ("com_fwd_12m_twh", "EN_STEO_COM_FWD",
+         "EIA expected US commercial electricity sales over the next 12 months", "billion kWh"),
         ("elec_growth_12m", "EN_STEO_ELEC_GROWTH",
          "EIA expected growth in US electricity sales, next 12 vs last 12 months", "%"),
         ("oil_draw_12m", "EN_STEO_OIL_DRAW",
@@ -320,6 +323,17 @@ def cmd_energy(args):
                               "vintage_date": released.reindex(s.index).dt.date.to_numpy(),
                               "value": s.to_numpy()})
         add(sid, frame, "energy-eia", title, units, "Monthly", code="STEO")
+
+    # Every release's whole path of commercial sales, each dated at its
+    # release: the vintages ASR's Chart 2 draws, one line per outlook.
+    path_rows = [pd.DataFrame({"series_id": "EN_STEO_COM_PATH",
+                               "observation_date": s.index.date,
+                               "vintage_date": released, "value": s.to_numpy(dtype=float)})
+                 for released, s in com_paths]
+    if path_rows:
+        add("EN_STEO_COM_PATH", pd.concat(path_rows, ignore_index=True), "energy-eia",
+            "EIA commercial electricity sales path, history and forecast, by outlook",
+            "billion kWh a month", "Monthly", code="STEO")
 
     print("EIA Form 860M, quarterly since July 2015 plus the latest ...")
     gen = eia.gen_history(log=print).set_index("month")
@@ -368,6 +382,11 @@ def cmd_energy(args):
     add("EN_PJM_CAPACITY", as_observations("EN_PJM_CAPACITY", pjm, lag_days=0),
         "energy-pjm", "PJM capacity price, latest delivery year auctioned (weighted average RPM)",
         "$/MW-day", "Monthly", code="State of the Market, RPM revenue table", vintages=False)
+
+    add("EN_EIA_COM_SALES", as_observations("EN_EIA_COM_SALES", eia.retail_sales(("COM",)),
+                                            lag_days=55),
+        "energy-eia", "US electricity sales to commercial customers", "million kWh",
+        "Monthly", code="electricity/retail-sales", vintages=False)
 
     print("Census data center construction ...")
     add("EN_CENSUS_DC", as_observations("EN_CENSUS_DC", census_data_centers(), lag_days=32),
