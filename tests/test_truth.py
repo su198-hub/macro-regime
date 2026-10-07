@@ -29,19 +29,19 @@ def test_primary_quadrants():
                    + ["stagflation"] * 3 + ["hard_landing"] * 3)
 
 
-def test_quarterly_surprise_is_realised_less_forecast():
-    idx = months("2000-01", 36)
-    level = pd.Series(100 * 1.01 ** (np.arange(36) / 3), index=idx)  # 1% a quarter
-    fc = pd.Series(3.0, index=pd.period_range("2000-01", periods=12, freq="Q").asfreq("M", how="start"))
-    s = truth._quarterly_surprise(level, None, fc)
-    assert abs(s.dropna().iloc[-1] - (1.01 ** 4 - 1) * 100 + 3.0) < 1e-6
-
-
-def test_gdp_gap_growth_is_zero_when_gdp_tracks_potential():
+def test_growth_gap_is_zero_when_gdp_tracks_potential():
     q = pd.period_range("2000Q1", periods=12, freq="Q").asfreq("M", how="start")
     path = pd.Series(100 * 1.005 ** np.arange(12), index=q)
-    g = truth.gdp_gap_growth(path, path * 1.0)
-    assert g.abs().max() < 1e-9
+    parts = truth.growth_parts(path, path * 1.0)
+    assert (parts["gdp_growth"] - parts["potential_growth"]).abs().max() < 1e-9
+    assert abs(parts["gdp_growth"].iloc[6] - (1.005 ** 4 - 1) * 100) < 1e-9
+
+
+def test_centred_window_runs_to_latest_print_at_the_end():
+    s = pd.Series(100 * 1.01 ** np.arange(24), index=months("2000-01", 24))
+    c = truth._centred(s, 6, 12)
+    assert abs(c.iloc[10] - (1.01 ** 12 - 1) * 100) < 1e-9
+    assert abs(c.iloc[-1] - (1.01 ** 12 - 1) * 100) < 1e-9
 
 
 def test_store_round_trip():
@@ -57,13 +57,13 @@ def test_spells_collapse_runs_in_order():
     idx = months("2000-01", 6)
     lab = pd.DataFrame({
         "label": ["goldilocks"] * 3 + ["stagflation"] * 3, "strength": ["clear", "weak"] * 3,
-        "agree": [True, True, False, True, True, True], "recession": [False] * 4 + [True] * 2,
+        "recession": [False] * 4 + [True] * 2,
         "provisional": [False] * 5 + [True],
-        **{c: 1.0 for c in ("gdp_growth", "potential_growth", "cfnai_ma3", "cfnai_trend", "growth",
+        **{c: 1.0 for c in ("gdp_growth", "potential_growth", "growth",
                             "core_pce", "expected", "inflation")}}, index=idx)
     sp = truth.spells(lab)
     assert sp["label"].tolist() == ["goldilocks", "stagflation"]
     assert sp["months"].tolist() == [3, 3]
     assert sp["recession_months"].tolist() == [0, 2]
     assert sp["provisional"].tolist() == [False, True]
-    assert abs(sp["agree"].iloc[0] - 2 / 3) < 1e-9
+    assert abs(sp["clear"].iloc[0] - 2 / 3) < 1e-9

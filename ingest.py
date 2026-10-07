@@ -457,6 +457,7 @@ def cmd_truth(args):
     # Today's revised history is all the labels use, so replace rather than
     # stack a new vintage on every run.
     store.con.execute("DELETE FROM observations WHERE starts_with(series_id, 'TR_')")
+    store.con.execute("DELETE FROM series_meta WHERE starts_with(series_id, 'TR_')")
     store.upsert_observations(truth.to_observations(m, dt.date.today()))
     for name, sid in truth.STORE_IDS.items():
         title, units, freq = truth.TITLES[name]

@@ -6,42 +6,29 @@
 # reading of the history and edit freely.
 
 notes:
-  "1980-01": 1980 recession, with credit controls. Core PCE near 9.5%.
-  "1980-08": Short rebound between the two Volcker recessions.
-  "1981-02": Volcker's second recession. Inflation still above expectations.
-  "1982-12": Recovery starts; inflation close to expectations.
-  "1983-07": Strong recovery while inflation fell below what people expected.
-  "1986-02": Oil price collapse hits energy investment.
-  "1986-08": Expansion through the 1987 crash; inflation below expectations.
-  "1988-06": Late-80s boom; the Fed tightens into 1989.
-  "1989-04": Slowdown, Gulf War oil shock, 1990–91 recession. Inflation only just above expectations.
-  "1992-03": Jobless recovery.
-  "1993-02": Brief soft patch.
-  "1993-08": Expansion through the Fed's 1994 hikes.
-  "1995-01": Mid-cycle slowdown after the 1994 hikes; no recession.
-  "1996-02": Late-90s productivity boom.
-  "2000-06": Dot-com bust, 2001 recession and jobless recovery.
-  "2003-04": Housing-led expansion; inflation on expectations.
-  "2006-05": Housing turns.
-  "2006-11": Late cycle; inflation on expectations.
-  "2007-09": Global financial crisis.
-  "2009-08": Recovery from a deep trough; low inflation.
-  "2010-11": "Soft patch: oil spike and the Japan earthquake."
-  "2011-07": Modest recovery.
-  "2012-06": Euro crisis soft patch.
-  "2012-11": QE3 era; low inflation.
-  "2013-12": Harsh winter; output falls in early 2014.
-  "2014-03": Solid growth, inflation below expectations.
-  "2015-07": Oil and industrial slump, strong dollar; no recession.
-  "2017-03": Synchronized global upturn and the 2017 tax cut.
-  "2018-10": Trade war and late-2018 tightening.
-  "2019-05": Brief pickup.
-  "2019-09": Manufacturing slump, then the Covid shutdown.
-  "2020-06": Reopening rebound before inflation rose.
-  "2020-10": Reopening boom and stimulus.
-  "2022-01": Inflation peak; the Fed hikes fast.
-  "2023-08": Strong growth in the third quarter of 2023.
-  "2023-11": Growth at trend, core PCE about 1 point above expectations. Many would call this a soft landing.
-  "2025-03": Growth back above trend; inflation still above expectations.
-  "2025-08": Growth below trend; inflation about 1 point above expectations.
-  "2026-03": "Provisional: the 12-month inflation window is not complete yet."
+  "1980-01": "1980 recession, with credit controls. Core PCE near 9.5%."
+  "1980-11": "Short rebound between the two Volcker recessions."
+  "1981-05": "Volcker's second recession. Inflation falling but still above expectations."
+  "1982-12": "Recovery starts; inflation close to expectations."
+  "1983-07": "Strong recovery while inflation fell below what people expected."
+  "1986-07": "Growth slows to potential after the oil price collapse."
+  "1987-04": "Expansion through the 1987 crash; inflation on expectations."
+  "1988-06": "Late-80s boom; the Fed tightens into 1989."
+  "1989-12": "Slowdown, Gulf War oil shock and the 1990–91 recession."
+  "1991-11": "Brief rebound after the recession."
+  "1992-03": "Jobless recovery, then expansion through the Fed's 1994 hikes."
+  "1994-11": "Mid-cycle slowdown after the 1994 hikes; no recession."
+  "1995-11": "Late-90s productivity boom."
+  "2000-03": "Dot-com bust, 2001 recession and jobless recovery."
+  "2003-02": "Housing-led expansion; inflation on expectations."
+  "2006-08": "Housing turns, then the global financial crisis."
+  "2009-09": "Recovery from a deep trough; low inflation."
+  "2011-02": "Soft patch: oil spike and the Japan earthquake."
+  "2011-07": "Slow, steady expansion; inflation below expectations."
+  "2015-11": "Oil and industrial slump, strong dollar; no recession."
+  "2017-03": "Synchronized global upturn and the 2017 tax cut."
+  "2019-08": "Trade-war slowdown, then the Covid shutdown."
+  "2020-10": "Reopening boom and stimulus."
+  "2022-03": "Inflation peak; the Fed hikes fast and growth slows."
+  "2023-02": "Growth above potential while core PCE stayed about 1 point above expectations. Often called a soft landing."
+  "2026-02": "Provisional: growth slips just below potential; inflation still above expectations."
