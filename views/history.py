@@ -130,12 +130,12 @@ if sel is not None:
         + (f" · {sel.recession_months} in recession" if sel.recession_months else "")
         + (" · provisional" if sel.provisional else "") + "</p>"
         f'<p style="margin:0 0 .3rem"><b>Growth {versus(sel.growth, GB, "below", "close to", "above")} '
-        f'potential.</b> Real GDP grew {sel.gdp_growth:.1f}% a year against potential of '
-        f'{sel.potential_growth:.1f}%, a gap of {sel.growth:+.1f} points.</p>'
+        f'potential.</b> Real GDP grew {sel.gdp_growth:.2f}% a year against potential of '
+        f'{sel.potential_growth:.2f}%, a gap of {sel.growth:+.2f} points.</p>'
         f'<p style="margin:0 0 .3rem"><b>Inflation {versus(sel.inflation, IB, "below", "close to", "above")} '
-        f'expectations.</b> Core PCE ran {sel.core_pce:.1f}% against {sel.expected:.1f}% expected '
-        f'(the survey\'s {w["spf_cpi10"].mean():.1f}% for CPI, less the usual CPI–PCE gap of '
-        f'{w["wedge"].mean():.1f}), a gap of {sel.inflation:+.1f} points.</p>'
+        f'expectations.</b> Core PCE ran {sel.core_pce:.2f}% against {sel.expected:.2f}% expected '
+        f'(the survey\'s {w["spf_cpi10"].mean():.2f}% for CPI, less the usual CPI–PCE gap of '
+        f'{w["wedge"].mean():.2f}), a gap of {sel.inflation:+.2f} points.</p>'
         f'<p style="margin:0">In {sel.clear:.0%} of these months both gaps were outside ±{GB}; '
         'in the rest, at least one axis carried its earlier reading.'
         + (f" <i>{ui.esc(sel.note)}</i>" if sel.note else "") + "</p></div>")
@@ -194,7 +194,9 @@ def panel(cols: dict, title: str, clip: tuple, band: float, zero: bool = False):
     hi_v = min(clip[1], float(long["value"].max()) + 0.5)
     names = list(cols.values())
     shade = alt.Chart(bands).mark_rect(opacity=0.13).encode(
-        x=X, x2="end:T", color=alt.Color("regime:N", scale=alt.Scale(domain=domain, range=rng), legend=None))
+        x=X, x2="end:T", color=alt.Color("regime:N", scale=alt.Scale(domain=domain, range=rng), legend=None),
+        tooltip=[alt.Tooltip("regime:N", title="Regime"),
+                 alt.Tooltip("start:T", title="From", timeUnit="utcyearmonth", format="%B %Y")])
     lines = alt.Chart(long).mark_line(strokeWidth=1.6, clip=True).encode(
         x=X, y=alt.Y("value:Q", title=f"{title} (% a year)", scale=alt.Scale(domain=[lo_v, hi_v], nice=False)),
         stroke=alt.Stroke("series:N", scale=alt.Scale(domain=names, range=[ui.INK, "#6b6b6b"]),
@@ -202,15 +204,18 @@ def panel(cols: dict, title: str, clip: tuple, band: float, zero: bool = False):
         strokeDash=alt.StrokeDash("series:N", scale=alt.Scale(domain=names, range=[[1, 0], [5, 3]]),
                                   legend=None),
         tooltip=[ui.month_tip("start"), alt.Tooltip("series:N", title="Series"),
-                 alt.Tooltip("value:Q", title="% a year", format=".1f")])
+                 alt.Tooltip("value:Q", title="% a year", format=".2f")])
     neutral = alt.Chart(zone).mark_area(color="#000000", opacity=0.08, clip=True).encode(
-        x=X, y=alt.Y("lo:Q", scale=alt.Scale(domain=[lo_v, hi_v], nice=False)), y2="hi:Q")
+        x=X, y=alt.Y("lo:Q", scale=alt.Scale(domain=[lo_v, hi_v], nice=False)), y2="hi:Q",
+        tooltip=[ui.month_tip("start"),
+                 alt.Tooltip("lo:Q", title="Band, lower edge (% a year)", format=".2f"),
+                 alt.Tooltip("hi:Q", title="Band, upper edge (% a year)", format=".2f")])
     layers = [shade, neutral, lines]
     if zero:
-        layers.insert(1, alt.Chart(pd.DataFrame({"y": [0]})).mark_rule(color=ui.AXIS).encode(y="y:Q"))
+        layers.insert(1, alt.Chart(pd.DataFrame({"y": [0]})).mark_rule(color=ui.AXIS, tooltip=False).encode(y="y:Q"))
     if sel is not None:
         edges = pd.DataFrame({"start": [sel.start.to_timestamp(), (sel.end + 1).to_timestamp()]})
-        layers.append(alt.Chart(edges).mark_rule(color=ui.INK, strokeDash=[2, 2], strokeWidth=1.2).encode(x=X))
+        layers.append(alt.Chart(edges).mark_rule(color=ui.INK, strokeDash=[2, 2], strokeWidth=1.2, tooltip=False).encode(x=X))
     return alt.layer(*layers).resolve_scale(color="independent").properties(height=190)
 
 
@@ -244,16 +249,16 @@ miss = ep[ep["share"] < 0.5]
 for e in miss.to_dict("records"):
     w = lab.loc[pd.Period(e["from"], "M"):pd.Period(e["to"], "M")]
     st.html(f'<p class="mr-caption">{ui.esc(e["episode"])} reads as {NAME[e["labeled"]].lower()}, not '
-            f'{NAME[e["expected"]].lower()}: GDP ran {w["growth"].mean():+.1f} points against potential '
-            f'and core PCE {w["inflation"].mean():+.1f} points against expectations.</p>')
+            f'{NAME[e["expected"]].lower()}: GDP ran {w["growth"].mean():+.2f} points against potential '
+            f'and core PCE {w["inflation"].mean():+.2f} points against expectations.</p>')
 
 # ---------- periods and months ----------
 
 st.html(ui.section_head("Regime by period", meta=f"{len(sp)} periods, oldest first"))
 with st.expander("Show every period with its numbers", expanded=False):
     rows = [[span(r) + (" *" if r.provisional else ""), r.months, ui.Raw(chip(r.label)),
-             f"{r.gdp_growth:.1f}% vs {r.potential_growth:.1f}%",
-             f"{r.core_pce:.1f}% vs {r.expected:.1f}%",
+             f"{r.gdp_growth:.2f}% vs {r.potential_growth:.2f}%",
+             f"{r.core_pce:.2f}% vs {r.expected:.2f}%",
              f"{r.clear:.0%}",
              (f"{r.recession_months} months of recession. " if r.recession_months else "") + r.note]
             for r in sp.itertuples()]
