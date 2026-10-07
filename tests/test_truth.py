@@ -67,3 +67,13 @@ def test_spells_collapse_runs_in_order():
     assert sp["recession_months"].tolist() == [0, 2]
     assert sp["provisional"].tolist() == [False, True]
     assert abs(sp["clear"].iloc[0] - 2 / 3) < 1e-9
+
+
+def test_provisional_months_keep_the_last_confirmed_regime(monkeypatch):
+    idx = months("2000-01", 8)
+    ax = pd.DataFrame({"growth": [1.0] * 5 + [-1.0] * 3, "inflation": [-1.0] * 8,
+                       "provisional": [False] * 5 + [True] * 3}, index=idx)
+    monkeypatch.setattr(truth, "axes", lambda m: ax)
+    lab = truth.build(None, start="2000-01")
+    assert lab["label"].tolist() == ["goldilocks"] * 8
+    assert lab["provisional_reading"].tolist()[-3:] == ["hard_landing"] * 3

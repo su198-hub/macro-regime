@@ -21,7 +21,9 @@ hard_landing: 1980 and 1990 count as stagflation because inflation ran hot.
 
 Everything is on today's revised data, which is the point: this is what
 happened, not what anyone could see at the time. At the end of the sample the
-windows run to the latest print, and those months are marked provisional.
+windows run to the latest print, and those months are marked provisional. A
+provisional month cannot start a new regime: it keeps the last confirmed one,
+and what its own readings point to is kept alongside as provisional_reading.
 """
 
 from __future__ import annotations
@@ -196,6 +198,12 @@ def build(m: pd.DataFrame, start: str = "1980-01") -> pd.DataFrame:
     out = ax.join(primary(ax), how="inner")
     out = out[out.index >= pd.Period(start, "M")]
     out["recession"] = recession_months(out.index)
+    # Half-complete windows are not enough to call a turn: one weak quarter at
+    # the edge once flipped the latest months to stagflation and back.
+    out["provisional_reading"] = out["label"]
+    confirmed = out.loc[~out["provisional"], "label"]
+    if len(confirmed):
+        out.loc[out["provisional"], "label"] = confirmed.iloc[-1]
     return out
 
 

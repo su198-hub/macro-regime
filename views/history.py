@@ -214,12 +214,16 @@ how = [
     f"reading, and a regime must last {truth.MIN_MONTHS} months to count.",
     "<b>Updates:</b> every month is relabeled from the latest revised data whenever the dashboard "
     "data is refreshed. GDP and the survey are quarterly; core PCE is monthly."
-    + (f" Labels from {when(first_prov)} on are provisional until their windows fill." if first_prov else ""),
+    + (f" Months from {when(first_prov)} on are provisional until their windows fill, and keep the "
+       "last confirmed regime until then." if first_prov else ""),
 ]
+# What the provisional months would say on their own, if it differs.
+leans = next((x for x in lab.loc[lab["provisional"], "provisional_reading"].unique() if x != now.label), None)
 shows = [
-    f"<b>Latest:</b> {NAME[now.label].lower()} since {when(now.start)}"
-    + (" (provisional)" if now.provisional else "") + f". Labels run to {when(lab.index[-1])}, "
-    "the last month GDP covers.",
+    f"<b>Latest:</b> {NAME[now.label].lower()} since {when(now.start)}, with labels running to "
+    f"{when(lab.index[-1])}, the last month GDP covers."
+    + (f" The provisional months' own readings point to {NAME[leans].lower()}; a new regime is "
+       "not called until the data is complete." if leans else ""),
     f"<b>{len(sp)} regime periods</b> since {when(lab.index[0])}, lasting {int(sp['months'].median())} "
     "months at the median.",
     "<b>Share of months:</b> " + ", ".join(f"{NAME[k].lower()} {mix.get(k, 0):.0%}" for k in NAME) + ".",
@@ -270,13 +274,14 @@ with st.expander("Show every period with its numbers", expanded=False):
             'months. Notes are written by hand in config/regime_history.yml.</p>')
 
 COLS = {
-    "label": "Regime", "gdp_growth": "Real GDP growth %", "potential_growth": "CBO potential %",
+    "label": "Regime", "provisional_reading": "Provisional reading", "gdp_growth": "Real GDP growth %", "potential_growth": "CBO potential %",
     "growth": "Growth gap", "core_pce": "Core PCE %", "spf_cpi10": "Survey 10-yr CPI %",
     "wedge": "CPI–PCE gap", "expected": "Expected %", "inflation": "Inflation gap",
     "strength": "Clear or weak", "recession": "Recession", "provisional": "Provisional",
 }
 monthly = lab[list(COLS)].rename(columns=COLS)
 monthly["Regime"] = monthly["Regime"].map(NAME)
+monthly["Provisional reading"] = monthly["Provisional reading"].map(NAME).where(lab["provisional"].values, "")
 monthly.index = monthly.index.strftime("%Y-%m")
 monthly.index.name = "Month"
 shown = monthly.loc[str(lo):str(hi)] if sel is not None else monthly
@@ -324,7 +329,9 @@ st.html(
     "<li><b>Updates and provisional months.</b> Each data refresh pulls the latest GDP, potential, "
     "core PCE and survey readings and relabels every month from 1980, so revisions flow through. At "
     "the end of the sample a centered window is not complete: the window runs to the latest print "
-    "instead, and those months are marked provisional. Labels run to the last month GDP covers.</li>"
+    "instead, and those months are marked provisional. A provisional month cannot start a new regime; "
+    "it keeps the last confirmed one until its window fills. Labels run to the last month GDP "
+    "covers.</li>"
     "</ol>"
     "<p><b>Not the same as the backtest's current rule.</b> That rule uses a fixed 2.5% core PCE line "
     "and the change in the unemployment gap, and forces every recession to hard landing.</p>"
