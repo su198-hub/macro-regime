@@ -437,6 +437,28 @@ This branch is replaced on every publish, so it never accumulates history.
 """
 
 
+def cmd_truth(args):
+    """Label every month since 1980 with the regime it turned out to be in.
+
+    Reads Macrobond directly (the inputs are not dashboard indicators) and
+    writes a CSV next to the store, which stays local: it is built from
+    licensed data.
+    """
+    from macrobond_data_api.com import ComClient
+
+    from src import truth
+
+    with ComClient() as api:
+        m = truth.fetch(api)
+    lab = truth.build(m)
+    out = args.out or os.path.join(os.environ.get("LOCALAPPDATA", "data"), "macro-regime", "truth_labels.csv")
+    lab.to_csv(out)
+    for k, v in truth.summary(lab).items():
+        print(f"{k}: {v}")
+    print(truth.episode_check(lab).to_string(index=False))
+    print(f"\nWrote {len(lab)} months to {out}")
+
+
 def cmd_publish(args):
     """Export the store and force-push it to the repository's data branch."""
     import shutil
@@ -604,6 +626,13 @@ def main():
         help="Pull the /energy page's public series: EIA outlooks and 860M, FRED prices, "
              "Epoch AI. Slow the first time (it reads every archived release); cached after.",
     ).set_defaults(func=cmd_energy)
+    tr = sub.add_parser(
+        "truth",
+        help="Label each month since 1980 with its realised growth x inflation regime, "
+             "from Macrobond, with AQR's recipe as a cross-check.")
+    tr.add_argument("--out", default=None,
+                    help="CSV path (default %%LOCALAPPDATA%%\\macro-regime\\truth_labels.csv).")
+    tr.set_defaults(func=cmd_truth)
     pub = sub.add_parser("publish", help="Export the store to the public data branch.")
     pub.add_argument(
         "--allow-licensed", action="store_true",
