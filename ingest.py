@@ -642,8 +642,8 @@ def main():
     ).set_defaults(func=cmd_energy)
     tr = sub.add_parser(
         "truth",
-        help="Label each month since 1980 with its realised growth x inflation regime, "
-             "from Macrobond, with AQR's recipe as a cross-check.")
+        help="Label each month since 1980 with its realised growth x inflation regime "
+             "(GDP vs potential, core PCE vs expectations), from Macrobond.")
     tr.add_argument("--out", default=None,
                     help="CSV path (default %%LOCALAPPDATA%%\\macro-regime\\truth_labels.csv).")
     tr.set_defaults(func=cmd_truth)
