@@ -3,7 +3,7 @@
 Built from the TR_ series `ingest.py truth` stores; src/truth.py holds the
 method. Laid out for checking rather than for reading top to bottom: every
 period shows its growth and inflation inputs in their own units, so a reader
-can test each call against their own memory of the time, then open the months
+can test each label against their own memory of the time, then open the months
 behind it.
 """
 
@@ -42,7 +42,9 @@ COLOR = {k: reg[k]["color"] for k in NAME}
 st.html('<h1 class="mr-title">Regime history</h1>'
         '<p class="mr-sub">Which growth and inflation regime the US was actually in, month by month '
         'since 1980, judged with hindsight. A draft benchmark for scoring the model. Pick any period '
-        'to see the numbers behind it and check the call against your own reading.</p>')
+        'to see the numbers behind it and check the label against your own reading.</p>'
+        "<p class=\"mr-sub\">These are not the model's calls: they are what happened, the yardstick the "
+        "model's calls get scored against. The model's call for each month is on the Dashboard page.</p>")
 st.html('<hr class="mr-rule">')
 refresh_button()
 
@@ -113,8 +115,8 @@ st.html(ui.section_head("Summary") + '<div class="m-body"><ul>'
 ALL = f"All periods, {lab.index[0].year}–{lab.index[-1].year}"
 options = [ALL] + [f"{span(r)} · {NAME[r.label]}" for r in sp.itertuples()]
 st.html(ui.section_head("The record", caption=
-        "Top strip: the call, AQR's cross-check and NBER recessions. Below, the inputs in their own "
-        "units, shaded by the call. Growth is up when GDP runs above potential and the activity index "
+        "Top strip: the realized regime, AQR's cross-check and NBER recessions. Below, the inputs in their "
+        "own units, shaded by the realized regime. Growth is up when GDP runs above potential and the activity index "
         "above its trend; inflation is high when core PCE runs above the expected line."))
 pick = st.selectbox("Check a period", options, index=0, key="hist_period")
 sel = None if pick == ALL else sp.iloc[options.index(pick) - 1]
@@ -133,7 +135,7 @@ if sel is not None:
         f'{w["spf_cpi10"].mean():.1f}% less the usual CPI–PCE gap of {w["wedge"].mean():.1f} points.</p>'
         f'<p style="margin:0">AQR\'s recipe gives the same label in {sel.agree:.0%} of these months '
         f'({confidence(sel.agree)}). {sel.weak:.0%} of months sat inside a neutral band on at least one '
-        'axis, where the call carries over from before.'
+        'axis, where the label carries over from before.'
         + (f" <i>{ui.esc(sel.note)}</i>" if sel.note else "") + "</p></div>")
     pad = 18
     lo, hi = sel.start - pad, sel.end + pad
@@ -165,11 +167,11 @@ def runs(s: pd.Series, row: str) -> pd.DataFrame:
         {"start": "datetime64[ns]", "end": "datetime64[ns]"})
 
 
-strip = pd.concat([runs(view["label"].map(NAME), "Call"),
+strip = pd.concat([runs(view["label"].map(NAME), "Realized"),
                    runs(view["aqr_label"].map(NAME), "AQR recipe"),
                    runs(view["recession"].map({True: RECESSION}), "Recession")], ignore_index=True)
 strip_chart = alt.Chart(strip).mark_rect().encode(
-    x=X, x2="end:T", y=alt.Y("row:N", sort=["Call", "AQR recipe", "Recession"], title=None,
+    x=X, x2="end:T", y=alt.Y("row:N", sort=["Realized", "AQR recipe", "Recession"], title=None,
                               axis=alt.Axis(labelColor=ui.INK, labelFontSize=12, ticks=False, domain=False)),
     color=regime_color,
     tooltip=[alt.Tooltip("regime:N", title="Regime"),
@@ -241,7 +243,7 @@ st.html('<p class="mr-caption">* Provisional: core PCE for the latest months is 
 # ---------- the months behind it ----------
 
 COLS = {
-    "label": "Call", "strength": "Strength", "aqr_label": "AQR recipe",
+    "label": "Realized regime", "strength": "Strength", "aqr_label": "AQR recipe",
     "gdp_growth": "Real GDP growth %", "potential_growth": "CBO potential %",
     "cfnai_ma3": "Activity index (3-mo)", "cfnai_trend": "Activity trend",
     "growth": "Growth score", "core_pce": "Core PCE %", "spf_cpi10": "SPF 10-yr CPI %",
@@ -249,14 +251,14 @@ COLS = {
     "recession": "Recession", "provisional": "Provisional",
 }
 monthly = lab[list(COLS)].rename(columns=COLS)
-for c in ("Call", "AQR recipe"):
+for c in ("Realized regime", "AQR recipe"):
     monthly[c] = monthly[c].map(NAME)
 monthly.index = monthly.index.strftime("%Y-%m")
 monthly.index.name = "Month"
 shown = monthly.loc[str(lo):str(hi)] if sel is not None else monthly
 st.html(ui.section_head("The months behind it", meta=f"{len(shown)} months", caption=
         "Every input, month by month, for the period picked above (all months otherwise). Growth score is "
-        "in typical moves; inflation gap is in points. The call flips only when a score clears its "
+        "in typical moves; inflation gap is in points. The label flips only when a score clears its "
         f"band (±{truth.GROWTH_BAND} for growth, ±{truth.INFLATION_BAND} points for inflation)."))
 st.dataframe(shown.round(2), width="stretch", height=360)
 a, b, _ = st.columns([1, 1, 3])
@@ -301,7 +303,7 @@ st.html(
     "marked provisional.</li>"
     f"<li><b>Neutral bands.</b> Growth flips only when its score clears ±{truth.GROWTH_BAND}; inflation "
     f"only when its gap clears ±{truth.INFLATION_BAND} points. Inside a band the axis keeps its last "
-    "call and the month is marked weak.</li>"
+    "label and the month is marked weak.</li>"
     "<li><b>Quadrant.</b> Growth up and inflation low is goldilocks. Up and high is high growth, high "
     "inflation. Down and high is stagflation. Down and low is hard landing.</li>"
     f"<li><b>Persistence.</b> A quadrant must hold {truth.MIN_MONTHS} months. A shorter spell takes the "
@@ -327,7 +329,7 @@ st.html(ui.section_head("Sanity check against well-known episodes", caption=
         "The share of months in each stretch that match the textbook reading. The textbook readings "
         "are a judgment too, so challenge them."))
 st.html(ui.table(
-    ["Episode", "Months", "Textbook reading", "Call match", "AQR match"],
+    ["Episode", "Months", "Textbook reading", "Realized match", "AQR match"],
     [[e["episode"], f"{pd.Period(e['from'], 'M').to_timestamp():%b %Y} – "
       f"{pd.Period(e['to'], 'M').to_timestamp():%b %Y}",
       ui.Raw(chip(e["expected"])), f"{e['primary share']:.0%}", f"{e['aqr share']:.0%}"]
