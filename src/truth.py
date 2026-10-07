@@ -77,8 +77,27 @@ EPISODES = [
 ]
 
 
+# Names the inputs are stored under, so the hosted app can rebuild the labels
+# from the published snapshot. Prefixed so they never collide with indicators.
+STORE_IDS = {name: f"TR_{name.upper()}" for name in CODES}
+
+TITLES = {
+    "cfnai": ("Chicago Fed National Activity Index", "index", "Monthly"),
+    "ip": ("Industrial production", "index", "Monthly"),
+    "cpi": ("Consumer price index, all items", "index", "Monthly"),
+    "core_pce": ("PCE price index excluding food and energy", "index", "Monthly"),
+    "pce": ("PCE price index", "index", "Monthly"),
+    "spf_cpi10": ("SPF median expected CPI inflation, next 10 years", "%", "Quarterly"),
+    "spf_ip_q0": ("SPF median industrial production, current quarter", "index", "Quarterly"),
+    "spf_ip_q4": ("SPF median industrial production, four quarters ahead", "index", "Quarterly"),
+    "spf_cpi1y": ("SPF median expected CPI inflation, next year", "%", "Quarterly"),
+    "gdp": ("Real GDP", "USD bn, SAAR", "Quarterly"),
+    "potential": ("CBO real potential GDP", "USD bn, SAAR", "Quarterly"),
+}
+
+
 def fetch(api) -> pd.DataFrame:
-    """Every input from Macrobond as one monthly frame, quarterly surveys on
+    """Every input from Macrobond as one monthly frame, quarterly series on
     the first month of their quarter."""
     out = {}
     for name, code in CODES.items():
@@ -86,6 +105,24 @@ def fetch(api) -> pd.DataFrame:
         idx = pd.to_datetime(pd.Series(s.dates)).dt.tz_localize(None).dt.to_period("M")
         out[name] = pd.Series(pd.to_numeric(pd.Series(s.values), errors="coerce").values, index=idx)
     return pd.DataFrame(out).sort_index()
+
+
+def to_observations(m: pd.DataFrame, vintage) -> pd.DataFrame:
+    """The inputs as store rows, one vintage: today's revised history."""
+    rows = []
+    for name, sid in STORE_IDS.items():
+        s = m[name].dropna()
+        rows.append(pd.DataFrame({"series_id": sid, "observation_date": s.index.to_timestamp().date,
+                                  "vintage_date": vintage, "value": s.values}))
+    return pd.concat(rows, ignore_index=True)
+
+
+def from_store(wide: pd.DataFrame) -> pd.DataFrame:
+    """The store's wide frame (dates x TR_ series) back into fetch()'s shape."""
+    back = {sid: name for name, sid in STORE_IDS.items()}
+    w = wide[[c for c in wide.columns if c in back]].rename(columns=back).astype(float)
+    w.index = pd.DatetimeIndex(w.index).to_period("M")
+    return w.groupby(level=0).last().reindex(columns=list(CODES)).sort_index()
 
 
 def _ann(level: pd.Series, months: int, shift: int = 0) -> pd.Series:
@@ -100,30 +137,42 @@ def _spread(s: pd.Series) -> float:
     return 1.4826 * (base - base.median()).abs().median()
 
 
-def gdp_gap_growth(gdp: pd.Series, potential: pd.Series) -> pd.Series:
-    """Real GDP growth less CBO potential, annualized over the half-year
+def gdp_growth_parts(gdp: pd.Series, potential: pd.Series) -> pd.DataFrame:
+    """Real GDP and CBO potential growth, % annualized over the half-year
     centred on each quarter (trailing for the latest), placed on the middle
     month of the quarter and interpolated."""
     def q(s):
         s = s.dropna()
         return s.groupby(s.index.asfreq("Q")).mean()
-    g, p = q(gdp), q(potential).reindex(q(gdp).index)
-    centred = ((g.shift(-1) / g.shift(1)) ** 2 - 1) * 100 - ((p.shift(-1) / p.shift(1)) ** 2 - 1) * 100
-    trailing = ((g / g.shift(1)) ** 4 - 1) * 100 - ((p / p.shift(1)) ** 4 - 1) * 100
-    x = centred.combine_first(trailing).dropna()
-    x.index = x.index.asfreq("M", how="start") + 1
-    full = pd.period_range(x.index[0] - 1, x.index[-1] + 1, freq="M")
-    return x.reindex(full).interpolate(limit_area="inside").ffill().bfill()
+
+    def growth(x):
+        centred = ((x.shift(-1) / x.shift(1)) ** 2 - 1) * 100
+        return centred.combine_first(((x / x.shift(1)) ** 4 - 1) * 100)
+
+    g = q(gdp)
+    parts = pd.DataFrame({"gdp_growth": growth(g), "potential_growth": growth(q(potential).reindex(g.index))}).dropna()
+    parts.index = parts.index.asfreq("M", how="start") + 1
+    full = pd.period_range(parts.index[0] - 1, parts.index[-1] + 1, freq="M")
+    return parts.reindex(full).interpolate(limit_area="inside").ffill().bfill()
+
+
+def gdp_gap_growth(gdp: pd.Series, potential: pd.Series) -> pd.Series:
+    parts = gdp_growth_parts(gdp, potential)
+    return parts["gdp_growth"] - parts["potential_growth"]
 
 
 def axes(m: pd.DataFrame) -> pd.DataFrame:
-    """Growth and inflation gap per month, and whether the inflation window is
-    complete. Near the end the window runs to the latest print instead."""
+    """Growth and inflation gap per month, with every input in its own units so
+    a reader can check them. Near the end the inflation window runs to the
+    latest print instead, and those months are marked provisional."""
     cfnai = m["cfnai"].dropna()
     # The index's zero is the average pace since 1967, above the trend of the
     # 2000s; measure it against the median of the ten years around it.
-    cf = cfnai.rolling(3, center=True, min_periods=2).mean() - cfnai.rolling(120, center=True, min_periods=60).median()
-    gdp = gdp_gap_growth(m["gdp"], m["potential"])
+    cfnai_ma3 = cfnai.rolling(3, center=True, min_periods=2).mean()
+    cfnai_trend = cfnai.rolling(120, center=True, min_periods=60).median()
+    cf = cfnai_ma3 - cfnai_trend
+    parts = gdp_growth_parts(m["gdp"], m["potential"])
+    gdp = parts["gdp_growth"] - parts["potential_growth"]
     growth = pd.concat([cf / _spread(cf), gdp / _spread(gdp)], axis=1).mean(axis=1)
     core = m["core_pce"].dropna()
     centred = _ann(core, 12, shift=6)
@@ -134,9 +183,12 @@ def axes(m: pd.DataFrame) -> pd.DataFrame:
     # CPI runs above PCE; take the gap over the ten years around each month.
     wedge = (m["cpi"].pct_change(12, fill_method=None) - m["pce"].pct_change(12, fill_method=None)) * 100
     wedge = wedge.rolling(120, center=True, min_periods=60).mean().ffill().bfill()
-    expected = m["spf_cpi10"].interpolate(limit_area="inside").ffill() - wedge
-    out = pd.DataFrame({"growth": growth, "growth_cfnai": cf, "growth_gdp": gdp,
-                        "core_pce": inflation, "expected": expected})
+    spf = m["spf_cpi10"].interpolate(limit_area="inside").ffill()
+    out = pd.DataFrame({
+        "growth": growth, "growth_cfnai": cf, "growth_gdp": gdp,
+        "cfnai_ma3": cfnai_ma3, "cfnai_trend": cfnai_trend,
+        "gdp_growth": parts["gdp_growth"], "potential_growth": parts["potential_growth"],
+        "core_pce": inflation, "spf_cpi10": spf, "wedge": wedge, "expected": spf - wedge})
     out["inflation"] = out["core_pce"] - out["expected"]
     out["provisional"] = out.index > core.index[-7]
     return out
@@ -237,6 +289,25 @@ def episode_check(lab: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def spells(lab: pd.DataFrame) -> pd.DataFrame:
+    """One row per unbroken run of a label, oldest first, with the inputs
+    averaged over it in their own units."""
+    run = (lab["label"] != lab["label"].shift()).cumsum()
+    rows = []
+    for _, g in lab.groupby(run):
+        rows.append({
+            "start": g.index[0], "end": g.index[-1], "months": len(g), "label": g["label"].iloc[0],
+            "gdp_growth": g["gdp_growth"].mean(), "potential_growth": g["potential_growth"].mean(),
+            "cfnai_ma3": g["cfnai_ma3"].mean(), "cfnai_trend": g["cfnai_trend"].mean(),
+            "growth": g["growth"].mean(),
+            "core_pce": g["core_pce"].mean(), "expected": g["expected"].mean(),
+            "inflation": g["inflation"].mean(),
+            "agree": g["agree"].mean(), "weak": (g["strength"] == "weak").mean(),
+            "recession_months": int(g["recession"].sum()), "provisional": bool(g["provisional"].any()),
+        })
+    return pd.DataFrame(rows)
+
+
 def summary(lab: pd.DataFrame) -> dict:
     rec = lab["recession"]
     down = lab["label"].isin(["stagflation", "hard_landing"])
@@ -251,4 +322,5 @@ def summary(lab: pd.DataFrame) -> dict:
     }
 
 
-__all__ = ["CODES", "NBER", "axes", "primary", "aqr", "build", "episode_check", "summary"]
+__all__ = ["CODES", "STORE_IDS", "NBER", "axes", "primary", "aqr", "build", "spells",
+           "episode_check", "summary", "fetch", "from_store", "to_observations"]

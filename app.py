@@ -22,6 +22,9 @@ st.navigation(
      st.Page("views/control.py", title="Control room", url_path="control"),
      st.Page("views/methodology.py", title="Methodology", url_path="methodology"),
      st.Page("views/bench.py", title="Bench", url_path="bench"),
+     # Draft benchmark: the regime each month turned out to be in, since 1980,
+     # laid out so a reader can check every call against the inputs.
+     st.Page("views/history.py", title="Regime history", url_path="history"),
      # In the menu but marked work in progress: is energy demand outrunning
      # supply? Scored on its own, not yet feeding the regime model.
      st.Page("views/energy.py", title="Energy (WIP)", url_path="energy"),

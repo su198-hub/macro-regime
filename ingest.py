@@ -440,23 +440,36 @@ This branch is replaced on every publish, so it never accumulates history.
 def cmd_truth(args):
     """Label every month since 1980 with the regime it turned out to be in.
 
-    Reads Macrobond directly (the inputs are not dashboard indicators) and
-    writes a CSV next to the store, which stays local: it is built from
-    licensed data.
+    Reads Macrobond directly (the inputs are not dashboard indicators), stores
+    the inputs as TR_ series so a publish carries them to the hosted app's
+    /history page, and writes the labels to a CSV for a quick look.
     """
+    import datetime as dt
+
     from macrobond_data_api.com import ComClient
 
     from src import truth
 
     with ComClient() as api:
         m = truth.fetch(api)
+    store = Store(args.db)
+    refuse_demo_store(store, args.db)
+    # Today's revised history is all the labels use, so replace rather than
+    # stack a new vintage on every run.
+    store.con.execute("DELETE FROM observations WHERE starts_with(series_id, 'TR_')")
+    store.upsert_observations(truth.to_observations(m, dt.date.today()))
+    for name, sid in truth.STORE_IDS.items():
+        title, units, freq = truth.TITLES[name]
+        store.record_meta(sid, "macrobond", title=title, units=units, frequency=freq,
+                          has_vintages=False, source_code=truth.CODES[name])
+    store.close()
     lab = truth.build(m)
     out = args.out or os.path.join(os.environ.get("LOCALAPPDATA", "data"), "macro-regime", "truth_labels.csv")
     lab.to_csv(out)
     for k, v in truth.summary(lab).items():
         print(f"{k}: {v}")
     print(truth.episode_check(lab).to_string(index=False))
-    print(f"\nWrote {len(lab)} months to {out}")
+    print(f"\nStored {len(truth.STORE_IDS)} input series in {args.db}; wrote {len(lab)} months to {out}")
 
 
 def cmd_publish(args):

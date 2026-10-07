@@ -42,3 +42,28 @@ def test_gdp_gap_growth_is_zero_when_gdp_tracks_potential():
     path = pd.Series(100 * 1.005 ** np.arange(12), index=q)
     g = truth.gdp_gap_growth(path, path * 1.0)
     assert g.abs().max() < 1e-9
+
+
+def test_store_round_trip():
+    idx = months("2000-01", 6)
+    m = pd.DataFrame({name: np.arange(6, dtype=float) + i for i, name in enumerate(truth.CODES)}, index=idx)
+    obs = truth.to_observations(m, pd.Timestamp("2026-10-07").date())
+    wide = obs.pivot(index="observation_date", columns="series_id", values="value")
+    back = truth.from_store(wide)
+    pd.testing.assert_frame_equal(back, m, check_freq=False, check_names=False)
+
+
+def test_spells_collapse_runs_in_order():
+    idx = months("2000-01", 6)
+    lab = pd.DataFrame({
+        "label": ["goldilocks"] * 3 + ["stagflation"] * 3, "strength": ["clear", "weak"] * 3,
+        "agree": [True, True, False, True, True, True], "recession": [False] * 4 + [True] * 2,
+        "provisional": [False] * 5 + [True],
+        **{c: 1.0 for c in ("gdp_growth", "potential_growth", "cfnai_ma3", "cfnai_trend", "growth",
+                            "core_pce", "expected", "inflation")}}, index=idx)
+    sp = truth.spells(lab)
+    assert sp["label"].tolist() == ["goldilocks", "stagflation"]
+    assert sp["months"].tolist() == [3, 3]
+    assert sp["recession_months"].tolist() == [0, 2]
+    assert sp["provisional"].tolist() == [False, True]
+    assert abs(sp["agree"].iloc[0] - 2 / 3) < 1e-9
