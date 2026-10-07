@@ -1,9 +1,10 @@
 """The /history page: which regime the US was actually in, month by month since 1980.
 
 Built from the TR_ series `ingest.py truth` stores; src/truth.py holds the
-method. The page leads with how a month is labeled and what the record shows,
-then lets a reader pick any period and check the label against the two inputs
-in their own units: GDP against potential, core PCE against expectations.
+method. The page opens on the record itself, with a picker to zoom into any
+period and check its label against the two inputs in their own units: GDP
+against potential, core PCE against expectations. How a month is labeled and
+what the record shows follow underneath.
 """
 
 import altair as alt
@@ -74,42 +75,6 @@ def chip(label: str) -> str:
             f'white-space:nowrap"><span style="width:.7rem;height:.7rem;border-radius:2px;'
             f'background:{COLOR[label]};display:inline-block"></span>{ui.esc(NAME[label])}</span>')
 
-
-# ---------- summary ----------
-
-now = sp.iloc[-1]
-mix = lab["label"].value_counts(normalize=True)
-rec = lab["recession"]
-down = lab["label"].isin(["stagflation", "hard_landing"])
-first_prov = lab.index[lab["provisional"]].min() if lab["provisional"].any() else None
-how = [
-    f"<b>Growth</b> is real GDP growth minus CBO's estimate of potential growth, over the four quarters "
-    f"centered on the month. Above +{GB} points is growth up; below −{GB} is growth down.",
-    f"<b>Inflation</b> is core PCE inflation over the 12 months centered on the month, minus expected "
-    f"inflation: the Philadelphia Fed survey's 10-year forecast, converted from CPI to PCE terms. Above "
-    f"+{IB} points is high; below −{IB} is low.",
-    f"<b>Regime</b> is the combination of the two. Inside the ±{GB} bands an axis keeps its previous "
-    f"reading, and a regime must last {truth.MIN_MONTHS} months to count.",
-    "<b>Updates:</b> every month is relabeled from the latest revised data whenever the dashboard "
-    "data is refreshed. GDP and the survey are quarterly; core PCE is monthly."
-    + (f" Labels from {when(first_prov)} on are provisional until their windows fill." if first_prov else ""),
-]
-shows = [
-    f"<b>Latest:</b> {NAME[now.label].lower()} since {when(now.start)}"
-    + (" (provisional)" if now.provisional else "") + f". Labels run to {when(lab.index[-1])}, "
-    "the last month GDP covers.",
-    f"<b>{len(sp)} regime periods</b> since {when(lab.index[0])}, lasting {int(sp['months'].median())} "
-    "months at the median.",
-    "<b>Share of months:</b> " + ", ".join(f"{NAME[k].lower()} {mix.get(k, 0):.0%}" for k in NAME) + ".",
-    f"<b>Recessions:</b> {down[rec].mean():.0%} of NBER recession months fall in a growth-down regime. "
-    "1980–82 and 1990–91 count as stagflation, because inflation ran above expectations.",
-]
-st.html(ui.section_head("Summary"))
-left, right = st.columns(2, gap="large")
-left.html('<div class="m-body"><p><b>How a month is labeled</b></p><ul>'
-          + "".join(f"<li>{x}</li>" for x in how) + "</ul></div>")
-right.html('<div class="m-body"><p><b>What the record shows</b></p><ul>'
-           + "".join(f"<li>{x}</li>" for x in shows) + "</ul></div>")
 
 # ---------- the record ----------
 
@@ -231,6 +196,42 @@ st.html('<p class="mr-caption">Each line is measured over the window centered on
         'expected inflation: inside it, an axis keeps its earlier reading. Faded months are provisional. '
         'Covid quarters are clipped at the panel edge.'
         + (" Dotted lines mark the period picked." if sel is not None else "") + "</p>")
+
+# ---------- reading the record ----------
+
+now = sp.iloc[-1]
+mix = lab["label"].value_counts(normalize=True)
+rec = lab["recession"]
+down = lab["label"].isin(["stagflation", "hard_landing"])
+first_prov = lab.index[lab["provisional"]].min() if lab["provisional"].any() else None
+how = [
+    f"<b>Growth</b> is real GDP growth minus CBO's estimate of potential growth, over the four quarters "
+    f"centered on the month. Above +{GB} points is growth up; below −{GB} is growth down.",
+    f"<b>Inflation</b> is core PCE inflation over the 12 months centered on the month, minus expected "
+    f"inflation: the Philadelphia Fed survey's 10-year forecast, converted from CPI to PCE terms. Above "
+    f"+{IB} points is high; below −{IB} is low.",
+    f"<b>Regime</b> is the combination of the two. Inside the ±{GB} bands an axis keeps its previous "
+    f"reading, and a regime must last {truth.MIN_MONTHS} months to count.",
+    "<b>Updates:</b> every month is relabeled from the latest revised data whenever the dashboard "
+    "data is refreshed. GDP and the survey are quarterly; core PCE is monthly."
+    + (f" Labels from {when(first_prov)} on are provisional until their windows fill." if first_prov else ""),
+]
+shows = [
+    f"<b>Latest:</b> {NAME[now.label].lower()} since {when(now.start)}"
+    + (" (provisional)" if now.provisional else "") + f". Labels run to {when(lab.index[-1])}, "
+    "the last month GDP covers.",
+    f"<b>{len(sp)} regime periods</b> since {when(lab.index[0])}, lasting {int(sp['months'].median())} "
+    "months at the median.",
+    "<b>Share of months:</b> " + ", ".join(f"{NAME[k].lower()} {mix.get(k, 0):.0%}" for k in NAME) + ".",
+    f"<b>Recessions:</b> {down[rec].mean():.0%} of NBER recession months fall in a growth-down regime. "
+    "1980–82 and 1990–91 count as stagflation, because inflation ran above expectations.",
+]
+st.html(ui.section_head("Reading the record"))
+left, right = st.columns(2, gap="large")
+left.html('<div class="m-body"><p><b>How a month is labeled</b></p><ul>'
+          + "".join(f"<li>{x}</li>" for x in how) + "</ul></div>")
+right.html('<div class="m-body"><p><b>What the record shows</b></p><ul>'
+           + "".join(f"<li>{x}</li>" for x in shows) + "</ul></div>")
 
 # ---------- does it match history ----------
 
