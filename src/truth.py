@@ -118,8 +118,7 @@ def from_store(wide: pd.DataFrame) -> pd.DataFrame:
 # one year centred on the month. The forward labels are the regime of the next
 # three or five years, with perfect foresight, for judging what the signposts
 # said about the years ahead; they need the whole window, so they stop that
-# long before the latest data. Either can use the survey or a stepped line as
-# the inflation benchmark.
+# long before the latest data.
 #
 # Measure: "endpoints" is the change from the start of the window to its end.
 # "averaged" is the mean of every overlapping small-window change inside the
@@ -127,16 +126,12 @@ def from_store(wide: pd.DataFrame) -> pd.DataFrame:
 # back changes would not help: chained together they collapse to the start and
 # end points again.) Small and big windows in months, chosen on the record:
 # 12 in 18 for the nowcast, 12 in 36 and 24 in 60 for the forward labels.
-DEFAULT = {"years": 1, "align": "centered", "anchor": "survey", "measure": "endpoints"}
+DEFAULT = {"years": 1, "align": "centered", "measure": "endpoints"}
 MEASURES = ("endpoints", "averaged")
 AVERAGED = {(1, "centered"): (12, 18), (3, "forward"): (12, 36), (5, "forward"): (24, 60)}
 VIEWS = {"now": {"years": 1, "align": "centered"},
          "next3": {"years": 3, "align": "forward"},
          "next5": {"years": 5, "align": "forward"}}
-ANCHORS = ("survey", "stepped")
-# A stepped inflation line, for those who read the 1980s as high inflation:
-# (applies before this month, level in %), last entry for everything after.
-STEPS = [("1990-01", 4.0), ("1996-01", 3.0), (None, 2.0)]
 
 
 def _centred(level: pd.Series, half: int, per_year: int) -> pd.Series:
@@ -191,13 +186,6 @@ def _measure(level: pd.Series, years: int, per_year: int, align: str, measure: s
     return _averaged(level, small * per_year // 12, big * per_year // 12, align, per_year)
 
 
-def stepped_anchor(index: pd.PeriodIndex) -> pd.Series:
-    out = pd.Series(STEPS[-1][1], index=index, dtype=float)
-    for until, level in reversed(STEPS[:-1]):
-        out[index < pd.Period(until, "M")] = level
-    return out
-
-
 def growth_parts(gdp: pd.Series, potential: pd.Series, years: int = 1,
                  align: str = "centered", measure: str = "endpoints") -> pd.DataFrame:
     """Real GDP and CBO potential growth, % a year over the window around (or
@@ -220,7 +208,7 @@ def growth_parts(gdp: pd.Series, potential: pd.Series, years: int = 1,
     return out
 
 
-def axes(m: pd.DataFrame, years: int = 1, align: str = "centered", anchor: str = "survey",
+def axes(m: pd.DataFrame, years: int = 1, align: str = "centered",
          measure: str = "endpoints") -> pd.DataFrame:
     """Growth and inflation gap per month, with every input in its own units so
     a reader can check them."""
@@ -231,7 +219,7 @@ def axes(m: pd.DataFrame, years: int = 1, align: str = "centered", anchor: str =
     wedge = (m["cpi"].pct_change(12, fill_method=None) - m["pce"].pct_change(12, fill_method=None)) * 100
     wedge = wedge.rolling(120, center=True, min_periods=60).mean().ffill().bfill()
     spf = m["spf_cpi10"].interpolate(limit_area="inside").ffill()
-    expected = spf - wedge if anchor == "survey" else stepped_anchor(spf.index)
+    expected = spf - wedge
     n = window_months(years, align, measure)
     # Compare with the benchmark over the same window as inflation.
     if align == "forward":
@@ -284,9 +272,9 @@ def primary(ax: pd.DataFrame, growth_band: float = GROWTH_BAND,
 
 
 def build(m: pd.DataFrame, start: str = "1980-01", years: int = 1, align: str = "centered",
-          anchor: str = "survey", measure: str = "endpoints") -> pd.DataFrame:
+          measure: str = "endpoints") -> pd.DataFrame:
     """One row per month from `start`: the inputs, both gaps and the label."""
-    ax = axes(m, years, align, anchor, measure)
+    ax = axes(m, years, align, measure)
     span = window_months(years, align, measure) / 12
     out = ax.join(primary(ax, band(span, GROWTH_BAND), band(span, INFLATION_BAND)), how="inner")
     out = out[out.index >= pd.Period(start, "M")]

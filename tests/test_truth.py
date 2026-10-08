@@ -79,11 +79,6 @@ def test_provisional_months_keep_the_last_confirmed_regime(monkeypatch):
     assert lab["provisional_reading"].tolist()[-3:] == ["hard_landing"] * 3
 
 
-def test_stepped_anchor_levels():
-    a = truth.stepped_anchor(pd.period_range("1989-12", "1996-01", freq="M"))
-    assert a.iloc[0] == 4.0 and a[pd.Period("1990-01", "M")] == 3.0 and a.iloc[-1] == 2.0
-
-
 def test_forward_window_starts_in_the_month_and_stops_short():
     s = pd.Series(100 * 1.01 ** np.arange(48), index=months("2000-01", 48))
     f = truth._windowed(s, 1, 12, "forward")
