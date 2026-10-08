@@ -90,3 +90,24 @@ def test_trailing_window_ends_in_the_month():
 def test_stepped_anchor_levels():
     a = truth.stepped_anchor(pd.period_range("1989-12", "1996-01", freq="M"))
     assert a.iloc[0] == 4.0 and a[pd.Period("1990-01", "M")] == 3.0 and a.iloc[-1] == 2.0
+
+
+def test_forward_window_starts_in_the_month_and_stops_short():
+    s = pd.Series(100 * 1.01 ** np.arange(48), index=months("2000-01", 48))
+    f = truth._windowed(s, 1, 12, "forward")
+    assert abs(f.iloc[0] - (1.01 ** 12 - 1) * 100) < 1e-9
+    assert f.iloc[-12:].isna().all() and not np.isnan(f.iloc[-13])
+
+
+def test_band_shrinks_with_the_window():
+    assert truth.band(1) == 0.5
+    assert abs(truth.band(4) - 0.25) < 1e-12
+
+
+def test_what_followed_compares_with_the_most_common_label():
+    idx = months("2000-01", 24)
+    now = pd.Series(["goldilocks"] * 8 + ["hard_landing"] * 16, index=idx)
+    fwd = pd.DataFrame({"label": ["goldilocks", "hard_landing"]}, index=idx[:2])
+    wf = truth.what_followed(fwd, now, 1)
+    assert wf["most_common"].tolist() == ["goldilocks", "goldilocks"]
+    assert wf["agree"].tolist() == [True, False]

@@ -57,8 +57,15 @@ TITLES = {
 QUADRANT = {(True, False): "goldilocks", (True, True): "high_growth_high_inflation",
             (False, True): "stagflation", (False, False): "hard_landing"}
 
-GROWTH_BAND = 0.5       # percentage points
-INFLATION_BAND = 0.5    # percentage points
+GROWTH_BAND = 0.5       # percentage points, for a one-year window
+INFLATION_BAND = 0.5    # percentage points, for a one-year window
+
+
+def band(years: int, one_year: float = GROWTH_BAND) -> float:
+    """The neutral band for a window of `years`. An average over a longer
+    window moves less, so a fixed band would rarely be cleared and the first
+    reading would stick for a decade; the band shrinks with the square root."""
+    return one_year / years ** 0.5
 MIN_MONTHS = 3
 
 # What the record says each stretch was, to check the labels against. The
@@ -108,11 +115,14 @@ def from_store(wide: pd.DataFrame) -> pd.DataFrame:
 
 
 # The adopted method and the alternatives the /history page lets reviewers
-# compare. Window is in years; alignment is centred on the month or trailing
-# (ending in it); the inflation benchmark is the survey or a stepped line.
+# compare. Window is in years; alignment is centred on the month, trailing
+# (ending in it) or forward (starting in it: the regime of the years ahead,
+# with perfect foresight); the inflation benchmark is the survey or a stepped
+# line. Forward labels need the whole window, so they stop that long before
+# the latest data.
 DEFAULT = {"years": 1, "align": "centered", "anchor": "survey"}
 WINDOWS = (1, 3, 5)
-ALIGNS = ("centered", "trailing")
+ALIGNS = ("centered", "trailing", "forward")
 ANCHORS = ("survey", "stepped")
 # A stepped inflation line, for those who read the 1980s as high inflation:
 # (applies before this month, level in %), last entry for everything after.
@@ -132,11 +142,14 @@ def _centred(level: pd.Series, half: int, per_year: int) -> pd.Series:
 
 
 def _windowed(level: pd.Series, years: int, per_year: int, align: str) -> pd.Series:
-    """% a year over `years`, centred on each period or ending in it."""
+    """% a year over `years`, centred on each period, ending in it, or
+    starting in it (forward)."""
     n = years * per_year
     if align == "centered":
         return _centred(level, n // 2, per_year)
     level = level.dropna()
+    if align == "forward":
+        return ((level.shift(-n) / level) ** (per_year / n) - 1) * 100
     return ((level / level.shift(n)) ** (per_year / n) - 1) * 100
 
 
@@ -179,15 +192,16 @@ def axes(m: pd.DataFrame, years: int = 1, align: str = "centered", anchor: str =
     wedge = (m["cpi"].pct_change(12, fill_method=None) - m["pce"].pct_change(12, fill_method=None)) * 100
     wedge = wedge.rolling(120, center=True, min_periods=60).mean().ffill().bfill()
     spf = m["spf_cpi10"].interpolate(limit_area="inside").ffill()
-    expected = spf - wedge
-    if years > 1:
-        # Over a multi-year window, compare with what was expected over it.
-        expected = expected.rolling(12 * years, center=align == "centered", min_periods=1).mean()
+    expected = spf - wedge if anchor == "survey" else stepped_anchor(spf.index)
+    n = 12 * years
+    # Compare with the benchmark over the same window as inflation.
+    if align == "forward":
+        expected = expected.rolling(n, min_periods=1).mean().shift(-(n - 1))
+    elif years > 1:
+        expected = expected.rolling(n, center=align == "centered", min_periods=1).mean()
     out = pd.DataFrame({
         "gdp_growth": parts["gdp_growth"], "potential_growth": parts["potential_growth"],
         "core_pce": inflation, "spf_cpi10": spf, "wedge": wedge, "expected": expected})
-    if anchor == "stepped":
-        out["expected"] = stepped_anchor(out.index)
     out["growth"] = out["gdp_growth"] - out["potential_growth"]
     out["inflation"] = out["core_pce"] - out["expected"]
     out = out.dropna(subset=["growth", "inflation"])
@@ -234,7 +248,7 @@ def build(m: pd.DataFrame, start: str = "1980-01", years: int = 1, align: str = 
           anchor: str = "survey") -> pd.DataFrame:
     """One row per month from `start`: the inputs, both gaps and the label."""
     ax = axes(m, years, align, anchor)
-    out = ax.join(primary(ax), how="inner")
+    out = ax.join(primary(ax, band(years, GROWTH_BAND), band(years, INFLATION_BAND)), how="inner")
     out = out[out.index >= pd.Period(start, "M")]
     out["recession"] = recession_months(out.index)
     # Half-complete windows are not enough to call a turn: one weak quarter at
@@ -244,6 +258,21 @@ def build(m: pd.DataFrame, start: str = "1980-01", years: int = 1, align: str = 
     if len(confirmed):
         out.loc[out["provisional"], "label"] = confirmed.iloc[-1]
     return out
+
+
+def what_followed(fwd: pd.DataFrame, now: pd.Series, years: int) -> pd.DataFrame:
+    """For each month with a forward label, the most common current-regime
+    label over the window it describes, and whether the two agree."""
+    n = 12 * years
+    rows = {}
+    for t, label in fwd["label"].items():
+        w = now.loc[t:t + (n - 1)]
+        if len(w) < n:
+            continue
+        mix = w.value_counts(normalize=True)
+        rows[t] = {"label": label, "most_common": mix.index[0], "share": mix.iloc[0], "mix": mix.to_dict(),
+                   "agree": label == mix.index[0]}
+    return pd.DataFrame.from_dict(rows, orient="index")
 
 
 def episode_check(lab: pd.DataFrame) -> pd.DataFrame:
@@ -288,5 +317,5 @@ def summary(lab: pd.DataFrame) -> dict:
     }
 
 
-__all__ = ["CODES", "STORE_IDS", "NBER", "axes", "primary", "build", "spells", "episode_check",
-           "summary", "fetch", "from_store", "to_observations", "growth_parts"]
+__all__ = ["CODES", "STORE_IDS", "NBER", "axes", "primary", "build", "spells", "episode_check", "what_followed",
+           "summary", "fetch", "from_store", "to_observations", "growth_parts", "band"]

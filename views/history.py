@@ -6,8 +6,10 @@ period and check its label against the two inputs in their own units: GDP
 against potential, core PCE against expectations. How a month is labeled and
 what the record shows follow underneath.
 
-Reviewers can switch the method shown (window length, centred or trailing,
-survey or stepped inflation line) and compare every combination in one table.
+Reviewers can switch the method shown (window length; centred, trailing or
+forward; survey or stepped inflation line) and compare every combination.
+Forward labels answer a different question, the regime of the years ahead,
+so they are checked against what followed rather than against episodes.
 Notes are written for the adopted method and only appear with it.
 """
 
@@ -39,6 +41,12 @@ def labels(version: str, years: int, align: str, anchor: str) -> pd.DataFrame | 
     return None if m is None else truth.build(m, years=years, align=align, anchor=anchor)
 
 
+def mode(s: pd.Series):
+    """Most common label, or None when the window has no labels (forward
+    labels stop years before the latest data)."""
+    return s.value_counts().idxmax() if len(s) else None
+
+
 @st.cache_data(ttl=900, show_spinner="Comparing methods…")
 def comparison(version: str) -> pd.DataFrame:
     base = labels(version, **truth.DEFAULT)
@@ -55,9 +63,11 @@ def comparison(version: str) -> pd.DataFrame:
                     "median": sp_["months"].median(), "recessions": down_[lab_["recession"]].mean(),
                     "episodes": int((ep_["share"] >= 0.5).sum()), "of": len(ep_),
                     "same": (lab_["label"].reindex(base.index) == base["label"]).mean(),
-                    "mid80s": lab_.loc["1983-07":"1986-12", "label"].value_counts().idxmax(),
-                    "soft": lab_.loc["2023-07":"2024-12", "label"].value_counts().idxmax(),
-                    "provisional": int(lab_["provisional"].sum())})
+                    "mid80s": mode(lab_.loc["1983-07":"1986-12", "label"]),
+                    "soft": mode(lab_.loc["2023-07":"2024-12", "label"]),
+                    "provisional": int(lab_["provisional"].sum()), "end": lab_.index[-1],
+                    "followed": (truth.what_followed(lab_, base["label"], years)["agree"].mean()
+                                 if align == "forward" else None)})
     return pd.DataFrame(rows)
 
 
@@ -79,7 +89,8 @@ st.html('<hr class="mr-rule">')
 refresh_button()
 
 WINDOW_NAME = {1: "1 year", 3: "3 years", 5: "5 years"}
-ALIGN_NAME = {"centered": "Centered on the month", "trailing": "Trailing, ending in the month"}
+ALIGN_NAME = {"centered": "Centered on the month", "trailing": "Trailing, ending in the month",
+              "forward": "Forward: the years ahead"}
 ANCHOR_NAME = {"survey": "Survey expectations", "stepped": "Stepped line: 4%, 3%, 2%"}
 ADOPTED = " (adopted)"
 
@@ -95,10 +106,15 @@ with st.container(border=True):
     anchor = c3.radio("Inflation benchmark", truth.ANCHORS, key="hist_anchor",
                       format_func=lambda a: ANCHOR_NAME[a] + (ADOPTED if a == truth.DEFAULT["anchor"] else ""))
 METHOD = {"years": years, "align": align, "anchor": anchor}
+FORWARD = align == "forward"
+GB, IB = truth.band(years, truth.GROWTH_BAND), truth.band(years, truth.INFLATION_BAND)
 IS_DEFAULT = METHOD == truth.DEFAULT
 if not IS_DEFAULT:
     st.html('<div class="mr-custom"><b>Showing an alternative, not the adopted method:</b> '
-            f'{WINDOW_NAME[years].lower()}, {ALIGN_NAME[align].lower()}, {ANCHOR_NAME[anchor].lower()}.</div>')
+            f'{WINDOW_NAME[years].lower()}, {ALIGN_NAME[align].lower()}, {ANCHOR_NAME[anchor].lower()}.'
+            + (f" Each month is labeled with the regime of the {WINDOW_NAME[years]} that followed, with "
+               "perfect foresight: the yardstick for judging what the signposts said about the years ahead."
+               if FORWARD else "") + '</div>')
 
 lab = labels(data_version(), years, align, anchor)
 if lab is None:
@@ -115,7 +131,8 @@ sp["note"] = ([" ".join(v for k, v in NOTES.items() if s <= k <= e) for s, e in 
 # Words for the method shown, used in every sentence that describes it.
 G_WIN = {1: "four quarters", 3: "three years", 5: "five years"}[years]
 I_WIN = {1: "12 months", 3: "three years", 5: "five years"}[years]
-WHERE = "centered on the month" if align == "centered" else "ending in the month"
+WHERE = {"centered": "centered on the month", "trailing": "ending in the month",
+         "forward": "starting in the month"}[align]
 BENCH = ("expected inflation (PCE terms)" if anchor == "survey"
          else "a stepped line: 4% before 1990, 3% for 1990–95, 2% from 1996")
 REF_NAME = "Expected inflation (PCE terms)" if anchor == "survey" else "Inflation line (4% / 3% / 2%)"
@@ -282,23 +299,28 @@ how = [
     "data is refreshed. GDP and the survey are quarterly; core PCE is monthly."
     + (f" Months from {when(first_prov)} on are provisional until their windows fill, and keep the "
        "last confirmed regime until then." if first_prov else
-       " A trailing window only uses data already published, so no month is provisional."),
+       (f" Forward labels need the whole window, so they stop {WINDOW_NAME[years]} before the latest data."
+        if FORWARD else " A trailing window only uses data already published, so no month is provisional.")),
 ]
 # What the provisional months would say on their own, if it differs.
 leans = next((x for x in lab.loc[lab["provisional"], "provisional_reading"].unique() if x != now.label), None)
 shows = [
     f"<b>Latest:</b> {NAME[now.label].lower()} since {when(now.start)}, with labels running to "
-    f"{when(lab.index[-1])}, the last month GDP covers."
+    f"{when(lab.index[-1])}, "
+    + (f"the last month with a full {WINDOW_NAME[years]} of data after it." if FORWARD else
+       "the last month GDP covers.")
     + (f" The provisional months' own readings point to {NAME[leans].lower()}; a new regime is "
        "not called until the data is complete." if leans else ""),
     f"<b>{len(sp)} regime periods</b> since {when(lab.index[0])}, lasting {int(sp['months'].median())} "
     "months at the median.",
     "<b>Share of months:</b> " + ", ".join(f"{NAME[k].lower()} {mix.get(k, 0):.0%}" for k in NAME) + ".",
-    f"<b>Recessions:</b> {down[rec].mean():.0%} of NBER recession months fall in a growth-down regime. "
-    "By recession: " + "; ".join(
+    ("<b>Recessions</b> show up in the labels of the months before them, since a forward label "
+     "describes the years that follow." if FORWARD else
+     f"<b>Recessions:</b> {down[rec].mean():.0%} of NBER recession months fall in a growth-down regime. "
+     "By recession: " + "; ".join(
         f"{pk[:4]}{'–' + tr[2:4] if tr[:4] != pk[:4] else ''} {NAME[w.value_counts().idxmax()].lower()}"
         for pk, tr in truth.NBER if pk >= "1980"
-        for w in [lab.loc[pd.Period(pk, "M"):pd.Period(tr, "M"), "label"]] if len(w)) + ".",
+        for w in [lab.loc[pd.Period(pk, "M"):pd.Period(tr, "M"), "label"]] if len(w)) + "."),
 ]
 st.html(ui.section_head("Reading the record"))
 left, right = st.columns(2, gap="large")
@@ -310,17 +332,34 @@ right.html('<div class="m-body"><p><b>What the record shows</b></p><ul>'
 # ---------- does it match history ----------
 
 ep = truth.episode_check(lab)
-st.html(ui.section_head("Does it match history?", caption=
-        "Well-known stretches and how most people would label them, with the share of months the "
-        "method agrees. The readings in the middle column are a judgment too, so challenge them."))
-st.html(ui.table(
-    ["Episode", "Months", "Usual reading", "Labeled here", "Agrees"],
-    [[e["episode"], f"{pd.Period(e['from'], 'M').to_timestamp():%b %Y} – "
-      f"{pd.Period(e['to'], 'M').to_timestamp():%b %Y}",
-      ui.Raw(chip(e["expected"])), ui.Raw(chip(e["labeled"])), f"{e['share']:.0%}"]
-     for e in ep.to_dict("records")],
-    numeric={4}))
-miss = ep[ep["share"] < 0.5]
+if FORWARD:
+    now_lab = labels(data_version(), **truth.DEFAULT)["label"]
+    wf = truth.what_followed(lab, now_lab, years)
+    st.html(ui.section_head("Does it match what followed?", caption=
+            f"A forward label sums up the {WINDOW_NAME[years]} after each month. Here it is set against the "
+            "regimes those years actually went through, by the adopted month-by-month labels. The "
+            f"forward label matches the most common of them in {wf['agree'].mean():.0%} of months."))
+    jan = wf[wf.index.month == 1]
+    with st.expander(f"Show each January, {jan.index[0].year}–{jan.index[-1].year}", expanded=False):
+        st.html(ui.table(
+            ["Start", "Forward label", "GDP vs potential", "Core PCE vs benchmark", "What those years went through"],
+            [[f"{t.year}", ui.Raw(chip(r["label"])),
+              f"{lab.loc[t, 'gdp_growth']:.2f}% vs {lab.loc[t, 'potential_growth']:.2f}%",
+              f"{lab.loc[t, 'core_pce']:.2f}% vs {lab.loc[t, 'expected']:.2f}%",
+              ", ".join(f"{NAME[k].lower()} {v:.0%}" for k, v in r["mix"].items() if v >= 0.1)]
+             for t, r in jan.iterrows()]))
+else:
+    st.html(ui.section_head("Does it match history?", caption=
+            "Well-known stretches and how most people would label them, with the share of months the "
+            "method agrees. The readings in the middle column are a judgment too, so challenge them."))
+    st.html(ui.table(
+        ["Episode", "Months", "Usual reading", "Labeled here", "Agrees"],
+        [[e["episode"], f"{pd.Period(e['from'], 'M').to_timestamp():%b %Y} – "
+          f"{pd.Period(e['to'], 'M').to_timestamp():%b %Y}",
+          ui.Raw(chip(e["expected"])), ui.Raw(chip(e["labeled"])), f"{e['share']:.0%}"]
+         for e in ep.to_dict("records")],
+        numeric={4}))
+miss = ep[ep["share"] < 0.5] if not FORWARD else ep.iloc[0:0]
 for e in miss.to_dict("records"):
     w = lab.loc[pd.Period(e["from"], "M"):pd.Period(e["to"], "M")]
     st.html(f'<p class="mr-caption">{ui.esc(e["episode"])} reads as {NAME[e["labeled"]].lower()}, not '
@@ -334,25 +373,34 @@ st.html(ui.section_head("Compare methods", caption=
         "Every combination of window, alignment and inflation benchmark, scored the same way. Episodes "
         "use the readings in the table above, and the 1983–86 reading is itself in dispute, so read that "
         "column alongside the score."))
-cmp_rows = []
-for r in cmp.itertuples():
+def tag(r) -> str:
     this = {"years": r.years, "align": r.align, "anchor": r.anchor}
     tags = [t for t, on in (("adopted", this == truth.DEFAULT), ("shown", this == METHOD)) if on]
-    cmp_rows.append([
-        WINDOW_NAME[r.years] + (f" ({', '.join(tags)})" if tags else ""),
-        "Centered" if r.align == "centered" else "Trailing",
-        "Survey" if r.anchor == "survey" else "Stepped",
-        r.periods, f"{r.median:.0f}", f"{r.recessions:.0%}", f"{r.episodes} of {r.of}", f"{r.same:.0%}",
-        ui.Raw(chip(r.mid80s)), ui.Raw(chip(r.soft)), r.provisional])
+    return WINDOW_NAME[r.years] + (f" ({', '.join(tags)})" if tags else "")
+
+
+now_rows = cmp[cmp["align"] != "forward"]
 st.html(ui.table(["Window", "Alignment", "Inflation benchmark", "Periods", "Median months",
                   "Recession months growth down", "Episodes matched", "Same as adopted", "1983–86",
-                  "2023–24", "Provisional months"], cmp_rows, numeric={3, 4, 5, 6, 7, 10}))
+                  "2023–24", "Provisional months"],
+                 [[tag(r), r.align.capitalize(), r.anchor.capitalize(), r.periods, f"{r.median:.0f}",
+                   f"{r.recessions:.0%}", f"{r.episodes} of {r.of}", f"{r.same:.0%}",
+                   ui.Raw(chip(r.mid80s)), ui.Raw(chip(r.soft)), r.provisional]
+                  for r in now_rows.itertuples()], numeric={3, 4, 5, 6, 7, 10}))
 st.html('<p class="mr-caption">Centered windows line the label up with events but leave the latest '
         'half-window provisional: 6 months for 1 year, 18 for 3 years, 30 for 5 years. Trailing windows use '
-        'only published data, so nothing is provisional, but they run about half a window behind events: '
-        'about 6 months for 1 year, 18 for 3 years, 30 for 5 years. That lag is why trailing multi-year '
-        'windows miss so many recession months. The stepped line reads the mid-1980s as high growth, high '
-        'inflation.</p>')
+        'only published data, so nothing is provisional, but they run about half a window behind events. '
+        'That lag is why trailing multi-year windows miss so many recession months. The stepped line reads '
+        f'the mid-1980s as high growth, high inflation. Bands shrink with the window: ±{truth.band(1)} '
+        f'points for 1 year, ±{truth.band(3):.2f} for 3, ±{truth.band(5):.2f} for 5.</p>')
+fwd_rows = cmp[cmp["align"] == "forward"]
+st.html('<p class="mr-caption" style="margin-top:1rem"><b>Forward labels</b> answer a different question: '
+        'the regime of the years ahead. They are scored against what followed, not against episodes.</p>')
+st.html(ui.table(["Window", "Inflation benchmark", "Periods", "Median months", "Labels end",
+                  "Matches what followed", "1983–86"],
+                 [[tag(r), r.anchor.capitalize(), r.periods, f"{r.median:.0f}", when(r.end),
+                   f"{r.followed:.0%}", ui.Raw(chip(r.mid80s))] for r in fwd_rows.itertuples()],
+                 numeric={2, 3, 5}))
 
 # ---------- periods and months ----------
 
@@ -435,7 +483,11 @@ st.html(
     "<p><b>Alternatives on this page.</b> The switches at the top relabel the history with a 3- or "
     "5-year window, a trailing window (ending in the month, as a published year-over-year figure "
     "does), or a stepped inflation line of 4% before 1990, 3% for 1990–95 and 2% from 1996 in place of "
-    "the survey. Longer windows give fewer, longer regimes but blur short recessions. Trailing windows "
+    "the survey. A forward window labels each month with the regime of the years that followed, with "
+    "perfect foresight, which is the yardstick for asking what the signposts said about the years "
+    "ahead; it stops a full window before the latest data. "
+    "Longer windows give fewer, longer regimes but blur short recessions, and use a narrower band "
+    "(the half-point band divided by the square root of the years). Trailing windows "
     "need no provisional months but run about half a window behind events. The stepped line reads the "
     "mid-1980s as high inflation, at the cost of fixing the step dates by judgment.</p>"
     "<p><b>Not the same as the backtest's current rule.</b> That rule uses a fixed 2.5% core PCE line "
