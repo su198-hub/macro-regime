@@ -103,3 +103,19 @@ def test_what_followed_compares_with_the_most_common_label():
     wf = truth.what_followed(fwd, now, 1)
     assert wf["most_common"].tolist() == ["goldilocks", "goldilocks"]
     assert wf["agree"].tolist() == [True, False]
+
+
+def test_averaged_measure_damps_a_one_off_jump_at_the_end():
+    lvl = pd.Series(100 * 1.002 ** np.arange(60), index=months("2000-01", 60))
+    lvl.iloc[36:] *= 1.01   # one-off level jump: every later change carries it once
+    ends = truth._windowed(lvl, 1, 12, "forward")
+    avg = truth._averaged(lvl, 12, 36, "forward", 12)
+    steady = (1.002 ** 12 - 1) * 100
+    # A window ending just after the jump: the start-to-end change takes all of it.
+    assert abs(ends.iloc[24] - steady) > abs(avg.iloc[0] - steady)
+
+
+def test_back_to_back_changes_chain_to_the_endpoints():
+    lvl = pd.Series([100, 101.6, 103.2, 108.7], index=months("2000-01", 4))
+    chained = np.prod([lvl.iloc[k + 1] / lvl.iloc[k] for k in range(3)])
+    assert abs(chained - lvl.iloc[3] / lvl.iloc[0]) < 1e-12
