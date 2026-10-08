@@ -107,6 +107,18 @@ def from_store(wide: pd.DataFrame) -> pd.DataFrame:
     return w.groupby(level=0).last().reindex(columns=list(CODES)).sort_index()
 
 
+# The adopted method and the alternatives the /history page lets reviewers
+# compare. Window is in years; alignment is centred on the month or trailing
+# (ending in it); the inflation benchmark is the survey or a stepped line.
+DEFAULT = {"years": 1, "align": "centered", "anchor": "survey"}
+WINDOWS = (1, 3, 5)
+ALIGNS = ("centered", "trailing")
+ANCHORS = ("survey", "stepped")
+# A stepped inflation line, for those who read the 1980s as high inflation:
+# (applies before this month, level in %), last entry for everything after.
+STEPS = [("1990-01", 4.0), ("1996-01", 3.0), (None, 2.0)]
+
+
 def _centred(level: pd.Series, half: int, per_year: int) -> pd.Series:
     """% a year from `half` periods before to `half` after each period. Near
     the end the window runs to the latest print instead."""
@@ -119,9 +131,26 @@ def _centred(level: pd.Series, half: int, per_year: int) -> pd.Series:
     return out
 
 
-def growth_parts(gdp: pd.Series, potential: pd.Series) -> pd.DataFrame:
-    """Real GDP and CBO potential growth, % a year over the four quarters
-    centred on each quarter, placed on the quarter's middle month and
+def _windowed(level: pd.Series, years: int, per_year: int, align: str) -> pd.Series:
+    """% a year over `years`, centred on each period or ending in it."""
+    n = years * per_year
+    if align == "centered":
+        return _centred(level, n // 2, per_year)
+    level = level.dropna()
+    return ((level / level.shift(n)) ** (per_year / n) - 1) * 100
+
+
+def stepped_anchor(index: pd.PeriodIndex) -> pd.Series:
+    out = pd.Series(STEPS[-1][1], index=index, dtype=float)
+    for until, level in reversed(STEPS[:-1]):
+        out[index < pd.Period(until, "M")] = level
+    return out
+
+
+def growth_parts(gdp: pd.Series, potential: pd.Series, years: int = 1,
+                 align: str = "centered") -> pd.DataFrame:
+    """Real GDP and CBO potential growth, % a year over the window around (or
+    ending in) each quarter, placed on the quarter's middle month and
     interpolated between."""
     def q(s):
         s = s.dropna()
@@ -129,32 +158,41 @@ def growth_parts(gdp: pd.Series, potential: pd.Series) -> pd.DataFrame:
 
     g = q(gdp)
     p = q(potential).reindex(g.index)
-    parts = pd.DataFrame({"gdp_growth": _centred(g, 2, 4), "potential_growth": _centred(p, 2, 4)}).dropna()
+    parts = pd.DataFrame({"gdp_growth": _windowed(g, years, 4, align),
+                          "potential_growth": _windowed(p, years, 4, align)}).dropna()
     parts.index = parts.index.asfreq("M", how="start") + 1
     full = pd.period_range(parts.index[0] - 1, parts.index[-1] + 1, freq="M")
     out = parts.reindex(full).interpolate(limit_area="inside").ffill().bfill()
-    # The last two quarters' windows are not yet complete.
-    out["provisional"] = out.index >= g.index[-2].asfreq("M", how="start")
+    # A centred window is incomplete for the last half-window of quarters.
+    half = 2 * years
+    out["provisional"] = (out.index >= g.index[-half].asfreq("M", how="start")) if align == "centered" else False
     return out
 
 
-def axes(m: pd.DataFrame) -> pd.DataFrame:
+def axes(m: pd.DataFrame, years: int = 1, align: str = "centered", anchor: str = "survey") -> pd.DataFrame:
     """Growth and inflation gap per month, with every input in its own units so
     a reader can check them."""
-    parts = growth_parts(m["gdp"], m["potential"])
+    parts = growth_parts(m["gdp"], m["potential"], years, align)
     core = m["core_pce"].dropna()
-    inflation = _centred(core, 6, 12)
+    inflation = _windowed(core, years, 12, align)
     # CPI runs above PCE; take the gap over the ten years around each month.
     wedge = (m["cpi"].pct_change(12, fill_method=None) - m["pce"].pct_change(12, fill_method=None)) * 100
     wedge = wedge.rolling(120, center=True, min_periods=60).mean().ffill().bfill()
     spf = m["spf_cpi10"].interpolate(limit_area="inside").ffill()
+    expected = spf - wedge
+    if years > 1:
+        # Over a multi-year window, compare with what was expected over it.
+        expected = expected.rolling(12 * years, center=align == "centered", min_periods=1).mean()
     out = pd.DataFrame({
         "gdp_growth": parts["gdp_growth"], "potential_growth": parts["potential_growth"],
-        "core_pce": inflation, "spf_cpi10": spf, "wedge": wedge, "expected": spf - wedge})
+        "core_pce": inflation, "spf_cpi10": spf, "wedge": wedge, "expected": expected})
+    if anchor == "stepped":
+        out["expected"] = stepped_anchor(out.index)
     out["growth"] = out["gdp_growth"] - out["potential_growth"]
     out["inflation"] = out["core_pce"] - out["expected"]
     out = out.dropna(subset=["growth", "inflation"])
-    out["provisional"] = parts["provisional"].reindex(out.index, fill_value=False) | (out.index > core.index[-7])
+    late = (out.index > core.index[-(6 * years) - 1]) if align == "centered" else False
+    out["provisional"] = parts["provisional"].reindex(out.index, fill_value=False) | late
     return out
 
 
@@ -192,9 +230,10 @@ def primary(ax: pd.DataFrame, growth_band: float = GROWTH_BAND,
     })
 
 
-def build(m: pd.DataFrame, start: str = "1980-01") -> pd.DataFrame:
+def build(m: pd.DataFrame, start: str = "1980-01", years: int = 1, align: str = "centered",
+          anchor: str = "survey") -> pd.DataFrame:
     """One row per month from `start`: the inputs, both gaps and the label."""
-    ax = axes(m)
+    ax = axes(m, years, align, anchor)
     out = ax.join(primary(ax), how="inner")
     out = out[out.index >= pd.Period(start, "M")]
     out["recession"] = recession_months(out.index)

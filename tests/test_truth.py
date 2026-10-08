@@ -73,7 +73,20 @@ def test_provisional_months_keep_the_last_confirmed_regime(monkeypatch):
     idx = months("2000-01", 8)
     ax = pd.DataFrame({"growth": [1.0] * 5 + [-1.0] * 3, "inflation": [-1.0] * 8,
                        "provisional": [False] * 5 + [True] * 3}, index=idx)
-    monkeypatch.setattr(truth, "axes", lambda m: ax)
+    monkeypatch.setattr(truth, "axes", lambda m, *a, **k: ax)
     lab = truth.build(None, start="2000-01")
     assert lab["label"].tolist() == ["goldilocks"] * 8
     assert lab["provisional_reading"].tolist()[-3:] == ["hard_landing"] * 3
+
+
+def test_trailing_window_ends_in_the_month():
+    s = pd.Series(100 * 1.01 ** np.arange(48), index=months("2000-01", 48))
+    t = truth._windowed(s, 1, 12, "trailing")
+    assert np.isnan(t.iloc[10]) and abs(t.iloc[12] - (1.01 ** 12 - 1) * 100) < 1e-9
+    t3 = truth._windowed(s, 3, 12, "trailing")
+    assert abs(t3.iloc[40] - (1.01 ** 12 - 1) * 100) < 1e-9
+
+
+def test_stepped_anchor_levels():
+    a = truth.stepped_anchor(pd.period_range("1989-12", "1996-01", freq="M"))
+    assert a.iloc[0] == 4.0 and a[pd.Period("1990-01", "M")] == 3.0 and a.iloc[-1] == 2.0

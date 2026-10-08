@@ -5,6 +5,10 @@ method. The page opens on the record itself, with a picker to zoom into any
 period and check its label against the two inputs in their own units: GDP
 against potential, core PCE against expectations. How a month is labeled and
 what the record shows follow underneath.
+
+Reviewers can switch the method shown (window length, centred or trailing,
+survey or stepped inflation line) and compare every combination in one table.
+Notes are written for the adopted method and only appear with it.
 """
 
 import altair as alt
@@ -21,12 +25,40 @@ RECESSION_COLOR = "#9a9a9a"
 GB, IB = truth.GROWTH_BAND, truth.INFLATION_BAND
 
 
-@st.cache_data(ttl=900, show_spinner="Labeling every month since 1980…")
-def labels(version: str) -> pd.DataFrame | None:
+@st.cache_data(ttl=900, show_spinner=False)
+def inputs(version: str) -> pd.DataFrame | None:
     wide = get_store().latest(list(truth.STORE_IDS.values()))
     if wide.empty or not set(truth.STORE_IDS.values()) <= set(wide.columns):
         return None
-    return truth.build(truth.from_store(wide))
+    return truth.from_store(wide)
+
+
+@st.cache_data(ttl=900, show_spinner="Labeling every month since 1980…")
+def labels(version: str, years: int, align: str, anchor: str) -> pd.DataFrame | None:
+    m = inputs(version)
+    return None if m is None else truth.build(m, years=years, align=align, anchor=anchor)
+
+
+@st.cache_data(ttl=900, show_spinner="Comparing methods…")
+def comparison(version: str) -> pd.DataFrame:
+    base = labels(version, **truth.DEFAULT)
+    rows = []
+    for years in truth.WINDOWS:
+        for align in truth.ALIGNS:
+            for anchor in truth.ANCHORS:
+                lab_ = labels(version, years, align, anchor)
+                sp_ = truth.spells(lab_)
+                ep_ = truth.episode_check(lab_)
+                down_ = lab_["label"].isin(["stagflation", "hard_landing"])
+                rows.append({
+                    "years": years, "align": align, "anchor": anchor, "periods": len(sp_),
+                    "median": sp_["months"].median(), "recessions": down_[lab_["recession"]].mean(),
+                    "episodes": int((ep_["share"] >= 0.5).sum()), "of": len(ep_),
+                    "same": (lab_["label"].reindex(base.index) == base["label"]).mean(),
+                    "mid80s": lab_.loc["1983-07":"1986-12", "label"].value_counts().idxmax(),
+                    "soft": lab_.loc["2023-07":"2024-12", "label"].value_counts().idxmax(),
+                    "provisional": int(lab_["provisional"].sum())})
+    return pd.DataFrame(rows)
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
@@ -46,7 +78,29 @@ st.html('<h1 class="mr-title">Regime history</h1>'
 st.html('<hr class="mr-rule">')
 refresh_button()
 
-lab = labels(data_version())
+WINDOW_NAME = {1: "1 year", 3: "3 years", 5: "5 years"}
+ALIGN_NAME = {"centered": "Centered on the month", "trailing": "Trailing, ending in the month"}
+ANCHOR_NAME = {"survey": "Survey expectations", "stepped": "Stepped line: 4%, 3%, 2%"}
+ADOPTED = " (adopted)"
+
+with st.container(border=True):
+    st.html('<p class="mr-caption" style="margin:0"><b>Method shown.</b> The adopted method is selected. '
+            'Switch to see how an alternative labels the same history; every combination is compared in '
+            '"Compare methods" below.</p>')
+    c1, c2, c3 = st.columns(3)
+    years = c1.radio("Window", truth.WINDOWS, key="hist_years",
+                     format_func=lambda y: WINDOW_NAME[y] + (ADOPTED if y == truth.DEFAULT["years"] else ""))
+    align = c2.radio("Alignment", truth.ALIGNS, key="hist_align",
+                     format_func=lambda a: ALIGN_NAME[a] + (ADOPTED if a == truth.DEFAULT["align"] else ""))
+    anchor = c3.radio("Inflation benchmark", truth.ANCHORS, key="hist_anchor",
+                      format_func=lambda a: ANCHOR_NAME[a] + (ADOPTED if a == truth.DEFAULT["anchor"] else ""))
+METHOD = {"years": years, "align": align, "anchor": anchor}
+IS_DEFAULT = METHOD == truth.DEFAULT
+if not IS_DEFAULT:
+    st.html('<div class="mr-custom"><b>Showing an alternative, not the adopted method:</b> '
+            f'{WINDOW_NAME[years].lower()}, {ALIGN_NAME[align].lower()}, {ANCHOR_NAME[anchor].lower()}.</div>')
+
+lab = labels(data_version(), years, align, anchor)
 if lab is None:
     st.html('<div class="mr-custom"><b>No regime history in this store yet.</b> Build it on the '
             'desk machine, then publish:<br><code>python ingest.py --db '
@@ -55,7 +109,16 @@ if lab is None:
 
 sp = truth.spells(lab)
 NOTES = notes()
-sp["note"] = [" ".join(v for k, v in NOTES.items() if s <= k <= e) for s, e in zip(sp["start"], sp["end"])]
+sp["note"] = ([" ".join(v for k, v in NOTES.items() if s <= k <= e) for s, e in zip(sp["start"], sp["end"])]
+              if IS_DEFAULT else "")
+
+# Words for the method shown, used in every sentence that describes it.
+G_WIN = {1: "four quarters", 3: "three years", 5: "five years"}[years]
+I_WIN = {1: "12 months", 3: "three years", 5: "five years"}[years]
+WHERE = "centered on the month" if align == "centered" else "ending in the month"
+BENCH = ("expected inflation (PCE terms)" if anchor == "survey"
+         else "a stepped line: 4% before 1990, 3% for 1990–95, 2% from 1996")
+REF_NAME = "Expected inflation (PCE terms)" if anchor == "survey" else "Inflation line (4% / 3% / 2%)"
 
 
 def when(p: pd.Period) -> str:
@@ -82,9 +145,9 @@ ALL = f"All periods, {lab.index[0].year}–{lab.index[-1].year}"
 options = [ALL] + [f"{span(r)} · {NAME[r.label]}" for r in sp.itertuples()]
 st.html(ui.section_head("The record", caption=
         "The regime each month, then the two inputs behind it, shaded by regime. Growth is up when "
-        "GDP runs above the potential line; inflation is high when core PCE runs above the expected "
-        "line. Pick a period to zoom in and see its numbers."))
-pick = st.selectbox("Check a period", options, index=0, key="hist_period")
+        "GDP runs above the potential line; inflation is high when core PCE runs above the inflation "
+        "benchmark. Pick a period to zoom in and see its numbers."))
+pick = st.selectbox("Check a period", options, index=0, key=f"hist_period_{years}_{align}_{anchor}")
 sel = None if pick == ALL else sp.iloc[options.index(pick) - 1]
 
 if sel is not None:
@@ -98,10 +161,12 @@ if sel is not None:
         f'potential.</b> Real GDP grew {sel.gdp_growth:.2f}% a year against potential of '
         f'{sel.potential_growth:.2f}%, a gap of {sel.growth:+.2f} points.</p>'
         f'<p style="margin:0 0 .3rem"><b>Inflation {versus(sel.inflation, IB, "below", "close to", "above")} '
-        f'expectations.</b> Core PCE ran {sel.core_pce:.2f}% against {sel.expected:.2f}% expected '
-        f'(the survey\'s {w["spf_cpi10"].mean():.2f}% for CPI, less the usual CPI–PCE gap of '
-        f'{w["wedge"].mean():.2f}), a gap of {sel.inflation:+.2f} points.</p>'
-        f'<p style="margin:0">In {sel.clear:.0%} of these months both gaps were outside ±{GB}; '
+        + (f'expectations.</b> Core PCE ran {sel.core_pce:.2f}% against {sel.expected:.2f}% expected '
+           f'(the survey\'s {w["spf_cpi10"].mean():.2f}% for CPI, less the usual CPI–PCE gap of '
+           f'{w["wedge"].mean():.2f}), a gap of {sel.inflation:+.2f} points.</p>' if anchor == "survey" else
+           f'the line.</b> Core PCE ran {sel.core_pce:.2f}% against a line of {sel.expected:.2f}%, '
+           f'a gap of {sel.inflation:+.2f} points.</p>')
+        + f'<p style="margin:0">In {sel.clear:.0%} of these months both gaps were outside ±{GB}; '
         'in the rest, at least one axis carried its earlier reading.'
         + (f" <i>{ui.esc(sel.note)}</i>" if sel.note else "") + "</p></div>")
     lo, hi = max(sel.start - 18, lab.index[0]), min(sel.end + 18, lab.index[-1])
@@ -186,14 +251,14 @@ def panel(cols: dict, title: str, clip: tuple, band: float, zero: bool = False):
 
 growth_chart = panel({"gdp_growth": "Real GDP growth", "potential_growth": "CBO potential growth"},
                      "Growth", (-6, 10), GB, zero=True)
-inflation_chart = panel({"core_pce": "Core PCE inflation", "expected": "Expected inflation (PCE terms)"},
+inflation_chart = panel({"core_pce": "Core PCE inflation", "expected": REF_NAME},
                         "Inflation", (-1, 12), IB)
 chart = alt.vconcat(strip_chart, growth_chart, inflation_chart, spacing=14).resolve_scale(
     x="shared", color="independent", stroke="independent", strokeDash="independent")
 st.altair_chart(ui.style(chart), width="stretch")
-st.html('<p class="mr-caption">Each line is measured over the window centered on the month: four '
-        f'quarters for GDP, 12 months for core PCE. The gray band is ±{GB} points around potential and '
-        'expected inflation: inside it, an axis keeps its earlier reading. Faded months are provisional. '
+st.html(f'<p class="mr-caption">Each line is measured over the window {WHERE}: {G_WIN} for GDP, '
+        f'{I_WIN} for core PCE. The gray band is ±{GB} points around potential and the inflation '
+        'benchmark: inside it, an axis keeps its earlier reading. Faded months are provisional. '
         'Covid quarters are clipped at the panel edge.'
         + (" Dotted lines mark the period picked." if sel is not None else "") + "</p>")
 
@@ -205,17 +270,19 @@ rec = lab["recession"]
 down = lab["label"].isin(["stagflation", "hard_landing"])
 first_prov = lab.index[lab["provisional"]].min() if lab["provisional"].any() else None
 how = [
-    f"<b>Growth</b> is real GDP growth minus CBO's estimate of potential growth, over the four quarters "
-    f"centered on the month. Above +{GB} points is growth up; below −{GB} is growth down.",
-    f"<b>Inflation</b> is core PCE inflation over the 12 months centered on the month, minus expected "
-    f"inflation: the Philadelphia Fed survey's 10-year forecast, converted from CPI to PCE terms. Above "
-    f"+{IB} points is high; below −{IB} is low.",
+    f"<b>Growth</b> is real GDP growth minus CBO's estimate of potential growth, over the {G_WIN} "
+    f"{WHERE}. Above +{GB} points is growth up; below −{GB} is growth down.",
+    f"<b>Inflation</b> is core PCE inflation over the {I_WIN} {WHERE}, minus "
+    + ("expected inflation: the Philadelphia Fed survey's 10-year forecast, converted from CPI to PCE terms"
+       + (", averaged over the same window" if years > 1 else "") if anchor == "survey" else BENCH)
+    + f". Above +{IB} points is high; below −{IB} is low.",
     f"<b>Regime</b> is the combination of the two. Inside the ±{GB} bands an axis keeps its previous "
     f"reading, and a regime must last {truth.MIN_MONTHS} months to count.",
     "<b>Updates:</b> every month is relabeled from the latest revised data whenever the dashboard "
     "data is refreshed. GDP and the survey are quarterly; core PCE is monthly."
     + (f" Months from {when(first_prov)} on are provisional until their windows fill, and keep the "
-       "last confirmed regime until then." if first_prov else ""),
+       "last confirmed regime until then." if first_prov else
+       " A trailing window only uses data already published, so no month is provisional."),
 ]
 # What the provisional months would say on their own, if it differs.
 leans = next((x for x in lab.loc[lab["provisional"], "provisional_reading"].unique() if x != now.label), None)
@@ -228,7 +295,10 @@ shows = [
     "months at the median.",
     "<b>Share of months:</b> " + ", ".join(f"{NAME[k].lower()} {mix.get(k, 0):.0%}" for k in NAME) + ".",
     f"<b>Recessions:</b> {down[rec].mean():.0%} of NBER recession months fall in a growth-down regime. "
-    "1980–82 and 1990–91 count as stagflation, because inflation ran above expectations.",
+    "By recession: " + "; ".join(
+        f"{pk[:4]}{'–' + tr[2:4] if tr[:4] != pk[:4] else ''} {NAME[w.value_counts().idxmax()].lower()}"
+        for pk, tr in truth.NBER if pk >= "1980"
+        for w in [lab.loc[pd.Period(pk, "M"):pd.Period(tr, "M"), "label"]] if len(w)) + ".",
 ]
 st.html(ui.section_head("Reading the record"))
 left, right = st.columns(2, gap="large")
@@ -257,6 +327,33 @@ for e in miss.to_dict("records"):
             f'{NAME[e["expected"]].lower()}: GDP ran {w["growth"].mean():+.2f} points against potential '
             f'and core PCE {w["inflation"].mean():+.2f} points against expectations.</p>')
 
+# ---------- compare methods ----------
+
+cmp = comparison(data_version())
+st.html(ui.section_head("Compare methods", caption=
+        "Every combination of window, alignment and inflation benchmark, scored the same way. Episodes "
+        "use the readings in the table above, and the 1983–86 reading is itself in dispute, so read that "
+        "column alongside the score."))
+cmp_rows = []
+for r in cmp.itertuples():
+    this = {"years": r.years, "align": r.align, "anchor": r.anchor}
+    tags = [t for t, on in (("adopted", this == truth.DEFAULT), ("shown", this == METHOD)) if on]
+    cmp_rows.append([
+        WINDOW_NAME[r.years] + (f" ({', '.join(tags)})" if tags else ""),
+        "Centered" if r.align == "centered" else "Trailing",
+        "Survey" if r.anchor == "survey" else "Stepped",
+        r.periods, f"{r.median:.0f}", f"{r.recessions:.0%}", f"{r.episodes} of {r.of}", f"{r.same:.0%}",
+        ui.Raw(chip(r.mid80s)), ui.Raw(chip(r.soft)), r.provisional])
+st.html(ui.table(["Window", "Alignment", "Inflation benchmark", "Periods", "Median months",
+                  "Recession months growth down", "Episodes matched", "Same as adopted", "1983–86",
+                  "2023–24", "Provisional months"], cmp_rows, numeric={3, 4, 5, 6, 7, 10}))
+st.html('<p class="mr-caption">Centered windows line the label up with events but leave the latest '
+        'half-window provisional: 6 months for 1 year, 18 for 3 years, 30 for 5 years. Trailing windows use '
+        'only published data, so nothing is provisional, but they run about half a window behind events: '
+        'about 6 months for 1 year, 18 for 3 years, 30 for 5 years. That lag is why trailing multi-year '
+        'windows miss so many recession months. The stepped line reads the mid-1980s as high growth, high '
+        'inflation.</p>')
+
 # ---------- periods and months ----------
 
 st.html(ui.section_head("Regime by period", meta=f"{len(sp)} periods, oldest first"))
@@ -271,7 +368,8 @@ with st.expander("Show every period with its numbers", expanded=False):
                       "Clear months", "What was going on"], rows, numeric={1, 5}))
     st.html(f'<p class="mr-caption">Inputs are averaged over the period. Clear months: both gaps outside '
             f'±{GB}; the rest carried an earlier reading on at least one axis. * Includes provisional '
-            'months. Notes are written by hand in config/regime_history.yml.</p>')
+            'months. ' + ('Notes are written by hand in config/regime_history.yml.' if IS_DEFAULT else
+                          'Notes are written for the adopted method, so they are hidden here.') + '</p>')
 
 COLS = {
     "label": "Regime", "provisional_reading": "Provisional reading", "gdp_growth": "Real GDP growth %", "potential_growth": "CBO potential %",
@@ -285,16 +383,17 @@ monthly["Provisional reading"] = monthly["Provisional reading"].map(NAME).where(
 monthly.index = monthly.index.strftime("%Y-%m")
 monthly.index.name = "Month"
 shown = monthly.loc[str(lo):str(hi)] if sel is not None else monthly
+SUFFIX = "" if IS_DEFAULT else f"_{years}y_{align}_{anchor}"
 st.html(ui.section_head("Monthly data", meta=f"{len(shown)} months shown"))
 with st.expander("Show the monthly inputs" + (" for the period picked" if sel is not None else ""),
                  expanded=sel is not None):
     st.dataframe(shown.round(2), width="stretch", height=360)
     a, b, _ = st.columns([1, 1, 3])
     a.download_button("Download all months (CSV)", monthly.to_csv().encode("utf-8"),
-                      file_name="regime_history_monthly.csv", mime="text/csv", key="dl_months")
+                      file_name=f"regime_history_monthly{SUFFIX}.csv", mime="text/csv", key="dl_months")
     periods = sp.assign(start=sp["start"].astype(str), end=sp["end"].astype(str), label=sp["label"].map(NAME))
     b.download_button("Download periods (CSV)", periods.round(3).to_csv(index=False).encode("utf-8"),
-                      file_name="regime_history_periods.csv", mime="text/csv", key="dl_periods")
+                      file_name=f"regime_history_periods{SUFFIX}.csv", mime="text/csv", key="dl_periods")
 
 # ---------- methodology ----------
 
@@ -333,6 +432,12 @@ st.html(
     "it keeps the last confirmed one until its window fills. Labels run to the last month GDP "
     "covers.</li>"
     "</ol>"
+    "<p><b>Alternatives on this page.</b> The switches at the top relabel the history with a 3- or "
+    "5-year window, a trailing window (ending in the month, as a published year-over-year figure "
+    "does), or a stepped inflation line of 4% before 1990, 3% for 1990–95 and 2% from 1996 in place of "
+    "the survey. Longer windows give fewer, longer regimes but blur short recessions. Trailing windows "
+    "need no provisional months but run about half a window behind events. The stepped line reads the "
+    "mid-1980s as high inflation, at the cost of fixing the step dates by judgment.</p>"
     "<p><b>Not the same as the backtest's current rule.</b> That rule uses a fixed 2.5% core PCE line "
     "and the change in the unemployment gap, and forces every recession to hard landing.</p>"
     "<p><b>Still open:</b> whether inflation should be judged against expectations or a fixed line, "
