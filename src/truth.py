@@ -114,15 +114,16 @@ def from_store(wide: pd.DataFrame) -> pd.DataFrame:
     return w.groupby(level=0).last().reindex(columns=list(CODES)).sort_index()
 
 
-# The adopted method and the alternatives the /history page lets reviewers
-# compare. Window is in years; alignment is centred on the month, trailing
-# (ending in it) or forward (starting in it: the regime of the years ahead,
-# with perfect foresight); the inflation benchmark is the survey or a stepped
-# line. Forward labels need the whole window, so they stop that long before
-# the latest data.
+# The labels the /history page offers. The nowcast is the regime at the time:
+# one year centred on the month. The forward labels are the regime of the next
+# three or five years, with perfect foresight, for judging what the signposts
+# said about the years ahead; they need the whole window, so they stop that
+# long before the latest data. Either can use the survey or a stepped line as
+# the inflation benchmark.
 DEFAULT = {"years": 1, "align": "centered", "anchor": "survey"}
-WINDOWS = (1, 3, 5)
-ALIGNS = ("centered", "trailing", "forward")
+VIEWS = {"now": {"years": 1, "align": "centered"},
+         "next3": {"years": 3, "align": "forward"},
+         "next5": {"years": 5, "align": "forward"}}
 ANCHORS = ("survey", "stepped")
 # A stepped inflation line, for those who read the 1980s as high inflation:
 # (applies before this month, level in %), last entry for everything after.
@@ -142,15 +143,13 @@ def _centred(level: pd.Series, half: int, per_year: int) -> pd.Series:
 
 
 def _windowed(level: pd.Series, years: int, per_year: int, align: str) -> pd.Series:
-    """% a year over `years`, centred on each period, ending in it, or
-    starting in it (forward)."""
+    """% a year over `years`, centred on each period or starting in it
+    (forward)."""
     n = years * per_year
     if align == "centered":
         return _centred(level, n // 2, per_year)
     level = level.dropna()
-    if align == "forward":
-        return ((level.shift(-n) / level) ** (per_year / n) - 1) * 100
-    return ((level / level.shift(n)) ** (per_year / n) - 1) * 100
+    return ((level.shift(-n) / level) ** (per_year / n) - 1) * 100
 
 
 def stepped_anchor(index: pd.PeriodIndex) -> pd.Series:
@@ -163,7 +162,7 @@ def stepped_anchor(index: pd.PeriodIndex) -> pd.Series:
 def growth_parts(gdp: pd.Series, potential: pd.Series, years: int = 1,
                  align: str = "centered") -> pd.DataFrame:
     """Real GDP and CBO potential growth, % a year over the window around (or
-    ending in) each quarter, placed on the quarter's middle month and
+    starting in) each quarter, placed on the quarter's middle month and
     interpolated between."""
     def q(s):
         s = s.dropna()
@@ -198,7 +197,7 @@ def axes(m: pd.DataFrame, years: int = 1, align: str = "centered", anchor: str =
     if align == "forward":
         expected = expected.rolling(n, min_periods=1).mean().shift(-(n - 1))
     elif years > 1:
-        expected = expected.rolling(n, center=align == "centered", min_periods=1).mean()
+        expected = expected.rolling(n, center=True, min_periods=1).mean()
     out = pd.DataFrame({
         "gdp_growth": parts["gdp_growth"], "potential_growth": parts["potential_growth"],
         "core_pce": inflation, "spf_cpi10": spf, "wedge": wedge, "expected": expected})
