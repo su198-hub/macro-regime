@@ -6,14 +6,12 @@ period and check its label against the two inputs in their own units: GDP
 against potential, core PCE against expectations. How a month is labeled and
 what the record shows follow underneath.
 
-Two controls: which label (the nowcast, the regime at the time; or a forward
-label, the regime of the next three or five years with perfect foresight) and
-which version (standard, or steadier: an 18-month window averaging the
-twelve-month changes inside it, with a 12-month minimum regime, for the
-nowcast; the averaged measure for the forward labels).
-Forward labels answer a different question, so they are checked against what
-followed rather than against episodes.
-Notes are written for the adopted method and only appear with it.
+One control: which label. The nowcast is the regime at the time, from the
+one-year stretches inside the 18 months around each month; a forward label is
+the regime of the next three or five years with perfect foresight. Each uses
+the one method in truth.METHODS. Forward labels answer a different question,
+so they are checked against what followed rather than against episodes.
+Notes are written for the nowcast and only appear with it.
 """
 
 import altair as alt
@@ -46,28 +44,6 @@ def labels(version: str, years: float, align: str, measure: str = "endpoints",
                                               min_months=min_months)
 
 
-@st.cache_data(ttl=900, show_spinner="Comparing labels…")
-def comparison(version: str) -> pd.DataFrame:
-    base = labels(version, **truth.DEFAULT)
-    rows = []
-    for view in truth.VIEWS:
-        for kind, cfg in truth.VERSIONS[view].items():
-            years, align = cfg["years"], cfg["align"]
-            lab_ = labels(version, **cfg)
-            sp_ = truth.spells(lab_)
-            ep_ = truth.episode_check(lab_)
-            down_ = lab_["label"].isin(["stagflation", "hard_landing"])
-            rows.append({
-                "view": view, "kind": kind, "cfg": cfg, "years": years, "periods": len(sp_),
-                "median": sp_["months"].median(), "recessions": down_[lab_["recession"]].mean(),
-                "episodes": int((ep_["share"] >= 0.5).sum()), "of": len(ep_),
-                "same": (lab_["label"].reindex(base.index) == base["label"]).mean(),
-                "provisional": int(lab_["provisional"].sum()), "end": lab_.index[-1],
-                "followed": (truth.what_followed(lab_, base["label"], years)["agree"].mean()
-                             if align == "forward" else None)})
-    return pd.DataFrame(rows)
-
-
 @st.cache_data(ttl=3600, show_spinner=False)
 def notes() -> dict:
     with open("config/regime_history.yml", encoding="utf-8") as f:
@@ -88,33 +64,34 @@ refresh_button()
 WINDOW_NAME = {1: "1 year", 1.5: "18 months", 3: "3 years", 5: "5 years"}
 VIEW_NAME = {"now": "Nowcast: the regime at the time", "next3": "Forward: the next 3 years",
              "next5": "Forward: the next 5 years"}
-VERSION_NAME = {
-    "now": {"standard": "Standard: 12 months, 3-month minimum", "steadier": "Steadier: 18 months averaged, 12-month minimum"},
-    "next3": {"standard": "Standard: start to end", "steadier": "Steadier: averaged across the window"},
-    "next5": {"standard": "Standard: start to end", "steadier": "Steadier: averaged across the window"},
-}
-ADOPTED = " (adopted)"
+STRETCH_WORD = {12: "one-year", 24: "two-year"}
+SPAN_WORD = {18: "18 months", 36: "three years", 60: "five years"}
+WHERE_WORD = {"centered": "centered on the month", "forward": "starting in the month"}
+
+
+def method_line(v: str) -> str:
+    """One sentence on how a label is measured, for the control and the captions."""
+    cfg = truth.METHODS[v]
+    n, small = truth.stretches(cfg["years"], cfg["align"])
+    span_ = SPAN_WORD[truth.window_months(cfg["years"], cfg["align"], cfg["measure"])]
+    return (f"the average of the {n} {STRETCH_WORD[small]} stretches inside the {span_} "
+            f"{WHERE_WORD[cfg['align']]}, each regime held at least {cfg['min_months']} months")
+
 
 with st.container(border=True):
     st.html('<p class="mr-caption" style="margin:0"><b>Label shown.</b> The nowcast answers "what regime '
             'were we in?"; a forward label answers "what did the next few years turn out to be?", with '
-            'perfect foresight. Every combination is compared in "Compare labels" below.</p>')
-    c1, c2 = st.columns(2)
-    view = c1.radio("Label", list(truth.VIEWS), key="hist_view",
-                    format_func=lambda v: VIEW_NAME[v] + (ADOPTED if v == "now" else ""))
-    kind = c2.radio("Version", ["standard", "steadier"], key="hist_version",
-                    format_func=lambda k: k.capitalize())
-    c2.html('<p class="mr-caption" style="margin:0">' + "<br>".join(
-        f"<b>{VERSION_NAME[view][k].split(':')[0]}</b>:{VERSION_NAME[view][k].split(':', 1)[1]}"
-        + (ADOPTED if truth.VERSIONS[view][k] == truth.DEFAULT
-           else " (proposed)" if (view, k) == ("now", "steadier") else "")
-        for k in ("standard", "steadier")) + "</p>")
-METHOD = truth.VERSIONS[view][kind]
+            'perfect foresight.</p>')
+    view = st.radio("Label", list(truth.METHODS), key="hist_view", horizontal=True,
+                    format_func=lambda v: VIEW_NAME[v])
+    st.html(f'<p class="mr-caption" style="margin:0"><b>Measured as</b> {method_line(view)}.</p>')
+METHOD = truth.METHODS[view]
 years, align, measure, min_months = METHOD["years"], METHOD["align"], METHOD["measure"], METHOD["min_months"]
 FORWARD = align == "forward"
 _span = truth.window_months(years, align, measure) / 12
 GB, IB = truth.band(_span, truth.GROWTH_BAND), truth.band(_span, truth.INFLATION_BAND)
-IS_DEFAULT = METHOD == truth.DEFAULT
+LABEL = view
+IS_DEFAULT = LABEL == "now"
 
 lab = labels(data_version(), **METHOD)
 if lab is None:
@@ -134,10 +111,9 @@ I_WIN = {1: "12 months", 1.5: "18 months", 3: "three years", 5: "five years"}[ye
 WHERE = {"centered": "centered on the month", "forward": "starting in the month"}[align]
 SPAN = truth.window_months(years, align, measure)
 if measure == "averaged":
-    SMALL = truth._small_big(years, align)[0]
-    SMALL_WORD = {12: "12-month", 24: "two-year"}[SMALL]
-    BIG_WORD = {18: "18 months", 36: "three years", 60: "five years"}[SPAN]
-    G_DESC = I_DESC = f"averaged over every {SMALL_WORD} change within the {BIG_WORD} {WHERE}"
+    N_STRETCH, SMALL = truth.stretches(years, align)
+    G_DESC = I_DESC = (f"averaged over the {N_STRETCH} {STRETCH_WORD[SMALL]} stretches inside the "
+                       f"{SPAN_WORD[SPAN]} {WHERE}")
 else:
     G_DESC, I_DESC = f"over the {G_WIN} {WHERE}", f"over the {I_WIN} {WHERE}"
 
@@ -168,7 +144,7 @@ st.html(ui.section_head("The record", caption=
         "The regime each month, then the two inputs behind it, shaded by regime. Growth is up when "
         "GDP runs above the potential line; inflation is high when core PCE runs above the inflation "
         "benchmark. Pick a period to zoom in and see its numbers."))
-pick = st.selectbox("Check a period", options, index=0, key=f"hist_period_{view}_{kind}")
+pick = st.selectbox("Check a period", options, index=0, key=f"hist_period_{view}")
 sel = None if pick == ALL else sp.iloc[options.index(pick) - 1]
 
 if sel is not None:
@@ -339,7 +315,7 @@ if FORWARD:
     wf = truth.what_followed(lab, now_lab, years)
     st.html(ui.section_head("Does it match what followed?", caption=
             f"A forward label sums up the {WINDOW_NAME[years]} after each month. Here it is set against the "
-            "regimes those years actually went through, by the adopted month-by-month labels. The "
+            "regimes those years actually went through, by the nowcast. The "
             f"forward label matches the most common of them in {wf['agree'].mean():.0%} of months."))
     jan = wf[wf.index.month == 1]
     with st.expander(f"Show each January, {jan.index[0].year}–{jan.index[-1].year}", expanded=False):
@@ -368,43 +344,6 @@ for e in miss.to_dict("records"):
             f'{NAME[e["expected"]].lower()}: GDP ran {w["growth"].mean():+.2f} points against potential '
             f'and core PCE {w["inflation"].mean():+.2f} points against expectations.</p>')
 
-# ---------- compare methods ----------
-
-cmp = comparison(data_version())
-st.html(ui.section_head("Compare labels", caption=
-        "Each label in its standard and steadier version, scored the same way. Episodes use the readings "
-        "in the table above."))
-
-
-def tag(r) -> str:
-    tags = [t for t, on in (("adopted", r.cfg == truth.DEFAULT), ("shown", r.cfg == METHOD)) if on]
-    return VERSION_NAME[r.view][r.kind] + (f" ({', '.join(tags)})" if tags else "")
-
-
-now_rows = cmp[cmp["view"] == "now"]
-st.html('<p class="mr-caption"><b>Nowcast: the regime at the time</b></p>')
-st.html(ui.table(["Version", "Periods", "Median months", "Recession months growth down",
-                  "Episodes matched", "Same as adopted", "Provisional months"],
-                 [[tag(r), r.periods, f"{r.median:.0f}", f"{r.recessions:.0%}", f"{r.episodes} of {r.of}",
-                   f"{r.same:.0%}", r.provisional]
-                  for r in now_rows.itertuples()], numeric={1, 2, 3, 4, 5, 6}))
-fwd_rows = cmp[cmp["view"] != "now"]
-st.html('<p class="mr-caption" style="margin-top:1rem"><b>Forward: the regime of the years ahead.</b> '
-        'Scored against what followed, not against episodes. The band shrinks with the window, '
-        f'to ±{truth.band(3):.2f} points for 3 years and ±{truth.band(5):.2f} for 5, since an average over '
-        'more years moves less.</p>')
-st.html(ui.table(["Window", "Version", "Periods", "Median months", "Labels end", "Matches what followed"],
-                 [[WINDOW_NAME[r.years], tag(r), r.periods, f"{r.median:.0f}", when(r.end),
-                   f"{r.followed:.0%}"] for r in fwd_rows.itertuples()],
-                 numeric={2, 3, 5}))
-st.html('<p class="mr-caption"><b>Steadier nowcast:</b> an 18-month window, averaging the 7 twelve-month '
-        'changes inside it, with every regime held at least 12 months. Of 95 versions tested (windows of 12 to '
-        '36 months; start to end, or averaging 6-, 9- or 12-month changes; minimum regime of 3 to 18 months), '
-        'it cuts regime changes from 5.2 a decade to 3.0 while matching more episode months than the standard '
-        'version. Every steadier version tested loses the 2022 squeeze. <b>Steadier forward labels</b> average every overlapping '
-        'change inside the window (12-month changes within 3 years, two-year changes within 5 years), so one '
-        'unusual month at the start or end counts once among many.</p>')
-
 # ---------- periods and months ----------
 
 st.html(ui.section_head("Regime by period", meta=f"{len(sp)} periods, oldest first"))
@@ -420,7 +359,7 @@ with st.expander("Show every period with its numbers", expanded=False):
     st.html(f'<p class="mr-caption">Inputs are averaged over the period. Clear months: both gaps outside '
             f'±{GB:.2g}; the rest carried an earlier reading on at least one axis. * Includes provisional '
             'months. ' + ('Notes are written by hand in config/regime_history.yml.' if IS_DEFAULT else
-                          'Notes are written for the adopted method, so they are hidden here.') + '</p>')
+                          'Notes are written for the nowcast, so they are hidden here.') + '</p>')
 
 COLS = {
     "label": "Regime", "provisional_reading": "Provisional reading", "gdp_growth": "Real GDP growth %", "potential_growth": "CBO potential %",
@@ -434,7 +373,7 @@ monthly["Provisional reading"] = monthly["Provisional reading"].map(NAME).where(
 monthly.index = monthly.index.strftime("%Y-%m")
 monthly.index.name = "Month"
 shown = monthly.loc[str(lo):str(hi)] if sel is not None else monthly
-SUFFIX = "" if IS_DEFAULT else f"_{view}_{kind}"
+SUFFIX = "" if IS_DEFAULT else f"_{LABEL}"
 st.html(ui.section_head("Monthly data", meta=f"{len(shown)} months shown"))
 with st.expander("Show the monthly inputs" + (" for the period picked" if sel is not None else ""),
                  expanded=sel is not None):
@@ -454,17 +393,21 @@ st.html(
     "<p>The labels use today's revised data, so they show what happened, not what anyone could see "
     "at the time.</p>"
     "<ol>"
-    "<li><b>Growth: real GDP against potential.</b> Real GDP growth over the four quarters centered on "
-    "each quarter, minus CBO's potential growth over the same window. Potential is how fast the economy "
-    "can grow without overheating, given its workforce, capital and productivity. The gap is placed on "
-    "the quarter's middle month and interpolated between quarters. A full-year window smooths out "
-    "single-quarter swings in inventories and trade, at the cost of blurring the edges of very short "
-    "recessions by a month or so.</li>"
-    "<li><b>Inflation: core PCE against expectations.</b> Core PCE inflation over the 12 months centered "
-    "on the month, annualized. Core leaves out food and energy, so oil swings alone do not flip the "
-    "label. Expected inflation is the median 10-year CPI forecast from the Philadelphia Fed's Survey "
-    "of Professional Forecasters, filled from the Blue Chip and Livingston surveys before 1991. CPI "
-    "runs above PCE, so the average CPI–PCE gap over the 10 years around each month is subtracted. "
+    "<li><b>The window.</b> Each month is judged on the 18 months around it, 9 before and 9 after. "
+    "Inside that window sit seven one-year stretches, each starting a month after the last; growth and "
+    "inflation are measured over each stretch and averaged. Measuring once from the window's first month "
+    "to its last would rest on just those two months, so one unusual month at either end would move the "
+    "whole reading.</li>"
+    "<li><b>Growth: real GDP against potential.</b> Real GDP growth, averaged as above, minus CBO's "
+    "potential growth over the same stretches. Potential is how fast the economy can grow without "
+    "overheating, given its workforce, capital and productivity. GDP is quarterly, so the window holds "
+    "three one-year stretches; the gap is placed on the quarter's middle month and interpolated between "
+    "quarters.</li>"
+    "<li><b>Inflation: core PCE against expectations.</b> Core PCE inflation, averaged as above. Core "
+    "leaves out food and energy, so oil swings alone do not flip the label. Expected inflation is the median 10-year CPI forecast from the Philadelphia Fed's Survey "
+    "of Professional Forecasters, filled from the Blue Chip and Livingston surveys before 1991, averaged "
+    "over the same 18 months. CPI runs above PCE, so the average CPI–PCE gap over the 10 years around "
+    "each month is subtracted. "
     "Judging inflation against expectations, not a fixed line, means 4% in 1985 counts as low: it was "
     "below what people expected and falling.</li>"
     f"<li><b>Bands.</b> An axis flips only when its gap clears ±{GB:.2g} points on the other side of zero. "
@@ -483,18 +426,20 @@ st.html(
     "it keeps the last confirmed one until its window fills. Labels run to the last month GDP "
     "covers.</li>"
     "</ol>"
-    "<p><b>Steadier versions.</b> The steadier nowcast measures growth and inflation over 18 months "
-    "centered on the month (9 either side), as the average of the 7 twelve-month changes inside the "
-    "window, and holds every regime at least 12 months; its band is ±0.41 points and its latest 9 months "
-    "are provisional. It was picked from 95 versions as the steadiest that still gets history right "
-    "(scripts/window_sweep.py). The steadier forward labels likewise average every overlapping change "
-    "inside the window instead of taking start to end, so a volatile first or last month carries less "
-    "weight.</p>"
-    "<p><b>Other labels on this page.</b> A forward label marks each month with the regime of the "
-    "next three or five years: growth and inflation over the window starting in the month, with "
-    "perfect foresight. It is the yardstick for asking what the signposts said about the years ahead, "
-    "and it stops a full window before the latest data. Its band is the half-point band divided by "
-    "the square root of the years, since a multi-year average moves less.</p>"
+    "<p><b>Why this window.</b> Of 95 versions tested (windows of 12 to 36 months; start to end, or "
+    "averaging 6-, 9- or 12-month stretches; minimum regime of 3 to 18 months; scripts/window_sweep.py), "
+    "this one cuts regime changes from 5.2 a decade, for a single 12-month window, to 3.0 while matching "
+    "more of the well-known episodes. Every steadier version loses the 2022 squeeze. Averaging also makes "
+    "the inflation reading about 35% less jumpy from month to month than measuring start to end. The band "
+    "is ±0.41 points and the latest 9 months are provisional.</p>"
+    "<p><b>Forward labels.</b> A forward label marks each month with the regime of the next three or five "
+    "years, with perfect foresight: the yardstick for asking what the signposts said about the years "
+    "ahead. Three years averages the 25 one-year stretches inside the window; five years averages the "
+    "37 two-year stretches inside it. Both hold a regime at least a year. Those choices match the most "
+    "common nowcast regime over the years described more often than start to end or other stretch "
+    "lengths: 84% of months for three years and 74% for five. A forward label stops a full window before "
+    "the latest data. Its band is the half-point band divided by the square root of the years "
+    f"(±{truth.band(3):.2f} and ±{truth.band(5):.2f}), since a multi-year average moves less.</p>"
     "<p><b>Not the same as the backtest's current rule.</b> That rule uses a fixed 2.5% core PCE line "
     "and the change in the unemployment gap, and forces every recession to hard landing.</p>"
     "<p><b>Still open:</b> whether inflation should be judged against expectations or a fixed line, "

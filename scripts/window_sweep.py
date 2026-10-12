@@ -36,7 +36,7 @@ at that point: 18 months, averaging the 12-month changes inside it, 12-month
 minimum (3.0 flips, 88% of episode months). Averaging 9-month changes flips a
 little less (2.8) with the same accuracy but turns half a month later and holds
 1990-91 stagflation into 1992; 12-month changes are also the growth rate
-people already read. The steadier nowcast in truth.VERSIONS.
+people already read. The nowcast in truth.METHODS.
 """
 
 import argparse

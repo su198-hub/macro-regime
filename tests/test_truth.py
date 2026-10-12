@@ -117,13 +117,21 @@ def test_back_to_back_changes_chain_to_the_endpoints():
     assert abs(chained - lvl.iloc[3] / lvl.iloc[0]) < 1e-12
 
 
-def test_steadier_nowcast_averages_twelve_month_changes_over_18_months_with_a_12_month_minimum():
-    steady = truth.VERSIONS["now"]["steadier"]
-    assert steady["measure"] == "averaged"
-    assert truth.window_months(steady["years"], steady["align"], steady["measure"]) == 18
-    assert truth._small_big(steady["years"], steady["align"]) == (12, 18)
-    assert steady["min_months"] == 12
-    assert truth.VERSIONS["now"]["standard"] == truth.DEFAULT
+def test_nowcast_averages_one_year_stretches_over_18_months_with_a_12_month_minimum():
+    now = truth.METHODS["now"]
+    assert now == truth.DEFAULT
+    assert now["measure"] == "averaged"
+    assert truth.window_months(now["years"], now["align"], now["measure"]) == 18
+    assert truth.stretches(now["years"], now["align"]) == (7, 12)
+    assert now["min_months"] == 12
+
+
+def test_forward_labels_average_and_hold_a_regime_a_year():
+    assert truth.stretches(3, "forward") == (25, 12)
+    assert truth.stretches(5, "forward") == (37, 24)
+    for view in ("next3", "next5"):
+        assert truth.METHODS[view]["measure"] == "averaged"
+        assert truth.METHODS[view]["min_months"] == 12
 
 
 def test_averaged_window_is_the_mean_of_the_small_changes_inside_it():

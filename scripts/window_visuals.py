@@ -45,7 +45,7 @@ def averaging_chart(m: pd.DataFrame, t: pd.Period, path: str) -> None:
     """The averaged window for one month: every one-year stretch inside the
     18 months around it, its inflation, and their average, with the single
     start-to-end change underneath for comparison."""
-    steady = truth.VERSIONS["now"]["steadier"]
+    steady = truth.METHODS["now"]
     small, big = truth.AVERAGED[(steady["years"], "centered")]
     half = big // 2
     c = m["core_pce"]
@@ -98,7 +98,7 @@ def averaging_chart(m: pd.DataFrame, t: pd.Period, path: str) -> None:
 
 
 def minimum_chart(m: pd.DataFrame, path: str) -> None:
-    steady = truth.VERSIONS["now"]["steadier"]
+    steady = truth.METHODS["now"]
     rows = [("Today's rule:\n3-month minimum", 3), ("9-month minimum", 9),
             (f"Proposed:\n{steady['min_months']}-month minimum", steady["min_months"])]
     months = pd.period_range("1994-07", "1996-06", freq="M")

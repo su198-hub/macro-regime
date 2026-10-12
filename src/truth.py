@@ -114,41 +114,44 @@ def from_store(wide: pd.DataFrame) -> pd.DataFrame:
     return w.groupby(level=0).last().reindex(columns=list(CODES)).sort_index()
 
 
-# The labels the /history page offers. The nowcast is the regime at the time:
-# one year centred on the month. The forward labels are the regime of the next
-# three or five years, with perfect foresight, for judging what the signposts
-# said about the years ahead; they need the whole window, so they stop that
-# long before the latest data.
+# The labels the /history page offers. The nowcast is the regime at the time,
+# from the 18 months centred on the month. The forward labels are the regime of
+# the next three or five years, with perfect foresight, for judging what the
+# signposts said about the years ahead; they need the whole window, so they
+# stop that long before the latest data.
 #
 # Measure: "endpoints" is the change from the start of the window to its end.
 # "averaged" is the mean of every overlapping small-window change inside the
 # window, so one unusual month at either end counts once among many. (Back-to-
 # back changes would not help: chained together they collapse to the start and
-# end points again.) Small and big windows in months: 12 in 36 and 24 in 60
-# for the forward labels, 12-month changes otherwise.
+# end points again.) All three labels average, and AVERAGED gives the small
+# and big windows in months: 7 one-year stretches in the nowcast's 18 months,
+# 25 one-year stretches in 3 years, 37 two-year stretches in 5 years.
 #
-# Each label comes in a standard and a steadier version. The steadier nowcast
-# is an 18-month window averaging the 7 twelve-month changes inside it, with
-# regimes held at least a year. Of 95 versions tested (windows of 12-36 months;
-# start to end, or averaging 6-, 9- or 12-month changes; minimum regime of 3 to
-# 18 months; scripts/window_sweep.py), it sits where steadiness stops costing
-# accuracy: every steadier version loses the 2022 squeeze, a 12-month regime.
-# Labelling the past is the job, so how many months are still provisional did
-# not count. The steadier forward labels use the averaged measure too.
-DEFAULT = {"years": 1, "align": "centered", "measure": "endpoints", "min_months": 3}
+# Every label holds a regime at least a year. The nowcast was picked from 95
+# versions (windows of 12-36 months; start to end, or averaging 6-, 9- or
+# 12-month stretches; minimum regime of 3 to 18 months; scripts/window_sweep.py)
+# where steadiness stops costing accuracy: every steadier version loses the
+# 2022 squeeze, a 12-month regime. Labelling the past is the job, so how many
+# months are still provisional did not count. For the forward labels, scored
+# by how often they match the most common nowcast regime over the years they
+# describe, one-year stretches beat 6-month and two-year ones over 3 years
+# (84%), two-year stretches beat shorter ones over 5 years (74%), and a
+# one-year minimum flips less than a 3-month one for the same accuracy or better.
 MEASURES = ("endpoints", "averaged")
 AVERAGED = {(1.5, "centered"): (12, 18), (3, "forward"): (12, 36), (5, "forward"): (24, 60)}
-VIEWS = {"now": {"years": 1, "align": "centered"},
-         "next3": {"years": 3, "align": "forward"},
-         "next5": {"years": 5, "align": "forward"}}
-VERSIONS = {
-    "now": {"standard": DEFAULT,
-            "steadier": {"years": 1.5, "align": "centered", "measure": "averaged", "min_months": 12}},
-    "next3": {"standard": {"years": 3, "align": "forward", "measure": "endpoints", "min_months": 3},
-              "steadier": {"years": 3, "align": "forward", "measure": "averaged", "min_months": 3}},
-    "next5": {"standard": {"years": 5, "align": "forward", "measure": "endpoints", "min_months": 3},
-              "steadier": {"years": 5, "align": "forward", "measure": "averaged", "min_months": 3}},
+METHODS = {
+    "now": {"years": 1.5, "align": "centered", "measure": "averaged", "min_months": 12},
+    "next3": {"years": 3, "align": "forward", "measure": "averaged", "min_months": 12},
+    "next5": {"years": 5, "align": "forward", "measure": "averaged", "min_months": 12},
 }
+DEFAULT = METHODS["now"]
+
+
+def stretches(years: float, align: str) -> tuple[int, int]:
+    """How many small changes an averaged window holds, and how long each is, in months."""
+    small, big = _small_big(years, align)
+    return big - small + 1, small
 
 
 def _centred(level: pd.Series, half: int, per_year: int) -> pd.Series:

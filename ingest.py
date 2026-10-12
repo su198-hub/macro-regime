@@ -464,7 +464,7 @@ def cmd_truth(args):
         store.record_meta(sid, "macrobond", title=title, units=units, frequency=freq,
                           has_vintages=False, source_code=truth.CODES[name])
     store.close()
-    lab = truth.build(m)
+    lab = truth.build(m, **truth.DEFAULT)
     out = args.out or os.path.join(os.environ.get("LOCALAPPDATA", "data"), "macro-regime", "truth_labels.csv")
     lab.to_csv(out)
     for k, v in truth.summary(lab).items():
