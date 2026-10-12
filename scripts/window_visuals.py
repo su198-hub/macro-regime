@@ -2,9 +2,9 @@
 
     python scripts/window_visuals.py [--out FOLDER] [--month 2023-02]
 
-1. How the 18-month window turns one month into a label, with that month's
-   real numbers (core PCE and GDP over each one-year stretch inside the window,
-   averaged, against expectations and potential).
+1. How the averaging works: the one-year stretches inside the 18-month window
+   around one month, core PCE inflation over each, and their average, with the
+   start-to-end change for comparison.
 2. How the 12-month minimum regime length absorbs a short dip (Feb-Oct 1995).
 
 Writes PNGs to FOLDER (default: output/ in the repo, which git ignores).
@@ -41,79 +41,58 @@ def quarterly(s: pd.Series) -> pd.Series:
     return s.groupby(s.index.asfreq("Q")).mean()
 
 
-def window_chart(m: pd.DataFrame, t: pd.Period, path: str) -> None:
+def averaging_chart(m: pd.DataFrame, t: pd.Period, path: str) -> None:
+    """The averaged window for one month: every one-year stretch inside the
+    18 months around it, its inflation, and their average, with the single
+    start-to-end change underneath for comparison."""
     steady = truth.VERSIONS["now"]["steadier"]
     small, big = truth.AVERAGED[(steady["years"], "centered")]
     half = big // 2
-    ax_ = truth.axes(m, steady["years"], "centered", steady["measure"])
-    lab = truth.build(m, **steady)
-    band = truth.band(steady["years"])
     c = m["core_pce"]
     a, b = t - half, t + half
-    ends = pd.period_range(a + small, b, freq="M")          # each change ends here
+    ends = pd.period_range(a + small, b, freq="M")
     rates = pd.Series({e: ((c[e] / c[e - small]) ** (12 / small) - 1) * 100 for e in ends})
-    infl = ax_.loc[t, "core_pce"]
-    q, qs = t.asfreq("Q"), small // 3
-    q_ends = pd.period_range(q - big // 6 + qs, q + big // 6, freq="Q")
-    g_rate, p_rate = ax_.loc[t, "gdp_growth"], ax_.loc[t, "potential_growth"]
-    gap_i, gap_g = ax_.loc[t, "inflation"], ax_.loc[t, "growth"]
-    word = lambda v, up, down: up if v >= band else down if v <= -band else "inside the band, so last month's reading"
+    whole = ((c[b] / c[a]) ** (12 / big) - 1) * 100
 
-    months = pd.period_range(t - 13, t + 13, freq="M")
+    months = pd.period_range(a - 1, b + 1, freq="M")
     x = {p_: i for i, p_ in enumerate(months)}
-    fig, ax = plt.subplots(figsize=(11, 7.2))
-    ax.set_xlim(-1, len(months)); ax.set_ylim(-0.5, 8.1); ax.axis("off")
-    for p_ in months:
-        if p_.month in (1, 4, 7, 10):
-            ax.text(x[p_], -0.1, p_.strftime("%b\n%Y") if p_.month == 1 else p_.strftime("%b"),
-                    ha="center", va="top", color=MUTED, fontsize=9)
-            ax.plot([x[p_], x[p_]], [0.05, 7.5], color=LINE, lw=0.6, zorder=0)
-    ax.plot([x[t], x[t]], [0.05, 7.55], color=INK, lw=1.6, ls=(0, (3, 2)), zorder=1)
-    ax.text(x[t], 7.7, f"Month being labeled: {t.strftime('%b %Y')}", ha="center", fontsize=11.5, fontweight="bold")
+    n = len(ends)
+    right = len(months) + 0.6                   # where the numbers column starts
+    fig, ax = plt.subplots(figsize=(11, 5.4))
+    ax.set_xlim(-0.8, right + 7.2); ax.set_ylim(-2.75, n + 1.55); ax.axis("off")
 
-    def label(y, text, color):
-        ax.text(-1.6, y, text, ha="right", va="center", fontsize=10, color=color, fontweight="bold", clip_on=False)
+    # The window and the month being labeled.
+    ax.add_patch(Rectangle((x[a] - 0.5, -0.55), x[b] - x[a] + 1, n + 0.75, color=PICK, alpha=0.08, lw=0))
+    ax.text((x[a] + x[b]) / 2, n + 0.75, f"{big}-month window: {a.strftime('%b %Y')} to {b.strftime('%b %Y')}, "
+            f"{half} months either side of {t.strftime('%b %Y')}", ha="center", fontsize=10.5, fontweight="bold")
+    ax.plot([x[t], x[t]], [-0.55, n + 0.2], color=INK, lw=1.3, ls=(0, (3, 2)), zorder=1)
+    ax.text(x[t] + 0.25, n - 0.35, t.strftime("%b %Y"), fontsize=9, color=INK, va="center")
+    ticks = [p_ for p_ in months if p_.month in (1, 4, 7, 10)]
+    for p_ in ticks:
+        ax.plot([x[p_], x[p_]], [-1.9, n + 0.2], color=LINE, lw=0.6, zorder=0)
+        ax.text(x[p_], -2.05, p_.strftime("%b\n%Y") if p_.month == 1 or p_ == ticks[0] else p_.strftime("%b"),
+                ha="center", va="top", color=MUTED, fontsize=9)
 
-    def arrow(y, lo, hi, color, lw=2, scale=14):
-        ax.add_patch(FancyArrowPatch((x[lo], y), (x[hi], y), arrowstyle="-|>", mutation_scale=scale,
-                                     color=color, lw=lw, shrinkA=0, shrinkB=0))
-
-    # Today: one change, start to end.
-    label(6.75, "Today: 12 months\n(6 either side)", CUR)
-    ax.add_patch(Rectangle((x[t - 6] - 0.5, 6.5), x[t + 6] - x[t - 6] + 1, 0.5, color=CUR, alpha=0.18, lw=0))
-    arrow(6.75, t - 6, t + 6, CUR)
-    ax.text(x[t - 6] - 0.4, 7.07, f"One change, start to end: {(t - 6).strftime('%b %Y')} → "
-            f"{(t + 6).strftime('%b %Y')}", ha="left", va="bottom", fontsize=9.5, bbox=BOX, zorder=3)
-
-    # Proposed: every small change inside the window, one per row.
-    top, step = 5.95, min(0.45, 2.6 / (len(ends) - 1))
-    label(top - step * (len(ends) - 1) / 2, f"Proposed: {big} months\n({half} either side),\n"
-          f"{len(ends)} {STRETCH[small]} stretches", PICK)
-    ax.add_patch(Rectangle((x[a] - 0.5, top - step * (len(ends) - 1) - 0.15), x[b] - x[a] + 1,
-                           step * (len(ends) - 1) + 0.3, color=PICK, alpha=0.10, lw=0))
+    # One row per one-year stretch, oldest on top.
+    ax.text(right, n + 0.2, "Core PCE inflation", fontsize=9.5, color=MUTED, va="center")
     for k, e in enumerate(ends):
-        y = top - k * step
-        arrow(y, e - small, e, PICK, lw=1.4, scale=8)
-        ax.text(x[e] + 0.35, y, f"{rates[e]:.1f}%", va="center", fontsize=7.5, color=MUTED)
-    y_note = top - step * (len(ends) - 1) - 0.55
-    ax.text(x[a] - 0.4, y_note, f"Core PCE inflation over each stretch: {rates.iloc[0]:.1f}% "
-            f"({(ends[0] - small).strftime('%b %Y')}–{ends[0].strftime('%b %Y')}) to {rates.iloc[-1]:.1f}% "
-            f"({(ends[-1] - small).strftime('%b %Y')}–{ends[-1].strftime('%b %Y')}).  Average: {infl:.2f}% a year",
-            ha="left", va="center", fontsize=9.5, bbox=BOX, zorder=3, fontweight="bold")
+        y = n - 1 - k
+        s = e - small
+        ax.plot([x[s], x[e]], [y, y], color=PICK, lw=2.2, solid_capstyle="butt")
+        ax.plot([x[s], x[e]], [y, y], "o", color=PICK, ms=5)
+        ax.text(right, y, f"{s.strftime('%b %Y')} → {e.strftime('%b %Y')}", va="center", fontsize=9.5)
+        ax.text(right + 6.9, y, f"{rates[e]:.1f}%", va="center", ha="right", fontsize=9.5)
+    ax.plot([right, right + 6.9], [-0.45, -0.45], color=INK, lw=0.8)
+    ax.text(right, -0.85, f"Average of the {n}", va="center", fontsize=10, fontweight="bold", color=PICK)
+    ax.text(right + 6.9, -0.85, f"{rates.mean():.2f}%", va="center", ha="right", fontsize=10,
+            fontweight="bold", color=PICK)
 
-    label(1.75, "Then subtract\nwhat was expected", PICK)
-    ax.text(-0.5, 1.75, f"Expected inflation, averaged over the same {big} months: {infl - gap_i:.2f}%\n"
-            f"Gap: {infl:.2f} − {infl - gap_i:.2f} = {gap_i:+.2f} points, against the ±{band:.2f} band  →  "
-            f"{word(gap_i, 'inflation high', 'inflation low')}", ha="left", va="center", fontsize=9.5, bbox=BOX, zorder=3)
-    label(0.6, "Growth: same\nwindow on GDP", PICK)
-    ax.text(-0.5, 0.6, f"Real GDP over the {len(q_ends)} {STRETCH[small]} stretches, from {q_ends[0] - qs}–{q_ends[0]} to "
-            f"{q_ends[-1] - qs}–{q_ends[-1]}: average {g_rate:.2f}% a year, against CBO potential {p_rate:.2f}%\n"
-            f"Gap: {gap_g:+.2f} points, against the ±{band:.2f} band  →  {word(gap_g, 'growth up', 'growth down')}",
-            ha="left", va="center", fontsize=9.5, bbox=BOX, zorder=3)
-    fig.text(0.5, 0.02, f"Label for {t.strftime('%b %Y')}: {NAME[lab.loc[t, 'label']].lower()}.  "
-             "A gap inside the band keeps last month's reading.", ha="center", fontsize=10.5,
-             fontweight="bold", color=PICK)
-    fig.subplots_adjust(left=0.2, right=0.97, top=0.98, bottom=0.08)
+    # Start to end, for comparison.
+    ax.plot([x[a], x[b]], [-1.55, -1.55], color=CUR, lw=2.2, solid_capstyle="butt")
+    ax.plot([x[a], x[b]], [-1.55, -1.55], "o", color=CUR, ms=5)
+    ax.text(right, -1.55, "Start to end, for comparison", va="center", fontsize=9.5, color=CUR)
+    ax.text(right + 6.9, -1.55, f"{whole:.2f}%", va="center", ha="right", fontsize=9.5, color=CUR)
+    fig.subplots_adjust(left=0.01, right=0.99, top=0.97, bottom=0.03)
     fig.savefig(path, dpi=200)
     plt.close(fig)
 
@@ -156,6 +135,6 @@ if __name__ == "__main__":
     args = ap.parse_args()
     os.makedirs(args.out, exist_ok=True)
     m = load_inputs()
-    window_chart(m, pd.Period(args.month, "M"), os.path.join(args.out, "1_how_the_18_month_window_works.png"))
+    averaging_chart(m, pd.Period(args.month, "M"), os.path.join(args.out, "1_how_the_averaging_works.png"))
     minimum_chart(m, os.path.join(args.out, "2_how_the_12_month_minimum_works.png"))
     print(f"Wrote two charts to {args.out}")
