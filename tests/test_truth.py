@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import pytest
 
 from src import truth
 
@@ -116,11 +117,24 @@ def test_back_to_back_changes_chain_to_the_endpoints():
     assert abs(chained - lvl.iloc[3] / lvl.iloc[0]) < 1e-12
 
 
-def test_steadier_nowcast_is_an_18_month_window_with_a_6_month_minimum():
+def test_steadier_nowcast_averages_six_month_changes_over_18_months_with_a_9_month_minimum():
     steady = truth.VERSIONS["now"]["steadier"]
+    assert steady["measure"] == "averaged"
     assert truth.window_months(steady["years"], steady["align"], steady["measure"]) == 18
-    assert steady["min_months"] == 6
+    assert truth._small_big(steady["years"], steady["align"]) == (6, 18)
+    assert steady["min_months"] == 9
     assert truth.VERSIONS["now"]["standard"] == truth.DEFAULT
+
+
+def test_averaged_window_is_the_mean_of_the_small_changes_inside_it():
+    idx = pd.period_range("2000-01", periods=40, freq="M")
+    level = pd.Series(100 * 1.003 ** np.arange(40) * (1 + 0.01 * (np.arange(40) % 5 == 0)), index=idx)
+    out = truth._averaged(level, 6, 18, "centered", 12)
+    t = idx[20]
+    ends = pd.period_range(t - 9 + 6, t + 9, freq="M")
+    want = np.mean([((level[e] / level[e - 6]) ** 2 - 1) * 100 for e in ends])
+    assert len(ends) == 13
+    assert out[t] == pytest.approx(want)
 
 
 def test_minimum_regime_length_absorbs_short_spells():
