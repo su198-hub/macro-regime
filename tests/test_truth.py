@@ -117,12 +117,12 @@ def test_back_to_back_changes_chain_to_the_endpoints():
     assert abs(chained - lvl.iloc[3] / lvl.iloc[0]) < 1e-12
 
 
-def test_steadier_nowcast_averages_six_month_changes_over_18_months_with_a_9_month_minimum():
+def test_steadier_nowcast_averages_twelve_month_changes_over_18_months_with_a_12_month_minimum():
     steady = truth.VERSIONS["now"]["steadier"]
     assert steady["measure"] == "averaged"
     assert truth.window_months(steady["years"], steady["align"], steady["measure"]) == 18
-    assert truth._small_big(steady["years"], steady["align"]) == (6, 18)
-    assert steady["min_months"] == 9
+    assert truth._small_big(steady["years"], steady["align"]) == (12, 18)
+    assert steady["min_months"] == 12
     assert truth.VERSIONS["now"]["standard"] == truth.DEFAULT
 
 

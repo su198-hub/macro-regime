@@ -1,4 +1,4 @@
-"""Which nowcast window? Scores 57 versions of the regime-at-the-time label.
+"""Which nowcast window? Scores 95 versions of the regime-at-the-time label.
 
     python scripts/window_sweep.py              # prints the table, writes a CSV
     python scripts/window_sweep.py --realtime   # adds the real-time check (~10 min)
@@ -6,7 +6,7 @@
 Versions: windows of 12, 18, 24, 30 and 36 months centred on the month (GDP is
 quarterly, so a centred window grows two quarters at a time); measured start
 to end, or as the average of the 6-, 9- or 12-month changes inside the window;
-and a minimum regime length of 3, 6 or 9 months.
+and a minimum regime length of 3, 6, 9, 12 or 18 months.
 
 Checks, for each version:
   flips per decade    regime changes since 1980 per ten years (steadiness)
@@ -19,18 +19,24 @@ Checks, for each version:
   turn lag            months between each recession's start or end and the
                       label switching into or out of growth down, averaged
                       over early and late alike (timeliness)
-  provisional         half the window: months that wait for later data
+  provisional         half the window: months that wait for later data.
+                      Reported, not judged: the label's job is the past.
   realtime            (with --realtime) for every month from Jan 1985 to Dec
                       2023, the label the page would have shown with data to
                       that month, against the final label. Today's revised
                       data throughout, and no publication delay, so it isolates
                       the window's own edge, not data revisions.
 
-The pick: among versions matching at least 10 of 11 episodes, catching at
-least 95% of recession months and leaving at most 12 months provisional, the
-one that flips least, ties going to the shorter turn lag. That is 18 months,
-averaging the 6-month changes inside it, 9-month minimum: the steadier nowcast
-in truth.VERSIONS.
+The goal is to label the past accurately without flipping too often, so the
+script prints the frontier: every version that no other beats on flips,
+episode share, recession months and turn lag at once. Along it, flips fall
+from 5.2 a decade (today's 12 months) to about 3 at no cost in accuracy; below
+that, every version loses the 2022 squeeze, a 12-month regime. The pick sits
+at that point: 18 months, averaging the 12-month changes inside it, 12-month
+minimum (3.0 flips, 88% of episode months). Averaging 9-month changes flips a
+little less (2.8) with the same accuracy but turns half a month later and holds
+1990-91 stagflation into 1992; 12-month changes are also the growth rate
+people already read. The steadier nowcast in truth.VERSIONS.
 """
 
 import argparse
@@ -118,7 +124,7 @@ def score(lab: pd.DataFrame, months: int) -> dict:
 
 def versions():
     for months in (12, 18, 24, 30, 36):
-        for min_months in (3, 6, 9):
+        for min_months in (3, 6, 9, 12, 18):
             yield months, "endpoints", None, min_months
             for small in (6, 9, 12):
                 if small < months:   # one 12-month change in 12 months is start to end
@@ -134,8 +140,18 @@ def sweep(m: pd.DataFrame, with_realtime: bool = False) -> pd.DataFrame:
             row["realtime"] = realtime(m, lab, *v)
         rows.append(row)
     out = pd.DataFrame(rows)
-    out["passes"] = (out["episodes"] >= 10) & (out["recession_months"] >= 0.95) & (out["provisional"] <= 12)
+    out["frontier"] = [not dominated(out, i) for i in out.index]
     return out
+
+
+def dominated(res: pd.DataFrame, i: int) -> bool:
+    """True if another version is at least as good on every check and better on one."""
+    r = res.loc[i]
+    ge = ((res["flips_per_decade"] <= r["flips_per_decade"]) & (res["episode_share"] >= r["episode_share"])
+          & (res["recession_months"] >= r["recession_months"]) & (res["turn_lag"] <= r["turn_lag"]))
+    gt = ((res["flips_per_decade"] < r["flips_per_decade"]) | (res["episode_share"] > r["episode_share"])
+          | (res["recession_months"] > r["recession_months"]) | (res["turn_lag"] < r["turn_lag"]))
+    return bool((ge & gt).any())
 
 
 if __name__ == "__main__":
@@ -144,9 +160,9 @@ if __name__ == "__main__":
     res = sweep(load_inputs(), ap.parse_args().realtime)
     pd.set_option("display.width", 250)
     print(res.drop(columns="missed").round(2).to_string(index=False))
-    best = res[res["passes"]].sort_values(["flips_per_decade", "turn_lag"]).iloc[0]
-    how = f"averaging {best.small:.0f}-month changes" if best.measure == "averaged" else "start to end"
-    print(f"\nSteadiest that passes: {best.window} months, {how}, {best.min_months}-month minimum")
+    front = res[res["frontier"]].sort_values("flips_per_decade")
+    print("\nFrontier, steadiest first:")
+    print(front.drop(columns="frontier").round(2).to_string(index=False))
     path = os.path.join(os.path.dirname(DB), "window_sweep.csv")
     res.to_csv(path, index=False)
     print(f"Wrote {path}")

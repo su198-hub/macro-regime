@@ -124,27 +124,26 @@ def from_store(wide: pd.DataFrame) -> pd.DataFrame:
 # "averaged" is the mean of every overlapping small-window change inside the
 # window, so one unusual month at either end counts once among many. (Back-to-
 # back changes would not help: chained together they collapse to the start and
-# end points again.) Small and big windows in months: 6 in 18 for the steadier
-# nowcast, 12 in 36 and 24 in 60 for the forward labels, 12-month changes
-# otherwise.
+# end points again.) Small and big windows in months: 12 in 36 and 24 in 60
+# for the forward labels, 12-month changes otherwise.
 #
 # Each label comes in a standard and a steadier version. The steadier nowcast
-# is an 18-month window averaging the 13 six-month changes inside it, with
-# regimes held at least nine months: of 57 versions tested (windows of 12-36
-# months; start to end, or averaging 6-, 9- or 12-month changes; minimum regime
-# of 3, 6 or 9 months; scripts/window_sweep.py), it is the steadiest that still
-# matches 10 of 11 episodes, catches 95% or more of recession months and leaves
-# no more than 12 months provisional, with ties going to the timelier turns.
-# The steadier forward labels use the averaged measure too.
+# is an 18-month window averaging the 7 twelve-month changes inside it, with
+# regimes held at least a year. Of 95 versions tested (windows of 12-36 months;
+# start to end, or averaging 6-, 9- or 12-month changes; minimum regime of 3 to
+# 18 months; scripts/window_sweep.py), it sits where steadiness stops costing
+# accuracy: every steadier version loses the 2022 squeeze, a 12-month regime.
+# Labelling the past is the job, so how many months are still provisional did
+# not count. The steadier forward labels use the averaged measure too.
 DEFAULT = {"years": 1, "align": "centered", "measure": "endpoints", "min_months": 3}
 MEASURES = ("endpoints", "averaged")
-AVERAGED = {(1.5, "centered"): (6, 18), (3, "forward"): (12, 36), (5, "forward"): (24, 60)}
+AVERAGED = {(1.5, "centered"): (12, 18), (3, "forward"): (12, 36), (5, "forward"): (24, 60)}
 VIEWS = {"now": {"years": 1, "align": "centered"},
          "next3": {"years": 3, "align": "forward"},
          "next5": {"years": 5, "align": "forward"}}
 VERSIONS = {
     "now": {"standard": DEFAULT,
-            "steadier": {"years": 1.5, "align": "centered", "measure": "averaged", "min_months": 9}},
+            "steadier": {"years": 1.5, "align": "centered", "measure": "averaged", "min_months": 12}},
     "next3": {"standard": {"years": 3, "align": "forward", "measure": "endpoints", "min_months": 3},
               "steadier": {"years": 3, "align": "forward", "measure": "averaged", "min_months": 3}},
     "next5": {"standard": {"years": 5, "align": "forward", "measure": "endpoints", "min_months": 3},

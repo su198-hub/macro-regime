@@ -9,8 +9,8 @@ what the record shows follow underneath.
 Two controls: which label (the nowcast, the regime at the time; or a forward
 label, the regime of the next three or five years with perfect foresight) and
 which version (standard, or steadier: an 18-month window averaging the
-six-month changes inside it, with a 9-month minimum regime, for the nowcast;
-the averaged measure for the forward labels).
+twelve-month changes inside it, with a 12-month minimum regime, for the
+nowcast; the averaged measure for the forward labels).
 Forward labels answer a different question, so they are checked against what
 followed rather than against episodes.
 Notes are written for the adopted method and only appear with it.
@@ -89,7 +89,7 @@ WINDOW_NAME = {1: "1 year", 1.5: "18 months", 3: "3 years", 5: "5 years"}
 VIEW_NAME = {"now": "Nowcast: the regime at the time", "next3": "Forward: the next 3 years",
              "next5": "Forward: the next 5 years"}
 VERSION_NAME = {
-    "now": {"standard": "Standard: 12 months, 3-month minimum", "steadier": "Steadier: 18 months averaged, 9-month minimum"},
+    "now": {"standard": "Standard: 12 months, 3-month minimum", "steadier": "Steadier: 18 months averaged, 12-month minimum"},
     "next3": {"standard": "Standard: start to end", "steadier": "Steadier: averaged across the window"},
     "next5": {"standard": "Standard: start to end", "steadier": "Steadier: averaged across the window"},
 }
@@ -397,12 +397,11 @@ st.html(ui.table(["Window", "Version", "Periods", "Median months", "Labels end",
                  [[WINDOW_NAME[r.years], tag(r), r.periods, f"{r.median:.0f}", when(r.end),
                    f"{r.followed:.0%}"] for r in fwd_rows.itertuples()],
                  numeric={2, 3, 5}))
-st.html('<p class="mr-caption"><b>Steadier nowcast:</b> an 18-month window, averaging the 13 six-month '
-        'changes inside it, with every regime held at least 9 months. Of 57 versions tested (windows of 12 to '
-        '36 months; start to end, or averaging 6-, 9- or 12-month changes; minimum regime of 3, 6 or 9 months), '
-        'it is the steadiest that still matches 10 of 11 episodes, catches at least 95% of recession months and '
-        'leaves no more than 12 months provisional. Every window of 24 months or more failed the episode check, '
-        'however it was measured. <b>Steadier forward labels</b> average every overlapping '
+st.html('<p class="mr-caption"><b>Steadier nowcast:</b> an 18-month window, averaging the 7 twelve-month '
+        'changes inside it, with every regime held at least 12 months. Of 95 versions tested (windows of 12 to '
+        '36 months; start to end, or averaging 6-, 9- or 12-month changes; minimum regime of 3 to 18 months), '
+        'it cuts regime changes from 5.2 a decade to 3.0 while matching more episode months than the standard '
+        'version. Every steadier version tested loses the 2022 squeeze. <b>Steadier forward labels</b> average every overlapping '
         'change inside the window (12-month changes within 3 years, two-year changes within 5 years), so one '
         'unusual month at the start or end counts once among many.</p>')
 
@@ -485,9 +484,9 @@ st.html(
     "covers.</li>"
     "</ol>"
     "<p><b>Steadier versions.</b> The steadier nowcast measures growth and inflation over 18 months "
-    "centered on the month (9 either side), as the average of the 13 six-month changes inside the "
-    "window, and holds every regime at least 9 months; its band is ±0.41 points and its latest 9 months "
-    "are provisional. It was picked from 57 versions as the steadiest that still gets history right "
+    "centered on the month (9 either side), as the average of the 7 twelve-month changes inside the "
+    "window, and holds every regime at least 12 months; its band is ±0.41 points and its latest 9 months "
+    "are provisional. It was picked from 95 versions as the steadiest that still gets history right "
     "(scripts/window_sweep.py). The steadier forward labels likewise average every overlapping change "
     "inside the window instead of taking start to end, so a volatile first or last month carries less "
     "weight.</p>"

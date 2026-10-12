@@ -3,9 +3,9 @@
     python scripts/window_visuals.py [--out FOLDER] [--month 2023-02]
 
 1. How the 18-month window turns one month into a label, with that month's
-   real numbers (the six-month changes in core PCE and GDP inside the window,
+   real numbers (the twelve-month changes in core PCE and GDP inside the window,
    averaged, against expectations and potential).
-2. How the 9-month minimum regime length absorbs a short dip (May-Oct 1995).
+2. How the 12-month minimum regime length absorbs a short dip (Feb-Oct 1995).
 
 Writes PNGs to FOLDER (default: output/ in the repo, which git ignores).
 """
@@ -31,6 +31,7 @@ COL = {"goldilocks": "#008300", "high_growth_high_inflation": "#2a78d6", "stagfl
        "hard_landing": "#eda100"}
 NAME = {"goldilocks": "Goldilocks", "high_growth_high_inflation": "High growth, high inflation",
         "stagflation": "Stagflation", "hard_landing": "Hard landing"}
+SPAN = {6: "half-year", 9: "three-quarter", 12: "four-quarter"}
 BOX = dict(facecolor="white", edgecolor="none", pad=2.5)
 plt.rcParams.update({"font.family": "Arial", "font.size": 10, "text.color": INK})
 
@@ -85,7 +86,7 @@ def window_chart(m: pd.DataFrame, t: pd.Period, path: str) -> None:
             f"{(t + 6).strftime('%b %Y')}", ha="left", va="bottom", fontsize=9.5, bbox=BOX, zorder=3)
 
     # Proposed: every small change inside the window, one per row.
-    top, step = 5.95, 0.21
+    top, step = 5.95, min(0.45, 2.6 / (len(ends) - 1))
     label(top - step * (len(ends) - 1) / 2, f"Proposed: {big} months\n({half} either side),\n"
           f"{len(ends)} {small}-month changes", PICK)
     ax.add_patch(Rectangle((x[a] - 0.5, top - step * (len(ends) - 1) - 0.15), x[b] - x[a] + 1,
@@ -96,8 +97,8 @@ def window_chart(m: pd.DataFrame, t: pd.Period, path: str) -> None:
         ax.text(x[e] + 0.35, y, f"{rates[e]:.1f}%", va="center", fontsize=7.5, color=MUTED)
     y_note = top - step * (len(ends) - 1) - 0.55
     ax.text(x[a] - 0.4, y_note, f"Core PCE, each change at a yearly rate: {rates.iloc[0]:.1f}% "
-            f"({(ends[0] - small).strftime('%b')}–{ends[0].strftime('%b %Y')}) to {rates.iloc[-1]:.1f}% "
-            f"({(ends[-1] - small).strftime('%b')}–{ends[-1].strftime('%b %Y')}).  Average: {infl:.2f}% a year",
+            f"({(ends[0] - small).strftime('%b %Y')}–{ends[0].strftime('%b %Y')}) to {rates.iloc[-1]:.1f}% "
+            f"({(ends[-1] - small).strftime('%b %Y')}–{ends[-1].strftime('%b %Y')}).  Average: {infl:.2f}% a year",
             ha="left", va="center", fontsize=9.5, bbox=BOX, zorder=3, fontweight="bold")
 
     label(1.75, "Then subtract\nwhat was expected", PICK)
@@ -105,7 +106,7 @@ def window_chart(m: pd.DataFrame, t: pd.Period, path: str) -> None:
             f"Gap: {infl:.2f} − {infl - gap_i:.2f} = {gap_i:+.2f} points, against the ±{band:.2f} band  →  "
             f"{word(gap_i, 'inflation high', 'inflation low')}", ha="left", va="center", fontsize=9.5, bbox=BOX, zorder=3)
     label(0.6, "Growth: same\nwindow on GDP", PICK)
-    ax.text(-0.5, 0.6, f"Real GDP, the {len(q_ends)} half-year changes from {q_ends[0] - qs}–{q_ends[0]} to "
+    ax.text(-0.5, 0.6, f"Real GDP, the {len(q_ends)} {SPAN[small]} changes from {q_ends[0] - qs}–{q_ends[0]} to "
             f"{q_ends[-1] - qs}–{q_ends[-1]}: average {g_rate:.2f}% a year, against CBO potential {p_rate:.2f}%\n"
             f"Gap: {gap_g:+.2f} points, against the ±{band:.2f} band  →  {word(gap_g, 'growth up', 'growth down')}",
             ha="left", va="center", fontsize=9.5, bbox=BOX, zorder=3)
@@ -119,7 +120,7 @@ def window_chart(m: pd.DataFrame, t: pd.Period, path: str) -> None:
 
 def minimum_chart(m: pd.DataFrame, path: str) -> None:
     steady = truth.VERSIONS["now"]["steadier"]
-    rows = [("Today's rule:\n3-month minimum", 3), ("6-month minimum", 6),
+    rows = [("Today's rule:\n3-month minimum", 3), ("9-month minimum", 9),
             (f"Proposed:\n{steady['min_months']}-month minimum", steady["min_months"])]
     months = pd.period_range("1994-07", "1996-06", freq="M")
     fig, ax = plt.subplots(figsize=(11, 4.0))
@@ -134,14 +135,14 @@ def minimum_chart(m: pd.DataFrame, path: str) -> None:
     for i, p_ in enumerate(months):
         ax.text(i, -0.12, p_.strftime("%b\n%Y") if p_.month == 1 else p_.strftime("%b"),
                 ha="center", va="top", fontsize=9, color=MUTED)
-    dip = [i for i, p_ in enumerate(months) if pd.Period("1995-05", "M") <= p_ <= pd.Period("1995-10", "M")]
+    dip = [i for i, p_ in enumerate(months) if pd.Period("1995-02", "M") <= p_ <= pd.Period("1995-10", "M")]
     ax.add_patch(Rectangle((dip[0] - 0.55, -0.02), len(dip) + 0.1, 2.9, fill=False, ec=INK, lw=1.4, ls=(0, (3, 2))))
-    ax.text((dip[0] + dip[-1]) / 2, 3.0, "May–Oct 1995: growth dips below potential for 6 months, no recession",
+    ax.text((dip[0] + dip[-1]) / 2, 3.0, "Feb–Oct 1995: growth dips below potential for 9 months, no recession",
             ha="center", fontsize=10, fontweight="bold")
     fig.legend([Rectangle((0, 0), 1, 1, color=COL[k]) for k in COL], [NAME[k] for k in COL], loc="lower center",
                bbox_to_anchor=(0.58, 0.075), ncol=4, frameon=False, fontsize=9.5)
-    fig.text(0.5, 0.02, "A regime shorter than the minimum takes the label before it. The 6-month dip passes a "
-             "3- or 6-month rule; the 9-month rule keeps 1995 goldilocks.", ha="center", fontsize=10,
+    fig.text(0.5, 0.02, "A regime shorter than the minimum takes the label before it. The 9-month dip passes a "
+             "3- or 9-month rule; the 12-month rule keeps 1995 goldilocks.", ha="center", fontsize=10,
              color=PICK, fontweight="bold")
     fig.subplots_adjust(left=0.17, right=0.99, top=0.92, bottom=0.2)
     fig.savefig(path, dpi=200)
@@ -156,5 +157,5 @@ if __name__ == "__main__":
     os.makedirs(args.out, exist_ok=True)
     m = load_inputs()
     window_chart(m, pd.Period(args.month, "M"), os.path.join(args.out, "1_how_the_18_month_window_works.png"))
-    minimum_chart(m, os.path.join(args.out, "2_how_the_9_month_minimum_works.png"))
+    minimum_chart(m, os.path.join(args.out, "2_how_the_12_month_minimum_works.png"))
     print(f"Wrote two charts to {args.out}")
