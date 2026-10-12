@@ -3,7 +3,7 @@
     python scripts/window_visuals.py [--out FOLDER] [--month 2023-02]
 
 1. How the 18-month window turns one month into a label, with that month's
-   real numbers (the twelve-month changes in core PCE and GDP inside the window,
+   real numbers (core PCE and GDP over each one-year stretch inside the window,
    averaged, against expectations and potential).
 2. How the 12-month minimum regime length absorbs a short dip (Feb-Oct 1995).
 
@@ -31,7 +31,7 @@ COL = {"goldilocks": "#008300", "high_growth_high_inflation": "#2a78d6", "stagfl
        "hard_landing": "#eda100"}
 NAME = {"goldilocks": "Goldilocks", "high_growth_high_inflation": "High growth, high inflation",
         "stagflation": "Stagflation", "hard_landing": "Hard landing"}
-SPAN = {6: "half-year", 9: "three-quarter", 12: "four-quarter"}
+STRETCH = {6: "six-month", 9: "nine-month", 12: "one-year"}
 BOX = dict(facecolor="white", edgecolor="none", pad=2.5)
 plt.rcParams.update({"font.family": "Arial", "font.size": 10, "text.color": INK})
 
@@ -88,7 +88,7 @@ def window_chart(m: pd.DataFrame, t: pd.Period, path: str) -> None:
     # Proposed: every small change inside the window, one per row.
     top, step = 5.95, min(0.45, 2.6 / (len(ends) - 1))
     label(top - step * (len(ends) - 1) / 2, f"Proposed: {big} months\n({half} either side),\n"
-          f"{len(ends)} {small}-month changes", PICK)
+          f"{len(ends)} {STRETCH[small]} stretches", PICK)
     ax.add_patch(Rectangle((x[a] - 0.5, top - step * (len(ends) - 1) - 0.15), x[b] - x[a] + 1,
                            step * (len(ends) - 1) + 0.3, color=PICK, alpha=0.10, lw=0))
     for k, e in enumerate(ends):
@@ -96,7 +96,7 @@ def window_chart(m: pd.DataFrame, t: pd.Period, path: str) -> None:
         arrow(y, e - small, e, PICK, lw=1.4, scale=8)
         ax.text(x[e] + 0.35, y, f"{rates[e]:.1f}%", va="center", fontsize=7.5, color=MUTED)
     y_note = top - step * (len(ends) - 1) - 0.55
-    ax.text(x[a] - 0.4, y_note, f"Core PCE, each change at a yearly rate: {rates.iloc[0]:.1f}% "
+    ax.text(x[a] - 0.4, y_note, f"Core PCE inflation over each stretch: {rates.iloc[0]:.1f}% "
             f"({(ends[0] - small).strftime('%b %Y')}–{ends[0].strftime('%b %Y')}) to {rates.iloc[-1]:.1f}% "
             f"({(ends[-1] - small).strftime('%b %Y')}–{ends[-1].strftime('%b %Y')}).  Average: {infl:.2f}% a year",
             ha="left", va="center", fontsize=9.5, bbox=BOX, zorder=3, fontweight="bold")
@@ -106,7 +106,7 @@ def window_chart(m: pd.DataFrame, t: pd.Period, path: str) -> None:
             f"Gap: {infl:.2f} − {infl - gap_i:.2f} = {gap_i:+.2f} points, against the ±{band:.2f} band  →  "
             f"{word(gap_i, 'inflation high', 'inflation low')}", ha="left", va="center", fontsize=9.5, bbox=BOX, zorder=3)
     label(0.6, "Growth: same\nwindow on GDP", PICK)
-    ax.text(-0.5, 0.6, f"Real GDP, the {len(q_ends)} {SPAN[small]} changes from {q_ends[0] - qs}–{q_ends[0]} to "
+    ax.text(-0.5, 0.6, f"Real GDP over the {len(q_ends)} {STRETCH[small]} stretches, from {q_ends[0] - qs}–{q_ends[0]} to "
             f"{q_ends[-1] - qs}–{q_ends[-1]}: average {g_rate:.2f}% a year, against CBO potential {p_rate:.2f}%\n"
             f"Gap: {gap_g:+.2f} points, against the ±{band:.2f} band  →  {word(gap_g, 'growth up', 'growth down')}",
             ha="left", va="center", fontsize=9.5, bbox=BOX, zorder=3)
