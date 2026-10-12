@@ -2,7 +2,7 @@
 
     python scripts/window_visuals.py [--out FOLDER] [--month 2023-02]
 
-1. How the averaging works: the one-year stretches inside the 18-month window
+1. How the averaging works: the 12-month stretches inside the 18-month window
    around one month, core PCE inflation over each, and their average, with the
    start-to-end change for comparison.
 2. How the 12-month minimum regime length absorbs a short dip (Feb-Oct 1995).
@@ -31,7 +31,7 @@ COL = {"goldilocks": "#008300", "high_growth_high_inflation": "#2a78d6", "stagfl
        "hard_landing": "#eda100"}
 NAME = {"goldilocks": "Goldilocks", "high_growth_high_inflation": "High growth, high inflation",
         "stagflation": "Stagflation", "hard_landing": "Hard landing"}
-STRETCH = {6: "six-month", 9: "nine-month", 12: "one-year"}
+STRETCH = {6: "six-month", 9: "nine-month", 12: "12-month"}
 BOX = dict(facecolor="white", edgecolor="none", pad=2.5)
 plt.rcParams.update({"font.family": "Arial", "font.size": 10, "text.color": INK})
 
@@ -42,7 +42,7 @@ def quarterly(s: pd.Series) -> pd.Series:
 
 
 def averaging_chart(m: pd.DataFrame, t: pd.Period, path: str) -> None:
-    """The averaged window for one month: every one-year stretch inside the
+    """The averaged window for one month: every 12-month stretch inside the
     18 months around it, its inflation, and their average, with the single
     start-to-end change underneath for comparison."""
     steady = truth.METHODS["now"]
@@ -73,7 +73,7 @@ def averaging_chart(m: pd.DataFrame, t: pd.Period, path: str) -> None:
         ax.text(x[p_], -2.05, p_.strftime("%b\n%Y") if p_.month == 1 or p_ == ticks[0] else p_.strftime("%b"),
                 ha="center", va="top", color=MUTED, fontsize=9)
 
-    # One row per one-year stretch, oldest on top.
+    # One row per 12-month stretch, oldest on top.
     ax.text(right, n + 0.2, "Core PCE inflation", fontsize=9.5, color=MUTED, va="center")
     for k, e in enumerate(ends):
         y = n - 1 - k

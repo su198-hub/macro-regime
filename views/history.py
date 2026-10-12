@@ -7,7 +7,7 @@ against potential, core PCE against expectations. How a month is labeled and
 what the record shows follow underneath.
 
 One control: which label. The nowcast is the regime at the time, from the
-one-year stretches inside the 18 months around each month; a forward label is
+12-month stretches inside the 18 months around each month; a forward label is
 the regime of the next three or five years with perfect foresight. Each uses
 the one method in truth.METHODS. Forward labels answer a different question,
 so they are checked against what followed rather than against episodes.
@@ -64,7 +64,7 @@ refresh_button()
 WINDOW_NAME = {1: "1 year", 1.5: "18 months", 3: "3 years", 5: "5 years"}
 VIEW_NAME = {"now": "Nowcast: the regime at the time", "next3": "Forward: the next 3 years",
              "next5": "Forward: the next 5 years"}
-STRETCH_WORD = {12: "one-year", 24: "two-year"}
+STRETCH_WORD = {12: "12-month", 24: "24-month"}
 SPAN_WORD = {18: "18 months", 36: "three years", 60: "five years"}
 WHERE_WORD = {"centered": "centered on the month", "forward": "starting in the month"}
 
@@ -394,14 +394,14 @@ st.html(
     "at the time.</p>"
     "<ol>"
     "<li><b>The window.</b> Each month is judged on the 18 months around it, 9 before and 9 after. "
-    "Inside that window sit seven one-year stretches, each starting a month after the last; growth and "
+    "Inside that window sit seven 12-month stretches, each starting a month after the last; growth and "
     "inflation are measured over each stretch and averaged. Measuring once from the window's first month "
     "to its last would rest on just those two months, so one unusual month at either end would move the "
     "whole reading.</li>"
     "<li><b>Growth: real GDP against potential.</b> Real GDP growth, averaged as above, minus CBO's "
     "potential growth over the same stretches. Potential is how fast the economy can grow without "
     "overheating, given its workforce, capital and productivity. GDP is quarterly, so the window holds "
-    "three one-year stretches; the gap is placed on the quarter's middle month and interpolated between "
+    "three 12-month stretches; the gap is placed on the quarter's middle month and interpolated between "
     "quarters.</li>"
     "<li><b>Inflation: core PCE against expectations.</b> Core PCE inflation, averaged as above. Core "
     "leaves out food and energy, so oil swings alone do not flip the label. Expected inflation is the median 10-year CPI forecast from the Philadelphia Fed's Survey "
@@ -434,8 +434,8 @@ st.html(
     "is ±0.41 points and the latest 9 months are provisional.</p>"
     "<p><b>Forward labels.</b> A forward label marks each month with the regime of the next three or five "
     "years, with perfect foresight: the yardstick for asking what the signposts said about the years "
-    "ahead. Three years averages the 25 one-year stretches inside the window; five years averages the "
-    "37 two-year stretches inside it. Both hold a regime at least a year. Those choices match the most "
+    "ahead. Three years averages the 25 12-month stretches inside the window; five years averages the "
+    "37 24-month stretches inside it. Both hold a regime at least a year. Those choices match the most "
     "common nowcast regime over the years described more often than start to end or other stretch "
     "lengths: 84% of months for three years and 74% for five. A forward label stops a full window before "
     "the latest data. Its band is the half-point band divided by the square root of the years "

@@ -125,8 +125,8 @@ def from_store(wide: pd.DataFrame) -> pd.DataFrame:
 # window, so one unusual month at either end counts once among many. (Back-to-
 # back changes would not help: chained together they collapse to the start and
 # end points again.) All three labels average, and AVERAGED gives the small
-# and big windows in months: 7 one-year stretches in the nowcast's 18 months,
-# 25 one-year stretches in 3 years, 37 two-year stretches in 5 years.
+# and big windows in months: 7 12-month stretches in the nowcast's 18 months,
+# 25 12-month stretches in 3 years, 37 24-month stretches in 5 years.
 #
 # Every label holds a regime at least a year. The nowcast was picked from 95
 # versions (windows of 12-36 months; start to end, or averaging 6-, 9- or
@@ -135,8 +135,8 @@ def from_store(wide: pd.DataFrame) -> pd.DataFrame:
 # 2022 squeeze, a 12-month regime. Labelling the past is the job, so how many
 # months are still provisional did not count. For the forward labels, scored
 # by how often they match the most common nowcast regime over the years they
-# describe, one-year stretches beat 6-month and two-year ones over 3 years
-# (84%), two-year stretches beat shorter ones over 5 years (74%), and a
+# describe, 12-month stretches beat 6- and 24-month ones over 3 years
+# (84%), 24-month stretches beat shorter ones over 5 years (74%), and a
 # one-year minimum flips less than a 3-month one for the same accuracy or better.
 MEASURES = ("endpoints", "averaged")
 AVERAGED = {(1.5, "centered"): (12, 18), (3, "forward"): (12, 36), (5, "forward"): (24, 60)}
