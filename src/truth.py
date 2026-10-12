@@ -124,14 +124,30 @@ def from_store(wide: pd.DataFrame) -> pd.DataFrame:
 # "averaged" is the mean of every overlapping small-window change inside the
 # window, so one unusual month at either end counts once among many. (Back-to-
 # back changes would not help: chained together they collapse to the start and
-# end points again.) Small and big windows in months, chosen on the record:
-# 12 in 18 for the nowcast, 12 in 36 and 24 in 60 for the forward labels.
-DEFAULT = {"years": 1, "align": "centered", "measure": "endpoints"}
+# end points again.) Small and big windows in months: 12 in 36 and 24 in 60
+# for the forward labels, 12-month changes otherwise.
+#
+# Each label comes in a standard and a steadier version. The steadier nowcast
+# is an 18-month window measured start to end, with regimes held at least six
+# months: of 27 versions tested (windows of 12-36 months, start to end or
+# averaged, minimum regime of 3, 6 or 9 months; scripts/window_sweep.py), it is
+# the steadiest that still matches 10 of 11 episodes, catches 95% or more of
+# recession months and leaves no more than 12 months provisional. The steadier
+# forward labels use the averaged measure.
+DEFAULT = {"years": 1, "align": "centered", "measure": "endpoints", "min_months": 3}
 MEASURES = ("endpoints", "averaged")
-AVERAGED = {(1, "centered"): (12, 18), (3, "forward"): (12, 36), (5, "forward"): (24, 60)}
+AVERAGED = {(3, "forward"): (12, 36), (5, "forward"): (24, 60)}
 VIEWS = {"now": {"years": 1, "align": "centered"},
          "next3": {"years": 3, "align": "forward"},
          "next5": {"years": 5, "align": "forward"}}
+VERSIONS = {
+    "now": {"standard": DEFAULT,
+            "steadier": {"years": 1.5, "align": "centered", "measure": "endpoints", "min_months": 6}},
+    "next3": {"standard": {"years": 3, "align": "forward", "measure": "endpoints", "min_months": 3},
+              "steadier": {"years": 3, "align": "forward", "measure": "averaged", "min_months": 3}},
+    "next5": {"standard": {"years": 5, "align": "forward", "measure": "endpoints", "min_months": 3},
+              "steadier": {"years": 5, "align": "forward", "measure": "averaged", "min_months": 3}},
+}
 
 
 def _centred(level: pd.Series, half: int, per_year: int) -> pd.Series:
@@ -146,10 +162,10 @@ def _centred(level: pd.Series, half: int, per_year: int) -> pd.Series:
     return out
 
 
-def _windowed(level: pd.Series, years: int, per_year: int, align: str) -> pd.Series:
+def _windowed(level: pd.Series, years: float, per_year: int, align: str) -> pd.Series:
     """% a year over `years`, centred on each period or starting in it
     (forward)."""
-    n = years * per_year
+    n = int(round(years * per_year))
     if align == "centered":
         return _centred(level, n // 2, per_year)
     level = level.dropna()
@@ -174,19 +190,24 @@ def _averaged(level: pd.Series, small: int, big: int, align: str, per_year: int)
     return out
 
 
-def window_months(years: int, align: str, measure: str = "endpoints") -> int:
+def _small_big(years: float, align: str) -> tuple[int, int]:
+    """Small and big windows, in months, for the averaged measure."""
+    return AVERAGED.get((years, align), (12, int(round(12 * years))))
+
+
+def window_months(years: float, align: str, measure: str = "endpoints") -> int:
     """How many months a label's window spans."""
-    return AVERAGED[(years, align)][1] if measure == "averaged" else 12 * years
+    return _small_big(years, align)[1] if measure == "averaged" else int(round(12 * years))
 
 
-def _measure(level: pd.Series, years: int, per_year: int, align: str, measure: str) -> pd.Series:
+def _measure(level: pd.Series, years: float, per_year: int, align: str, measure: str) -> pd.Series:
     if measure == "endpoints":
         return _windowed(level, years, per_year, align)
-    small, big = AVERAGED[(years, align)]
+    small, big = _small_big(years, align)
     return _averaged(level, small * per_year // 12, big * per_year // 12, align, per_year)
 
 
-def growth_parts(gdp: pd.Series, potential: pd.Series, years: int = 1,
+def growth_parts(gdp: pd.Series, potential: pd.Series, years: float = 1,
                  align: str = "centered", measure: str = "endpoints") -> pd.DataFrame:
     """Real GDP and CBO potential growth, % a year over the window around (or
     starting in) each quarter, placed on the quarter's middle month and
@@ -208,7 +229,7 @@ def growth_parts(gdp: pd.Series, potential: pd.Series, years: int = 1,
     return out
 
 
-def axes(m: pd.DataFrame, years: int = 1, align: str = "centered",
+def axes(m: pd.DataFrame, years: float = 1, align: str = "centered",
          measure: str = "endpoints") -> pd.DataFrame:
     """Growth and inflation gap per month, with every input in its own units so
     a reader can check them."""
@@ -271,12 +292,12 @@ def primary(ax: pd.DataFrame, growth_band: float = GROWTH_BAND,
     })
 
 
-def build(m: pd.DataFrame, start: str = "1980-01", years: int = 1, align: str = "centered",
-          measure: str = "endpoints") -> pd.DataFrame:
+def build(m: pd.DataFrame, start: str = "1980-01", years: float = 1, align: str = "centered",
+          measure: str = "endpoints", min_months: int = MIN_MONTHS) -> pd.DataFrame:
     """One row per month from `start`: the inputs, both gaps and the label."""
     ax = axes(m, years, align, measure)
     span = window_months(years, align, measure) / 12
-    out = ax.join(primary(ax, band(span, GROWTH_BAND), band(span, INFLATION_BAND)), how="inner")
+    out = ax.join(primary(ax, band(span, GROWTH_BAND), band(span, INFLATION_BAND), min_months), how="inner")
     out = out[out.index >= pd.Period(start, "M")]
     out["recession"] = recession_months(out.index)
     # Half-complete windows are not enough to call a turn: one weak quarter at

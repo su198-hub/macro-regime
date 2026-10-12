@@ -8,9 +8,10 @@ what the record shows follow underneath.
 
 Two controls: which label (the nowcast, the regime at the time; or a forward
 label, the regime of the next three or five years with perfect foresight) and
-how growth and inflation are measured over the window (start to end, or
-averaged). Forward labels answer a different question, so they are checked
-against what followed rather than against episodes.
+which version (standard, or steadier: an 18-month window with a 6-month
+minimum regime for the nowcast, the averaged measure for the forward labels).
+Forward labels answer a different question, so they are checked against what
+followed rather than against episodes.
 Notes are written for the adopted method and only appear with it.
 """
 
@@ -37,24 +38,26 @@ def inputs(version: str) -> pd.DataFrame | None:
 
 
 @st.cache_data(ttl=900, show_spinner="Labeling every month since 1980…")
-def labels(version: str, years: int, align: str, measure: str = "endpoints") -> pd.DataFrame | None:
+def labels(version: str, years: float, align: str, measure: str = "endpoints",
+           min_months: int = truth.MIN_MONTHS) -> pd.DataFrame | None:
     m = inputs(version)
-    return None if m is None else truth.build(m, years=years, align=align, measure=measure)
+    return None if m is None else truth.build(m, years=years, align=align, measure=measure,
+                                              min_months=min_months)
 
 
 @st.cache_data(ttl=900, show_spinner="Comparing labels…")
 def comparison(version: str) -> pd.DataFrame:
     base = labels(version, **truth.DEFAULT)
     rows = []
-    for view, cfg in truth.VIEWS.items():
-        years, align = cfg["years"], cfg["align"]
-        for measure in truth.MEASURES:
-            lab_ = labels(version, years, align, measure)
+    for view in truth.VIEWS:
+        for kind, cfg in truth.VERSIONS[view].items():
+            years, align = cfg["years"], cfg["align"]
+            lab_ = labels(version, **cfg)
             sp_ = truth.spells(lab_)
             ep_ = truth.episode_check(lab_)
             down_ = lab_["label"].isin(["stagflation", "hard_landing"])
             rows.append({
-                "view": view, "years": years, "align": align, "measure": measure, "periods": len(sp_),
+                "view": view, "kind": kind, "cfg": cfg, "years": years, "periods": len(sp_),
                 "median": sp_["months"].median(), "recessions": down_[lab_["recession"]].mean(),
                 "episodes": int((ep_["share"] >= 0.5).sum()), "of": len(ep_),
                 "same": (lab_["label"].reindex(base.index) == base["label"]).mean(),
@@ -81,10 +84,14 @@ st.html('<h1 class="mr-title">Regime history</h1>'
 st.html('<hr class="mr-rule">')
 refresh_button()
 
-WINDOW_NAME = {1: "1 year", 3: "3 years", 5: "5 years"}
+WINDOW_NAME = {1: "1 year", 1.5: "18 months", 3: "3 years", 5: "5 years"}
 VIEW_NAME = {"now": "Nowcast: the regime at the time", "next3": "Forward: the next 3 years",
              "next5": "Forward: the next 5 years"}
-MEASURE_NAME = {"endpoints": "Start to end of the window", "averaged": "Averaged across the window"}
+VERSION_NAME = {
+    "now": {"standard": "Standard: 12 months, 3-month minimum", "steadier": "Steadier: 18 months, 6-month minimum"},
+    "next3": {"standard": "Standard: start to end", "steadier": "Steadier: averaged across the window"},
+    "next5": {"standard": "Standard: start to end", "steadier": "Steadier: averaged across the window"},
+}
 ADOPTED = " (adopted)"
 
 with st.container(border=True):
@@ -94,16 +101,21 @@ with st.container(border=True):
     c1, c2 = st.columns(2)
     view = c1.radio("Label", list(truth.VIEWS), key="hist_view",
                     format_func=lambda v: VIEW_NAME[v] + (ADOPTED if v == "now" else ""))
-    measure = c2.radio("Measure", truth.MEASURES, key="hist_measure",
-                       format_func=lambda x: MEASURE_NAME[x] + (ADOPTED if x == truth.DEFAULT["measure"] else ""))
-years, align = truth.VIEWS[view]["years"], truth.VIEWS[view]["align"]
-METHOD = {"years": years, "align": align, "measure": measure}
+    kind = c2.radio("Version", ["standard", "steadier"], key="hist_version",
+                    format_func=lambda k: k.capitalize())
+    c2.html('<p class="mr-caption" style="margin:0">' + "<br>".join(
+        f"<b>{VERSION_NAME[view][k].split(':')[0]}</b>:{VERSION_NAME[view][k].split(':', 1)[1]}"
+        + (ADOPTED if truth.VERSIONS[view][k] == truth.DEFAULT
+           else " (proposed)" if (view, k) == ("now", "steadier") else "")
+        for k in ("standard", "steadier")) + "</p>")
+METHOD = truth.VERSIONS[view][kind]
+years, align, measure, min_months = METHOD["years"], METHOD["align"], METHOD["measure"], METHOD["min_months"]
 FORWARD = align == "forward"
 _span = truth.window_months(years, align, measure) / 12
 GB, IB = truth.band(_span, truth.GROWTH_BAND), truth.band(_span, truth.INFLATION_BAND)
 IS_DEFAULT = METHOD == truth.DEFAULT
 
-lab = labels(data_version(), years, align, measure)
+lab = labels(data_version(), **METHOD)
 if lab is None:
     st.html('<div class="mr-custom"><b>No regime history in this store yet.</b> Build it on the '
             'desk machine, then publish:<br><code>python ingest.py --db '
@@ -116,12 +128,12 @@ sp["note"] = ([" ".join(v for k, v in NOTES.items() if s <= k <= e) for s, e in 
               if IS_DEFAULT else "")
 
 # Words for the method shown, used in every sentence that describes it.
-G_WIN = {1: "four quarters", 3: "three years", 5: "five years"}[years]
-I_WIN = {1: "12 months", 3: "three years", 5: "five years"}[years]
+G_WIN = {1: "four quarters", 1.5: "18 months", 3: "three years", 5: "five years"}[years]
+I_WIN = {1: "12 months", 1.5: "18 months", 3: "three years", 5: "five years"}[years]
 WHERE = {"centered": "centered on the month", "forward": "starting in the month"}[align]
 SPAN = truth.window_months(years, align, measure)
 if measure == "averaged":
-    SMALL = truth.AVERAGED[(years, align)][0]
+    SMALL = truth._small_big(years, align)[0]
     SMALL_WORD = {12: "12-month", 24: "two-year"}[SMALL]
     BIG_WORD = {18: "18 months", 36: "three years", 60: "five years"}[SPAN]
     G_DESC = I_DESC = f"averaged over every {SMALL_WORD} change within the {BIG_WORD} {WHERE}"
@@ -155,7 +167,7 @@ st.html(ui.section_head("The record", caption=
         "The regime each month, then the two inputs behind it, shaded by regime. Growth is up when "
         "GDP runs above the potential line; inflation is high when core PCE runs above the inflation "
         "benchmark. Pick a period to zoom in and see its numbers."))
-pick = st.selectbox("Check a period", options, index=0, key=f"hist_period_{years}_{align}_{measure}")
+pick = st.selectbox("Check a period", options, index=0, key=f"hist_period_{view}_{kind}")
 sel = None if pick == ALL else sp.iloc[options.index(pick) - 1]
 
 if sel is not None:
@@ -284,7 +296,7 @@ how = [
     + (", averaged over the same window" if SPAN > 12 else "")
     + f". Above +{IB:.2f} points is high; below −{IB:.2f} is low.",
     f"<b>Regime</b> is the combination of the two. Inside the ±{GB:.2f} bands an axis keeps its previous "
-    f"reading, and a regime must last {truth.MIN_MONTHS} months to count.",
+    f"reading, and a regime must last {min_months} months to count.",
     "<b>Updates:</b> every month is relabeled from the latest revised data whenever the dashboard "
     "data is refreshed. GDP and the survey are quarterly; core PCE is monthly."
     + (f" Months from {when(first_prov)} on are provisional until their windows fill, and keep the "
@@ -359,18 +371,18 @@ for e in miss.to_dict("records"):
 
 cmp = comparison(data_version())
 st.html(ui.section_head("Compare labels", caption=
-        "Each label with each measure, scored the same way. Episodes use the readings in the table above."))
+        "Each label in its standard and steadier version, scored the same way. Episodes use the readings "
+        "in the table above."))
 
 
 def tag(r) -> str:
-    this = {"years": r.years, "align": r.align, "measure": r.measure}
-    tags = [t for t, on in (("adopted", this == truth.DEFAULT), ("shown", this == METHOD)) if on]
-    return ("Start to end" if r.measure == "endpoints" else "Averaged") + (f" ({', '.join(tags)})" if tags else "")
+    tags = [t for t, on in (("adopted", r.cfg == truth.DEFAULT), ("shown", r.cfg == METHOD)) if on]
+    return VERSION_NAME[r.view][r.kind] + (f" ({', '.join(tags)})" if tags else "")
 
 
 now_rows = cmp[cmp["view"] == "now"]
 st.html('<p class="mr-caption"><b>Nowcast: the regime at the time</b></p>')
-st.html(ui.table(["Measure", "Periods", "Median months", "Recession months growth down",
+st.html(ui.table(["Version", "Periods", "Median months", "Recession months growth down",
                   "Episodes matched", "Same as adopted", "Provisional months"],
                  [[tag(r), r.periods, f"{r.median:.0f}", f"{r.recessions:.0%}", f"{r.episodes} of {r.of}",
                    f"{r.same:.0%}", r.provisional]
@@ -380,15 +392,17 @@ st.html('<p class="mr-caption" style="margin-top:1rem"><b>Forward: the regime of
         'Scored against what followed, not against episodes. The band shrinks with the window, '
         f'to ±{truth.band(3):.2f} points for 3 years and ±{truth.band(5):.2f} for 5, since an average over '
         'more years moves less.</p>')
-st.html(ui.table(["Window", "Measure", "Periods", "Median months", "Labels end", "Matches what followed"],
+st.html(ui.table(["Window", "Version", "Periods", "Median months", "Labels end", "Matches what followed"],
                  [[WINDOW_NAME[r.years], tag(r), r.periods, f"{r.median:.0f}", when(r.end),
                    f"{r.followed:.0%}"] for r in fwd_rows.itertuples()],
                  numeric={2, 3, 5}))
-st.html('<p class="mr-caption"><b>Averaged</b> takes every overlapping change inside the window and averages '
-        'them, so one unusual month at the start or end counts once among many: 12-month changes within 18 '
-        'months for the nowcast, 12-month changes within 3 years and two-year changes within 5 years for the '
-        'forward labels. Averaging back-to-back yearly changes would not help, since chained together they '
-        'collapse to the start and end points again.</p>')
+st.html('<p class="mr-caption"><b>Steadier nowcast:</b> an 18-month window, start to end, with every regime '
+        'held at least 6 months. Of 27 versions tested (windows of 12 to 36 months, start to end or averaged, '
+        'minimum regime of 3, 6 or 9 months), it is the steadiest that still matches 10 of 11 episodes, catches '
+        'at least 95% of recession months and leaves no more than 12 months provisional. Every window of 24 '
+        'months or more failed the episode check. <b>Steadier forward labels</b> average every overlapping '
+        'change inside the window (12-month changes within 3 years, two-year changes within 5 years), so one '
+        'unusual month at the start or end counts once among many.</p>')
 
 # ---------- periods and months ----------
 
@@ -419,7 +433,7 @@ monthly["Provisional reading"] = monthly["Provisional reading"].map(NAME).where(
 monthly.index = monthly.index.strftime("%Y-%m")
 monthly.index.name = "Month"
 shown = monthly.loc[str(lo):str(hi)] if sel is not None else monthly
-SUFFIX = "" if IS_DEFAULT else f"_{years}y_{align}_{measure}"
+SUFFIX = "" if IS_DEFAULT else f"_{view}_{kind}"
 st.html(ui.section_head("Monthly data", meta=f"{len(shown)} months shown"))
 with st.expander("Show the monthly inputs" + (" for the period picked" if sel is not None else ""),
                  expanded=sel is not None):
@@ -457,7 +471,7 @@ st.html(
     "Months where either gap sits inside its band are marked weak.</li>"
     "<li><b>Regime.</b> Growth up and inflation low is goldilocks; up and high is high growth, high "
     "inflation; down and high is stagflation; down and low is hard landing.</li>"
-    f"<li><b>Persistence.</b> A regime must hold {truth.MIN_MONTHS} months. A shorter spell takes the "
+    f"<li><b>Persistence.</b> A regime must hold {min_months} months. A shorter spell takes the "
     "label of the period before it.</li>"
     "<li><b>Recessions</b> are not forced into any regime. They appear as growth down because GDP fell "
     "below potential; whether that is stagflation or hard landing depends on inflation.</li>"
@@ -468,10 +482,12 @@ st.html(
     "it keeps the last confirmed one until its window fills. Labels run to the last month GDP "
     "covers.</li>"
     "</ol>"
-    "<p><b>Averaged measure.</b> Instead of the change from the start of the window to its end, it "
-    "averages every overlapping 12-month change inside the window (two-year changes for the 5-year "
-    "forward label), so a volatile first or last month carries less weight. The nowcast version uses an "
-    "18-month window, so its latest 9 months are provisional.</p>"
+    "<p><b>Steadier versions.</b> The steadier nowcast measures growth and inflation over 18 months "
+    "centered on the month (9 either side) and holds every regime at least 6 months; its band is "
+    "±0.41 points and its latest 9 months are provisional. It was picked from 27 versions as the steadiest "
+    "that still gets history right (scripts/window_sweep.py). The steadier forward labels average every "
+    "overlapping change inside the window instead of taking start to end, so a volatile first or last "
+    "month carries less weight.</p>"
     "<p><b>Other labels on this page.</b> A forward label marks each month with the regime of the "
     "next three or five years: growth and inflation over the window starting in the month, with "
     "perfect foresight. It is the yardstick for asking what the signposts said about the years ahead, "

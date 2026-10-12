@@ -114,3 +114,19 @@ def test_back_to_back_changes_chain_to_the_endpoints():
     lvl = pd.Series([100, 101.6, 103.2, 108.7], index=months("2000-01", 4))
     chained = np.prod([lvl.iloc[k + 1] / lvl.iloc[k] for k in range(3)])
     assert abs(chained - lvl.iloc[3] / lvl.iloc[0]) < 1e-12
+
+
+def test_steadier_nowcast_is_an_18_month_window_with_a_6_month_minimum():
+    steady = truth.VERSIONS["now"]["steadier"]
+    assert truth.window_months(steady["years"], steady["align"], steady["measure"]) == 18
+    assert steady["min_months"] == 6
+    assert truth.VERSIONS["now"]["standard"] == truth.DEFAULT
+
+
+def test_minimum_regime_length_absorbs_short_spells():
+    idx = months("2000-01", 16)
+    ax = pd.DataFrame({"growth": [1.0] * 6 + [-1.0] * 4 + [1.0] * 6, "inflation": [-1.0] * 16}, index=idx)
+    three = truth.primary(ax, 0.5, 0.5, 3)["label"].tolist()
+    six = truth.primary(ax, 0.5, 0.5, 6)["label"].tolist()
+    assert three[6:10] == ["hard_landing"] * 4
+    assert six == ["goldilocks"] * 16
