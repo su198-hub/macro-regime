@@ -131,3 +131,15 @@ def test_rich_bolds_marked_text_and_escapes_the_rest():
     assert rich("**Changes in potential growth**: a <b>raw</b> tag") == \
         "<b>Changes in potential growth</b>: a &lt;b&gt;raw&lt;/b&gt; tag"
     assert rich("no markers") == "no markers"
+
+
+def test_cached_results_are_keyed_on_what_the_config_says(tmp_path):
+    """Renaming a signpost must change the cache key, or results cached under
+    the old config are served beside the new one after a deploy."""
+    from views.common import config_stamp
+    ind, reg = tmp_path / "ind.yml", tmp_path / "reg.yml"
+    ind.write_text("drivers: {fiscal_sustainability: {}}\n")
+    reg.write_text("regimes: {}\n")
+    before = config_stamp(str(ind), str(reg))
+    ind.write_text("drivers: {fiscal: {}}\n")
+    assert config_stamp(str(ind), str(reg)) != before

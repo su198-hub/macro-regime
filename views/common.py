@@ -10,6 +10,7 @@ Where the data comes from, in order:
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
 import os
 import tempfile
 from pathlib import Path
@@ -164,7 +165,7 @@ def overrides_active() -> int:
 # history many times over.
 @st.cache_data(ttl=900, max_entries=8, show_spinner="Rescoring the model…")
 def _results_for(vintage: dt.date, version: str, overrides: str = "{}",
-                 indicators: str = "", regimes: str = ""):
+                 indicators: str = "", regimes: str = "", config_stamp: str = ""):
     store = _store_for(version)
     cfg, reg = ov.apply(load_config(indicators), load_regimes(regimes), ov.parse(overrides))
     res = compute(store, cfg, vintage)
@@ -233,7 +234,25 @@ def get_results(vintage: dt.date, use_overrides: bool = True):
     signature = ov.signature(get_overrides()) if use_overrides else "{}"
     here = country()
     return _results_for(vintage, data_version(), signature,
-                        here["indicators"], here["regimes"])
+                        here["indicators"], here["regimes"],
+                        config_stamp(here["indicators"], here["regimes"]))
+
+
+def config_stamp(*paths: str) -> str:
+    """A fingerprint of the config files' contents, for cache keys.
+
+    The cached results are keyed on what the files say, not just their names:
+    after a deploy that renamed a signpost, results cached under the old file
+    would otherwise be served beside the new config for up to the cache's
+    lifetime, and the page would look up a signpost that is not there.
+    """
+    h = hashlib.sha1()
+    for path in paths:
+        try:
+            h.update(Path(path).read_bytes())
+        except OSError:
+            h.update(path.encode())
+    return h.hexdigest()[:12]
 
 
 def is_demo(store) -> bool:
