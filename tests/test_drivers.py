@@ -116,3 +116,12 @@ def test_missing_indicator_is_excluded_and_weights_renormalise():
     assert parts.at["a", "share"] == pytest.approx(1.0)
     assert parts["contribution"].sum() == pytest.approx(
         driver_scores(CFG, w).at[month, "demand"])
+
+
+def test_a_derived_step_built_on_another_step_is_not_fetched():
+    from src.drivers import required_series
+    cfg = {"drivers": {"fiscal": {"indicators": [{"id": "x", "source": {
+        "expr": "a_growth", "series": ["RECEIPTS"],
+        "derived": {"a_12m": {"series": "RECEIPTS", "transform": "sum_12m"},
+                    "a_growth": {"series": "a_12m", "transform": "pct_change_3y_ann"}}}}]}}}
+    assert required_series(cfg) == ["RECEIPTS"]

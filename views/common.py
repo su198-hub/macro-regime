@@ -27,6 +27,7 @@ from src.store import Store
 REPO_URL = "https://github.com/su198-hub/macro-regime"
 SNAPSHOT_CHECK_SECONDS = 600
 COUNTRY_KEY = "mr_country"
+FRAMEWORK_KEY = "mr_framework"
 
 
 @st.cache_data(ttl=300, show_spinner=False)
@@ -35,8 +36,18 @@ def registry() -> dict:
 
 
 def country() -> dict:
-    """The country being viewed: code, label and its three config paths."""
-    return ctry.resolve(registry(), st.session_state.get(COUNTRY_KEY))
+    """The country being viewed: code, label, framework and its config paths."""
+    return ctry.resolve(registry(), st.session_state.get(COUNTRY_KEY),
+                        framework=st.session_state.get(FRAMEWORK_KEY))
+
+
+def settings_key() -> str:
+    """Where this country and framework's settings are kept: the country code
+    for the default framework, so existing sessions and links keep working, and
+    code:framework for any other, because a weight on one framework's
+    indicator means nothing in another's."""
+    here = country()
+    return here["code"] if here["framework"] == here["default_framework"] else f'{here["code"]}:{here["framework"]}'
 
 
 # Paths of the country in view. Read through these, never hard-coded, so a
@@ -117,13 +128,13 @@ def get_overrides() -> dict:
     """
     cfg, reg = base_config()
     held = st.session_state.get(OVERRIDE_KEY) or {}
-    return ov.clean(held.get(country()["code"]), cfg, reg)
+    return ov.clean(held.get(settings_key()), cfg, reg)
 
 
 def set_overrides(new: dict | None) -> None:
     cfg, reg = base_config()
     held = dict(st.session_state.get(OVERRIDE_KEY) or {})
-    held[country()["code"]] = ov.clean(new, cfg, reg)
+    held[settings_key()] = ov.clean(new, cfg, reg)
     st.session_state[OVERRIDE_KEY] = held
     # Results are cached per country and override signature, so nothing to
     # clear here.
@@ -243,8 +254,9 @@ def published_note() -> str:
 
 
 def country_picker(container=None, label_visibility: str = "visible") -> dict:
-    """The country menu. One live country still gets a menu, so the shape of
-    the page does not change when the second one lands.
+    """The country menu, and the framework menu under it when the country has
+    more than one. One live country still gets a menu, so the shape of the page
+    does not change when the second one lands.
 
     Planned countries are named underneath rather than listed as options: an
     option that leads to an empty dashboard is worse than a sentence.
@@ -256,6 +268,15 @@ def country_picker(container=None, label_visibility: str = "visible") -> dict:
                     format_func=lambda c: ctry.label(reg, c),
                     label_visibility=label_visibility,
                     help="Each country is scored from its own indicator set and centers.")
+    here = country()
+    if len(here["frameworks"]) > 1:
+        options = list(here["frameworks"])
+        if st.session_state.get(FRAMEWORK_KEY) not in options:
+            st.session_state[FRAMEWORK_KEY] = here["framework"]
+        where.selectbox("Framework", options, key=FRAMEWORK_KEY,
+                        format_func=lambda f: here["frameworks"][f],
+                        label_visibility=label_visibility,
+                        help="Which signposts the call is scored from, and where each scenario sits on them.")
     return country()
 
 

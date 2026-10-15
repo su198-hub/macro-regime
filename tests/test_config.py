@@ -17,9 +17,21 @@ SOURCES = yaml.safe_load(open("config/sources.yml"))
 DRIVERS = CFG["drivers"]
 ALL_IDS = [i["id"] for d in DRIVERS.values() for i in d["indicators"]]
 
+# Every indicator file the app can be switched to, and how many indicators a
+# signpost may carry in each. v2 follows the October 2026 slide's list in full
+# while it is on trial, so its growth signpost carries eight and its multiplier
+# axis two; trim it once the trial says which earn their place.
+CONFIGS = {"config/indicators.yml": (3, 6), "config/indicators_v2.yml": (2, 8)}
 
-def test_every_series_has_a_vendor_mapping():
-    missing = [s for s in required_series(CFG) if s not in SOURCES["series"]]
+
+@pytest.fixture(params=list(CONFIGS), ids=["v1", "v2"])
+def any_cfg(request):
+    return request.param, load_config(request.param)
+
+
+def test_every_series_has_a_vendor_mapping(any_cfg):
+    _, cfg = any_cfg
+    missing = [s for s in required_series(cfg) if s not in SOURCES["series"]]
     assert not missing, f"no sources.yml entry for {missing}"
 
 
@@ -29,49 +41,54 @@ def test_every_transform_has_wording_for_the_dashboard():
     assert not missing, f"no TRANSFORM_TEXT for {missing}"
 
 
-def test_every_indicator_names_a_known_transform():
-    for d in DRIVERS.values():
+def test_every_indicator_names_a_known_transform(any_cfg):
+    for d in any_cfg[1]["drivers"].values():
         for i in d["indicators"]:
             assert i.get("transform", "level") in TRANSFORMS, i["id"]
             for spec in (i["source"].get("derived") or {}).values():
                 assert spec.get("transform", "level") in TRANSFORMS, i["id"]
 
 
-def test_each_driver_keeps_between_three_and_six_indicators():
+def test_each_driver_keeps_a_list_a_reader_can_hold(any_cfg):
     """A reader has to be able to hold the list in their head."""
-    for name, d in DRIVERS.items():
-        assert 3 <= len(d["indicators"]) <= 6, f"{name} has {len(d['indicators'])}"
+    path, cfg = any_cfg
+    low, high = CONFIGS[path]
+    for name, d in cfg["drivers"].items():
+        assert low <= len(d["indicators"]) <= high, f"{name} has {len(d['indicators'])}"
 
 
-def test_weights_within_a_driver_sum_to_one():
+def test_weights_within_a_driver_sum_to_one(any_cfg):
     """Only ratios matter to the engine, but the file's convention is to sum to
     one so a reader can read a weight as a share."""
-    for name, d in DRIVERS.items():
+    for name, d in any_cfg[1]["drivers"].items():
         total = sum(float(i["weight"]) for i in d["indicators"])
         assert total == pytest.approx(1.0), f"{name} weights sum to {total}"
 
 
-def test_every_indicator_is_tagged_with_a_horizon_exactly_once():
-    listed = (CFG["meta"].get("horizons") or {})
+def test_every_indicator_is_tagged_with_a_horizon_exactly_once(any_cfg):
+    cfg = any_cfg[1]
+    all_ids = [i["id"] for d in cfg["drivers"].values() for i in d["indicators"]]
+    listed = (cfg["meta"].get("horizons") or {})
     tagged = [i for ids in listed.values() for i in (ids or [])]
     assert set(listed) <= {"short", "medium", "long"}, f"unknown horizon: {set(listed)}"
     assert sorted(tagged) == sorted(set(tagged)), "an indicator is tagged twice"
-    assert set(tagged) == set(ALL_IDS), (
-        f"untagged: {sorted(set(ALL_IDS) - set(tagged))}, "
-        f"unknown: {sorted(set(tagged) - set(ALL_IDS))}")
+    assert set(tagged) == set(all_ids), (
+        f"untagged: {sorted(set(all_ids) - set(tagged))}, "
+        f"unknown: {sorted(set(tagged) - set(all_ids))}")
 
 
-def test_every_driver_carries_something_slower_than_the_news():
+def test_every_driver_carries_something_slower_than_the_news(any_cfg):
     """A monthly monitor made only of fast data reports what just happened.
 
     Each driver keeps at least a third of its weight beyond the short horizon.
     """
-    for name in DRIVERS:
-        mix = ui.horizon_mix(CFG, name)
+    cfg = any_cfg[1]
+    for name in cfg["drivers"]:
+        mix = ui.horizon_mix(cfg, name)
         assert mix["medium"] + mix["long"] >= 0.33, f"{name} is {mix['short']:.0%} short-horizon"
 
 
-def test_long_horizon_inputs_are_never_raw_levels_by_accident():
+def test_long_horizon_inputs_are_never_raw_levels_by_accident(any_cfg):
     """A level against a fixed center can end up scoring which decade it is.
 
     A long-horizon input must therefore be a change, a deviation from its own
@@ -89,13 +106,16 @@ def test_long_horizon_inputs_are_never_raw_levels_by_accident():
     import yaml
     derived = {k for k, v in (yaml.safe_load(open("config/sources.yml"))["series"] or {}).items()
                if (v or {}).get("use") == "derived"}
-    horizon = ui.horizons(CFG)
+    cfg = any_cfg[1]
+    horizon = ui.horizons(cfg)
     # Dispersion and share-of-time statistics belong here too: a rolling
     # standard deviation, or a count of months spent off target, is already
     # detrended and cannot score which decade it is the way a raw level can.
+    # So do averages of a growth rate and deviations from a trailing norm.
     changes = {"yoy_pct", "diff_12m", "dev_5y_pct", "pct_change_5y_ann",
-               "pct_change_3m_ann", "diff_36m_ann", "vol_36m", "off_target_share_36m"}
-    for d in DRIVERS.values():
+               "pct_change_3m_ann", "diff_36m_ann", "vol_36m", "off_target_share_36m",
+               "pct_change_3y_ann", "mean_5y", "dev_10y", "target_distance_change_12m"}
+    for d in cfg["drivers"].values():
         for i in d["indicators"]:
             if horizon.get(i["id"]) != "long":
                 continue

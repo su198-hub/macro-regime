@@ -359,6 +359,44 @@ series:
     note: >-
       Revision to CBO's five-year-ahead potential labor force between
       consecutive projections, in log percent.
+  # For the v2 signposts (config/indicators_v2.yml).
+  CBO_POTGROWTH_REV:
+    use: derived
+    derived_from: usfcst1985
+    note: >-
+      Revision to CBO's projected potential GDP growth over the next five
+      years between consecutive projections, in points a year.
+  SPF10PROD:
+    macrobond: usfcst0723
+    note: SPF mean expected productivity growth over the next ten years. Asked once a year.
+  TFPUA:
+    macrobond: uslama6805
+    note: >-
+      Utilization-adjusted total factor productivity, quarterly change at an
+      annual rate. San Francisco Fed (Fernald).
+  MTSRECEIPTS:
+    macrobond: usgpfi0049
+    note: Federal budget receipts, monthly, USD (Monthly Treasury Statement).
+  MTSOUTLAYS:
+    macrobond: usgpfi0052
+    note: Federal budget outlays, monthly, USD (Monthly Treasury Statement).
+  OECD_CAPB:
+    macrobond: oecd_econ_00007399
+    note: >-
+      Cyclically adjusted general government primary balance, % of potential
+      GDP, annual. OECD Economic Outlook; the latest years are its estimates.
+  FEDGROSSINV:
+    macrobond: usgpfi0255
+    note: Federal government gross investment, quarterly, SAAR, USD (BEA).
+  FEDEXPEND:
+    macrobond: usgpfi0254
+    note: Federal government total expenditures, quarterly, SAAR, USD (BEA).
+  FEDTRANSFERS:
+    macrobond: usgpfi0237
+    note: Federal government current transfer payments, quarterly, SAAR, USD (BEA).
+  NONRESSHARE:
+    macrobond: usnaac0569
+    note: Private nonresidential fixed investment, % of GDP, quarterly (BEA).
   # Built by `ingest.py energy` from the energy page (config/energy.yml), whose
   # inputs are all public: EIA, Census, BEA and BLS via FRED, the GPR index.
   # backfill and sync skip it; run `ingest.py energy` to refresh it.

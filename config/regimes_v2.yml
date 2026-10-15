@@ -1,0 +1,138 @@
+# The v2 scenarios, placed on the v2 signposts (config/indicators_v2.yml).
+#
+# Positions are read off the October 2026 slide "Regime: Scenario
+# Drivers/Signposts (v2)". Each row there has the two poles and five columns
+# between them; the poles are -1 and +1 and the columns sit at -0.67, -0.33,
+# 0, +0.33 and +0.67, left to right. Where the slide puts two scenarios in one
+# cell (HL / STF, Baseline / HGHI), both take that position.
+#
+# Scores run from the slide's left pole to its right: weak to strong growth,
+# inflation de-anchored lower to higher, credibility lost to kept, fiscal
+# unsustainable to sustainable and low to high multiplier, reforms reactive to
+# proactive.
+#
+# These are the slide's judgments, not estimates. Against the labeled history
+# on the Regime history page only the four growth-inflation regimes can be
+# checked: Baseline has no counterpart there.
+
+settings:
+  temperature: 0.30
+  persistence_months: 3
+  min_confidence: 0.35
+  fit_gate: closer_than_neutral
+  fit_tolerance: 1.25
+
+driver_salience:
+  growth: 1.0
+  inflation: 1.0
+  monetary: 1.0
+  fiscal_sustainability: 0.5
+  fiscal_multiplier: 0.5
+  reforms: 1.0
+
+rationale:
+  driver_salience:
+    growth: >-
+      Full weight. The slide's first signpost, and the one that separates
+      goldilocks from the rest.
+    inflation: >-
+      Full weight. Whether the anchor holds separates high growth, high
+      inflation from goldilocks, and stagflation from a hard landing.
+    monetary: >-
+      Full weight. Credibility is what decides whether an inflation shock
+      becomes stagflation.
+    fiscal_sustainability: >-
+      Half weight, so the two fiscal axes together count as one signpost, as
+      on the slide.
+    fiscal_multiplier: >-
+      Half weight, as the other half of fiscal. Its indicators are proposed
+      rather than taken from the slide.
+    reforms: >-
+      Full weight. Read through private investment, so it measures the
+      response to policy rather than the policy itself.
+  settings:
+    temperature: >-
+      0.30, as in v1: the nearest scenario leads clearly without hiding the
+      runner-up.
+    persistence_months: >-
+      Three months, as in v1.
+    min_confidence: >-
+      0.35. With five scenarios an even split is 20% each, so 35% still means
+      one stands out.
+    fit_gate: >-
+      On, as in v1. Baseline sits nearer the middle than any v1 regime, so
+      fewer months should fail it.
+    fit_tolerance: >-
+      1.25, as in v1, not yet re-tuned for five scenarios.
+
+regimes:
+
+  baseline:
+    label: Baseline
+    short: BSL
+    color: "#4a5a7a"
+    description: Growth constrained by supply-side bottlenecks; sticky prices strain inflation anchors.
+    archetype:
+      growth: 0.00
+      inflation: 0.33
+      monetary: 0.67
+      fiscal_sustainability: 0.33
+      fiscal_multiplier: 0.00
+      reforms: 0.00
+    tell: Growth near trend, inflation a little above target, a credible central bank.
+
+  goldilocks:
+    label: Goldilocks
+    short: GLD
+    color: "#008300"
+    description: A virtuous cycle of investment and returns raises labor productivity; expectations stay anchored.
+    archetype:
+      growth: 0.67
+      inflation: 0.00
+      monetary: 0.67
+      fiscal_sustainability: 0.67
+      fiscal_multiplier: 0.67
+      reforms: 0.67
+    tell: Productivity and capex plans rising together with expectations at target.
+
+  high_growth_high_inflation:
+    label: High growth, high inflation
+    short: HGHI
+    color: "#2a78d6"
+    description: Public investment crowds in private; policymakers allow "good" inflation and expectations drift higher.
+    archetype:
+      growth: 0.33
+      inflation: 0.33
+      monetary: 0.33
+      fiscal_sustainability: 0.33
+      fiscal_multiplier: 0.33
+      reforms: 0.33
+    tell: Investment strong and inflation above target, with credibility stretched.
+
+  stagflation:
+    label: Stagflation
+    short: STF
+    color: "#e34948"
+    description: Growth strongly constrained by supply shocks; high realizations unanchor expectations.
+    archetype:
+      growth: -0.67
+      inflation: 0.67
+      monetary: -0.67
+      fiscal_sustainability: -0.67
+      fiscal_multiplier: -0.67
+      reforms: -0.67
+    tell: Expectations rising while credibility and the debt trajectory both weaken.
+
+  hard_landing:
+    label: Hard landing
+    short: HL
+    color: "#eda100"
+    description: Strong investment not matched by strong returns; deflationary pressure de-anchors expectations lower.
+    archetype:
+      growth: -0.67
+      inflation: -0.67
+      monetary: -0.33
+      fiscal_sustainability: 0.00
+      fiscal_multiplier: -0.67
+      reforms: -0.67
+    tell: Expectations falling below target while growth prospects weaken.

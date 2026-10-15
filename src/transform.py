@@ -117,8 +117,54 @@ def vol_36m(s: pd.Series) -> pd.Series:
     return infl.rolling(n, min_periods=n).std()
 
 
+def pct_change_3y_ann(s: pd.Series) -> pd.Series:
+    """Annualized growth over three years: the pace over a policy cycle, as for
+    revenue against spending, or nominal GDP in r minus g."""
+    n = 3 * _periods_per_year(s)
+    return ((s / s.shift(n)) ** (1 / 3) - 1) * 100
+
+
+def mean_5y(s: pd.Series) -> pd.Series:
+    """Trailing five-year average of a rate, such as quarterly productivity
+    growth: the average pace rather than the latest, noisy reading. Reports
+    once four of the five years are in."""
+    n = 5 * _periods_per_year(s)
+    return s.rolling(n, min_periods=int(n * 0.8)).mean()
+
+
+def mean_36m(s: pd.Series) -> pd.Series:
+    """Trailing three-year average, for a stance judged on its track record
+    rather than this month's reading: the Taylor gap averaged over a cycle."""
+    n = 3 * _periods_per_year(s)
+    return s.rolling(n, min_periods=n).mean()
+
+
+def dev_10y(s: pd.Series) -> pd.Series:
+    """Points above the series' own trailing ten-year average, for a share that
+    drifts over decades, such as business investment as a share of GDP. Needs
+    six years of history before it reports."""
+    n = 10 * _periods_per_year(s)
+    return s - s.rolling(n, min_periods=int(n * 0.6)).mean()
+
+
+def target_distance_change_12m(s: pd.Series) -> pd.Series:
+    """Change over a year in how far inflation sits from 2%, in points.
+
+    Takes a price index. Positive when inflation is moving away from target,
+    negative when it is converging: the trajectory half of credibility, which a
+    miss rate alone cannot see -- a bank three points off and closing is in a
+    different position from one three points off and drifting."""
+    dist = (_inflation(s) - 2.0).abs()
+    return dist - dist.shift(_periods_per_year(s))
+
+
 TRANSFORMS = {
     "level": level,
+    "pct_change_3y_ann": pct_change_3y_ann,
+    "mean_5y": mean_5y,
+    "mean_36m": mean_36m,
+    "dev_10y": dev_10y,
+    "target_distance_change_12m": target_distance_change_12m,
     "yoy_pct": yoy_pct,
     "pct_change_3m_ann": pct_change_3m_ann,
     "diff_12m": diff_12m,

@@ -180,11 +180,11 @@ def refuse_demo_store(store: Store, db: str) -> None:
 
 
 def _pull(args, full_history: bool):
-    cfg = load_config(args.config)
     sources = load_sources(args.sources)
     store = Store(args.db)
     refuse_demo_store(store, args.db)
-    series = required_series(cfg)
+    series = sorted({s for path in getattr(args, "configs", None) or [args.config]
+                     for s in required_series(load_config(path))})
     if args.only:
         wanted = {s.strip() for s in args.only.split(",") if s.strip()}
         unknown = wanted - set(series)
@@ -680,6 +680,10 @@ def main():
     args = p.parse_args()
     from src.countries import load_registry, resolve
     here = resolve(load_registry(), args.country, strict=args.country is not None)
+    # backfill and sync fetch what every framework of the country needs, so
+    # switching framework on the page never finds a series that was not kept
+    # up to date. An explicit --config narrows that to the one file.
+    args.configs = [args.config] if args.config else here["all_indicators"]
     args.config = args.config or here["indicators"]
     args.sources = args.sources or here["sources"]
     args.func(args)

@@ -71,3 +71,23 @@ def test_a_registry_with_no_countries_is_rejected(tmp_path):
     path.write_text("default: us\ncountries: {}\n")
     with pytest.raises(ValueError):
         ctry.load_registry(path)
+
+
+def test_frameworks_default_to_the_first_listed_and_fall_back_when_unknown():
+    here = ctry.resolve(REG, "us")
+    assert here["framework"] == here["default_framework"] == "v1"
+    assert here["indicators"] == "config/indicators.yml"
+    v2 = ctry.resolve(REG, "us", framework="v2")
+    assert (v2["indicators"], v2["regimes"]) == ("config/indicators_v2.yml", "config/regimes_v2.yml")
+    assert ctry.resolve(REG, "us", framework="nonsense")["framework"] == "v1"
+    assert set(here["all_indicators"]) == {"config/indicators.yml", "config/indicators_v2.yml"}
+
+
+def test_every_framework_loads_and_its_scenarios_cover_its_signposts():
+    for code in ctry.live_codes(REG):
+        for fw in ctry.frameworks(REG, code):
+            here = ctry.resolve(REG, code, framework=fw)
+            cfg, reg = load_config(here["indicators"]), load_regimes(here["regimes"])
+            for name, spec in reg["regimes"].items():
+                assert set(spec["archetype"]) == set(cfg["drivers"]), f"{code}/{fw}/{name}"
+            assert set(reg["driver_salience"]) == set(cfg["drivers"]), f"{code}/{fw}"

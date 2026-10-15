@@ -1046,6 +1046,11 @@ TRANSFORM_TEXT = {
     "diff_36m_ann": "Change over 3 years, per year",
     "off_target_share_36m": "Share of the last 3 years with inflation outside 1.5-2.5%",
     "vol_36m": "Volatility of inflation over the last 3 years",
+    "pct_change_3y_ann": "Change over 3 years, annualized %",
+    "mean_5y": "Average over the last 5 years",
+    "mean_36m": "Average over the last 3 years",
+    "dev_10y": "Points above its own ten-year average",
+    "target_distance_change_12m": "Change over a year in inflation's distance from 2%",
 }
 UP, DOWN = "#e34948", "#2a78d6"   # diverging poles: pushes the driver up / down
 

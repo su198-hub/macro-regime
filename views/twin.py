@@ -24,7 +24,8 @@ from src import ui
 from src.drivers import compute, load_config
 from src.regimes import load_regimes, run
 from src.store import Store
-from views.common import INDICATORS, REGIMES
+from src import countries as ctry
+from views.common import country, registry
 
 st.html('<h1 class="mr-title">Twin</h1>'
         '<p class="mr-sub">The live model and the bench\'s proposed indicator set, '
@@ -38,9 +39,12 @@ if not os.path.exists(db):
     st.stop()
 
 overlay = tw.load_overlay()
-live_cfg = load_config(INDICATORS())
+# The overlay's swaps are written against the default framework's signposts,
+# so the twin always compares with it, whichever framework the reader picked.
+base = ctry.resolve(registry(), country()["code"])
+live_cfg = load_config(base["indicators"])
 twin_cfg = tw.build_config(live_cfg, overlay)
-reg = load_regimes(REGIMES())
+reg = load_regimes(base["regimes"])
 removed, added, changed = tw.swapped_ids(overlay)
 
 

@@ -48,8 +48,12 @@ def required_series(cfg: dict) -> list[str]:
                 ids.add(named)
             elif isinstance(named, list):
                 ids.update(named)
+            # A derived step can build on an earlier step rather than on a
+            # stored series (a 12-month sum, then its three-year growth); its
+            # name is an alias, not something to fetch.
+            aliases = set(src.get("derived") or {})
             for d in (src.get("derived") or {}).values():
-                if isinstance(d.get("series"), str):
+                if isinstance(d.get("series"), str) and d["series"] not in aliases:
                     ids.add(d["series"])
     return sorted(ids)
 

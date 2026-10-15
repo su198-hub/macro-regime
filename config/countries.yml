@@ -35,6 +35,18 @@ countries:
     indicators: config/indicators.yml
     regimes: config/regimes.yml
     sources: config/sources.yml
+    # A country can carry more than one framework: a set of signposts and the
+    # scenarios placed on them. The pages offer a switch; the first one listed
+    # is the default, and its files are the indicators and regimes above.
+    frameworks:
+      v1:
+        label: "v1: six drivers"
+        indicators: config/indicators.yml
+        regimes: config/regimes.yml
+      v2:
+        label: "v2: five signposts (October 2026, on trial)"
+        indicators: config/indicators_v2.yml
+        regimes: config/regimes_v2.yml
 
   jp:
     label: Japan

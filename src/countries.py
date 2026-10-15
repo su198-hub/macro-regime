@@ -62,14 +62,32 @@ def default_code(reg: dict, root: str | Path = ".") -> str:
     return wanted if wanted in live else live[0]
 
 
+def frameworks(reg: dict, code: str, root: str | Path = ".") -> dict[str, dict]:
+    """The frameworks a country can be scored under, default first: each a set
+    of signposts and the scenarios placed on them. Only those whose files exist
+    are offered. A country without a `frameworks` entry has one, from its own
+    indicators and regimes paths."""
+    spec = _spec(reg, code)
+    listed = spec.get("frameworks") or {
+        "default": {"label": "", "indicators": spec.get("indicators"), "regimes": spec.get("regimes")}}
+    return {k: v for k, v in listed.items()
+            if v.get("indicators") and v.get("regimes")
+            and (Path(root) / v["indicators"]).exists() and (Path(root) / v["regimes"]).exists()}
+
+
 def resolve(reg: dict, code: str | None = None, root: str | Path = ".",
-            strict: bool = False) -> dict:
+            strict: bool = False, framework: str | None = None) -> dict:
     """Everything a page needs for one country: label and the three paths.
 
     strict=False falls back to the default country, which is what a page wants
     when a stale session or bookmark names a country that is no longer live.
     strict=True raises instead, which is what a command line wants: asking for
     Japan and silently getting the United States is worse than an error.
+
+    `framework` picks which of the country's frameworks supplies the
+    indicators and regimes; an unknown or missing one falls back to the
+    default, the first listed. `all_indicators` lists every framework's
+    indicator file, for ingest to fetch the series all of them need.
     """
     code = code or default_code(reg, root)
     if code not in live_codes(reg, root):
@@ -80,13 +98,22 @@ def resolve(reg: dict, code: str | None = None, root: str | Path = ".",
                 f"Live: {', '.join(live_codes(reg, root))}")
         code = default_code(reg, root)
     spec = _spec(reg, code)
+    fws = frameworks(reg, code, root)
+    default_fw = next(iter(fws))
+    fw = framework if framework in fws else default_fw
+    paths = {k: spec[k] for k in REQUIRED_PATHS}
+    paths.update({k: fws[fw][k] for k in ("indicators", "regimes")})
     # Forward slashes even on Windows: these paths are shown on the page and
     # quoted in the methodology, where a backslash would be wrong for everyone
     # reading the repository.
     return {"code": code,
             "label": spec.get("label", code.upper()),
             "short": spec.get("short", code.upper()),
-            **{k: (Path(root) / spec[k]).as_posix() for k in REQUIRED_PATHS}}
+            "framework": fw, "default_framework": default_fw,
+            "frameworks": {k: v.get("label", k) for k, v in fws.items()},
+            "all_indicators": list(dict.fromkeys(
+                (Path(root) / v["indicators"]).as_posix() for v in fws.values())),
+            **{k: (Path(root) / v).as_posix() for k, v in paths.items()}}
 
 
 def label(reg: dict, code: str) -> str:

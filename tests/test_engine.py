@@ -189,3 +189,56 @@ def test_confidence_floor_reports_transitional():
                      index=pd.to_datetime(["2024-01-31"]))
     assert call_regime(probabilities(d, cfg), cfg)["called"].iloc[0] == \
         "transitional"
+
+
+# ---------- transforms added for the v2 signposts ----------
+
+def _monthly(values, start="2000-01"):
+    return pd.Series(values, index=pd.period_range(start, periods=len(values), freq="M").to_timestamp())
+
+
+def test_pct_change_3y_ann_is_the_annual_rate_over_three_years():
+    from src.transform import pct_change_3y_ann
+    s = _monthly(100 * 1.05 ** (np.arange(48) / 12))
+    assert pct_change_3y_ann(s).iloc[-1] == pytest.approx(5.0)
+    assert pct_change_3y_ann(s).iloc[:36].isna().all()
+
+
+def test_mean_5y_averages_the_rate_once_four_years_are_in():
+    from src.transform import mean_5y
+    s = pd.Series(np.arange(24, dtype=float),
+                  index=pd.period_range("2000Q1", periods=24, freq="Q").to_timestamp())
+    out = mean_5y(s)
+    assert out.iloc[14] != out.iloc[14]        # 15 quarters: not yet
+    assert out.iloc[15] == pytest.approx(np.mean(np.arange(16)))
+    assert out.iloc[-1] == pytest.approx(np.mean(np.arange(4, 24)))
+
+
+def test_mean_36m_needs_the_full_three_years():
+    from src.transform import mean_36m
+    s = _monthly(np.ones(40))
+    out = mean_36m(s)
+    assert out.iloc[34] != out.iloc[34] and out.iloc[35] == pytest.approx(1.0)
+
+
+def test_dev_10y_is_points_above_the_trailing_decade():
+    from src.transform import dev_10y
+    s = _monthly(np.r_[np.full(100, 10.0), np.full(20, 12.0)])
+    out = dev_10y(s)
+    assert out.iloc[70] != out.iloc[70]        # under six years: not yet
+    assert out.iloc[71] == pytest.approx(0.0)  # six years in
+    assert out.iloc[99] == pytest.approx(0.0)
+    assert out.iloc[-1] == pytest.approx(12.0 - np.mean(np.r_[np.full(100, 10.0), np.full(20, 12.0)]))
+
+
+def test_target_distance_change_is_positive_when_inflation_drifts_away():
+    from src.transform import target_distance_change_12m
+    # Inflation steps from 2% in the first year to 4% in the second.
+    monthly = np.r_[np.full(24, 1.02 ** (1 / 12)), np.full(24, 1.04 ** (1 / 12))]
+    s = _monthly(100 * np.cumprod(monthly))
+    out = target_distance_change_12m(s)
+    # Month 36: inflation over the latest year is 4%, over the year before it 2%.
+    assert out.iloc[35] == pytest.approx(2.0, abs=1e-6)       # from 0 to 2 points away
+    assert out.iloc[-1] == pytest.approx(0.0, abs=1e-6)       # still 2 away a year later
+    falling = _monthly(100 * np.cumprod(np.r_[np.full(24, 1.04 ** (1 / 12)), np.full(24, 1.02 ** (1 / 12))]))
+    assert target_distance_change_12m(falling).iloc[35] == pytest.approx(-2.0, abs=1e-6)

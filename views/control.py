@@ -19,14 +19,14 @@ from src import overrides as ovr
 from src import ui
 from views.common import (INDICATORS, REGIMES, base_config, country, country_picker,
                           get_overrides, get_results, overrides_active, reset_overrides,
-                          set_overrides)
+                          set_overrides, settings_key)
 
 st.session_state["_mr_page"] = "control"
 
 cfg, reg = base_config()
-# Widget keys carry the country: "demand" exists in every country's config, and
-# a slider's value must not follow the reader from one to another.
-wk = country()["code"]
+# Widget keys carry the country and framework: "monetary" exists in every
+# config, and a slider's value must not follow the reader from one to another.
+wk = settings_key()
 inds = ovr.indicator_defaults(cfg)
 rationale = reg.get("rationale") or {}
 sal_why = rationale.get("driver_salience") or {}
