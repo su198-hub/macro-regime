@@ -114,34 +114,43 @@ def from_store(wide: pd.DataFrame) -> pd.DataFrame:
     return w.groupby(level=0).last().reindex(columns=list(CODES)).sort_index()
 
 
-# The labels the /history page offers. The nowcast is the regime at the time,
-# from the 18 months centred on the month. The forward labels are the regime of
-# the next three or five years, with perfect foresight, for judging what the
-# signposts said about the years ahead; they need the whole window, so they
-# stop that long before the latest data.
+# The labels the /history page offers. The nowcast is the regime at the time.
+# The forward labels are the regime of the next three or five years, with
+# perfect foresight, for judging what the signposts said about the years ahead;
+# they need the whole window, so they stop that long before the latest data.
 #
 # Measure: "endpoints" is the change from the start of the window to its end.
 # "averaged" is the mean of every overlapping small-window change inside the
 # window, so one unusual month at either end counts once among many. (Back-to-
 # back changes would not help: chained together they collapse to the start and
 # end points again.) All three labels average, and AVERAGED gives the small
-# and big windows in months: 7 12-month stretches in the nowcast's 18 months,
-# 25 12-month stretches in 3 years, 37 24-month stretches in 5 years.
+# and big windows in months.
 #
-# Every label holds a regime at least a year. The nowcast was picked from 95
-# versions (windows of 12-36 months; start to end, or averaging 6-, 9- or
-# 12-month stretches; minimum regime of 3 to 18 months; scripts/window_sweep.py)
-# where steadiness stops costing accuracy: every steadier version loses the
-# 2022 squeeze, a 12-month regime. Labelling the past is the job, so how many
-# months are still provisional did not count. For the forward labels, scored
-# by how often they match the most common nowcast regime over the years they
-# describe, 12-month stretches beat 6- and 24-month ones over 3 years
-# (84%), 24-month stretches beat shorter ones over 5 years (74%), and a
-# one-year minimum flips less than a 3-month one for the same accuracy or better.
+# The nowcast dates each 12-month change by the month it ends in, the way a
+# year-over-year rate is quoted, and averages the 7 ending from 3 months before
+# the month to 3 after. Together they cover 18 months, the 15 before the month
+# and the 3 after, so only the latest 3 months wait for data. Dating a change
+# by its middle month instead (the 7 changes inside the 18 months centred on
+# the month) matches history better -- 88% of episode months against 79%, 98%
+# of recession months against 95% -- because a change ending in a month mostly
+# describes the year before it, so these labels run about six months behind
+# events. The 2022 squeeze shows it most: stagflation from August 2022.
+#
+# Every label holds a regime at least a year. Of the year-over-year versions
+# tested (1 to 25 changes, minimum regime of 3 to 18 months, bands of 0.30 to
+# 0.50; scripts/window_sweep.py), 7 changes with a 12-month minimum and the
+# 0.41 band is the steadiest that still matches 10 of 11 episodes. That rests
+# on two episodes at exactly half their months, the late-80s boom and the 2022
+# squeeze: a 13-month minimum, or a band 0.05 either way, loses the squeeze.
+#
+# For the forward labels, scored by how often they match the most common
+# nowcast regime over the years they describe, 12-month stretches beat 6- and
+# 24-month ones over 3 years, 24-month stretches beat shorter ones over 5
+# years, and a one-year minimum flips less than a 3-month one.
 MEASURES = ("endpoints", "averaged")
-AVERAGED = {(1.5, "centered"): (12, 18), (3, "forward"): (12, 36), (5, "forward"): (24, 60)}
+AVERAGED = {(1.5, "ending"): (12, 18), (3, "forward"): (12, 36), (5, "forward"): (24, 60)}
 METHODS = {
-    "now": {"years": 1.5, "align": "centered", "measure": "averaged", "min_months": 12},
+    "now": {"years": 1.5, "align": "ending", "measure": "averaged", "min_months": 12},
     "next3": {"years": 3, "align": "forward", "measure": "averaged", "min_months": 12},
     "next5": {"years": 5, "align": "forward", "measure": "averaged", "min_months": 12},
 }
@@ -179,12 +188,26 @@ def _windowed(level: pd.Series, years: float, per_year: int, align: str) -> pd.S
 def _averaged(level: pd.Series, small: int, big: int, align: str, per_year: int) -> pd.Series:
     """Mean of the annualized `small`-period changes whose windows sit inside
     the `big`-period window centred on, or starting in, each period. Near the
-    end a centred window averages the changes it has, or the latest one."""
+    end a centred window averages the changes it has, or the latest one.
+
+    "ending" dates each change by the period it ends in, as a year-over-year
+    rate is quoted, and averages the changes ending in the periods balanced
+    around each one: with 7 of them, from 3 periods before to 3 after. The
+    data they cover still spans `big` periods, ending `(k - 1) / 2` after."""
     level = level.dropna()
     g = ((level / level.shift(small)) ** (per_year / small) - 1) * 100   # change ending at each period
     k = big - small + 1
     if align == "forward":
         return g.rolling(k, min_periods=k).mean().shift(-big)
+    if align == "ending":
+        if k % 2 == 0:
+            raise ValueError(f"an ending window needs an odd number of changes, got {k}")
+        after = (k - 1) // 2
+        out = g.rolling(k, min_periods=k).mean().shift(-after)
+        # Near the end, average the changes that have ended so far.
+        for t in (g.index[-after:] if after else []):
+            out[t] = g.loc[t - after:].mean()
+        return out
     half = big // 2
     out = g.rolling(k, min_periods=k).mean().shift(-half)
     last = g.index[-1]
@@ -204,8 +227,21 @@ def window_months(years: float, align: str, measure: str = "endpoints") -> int:
     return _small_big(years, align)[1] if measure == "averaged" else int(round(12 * years))
 
 
+def months_after(years: float, align: str, measure: str = "endpoints") -> int:
+    """How many months after the labeled month its window reaches, which is
+    also how many of the latest months wait for later data."""
+    if align == "forward":
+        return window_months(years, align, measure)
+    if align == "ending":
+        n, _ = stretches(years, align)
+        return (n - 1) // 2
+    return window_months(years, align, measure) // 2
+
+
 def _measure(level: pd.Series, years: float, per_year: int, align: str, measure: str) -> pd.Series:
     if measure == "endpoints":
+        if align == "ending":
+            raise ValueError("ending dating applies to the averaged measure only")
         return _windowed(level, years, per_year, align)
     small, big = _small_big(years, align)
     return _averaged(level, small * per_year // 12, big * per_year // 12, align, per_year)
@@ -227,9 +263,10 @@ def growth_parts(gdp: pd.Series, potential: pd.Series, years: float = 1,
     parts.index = parts.index.asfreq("M", how="start") + 1
     full = pd.period_range(parts.index[0] - 1, parts.index[-1] + 1, freq="M")
     out = parts.reindex(full).interpolate(limit_area="inside").ffill().bfill()
-    # A centred window is incomplete for the last half-window of quarters.
-    half = window_months(years, align, measure) // 6
-    out["provisional"] = (out.index >= g.index[-half].asfreq("M", how="start")) if align == "centered" else False
+    # A window reaching past the month is incomplete for the last quarters it
+    # reaches into: half the window centred, (changes - 1) / 2 when ending.
+    q_after = months_after(years, align, measure) // 3 if align != "forward" else 0
+    out["provisional"] = (out.index >= g.index[-q_after].asfreq("M", how="start")) if q_after else False
     return out
 
 
@@ -246,9 +283,14 @@ def axes(m: pd.DataFrame, years: float = 1, align: str = "centered",
     spf = m["spf_cpi10"].interpolate(limit_area="inside").ffill()
     expected = spf - wedge
     n = window_months(years, align, measure)
+    after = months_after(years, align, measure)
     # Compare with the benchmark over the same window as inflation.
     if align == "forward":
         expected = expected.rolling(n, min_periods=1).mean().shift(-(n - 1))
+    elif align == "ending":
+        # The n months ending `after` past the month; near the end, the
+        # window ending at the latest reading.
+        expected = expected.rolling(n, min_periods=1).mean().shift(-after).ffill()
     elif n > 12:
         expected = expected.rolling(n, center=True, min_periods=1).mean()
     out = pd.DataFrame({
@@ -257,7 +299,7 @@ def axes(m: pd.DataFrame, years: float = 1, align: str = "centered",
     out["growth"] = out["gdp_growth"] - out["potential_growth"]
     out["inflation"] = out["core_pce"] - out["expected"]
     out = out.dropna(subset=["growth", "inflation"])
-    late = (out.index > core.index[-(n // 2) - 1]) if align == "centered" else False
+    late = (out.index > core.index[-after - 1]) if align != "forward" and after else False
     out["provisional"] = parts["provisional"].reindex(out.index, fill_value=False) | late
     return out
 

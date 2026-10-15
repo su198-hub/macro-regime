@@ -117,13 +117,39 @@ def test_back_to_back_changes_chain_to_the_endpoints():
     assert abs(chained - lvl.iloc[3] / lvl.iloc[0]) < 1e-12
 
 
-def test_nowcast_averages_one_year_stretches_over_18_months_with_a_12_month_minimum():
+def test_nowcast_averages_seven_year_over_year_rates_ending_around_the_month():
     now = truth.METHODS["now"]
     assert now == truth.DEFAULT
-    assert now["measure"] == "averaged"
+    assert (now["align"], now["measure"]) == ("ending", "averaged")
     assert truth.window_months(now["years"], now["align"], now["measure"]) == 18
     assert truth.stretches(now["years"], now["align"]) == (7, 12)
+    assert truth.months_after(now["years"], now["align"], now["measure"]) == 3
     assert now["min_months"] == 12
+
+
+def test_ending_window_averages_the_changes_ending_three_months_either_side():
+    idx = pd.period_range("2000-01", periods=40, freq="M")
+    level = pd.Series(100 * 1.003 ** np.arange(40) * (1 + 0.01 * (np.arange(40) % 5 == 0)), index=idx)
+    out = truth._averaged(level, 12, 18, "ending", 12)
+    t = idx[20]
+    want = np.mean([(level[e] / level[e - 12] - 1) * 100 for e in pd.period_range(t - 3, t + 3, freq="M")])
+    assert out[t] == pytest.approx(want)
+    # The last three months average the changes ended so far.
+    last = idx[-2]
+    assert out[last] == pytest.approx(np.mean([(level[e] / level[e - 12] - 1) * 100
+                                               for e in pd.period_range(last - 3, idx[-1], freq="M")]))
+
+
+def test_ending_window_needs_an_odd_number_of_changes():
+    level = pd.Series(np.arange(1.0, 41.0), index=pd.period_range("2000-01", periods=40, freq="M"))
+    with pytest.raises(ValueError):
+        truth._averaged(level, 12, 19, "ending", 12)
+
+
+def test_provisional_months_follow_how_far_the_window_reaches():
+    assert truth.months_after(1.5, "centered", "averaged") == 9
+    assert truth.months_after(1.5, "ending", "averaged") == 3
+    assert truth.months_after(3, "forward", "averaged") == 36
 
 
 def test_forward_labels_average_and_hold_a_regime_a_year():

@@ -7,7 +7,7 @@ against potential, core PCE against expectations. How a month is labeled and
 what the record shows follow underneath.
 
 One control: which label. The nowcast is the regime at the time, from the
-12-month stretches inside the 18 months around each month; a forward label is
+year-over-year rates ending 3 months either side of each month; a forward label is
 the regime of the next three or five years with perfect foresight. Each uses
 the one method in truth.METHODS. Forward labels answer a different question,
 so they are checked against what followed rather than against episodes.
@@ -69,13 +69,26 @@ SPAN_WORD = {18: "18 months", 36: "three years", 60: "five years"}
 WHERE_WORD = {"centered": "centered on the month", "forward": "starting in the month"}
 
 
+def averaged_words(cfg: dict) -> tuple[str, str]:
+    """How an averaged label measures inflation (monthly) and growth (quarterly)."""
+    n, small = truth.stretches(cfg["years"], cfg["align"])
+    if cfg["align"] == "ending":
+        after = truth.months_after(cfg["years"], cfg["align"], cfg["measure"])
+        q = (n - 1) // 3 + 1
+        return (f"averaged over the {n} year-over-year rates ending from {after} months before the month "
+                f"to {after} months after",
+                f"averaged over the {q} four-quarter rates ending from the quarter before to the quarter after")
+    span_ = SPAN_WORD[truth.window_months(cfg["years"], cfg["align"], cfg["measure"])]
+    words = (f"averaged over the {n} {STRETCH_WORD[small]} stretches inside the {span_} "
+             f"{WHERE_WORD[cfg['align']]}")
+    return words, words
+
+
 def method_line(v: str) -> str:
     """One sentence on how a label is measured, for the control and the captions."""
     cfg = truth.METHODS[v]
-    n, small = truth.stretches(cfg["years"], cfg["align"])
-    span_ = SPAN_WORD[truth.window_months(cfg["years"], cfg["align"], cfg["measure"])]
-    return (f"the average of the {n} {STRETCH_WORD[small]} stretches inside the {span_} "
-            f"{WHERE_WORD[cfg['align']]}, each regime held at least {cfg['min_months']} months")
+    inflation, _ = averaged_words(cfg)
+    return f"growth and inflation {inflation}, each regime held at least {cfg['min_months']} months"
 
 
 with st.container(border=True):
@@ -108,12 +121,11 @@ sp["note"] = ([" ".join(v for k, v in NOTES.items() if s <= k <= e) for s, e in 
 # Words for the method shown, used in every sentence that describes it.
 G_WIN = {1: "four quarters", 1.5: "18 months", 3: "three years", 5: "five years"}[years]
 I_WIN = {1: "12 months", 1.5: "18 months", 3: "three years", 5: "five years"}[years]
-WHERE = {"centered": "centered on the month", "forward": "starting in the month"}[align]
+WHERE = {"centered": "centered on the month", "forward": "starting in the month",
+         "ending": "ending around the month"}[align]
 SPAN = truth.window_months(years, align, measure)
 if measure == "averaged":
-    N_STRETCH, SMALL = truth.stretches(years, align)
-    G_DESC = I_DESC = (f"averaged over the {N_STRETCH} {STRETCH_WORD[SMALL]} stretches inside the "
-                       f"{SPAN_WORD[SPAN]} {WHERE}")
+    I_DESC, G_DESC = averaged_words(METHOD)
 else:
     G_DESC, I_DESC = f"over the {G_WIN} {WHERE}", f"over the {I_WIN} {WHERE}"
 
@@ -393,16 +405,17 @@ st.html(
     "<p>The labels use today's revised data, so they show what happened, not what anyone could see "
     "at the time.</p>"
     "<ol>"
-    "<li><b>The window.</b> Each month is judged on the 18 months around it, 9 before and 9 after. "
-    "Inside that window sit seven 12-month stretches, each starting a month after the last; growth and "
-    "inflation are measured over each stretch and averaged. Measuring once from the window's first month "
-    "to its last would rest on just those two months, so one unusual month at either end would move the "
-    "whole reading.</li>"
+    "<li><b>The window.</b> Growth and inflation are read the way they are usually quoted, as "
+    "year-over-year rates, each dated by the month it ends in. A month's reading is the average of the "
+    "seven rates ending from 3 months before it to 3 months after: for February 2023, the rates for "
+    "November 2022 through May 2023. Together they cover the 18 months from 15 before the month to 3 "
+    "after. Measuring once from the first of those months to the last would rest on just those two "
+    "months, so one unusual month at either end would move the whole reading.</li>"
     "<li><b>Growth: real GDP against potential.</b> Real GDP growth, averaged as above, minus CBO's "
     "potential growth over the same stretches. Potential is how fast the economy can grow without "
-    "overheating, given its workforce, capital and productivity. GDP is quarterly, so the window holds "
-    "three 12-month stretches; the gap is placed on the quarter's middle month and interpolated between "
-    "quarters.</li>"
+    "overheating, given its workforce, capital and productivity. GDP is quarterly, so it averages three "
+    "four-quarter rates, ending the quarter before, the quarter itself and the quarter after; the gap is "
+    "placed on the quarter's middle month and interpolated between quarters.</li>"
     "<li><b>Inflation: core PCE against expectations.</b> Core PCE inflation, averaged as above. Core "
     "leaves out food and energy, so oil swings alone do not flip the label. Expected inflation is the median 10-year CPI forecast from the Philadelphia Fed's Survey "
     "of Professional Forecasters, filled from the Blue Chip and Livingston surveys before 1991, averaged "
@@ -421,23 +434,31 @@ st.html(
     "below potential; whether that is stagflation or hard landing depends on inflation.</li>"
     "<li><b>Updates and provisional months.</b> Each data refresh pulls the latest GDP, potential, "
     "core PCE and survey readings and relabels every month from 1980, so revisions flow through. At "
-    "the end of the sample a centered window is not complete: the window runs to the latest print "
+    "the end of the sample the latest months' windows are not complete: they run to the latest print "
     "instead, and those months are marked provisional. A provisional month cannot start a new regime; "
     "it keeps the last confirmed one until its window fills. Labels run to the last month GDP "
     "covers.</li>"
     "</ol>"
-    "<p><b>Why this window.</b> Of 95 versions tested (windows of 12 to 36 months; start to end, or "
-    "averaging 6-, 9- or 12-month stretches; minimum regime of 3 to 18 months; scripts/window_sweep.py), "
-    "this one cuts regime changes from 5.2 a decade, for a single 12-month window, to 3.0 while matching "
-    "more of the well-known episodes. Every steadier version loses the 2022 squeeze. Averaging also makes "
-    "the inflation reading about 35% less jumpy from month to month than measuring start to end. The band "
-    "is ±0.41 points and the latest 9 months are provisional.</p>"
+    "<p><b>Why this window.</b> Of the year-over-year versions tested (averaging 1 to 25 rates, minimum "
+    "regime of 3 to 18 months, bands of ±0.30 to ±0.50; scripts/window_sweep.py), seven rates with a "
+    "12-month minimum is the steadiest that still matches 10 of the 11 episodes in the table above: 3.0 "
+    "regime changes a decade, and 95% of recession months in a growth-down regime. Averaging makes the "
+    "inflation reading about 35% less jumpy from month to month than measuring start to end. Only the "
+    "latest 3 months are provisional. The ±0.41 band is the half-point band scaled for 18 months by the "
+    "square-root rule below; widths from ±0.30 to ±0.50 were tried and none does better.</p>"
+    "<p><b>What dating by end month costs.</b> A rate ending in a month mostly describes the year before "
+    "it, so these labels run about six months behind events: the 2022 squeeze reads as stagflation from "
+    "August 2022 to July 2023. Dating each rate by the middle of the year it covers instead matches history "
+    "better (88% of episode months against 79%, 98% of recession months against 95%), and the episode "
+    "match is close to the line: the late-80s boom and the 2022 squeeze each sit at exactly half their "
+    "months, and a 13-month minimum or a band 0.05 wider or narrower loses the squeeze. End-month dating "
+    "is kept because it reads the way inflation is quoted.</p>"
     "<p><b>Forward labels.</b> A forward label marks each month with the regime of the next three or five "
     "years, with perfect foresight: the yardstick for asking what the signposts said about the years "
     "ahead. Three years averages the 25 12-month stretches inside the window; five years averages the "
     "37 24-month stretches inside it. Both hold a regime at least a year. Those choices match the most "
     "common nowcast regime over the years described more often than start to end or other stretch "
-    "lengths: 84% of months for three years and 74% for five. A forward label stops a full window before "
+    "lengths: 79% of months for three years and 71% for five. A forward label stops a full window before "
     "the latest data. Its band is the half-point band divided by the square root of the years "
     f"(±{truth.band(3):.2f} and ±{truth.band(5):.2f}), since a multi-year average moves less.</p>"
     "<p><b>Not the same as the backtest's current rule.</b> That rule uses a fixed 2.5% core PCE line "

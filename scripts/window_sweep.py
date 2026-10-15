@@ -1,12 +1,21 @@
-"""Which nowcast window? Scores 95 versions of the regime-at-the-time label.
+"""Which nowcast window? Scores every version of the regime-at-the-time label.
 
     python scripts/window_sweep.py              # prints the table, writes a CSV
-    python scripts/window_sweep.py --realtime   # adds the real-time check (~10 min)
+    python scripts/window_sweep.py --realtime   # adds the real-time check (slow)
 
-Versions: windows of 12, 18, 24, 30 and 36 months centred on the month (GDP is
-quarterly, so a centred window grows two quarters at a time); measured start
-to end, or as the average of the 6-, 9- or 12-month changes inside the window;
-and a minimum regime length of 3, 6, 9, 12 or 18 months.
+Versions, two ways of dating a 12-month change:
+
+  middle  by the middle of what it covers: windows of 12-36 months centred on
+          the month, measured start to end or as the average of the 6-, 9- or
+          12-month changes inside them.
+  ending  by the month it ends in, as a year-over-year rate is quoted: the
+          average of the 12-month changes ending in the months balanced around
+          the month -- 1, 7, 13, 19 or 25 of them -- or of 6-month changes
+          (1, 7 or 13). Seven 12-month changes run from 3 months before the
+          month to 3 after and cover the 18 months to 3 months after it.
+
+Each with a minimum regime length of 3, 6, 9, 12 or 18 months, and the band
+from truth.band for its window.
 
 Checks, for each version:
   flips per decade    regime changes since 1980 per ten years (steadiness)
@@ -19,24 +28,26 @@ Checks, for each version:
   turn lag            months between each recession's start or end and the
                       label switching into or out of growth down, averaged
                       over early and late alike (timeliness)
-  provisional         half the window: months that wait for later data.
-                      Reported, not judged: the label's job is the past.
+  provisional         months at the end that wait for later data. Reported,
+                      not judged: the label's job is the past.
   realtime            (with --realtime) for every month from Jan 1985 to Dec
                       2023, the label the page would have shown with data to
-                      that month, against the final label. Today's revised
-                      data throughout, and no publication delay, so it isolates
-                      the window's own edge, not data revisions.
+                      that month, against the final label.
 
-The goal is to label the past accurately without flipping too often, so the
-script prints the frontier: every version that no other beats on flips,
-episode share, recession months and turn lag at once. Along it, flips fall
-from 5.2 a decade (today's 12 months) to about 3 at no cost in accuracy; below
-that, every version loses the 2022 squeeze, a 12-month regime. The pick sits
-at that point: 18 months, averaging the 12-month changes inside it, 12-month
-minimum (3.0 flips, 88% of episode months). Averaging 9-month changes flips a
-little less (2.8) with the same accuracy but turns half a month later and holds
-1990-91 stagflation into 1992; 12-month changes are also the growth rate
-people already read. The nowcast in truth.METHODS.
+The script prints the frontier: every version no other beats on flips, episode
+share, recession months and turn lag at once.
+
+The nowcast in truth.METHODS dates by end month, because that is how people
+read inflation (now against a year ago), and averages the 7 year-over-year
+rates ending from 3 months before the month to 3 after, holding a regime at
+least 12 months: 3.0 flips a decade, 10 of 11 episodes, 79% of episode months,
+95% of recession months, 3 months provisional. Dated by the middle month the
+same window does better on history (88% of episode months, 98% of recession
+months, 6.8 against 8.1 months of turn lag), because a change ending in a month
+mostly describes the year before it, which puts end-dated labels about six
+months behind events. Among end-dated year-over-year versions, 7 rates with a
+12-month minimum is the steadiest that matches 10 of 11 episodes, though two of
+them, the late-80s boom and the 2022 squeeze, sit at exactly half their months.
 """
 
 import argparse
@@ -63,14 +74,18 @@ def load_inputs() -> pd.DataFrame:
         store.close()
 
 
-def build(m: pd.DataFrame, months: int, measure: str, small: int | None, min_months: int) -> pd.DataFrame:
-    """The centred label for one version, with `small`-month changes when averaged."""
-    key, saved = (months / 12, "centered"), dict(truth.AVERAGED)
+def build(m: pd.DataFrame, months: int, measure: str, small: int | None, min_months: int,
+          dating: str = "middle") -> pd.DataFrame:
+    """The label for one version. `months` is the span of data the window
+    covers; `small` the length of each averaged change; `dating` "middle"
+    (centred window) or "ending" (changes balanced around the month by end month)."""
+    align = "centered" if dating == "middle" else "ending"
+    key, saved = (months / 12, align), dict(truth.AVERAGED)
     try:
         truth.AVERAGED.pop(key, None)
         if measure == "averaged":
             truth.AVERAGED[key] = (small, months)
-        return truth.build(m, years=months / 12, align="centered", measure=measure, min_months=min_months)
+        return truth.build(m, years=months / 12, align=align, measure=measure, min_months=min_months)
     finally:
         truth.AVERAGED.clear()
         truth.AVERAGED.update(saved)
@@ -108,7 +123,7 @@ def realtime(m: pd.DataFrame, full: pd.DataFrame, *version) -> float:
     return float(np.mean(hits))
 
 
-def score(lab: pd.DataFrame, months: int) -> dict:
+def score(lab: pd.DataFrame, months: int | None = None) -> dict:
     run = (lab["label"] != lab["label"].shift()).cumsum()
     lengths = lab.groupby(run).size()
     down = lab["label"].isin(["stagflation", "hard_landing"])
@@ -119,23 +134,28 @@ def score(lab: pd.DataFrame, months: int) -> dict:
             "episodes": int((ep["share"] >= 0.5).sum()),
             "episode_share": float(ep["share"].mean()),
             "missed": "; ".join(ep.loc[ep["share"] < 0.5, "episode"]),
-            "turn_lag": turn_lag(lab), "provisional": months // 2}
+            "turn_lag": turn_lag(lab), "provisional": int(lab["provisional"].sum())}
 
 
 def versions():
-    for months in (12, 18, 24, 30, 36):
-        for min_months in (3, 6, 9, 12, 18):
-            yield months, "endpoints", None, min_months
+    """(months, measure, small, min_months, dating) for every version scored."""
+    for min_months in (3, 6, 9, 12, 18):
+        for months in (12, 18, 24, 30, 36):
+            yield months, "endpoints", None, min_months, "middle"
             for small in (6, 9, 12):
                 if small < months:   # one 12-month change in 12 months is start to end
-                    yield months, "averaged", small, min_months
+                    yield months, "averaged", small, min_months, "middle"
+        for small, spans in ((12, (12, 18, 24, 30, 36)), (6, (6, 12, 18))):
+            for months in spans:     # an odd number of changes, so they balance around the month
+                yield months, "averaged", small, min_months, "ending"
 
 
 def sweep(m: pd.DataFrame, with_realtime: bool = False) -> pd.DataFrame:
     rows = []
     for v in versions():
         lab = build(m, *v)
-        row = {"window": v[0], "measure": v[1], "small": v[2], "min_months": v[3], **score(lab, v[0])}
+        row = {"dating": v[4], "window": v[0], "measure": v[1], "small": v[2],
+               "changes": (v[0] - v[2] + 1) if v[1] == "averaged" else 1, "min_months": v[3], **score(lab)}
         if with_realtime:
             row["realtime"] = realtime(m, lab, *v)
         rows.append(row)
