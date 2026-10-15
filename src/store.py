@@ -105,10 +105,15 @@ class Store:
              dt.datetime.now(), source_code or series_id],
         )
 
-    def sources(self) -> set[str]:
-        """Which vendors the stored series came from."""
+    def sources(self, series_ids: list[str] | None = None) -> set[str]:
+        """Which vendors the stored series came from: all of them, or only
+        those behind `series_ids`."""
+        if series_ids is None:
+            return {r[0] for r in self.con.execute(
+                "SELECT DISTINCT source FROM series_meta").fetchall()}
         return {r[0] for r in self.con.execute(
-            "SELECT DISTINCT source FROM series_meta").fetchall()}
+            "SELECT DISTINCT source FROM series_meta WHERE series_id IN (SELECT unnest(?))",
+            [list(series_ids)]).fetchall()}
 
     def add_judgement(self, as_of, driver, direction, confidence, analyst,
                       note, source=""):

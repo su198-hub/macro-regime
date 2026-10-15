@@ -14,7 +14,7 @@ import streamlit as st
 from matplotlib.colors import LinearSegmentedColormap
 
 from src import ui
-from src.drivers import DRIVER_SCALE, driver_breakdown, load_config
+from src.drivers import DRIVER_SCALE, driver_breakdown, load_config, required_series
 from src.regimes import contributions, load_regimes
 from views.common import (INDICATORS, REGIMES, country_picker, get_results, get_store,
                           is_demo as store_is_demo, planned_note, published_note,
@@ -23,7 +23,8 @@ from views.common import (INDICATORS, REGIMES, country_picker, get_results, get_
 # Diverging blue to red through a neutral gray, for signed indicator scores.
 DIVERGING = LinearSegmentedColormap.from_list(
     "signed", ["#2a78d6", "#f0f0f0", "#e34948"])
-VENDOR_NAME = {"macrobond": "Macrobond", "fred": "FRED", "demo": "synthetic demo data"}
+VENDOR_NAME = {"macrobond": "Macrobond", "fred": "FRED", "bloomberg": "Bloomberg",
+               "demo": "synthetic demo data"}
 
 store = get_store()
 
@@ -65,7 +66,9 @@ gate_on = str(settings.get("fit_gate", "none")) == "closer_than_neutral"
 driver_cols = [c for c in drivers.columns if not c.endswith("__coverage")]
 driver_label = {n: cfg["drivers"].get(n, {}).get("label", n) for n in driver_cols}
 regime_label = {n: s["label"] for n, s in reg["regimes"].items()}
-vendors = store.sources()
+# Only the vendors behind the model's own series: the store also holds the
+# energy page's and the twin's.
+vendors = store.sources(required_series(cfg))
 source_line = (f'<p class="mr-source">Source: '
                f'{", ".join(VENDOR_NAME.get(v, v) for v in sorted(vendors))}; '
                f'Macro Regime Monitor calculations.</p>')

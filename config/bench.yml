@@ -24,7 +24,7 @@
 #                        around a stable mean over one to three years.
 #            structural  what capacity IS, and where it is drifting. Does not
 #                        mean-revert inside a cycle. This is where Solow lives:
-#                        labour force growth, the capital stock, and total
+#                        labor force growth, the capital stock, and total
 #                        factor productivity set the speed limit that everything
 #                        cyclical is measured against.
 #
@@ -53,7 +53,7 @@
 # a specific objection: a potential-growth level sits near 1.8% for years and
 # cannot discriminate between months, so as a level it is dead weight. The
 # CHANGE in it is news about the future arriving now — the economy being re-rated
-# toward a higher- or lower-growth world — and it is stationary, so it normalises
+# toward a higher- or lower-growth world — and it is stationary, so it normalizes
 # properly instead of scoring which decade it is.
 #
 # Two revision mechanics, and only one needs new machinery:
@@ -83,7 +83,7 @@ meta:
 drivers:
 
   demand:
-    label: Demand
+    label: Growth
     items:
       - id: real_pce_yoy
         name: Real consumer spending
@@ -109,8 +109,8 @@ drivers:
         where: macrobond
         code: UNRATE − NROU
         refers: >-
-          Labour market slack measured against full employment rather than against
-          zero. KEPT BUT DEMOTED — weight cut from 0.25 to 0.15 in September 2026.
+          Labor market slack measured against full employment rather than against
+          zero. Kept but demoted — weight cut from 0.25 to 0.15 in September 2026.
           Unemployment turns after the spending that causes it, and the benchmark it
           is measured against is CBO's noncyclical rate, which is itself revised
           backwards. The released weight goes to the ten-year growth revision.
@@ -123,7 +123,7 @@ drivers:
       # consumption, because spending follows expected lifetime resources
       # rather than this month's income.
       - id: cand_payrolls_3m_ann
-        name: Payroll growth, 3 months annualised
+        name: Payroll growth, 3 months annualized
         status: candidate
         preselect: false
         horizon: short
@@ -146,7 +146,7 @@ drivers:
         enters: change
         where: macrobond
         code: ECIWAG
-        refers: What the labour market pays, holding the mix of jobs constant.
+        refers: What the labor market pays, holding the mix of jobs constant.
         measured: >-
           BLS National Compensation Survey, ~27,000 establishments, quarterly at ~30
           days. Fixed-weight, so it prices the same occupations each quarter.
@@ -181,7 +181,7 @@ drivers:
       # Score these as REVISIONS, not levels. A potential-growth level sits near
       # 1.8% for years and cannot discriminate between months; the change in it
       # is news about the future arriving now, and it is stationary, so it
-      # normalises properly instead of scoring which decade it is.
+      # normalizes properly instead of scoring which decade it is.
       #
       # Two different revision mechanics, and only one needs new machinery:
       #   forecast-dated  each observation is that quarter's forecast of the same
@@ -228,9 +228,9 @@ drivers:
         code: usfcst0723
         refers: >-
           The Solow A term marked up or down. Sharper than the headline growth
-          forecast, because ten-year-ahead labour force growth is close to already
+          forecast, because ten-year-ahead labor force growth is close to already
           known and productivity is where the real uncertainty sits.
-          CAUTION — an either/or with the GDP revision above, not an addition: the two
+          Caution — an either/or with the GDP revision above, not an addition: the two
           correlate 0.83 and share a sign 91% of the time.
         measured: >-
           Philadelphia Fed SPF. Asked once a year despite the quarterly label, so 34
@@ -253,9 +253,9 @@ drivers:
           analyst one, and it leads the unemployment gap by eighteen months. It is
           not, however, demonstrably forward-looking — its correlation with the next
           year's growth is +0.10, 95% [−0.03, +0.23], indistinguishable from zero.
-          NOT IN THE PROPOSED SET, and the reason is placement rather than quality:
+          Not in the proposed set, and the reason is placement rather than quality:
           against consumer spending, the thing this driver is about, it scores −0.03,
-          95% [−0.19, +0.14]. Trend growth of potential output is a SUPPLY quantity,
+          95% [−0.19, +0.14]. Trend growth of potential output is a supply quantity,
           and it sat in demand only through the permanent-income argument, which the
           data does not show. Worth moving to the supply driver, where the speed
           limit belongs — an open decision, not a rejection. Note also that the New
@@ -283,7 +283,7 @@ drivers:
           in the set and is not: it correlates +0.44 with growth already published
           when CBO writes, and only +0.21 with the growth of the year that follows.
           CBO re-reads the recent past into its speed limit, so much of the series is
-          a slow echo of data the model has already scored. DROPPED for that reason —
+          a slow echo of data the model has already scored. dropped for that reason —
           though note the analyst revision that replaces it scores +0.49 on the same
           backward test, so the swap is justified by frequency and by dropping a news
           indicator, not by forward-lookingness.
@@ -335,15 +335,15 @@ drivers:
         refers: >-
           The change in the three-year-ahead earnings analysts attach to the index —
           the bottom-up version of the speed-limit question. Tested against the claim
-          that it is the forward-looking one, it FAILS: it correlates +0.49 with
+          that it is the forward-looking one, it fails: it correlates +0.49 with
           growth already published, worse than the +0.44 of the CBO revision it was
           meant to replace, and −0.08 with the next year's growth. It scores 4 points
           better on the ex-post scorecard since 2003, but the interval on that gap is
           [0.0, +11.5] — the backtest cannot separate the two — so the slot is decided
           on the echo instead, and HLW holds it. Untick HLW and tick this to swap.
-          NOT the expected growth RATE, which is the natural reading and is
+          not the expected growth rate, which is the natural reading and is
           disqualified: measured from the near-term year, which is what collapses in a
-          recession, the rate ROSE through every recession in the sample — 2007 11.9 to
+          recession, the rate rose through every recession in the sample — 2007 11.9 to
           16.8, 2020 8.8 to 21.9, onset to six months in — and it follows the
           unemployment gap by fourteen months. A ten-year earnings base fixes that sign
           but still correlates +0.45 with past growth.
@@ -374,7 +374,7 @@ drivers:
           disposable income. Quarterly. Drifts for decades rather than cycling.
 
       - id: cand_labour_share
-        name: Labour share of national income
+        name: Labor share of national income
         status: candidate
         horizon: long
         nature: structural
@@ -391,7 +391,7 @@ drivers:
 
 
   inflation_expectations:
-    label: Inflation expectations
+    label: Inflation
     items:
       - id: breakeven_5y5y
         name: 5-year inflation, 5 years forward
@@ -432,7 +432,7 @@ drivers:
         code: SPFCPI10
         refers: >-
           What professional forecasters expect inflation to average over a decade.
-          Stays a LEVEL, and keeps half its weight since September 2026: an anchor is a statement about
+          Stays a level, and keeps half its weight since September 2026: an anchor is a statement about
           where expectations sit against 2%, so a revision alone would score
           expectations stuck at 4% as neutral the moment they stopped moving. The
           other half goes to the revision below — the two correlate −0.14 and
@@ -479,7 +479,7 @@ drivers:
         refers: What households expect prices to do over the next twelve months.
         measured: >-
           University of Michigan, ~600 households by phone and web. Centred on 3.0
-          because households have always reported above realised inflation.
+          because households have always reported above realized inflation.
 
       - id: inflation_risk_premium
         name: Inflation risk premium
@@ -561,10 +561,10 @@ drivers:
         kind: official
         enters: change
         where: macrobond_check
-        refers: The persistent core of realised inflation, with the tails cut off.
+        refers: The persistent core of realized inflation, with the tails cut off.
         measured: >-
           Dallas Fed trims the most extreme price changes each month. The thing
-          expectations are actually formed from, and the driver carries no realised
+          expectations are actually formed from, and the driver carries no realized
           inflation at all today.
 
       - id: cand_consensus_lt_cpi
@@ -583,7 +583,7 @@ drivers:
     label: Supply constraint
     items:
       - id: capacity_utilisation
-        name: Capacity utilisation
+        name: Capacity utilization
         status: in_set
         horizon: medium
         nature: cyclical
@@ -605,7 +605,7 @@ drivers:
         enters: level
         where: macrobond
         code: JTSJOL / UNEMPLOY
-        refers: Labour market tightness — how many jobs chase each available worker.
+        refers: Labor market tightness — how many jobs chase each available worker.
         measured: >-
           JOLTS survey of ~21,000 establishments at ~33 days over the household
           survey's unemployment level at ~6 days.
@@ -624,10 +624,10 @@ drivers:
         measured: >-
           EIA mandatory weekly survey of refiners, terminals and pipelines, Wednesdays.
           Commercial stocks only; the SPR is excluded deliberately.
-          DROPPED September 2026: no measurable relationship with inflation ahead (+0.16, 95% [−0.06, +0.30] against core; −0.06 against headline), while carrying a fifth of the driver. Replaced by the EIA's forward gas balance, which looks ahead instead of at last week's tanks.
+          Dropped September 2026: no measurable relationship with inflation ahead (+0.16, 95% [−0.06, +0.30] against core; −0.06 against headline), while carrying a fifth of the driver. Replaced by the EIA's forward gas balance, which looks ahead instead of at last week's tanks.
 
       - id: unit_labour_costs_yoy
-        name: Unit labour costs
+        name: Unit labor costs
         status: in_set
         horizon: medium
         nature: cyclical
@@ -635,12 +635,12 @@ drivers:
         enters: change
         where: macrobond
         code: ULCNFB
-        refers: Labour cost per unit of output — where wage pressure becomes price pressure.
+        refers: Labor cost per unit of output — where wage pressure becomes price pressure.
         measured: >-
           BLS Productivity and Costs — compensation per hour over output per hour.
           Quarterly, and heavily revised because both halves move.
 
-      # Opens unticked, with the potential labour force revision in its place.
+      # Opens unticked, with the potential labor force revision in its place.
       # The most news-bound input in supply: it turns in weeks and says nothing
       # about whether the economy's capacity to produce is growing.
       - id: cand_supply_chain_pressure
@@ -659,7 +659,7 @@ drivers:
           economies, with demand effects removed. Monthly, ~6 days.
 
       - id: cand_productivity_yoy
-        name: Labour productivity
+        name: Labor productivity
         status: candidate
         preselect: false
         horizon: long
@@ -675,7 +675,7 @@ drivers:
         measured: >-
           BLS, nonfarm business output over hours. Quarterly, among the most revised
           series in macro.
-          DROPPED September 2026: it scored +0.24 against core inflation a year out, the weakest real reading in the driver, flipped sign after 2012 (+0.34 to −0.16), and correlates 0.50 with unit labour costs, which is the same quantity net of wages and scores +0.74.
+          Dropped September 2026: it scored +0.24 against core inflation a year out, the weakest real reading in the driver, flipped sign after 2012 (+0.34 to −0.16), and correlates 0.50 with unit labor costs, which is the same quantity net of wages and scores +0.74.
 
       - id: cand_tfp
         name: Total factor productivity
@@ -687,7 +687,7 @@ drivers:
         where: macrobond
         code: uslama6803
         refers: >-
-          The Solow residual — output growth left over once more labour and more
+          The Solow residual — output growth left over once more labor and more
           capital are accounted for. The A in Y = A·K^α·L^(1−α), and the only term
           that can raise living standards indefinitely.
         measured: >-
@@ -695,7 +695,7 @@ drivers:
           trend, not a single quarter.
 
       - id: cand_labour_force_growth
-        name: Civilian labour force growth
+        name: Civilian labor force growth
         status: candidate
         horizon: long
         nature: structural
@@ -704,10 +704,10 @@ drivers:
         where: macrobond
         code: bls_lns11000000m
         refers: >-
-          The L in growth accounting. Potential growth is roughly labour force growth
+          The L in growth accounting. Potential growth is roughly labor force growth
           plus TFP growth, so this is half the economy's speed limit — and it is set
           by births twenty years ago and by immigration policy today.
-        measured: BLS household survey, labour force level, monthly from 1948.
+        measured: BLS household survey, labor force level, monthly from 1948.
 
       - id: cand_capital_per_worker
         name: Capital per worker
@@ -737,8 +737,8 @@ drivers:
         refers: >-
           Energy investment now is energy supply later: what the majors commit to
           wells, deepwater and LNG becomes barrels years out. Read inverted, so more
-          capital coming means a looser constraint. IN ON MECHANISM, NOT ON A
-          DEMONSTRATED LINK TO PRICES — against world oil supply five years out it
+          capital coming means a looser constraint. In on mechanism, not on a
+          demonstrated link to prices — against world oil supply five years out it
           scores +0.26, 95% [−0.32, +0.83], with three other regions at +0.35, +0.41
           and +0.24, all the same sign and none individually clear of zero; against
           inflation it shows nothing. Deliberately not a US shale measure: US rigs
@@ -767,9 +767,9 @@ drivers:
         vendor: Bloomberg BEst
         refers: >-
           The K in Solow for the whole market rather than for energy. The best-evidenced
-          FIRST link in the set: +0.46 against industrial capacity three years out, 95%
+          first link in the set: +0.46 against industrial capacity three years out, 95%
           [+0.09, +0.69], point estimate between 0.41 and 0.60 in every subsample though
-          the interval clears zero in four of six. What is NOT shown is the rest of the
+          the interval clears zero in four of six. What is not shown is the rest of the
           chain — capacity growth to core inflation is +0.16 and this measure to core
           inflation is +0.22 at one year and −0.01 at three, none distinguishable from
           zero. So it predicts capacity, not the constraint the driver scores.
@@ -780,7 +780,7 @@ drivers:
           level went 99 to 259 since 2022 with no vendor break).
 
       - id: cbo_labour_force_revision
-        name: Revision to CBO potential labour force
+        name: Revision to CBO potential labor force
         status: in_set
         horizon: long
         nature: structural
@@ -808,12 +808,12 @@ drivers:
         code: usfcst4766
         refers: >-
           The participation half of the same projection, isolated: how much of the
-          labour force view is people choosing to work rather than people existing.
+          labor force view is people choosing to work rather than people existing.
           Ageing pushes it down mechanically; childcare, health and wages push back.
         measured: >-
           CBO 10-Year Economic Projections, quarterly, running to 2036 with 22
           vintages. Currently 62.0%. Target-dated, so the revision is a vintage diff.
-          IN THE SET since September 2026, at 0.10 and on construct grounds only: Macrobond holds 22 vintages from 2019, which is too few to validate against anything. It correlates just +0.32 with the labour-force revision beside it, so it is not that reading twice.
+          In the set since September 2026, at 0.10 and on construct grounds only: Macrobond holds 22 vintages from 2019, which is too few to validate against anything. It correlates just +0.32 with the labor-force revision beside it, so it is not that reading twice.
 
       - id: cand_capex_to_depreciation
         name: Capex-to-depreciation ratio, S&P 500
@@ -894,13 +894,13 @@ drivers:
         enters: spread
         where: macrobond
         code: EXPINF1YR
-        refers: The same rule, run on expected rather than realised inflation.
+        refers: The same rule, run on expected rather than realized inflation.
         measured: >-
           Cleveland Fed 1-year expected inflation substituted for core PCE, so it is
           available weeks earlier.
 
       - id: balance_sheet_impulse
-        name: Fed securities held, 3-year annualised change
+        name: Fed securities held, 3-year annualized change
         status: in_set
         horizon: medium
         nature: cyclical
@@ -910,9 +910,9 @@ drivers:
         code: WSHOSHO / GDPNOM
         refers: >-
           Quantitative easing and tightening — the stance a policy rate cannot show.
-          PROPOSED CHANGE: read over three years annualised rather than twelve months.
+          Proposed change: read over three years annualized rather than twelve months.
           QE and QT run for years, and a one-year window turns a single multi-year
-          programme into a run of on-and-off pulses that whipsaw the driver.
+          program into a run of on-and-off pulses that whipsaw the driver.
         measured: >-
           H.4.1 weekly balance sheet, Thursdays. Securities held outright rather than
           total assets, which also swing with repo and emergency facilities. The
@@ -1007,7 +1007,7 @@ drivers:
           How far apart professional forecasters are on inflation. Agreement is what
           an anchor looks like from the outside; when forecasters scatter, nobody is
           sure what the central bank will tolerate.
-          CAUTION — the published dispersion is four quarters ahead, not ten years,
+          Caution — the published dispersion is four quarters ahead, not ten years,
           so some of it is uncertainty about oil rather than about the anchor.
           Long-run dispersion would be better and is not published here.
         measured: >-
@@ -1114,7 +1114,7 @@ drivers:
         code: DGS10 − GDPNOM
         refers: r minus g — whether debt compounds on its own or erodes.
         measured: >-
-          The 10-year yield less five-year annualised nominal growth. Five years, not
+          The 10-year yield less five-year annualized nominal growth. Five years, not
           one: a one-year window spiked to +7.5 in 2020 and said fiscal room had gone.
 
       - id: interest_burden_gdp
@@ -1142,7 +1142,7 @@ drivers:
         refers: What the debt ratio actually did, against what r−g says it should.
         measured: >-
           Fed Financial Accounts (Z.1), quarterly at ~73 days — the slowest release in
-          the set. DROPPED September 2026, because it correlated 0.68 with the fiscal
+          the set. Dropped September 2026, because it correlated 0.68 with the fiscal
           impulse beside it, so the driver was reading the same deficit twice, and it is
           the weaker of the two against the debt path.
 
@@ -1157,7 +1157,7 @@ drivers:
         code: AVGMAT, DGS5, MTSNETINT, DEBTPUB, GDPNOM
         refers: >-
           What the debt already outstanding will cost as it rolls over at today's
-          yields, in points of GDP a year. ARITHMETIC, NOT A FORECAST: a sixth of the
+          yields, in points of GDP a year. Arithmetic, not a forecast: a sixth of the
           stock reprices annually at 71 months' average maturity, currently 1.5 points
           dearer than the 3.2% being paid, on a stock of 97% of GDP. Nothing is
           estimated, so there is no coefficient to break when the regime changes —
@@ -1170,7 +1170,7 @@ drivers:
           rolls at the rate it already pays, while the 2000–19 mean of −0.04 is an
           artefact of a twenty-year bond bull market.
           PREFERRED OVER the two obvious alternatives, both of which are spurious. The
-          interest-burden LEVEL scores −0.61 against the debt path in full but −0.18
+          interest-burden level scores −0.61 against the debt path in full but −0.18
           from 2000 and −0.16 from 2012 — a forty-year trend of a falling interest bill
           against rising debt. Average maturity scores −0.44 and FLIPS to +0.80 after
           2012, when the Treasury termed out while deficits grew.
@@ -1203,7 +1203,7 @@ drivers:
         enters: level
         where: macrobond_check
         refers: >-
-          The fiscal stance with the automatic stabilisers taken out — what was
+          The fiscal stance with the automatic stabilizers taken out — what was
           decided, rather than what the cycle did to the budget. It is the structural
           balance by construction, which is exactly what the raw one is not.
         measured: CBO or OECD estimate of the balance at potential output. Annual, with quarterly interpolations.
@@ -1275,7 +1275,7 @@ drivers:
           A market price of US fiscal credibility — the only fiscal row priced by
           someone with money at stake. Thin market, and calmer than its reputation:
           the 5-year sat at 53–61bp through the 2023 debt ceiling, and has peaked at
-          89bp (March 2020). CAUTION — only eight years of history, so it has never
+          89bp (March 2020). Caution — only eight years of history, so it has never
           seen a 2008 or a 2011.
         measured: >-
           Bloomberg, daily from August 2018, currently 31bp. The euro contract runs
@@ -1284,7 +1284,7 @@ drivers:
           from 2003, ready for those countries.
 
   investment:
-    label: Investment spending
+    label: Reforms and industrial policy
     items:
       - id: core_capex_orders_yoy
         name: Core capital goods orders
@@ -1390,7 +1390,7 @@ drivers:
           Bloomberg consensus (BEst), blended 12-month forward, monthly from 2007. Up
           53% on a year ago, the highest on record; low −29% in April 2009.
       - id: cand_buybacks_vs_capex
-        name: Buyback authorisations vs capex
+        name: Buyback authorizations vs capex
         status: candidate
         horizon: long
         nature: structural
@@ -1402,7 +1402,7 @@ drivers:
           The capital allocation choice — build something, or buy your own stock. The
           shift toward buybacks has run for two decades and has not reverted; it is a
           change in how corporate America uses cash, not a cyclical swing.
-        measured: Announced repurchase authorisations against reported capex, aggregated.
+        measured: Announced repurchase authorizations against reported capex, aggregated.
 
       - id: capital_age
         name: Average age of the capital stock

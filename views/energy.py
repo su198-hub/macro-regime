@@ -115,7 +115,7 @@ cols[0].html(tile("Energy tightness", energy_now,
                   read(energy_now) + (", with offsetting forces underneath"
                                       if (power_split or fuels_split) and abs(energy_now) <= mid
                                       else ""),
-                  "Power and fuels, equal weight. Proposed to replace the energy majors' capex "
+                  "Power and fuels, equal weight. Proposed to replace the S&P 500 energy sector's capex "
                   "revision in the supply driver."))
 cols[1].html(tile("Power", power_now, reading(power_now, power_split),
                   "Demand, less supply expanding, plus prices."))

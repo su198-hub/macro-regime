@@ -339,9 +339,9 @@ series:
     use: derived
     derived_from: usfcst4766
     note: >-
-      Revision to CBO's five-year-ahead potential labour force PARTICIPATION
-      RATE between consecutive projections, in log percent. The participation
-      half of the labour force question on its own: how many of the people who
+      Revision to CBO's five-year-ahead potential labor force participation
+      rate between consecutive projections, in log percent. The participation
+      half of the labor force question on its own: how many of the people who
       exist choose to work, which is where a swing in female participation
       shows and which population growth cannot see. Only 22 vintages, from
       2019, so it cannot be validated on history.
@@ -357,7 +357,7 @@ series:
     use: derived
     derived_from: usfcst0572
     note: >-
-      Revision to CBO's five-year-ahead potential labour force between
+      Revision to CBO's five-year-ahead potential labor force between
       consecutive projections, in log percent.
   # Built by `ingest.py energy` from the energy page (config/energy.yml), whose
   # inputs are all public: EIA, Census, BEA and BLS via FRED, the GPR index.

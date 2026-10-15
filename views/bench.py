@@ -184,7 +184,7 @@ for b in blocks:
     mix = " / ".join(f'{bn.HORIZON_SHORT[h]} {b["horizons"][h]:.0%}'.replace("%", "")
                      for h in bn.HORIZON_ORDER if b["horizons"][h] >= 0.005) or "—"
     # A driver with no structural content is the thing this page exists to show,
-    # so it gets its own colour rather than being one number among several.
+    # so it gets its own color rather than being one number among several.
     s_tone = AMBER if not b["structural"] else ui.INK
     s_move = "" if b["structural"] == b["was_structural"] else f' (was {b["was_structural"]})'
     new = (f'<div style="font-size:0.72rem;color:{ui.MUTED}">{b["new_sources"]} need a new source</div>'
@@ -271,7 +271,7 @@ for key, block in bn.drivers(bench).items():
             # Three standing chips, plus a fourth only on a revision. Nothing in
             # the model is scored that way today, so it is the exception worth
             # seeing rather than another axis to read on every row.
-            rev = "  **↻ REVISION**" if ent == "revision" else ""
+            rev = "  **↻ Revision**" if ent == "revision" else ""
             st.checkbox(f"**{item['name']}**  `{tag}`  `{nat_tag}`  "
                         f"`{bn.KIND_SHORT.get(who, 'OFFICIAL')}`{rev}{mark}",
                         key=key_of(item["id"]),

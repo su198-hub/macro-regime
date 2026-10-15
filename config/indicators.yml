@@ -82,15 +82,15 @@ meta:
 drivers:
 
   demand:
-    label: Demand
-    description: Strength of final demand relative to trend.
+    label: Growth
+    description: Strength of growth, read through final demand relative to trend.
     # `phrase` is how the driver reads in a sentence on the dashboard, when it
     # explains why a month was called what it was. Write it as a fragment that
     # follows "because ...": lower case, no verb of its own.
     signpost:
-      low: {label: Weak, tone: risk, phrase: demand is running below trend}
-      high: {label: Strong, tone: good, phrase: demand is running above trend}
-      mid: {phrase: demand is close to trend}
+      low: {label: Weak, tone: risk, phrase: growth is running below trend}
+      high: {label: Strong, tone: good, phrase: growth is running above trend}
+      mid: {phrase: growth is close to trend}
     indicators:
       - id: real_pce_yoy
         label: Real consumer spending, year over year
@@ -194,8 +194,8 @@ drivers:
           households are expected to spend.
 
   inflation_expectations:
-    label: Inflation expectations
-    description: Where expectations sit relative to the 2% target.
+    label: Inflation
+    description: Inflation pressure, read through where expectations sit relative to the 2% target.
     signpost:
       low: {label: De-anchored lower, tone: risk, phrase: inflation expectations sit below target}
       high: {label: De-anchored higher, tone: risk, phrase: inflation expectations sit above target}
@@ -363,7 +363,7 @@ drivers:
       # either, and at 62% year-on-year it currently sits pinned at the clip,
       # contributing a constant. This one reads +5% and still moves.
       - id: energy_capex_revision
-        label: Revision to energy majors' three-year capex plans
+        label: Revision to the S&P 500 energy sector's three-year capex consensus
         source: {series: SPX_ENERGY_CAPEX_3FY}
         transform: yoy_pct
         normalize: {method: gap, center: 0.0, scale: 14.9}
@@ -371,12 +371,12 @@ drivers:
         weight: 0.15
         release: Bloomberg consensus
         why: >-
-          What the majors expect to spend three years out is the supply that
-          will exist then. Enters inverted: more investment now means a looser
+          What the S&P 500 energy sector is expected to spend three years out
+          is the supply that will exist then. Enters inverted: more investment now means a looser
           constraint later.
 
       - id: cbo_labour_force_revision
-        label: Revision to CBO potential labour force
+        label: Revision to CBO potential labor force
         source: {series: CBO_LABFORCE_REV}
         transform: level
         normalize: {method: gap, center: 0.0, scale: 0.54}
@@ -386,7 +386,7 @@ drivers:
         why: >-
           More future workers loosens the constraint; the L in Solow, revised.
 
-      # The participation half of the same projection, isolated. The labour
+      # The participation half of the same projection, isolated. The labor
       # force revision above moves on two things at once -- how many people
       # there will be, and how many of them work -- and it is the second that
       # swings: participation among women is the margin that has moved most in
@@ -411,7 +411,7 @@ drivers:
           health and wages push back.
   monetary:
     label: Monetary policy
-    description: How restrictive policy is against what inflation and slack call for, plus financial conditions.
+    description: How restrictive policy is against what inflation and slack call for, and how credible it is.
     signpost:
       low: {label: Too dovish, tone: risk, phrase: policy is looser than the rule calls for}
       high: {label: Too hawkish, tone: risk, phrase: policy is tighter than the rule calls for}
@@ -490,7 +490,7 @@ drivers:
       # QE and QT actually move, against GDP, so it is a flow like the fiscal
       # impulse: buying is easing, running off is tightening.
       - id: balance_sheet_impulse
-        label: Fed securities held, 3-year annualised change, % of GDP
+        label: Fed securities held, 3-year annualized change, % of GDP
         source:
           expr: "WSHOSHO / GDPNOM * 100"
           series: [WSHOSHO, GDPNOM]
@@ -628,8 +628,11 @@ drivers:
         why: Debt sustainability. A heavy interest bill narrows the room for fiscal support.
 
   investment:
-    label: Investment spending
-    description: Capex momentum and the credit conditions behind it.
+    label: Reforms and industrial policy
+    description: >-
+      How far reforms and industrial policy are turning into investment, read
+      through capex momentum and the credit conditions behind it. The
+      indicators measure the investment, not the policies themselves.
     signpost:
       low: {label: Low investment, tone: risk, phrase: capex is contracting}
       high: {label: High investment, tone: good, phrase: capex is expanding}
@@ -676,7 +679,7 @@ drivers:
         direction: -1
         weight: 0.15
         why: >-
-          Gilchrist and Zakrajsek's residual after modelling each bond's default
+          Gilchrist and Zakrajsek's residual after modeling each bond's default
           risk. Inverted: a wide premium means credit is dear and capex is next
           to stop. Forecasts investment better than a raw spread does.
 

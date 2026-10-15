@@ -99,7 +99,7 @@ st.html(ui.section_head(
     "How often the two agree", meta=f"latest confirmed month {latest:%B %Y}",
     caption="Share of months where both models called the same regime. The windows "
             "matter: some proposed series start late — sovereign CDS in 2018, CBO's "
-            "labour-force revisions in 2003 — and "
+            "labor-force revisions in 2003 — and "
             "before then the twin scores those drivers on fewer indicators."))
 cells = []
 for label, since in windows:
@@ -230,8 +230,8 @@ else:
 st.html(ui.section_head(
     "Which drivers the new indicators move",
     caption="Driver scores under each model. The gap is the effect of the proposed "
-            "indicators — largest on demand, where the unemployment gap has been cut to "
-            "0.15 and the CBO revision dropped, and slightest on inflation expectations, "
+            "indicators — largest on growth, where the unemployment gap has been cut to "
+            "0.15 and the CBO revision dropped, and slightest on inflation, "
             "which only adds a 5% revision alongside the anchors it already reads."))
 now = latest
 rows = []

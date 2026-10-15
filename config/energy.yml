@@ -334,10 +334,10 @@ manual:
 # Proposed and not yet in, with what stands in the way.
 pending:
   - item: Utilities' capex-to-sales, 12 months forward (ASR's Chart 4)
-    blocker: Bloomberg API access is on hold pending Bloomberg's review.
+    blocker: Not pulled yet. Bloomberg is connected, so this needs only the series set up.
   - item: Hyperscaler capex revisions (MSFT, GOOGL, AMZN, META, ORCL)
     blocker: Bloomberg, as above.
-  - item: Energy majors' 3-year capex revision, moved here from the supply driver
+  - item: S&P 500 energy sector's 3-year capex revision, moved here from the supply driver
     blocker: Bloomberg, as above.
   - item: Brent and Henry Hub 2-3 years forward
     blocker: Macrobond coverage not yet checked.

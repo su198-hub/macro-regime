@@ -1,7 +1,7 @@
 # Macro Regime Monitor
 
-Six drivers — demand, inflation expectations, supply constraint, monetary policy,
-fiscal policy, investment spending — scored monthly from U.S. data and mapped to four regimes:
+Six drivers — growth, inflation, supply constraint, monetary policy, fiscal
+policy, reforms and industrial policy — scored monthly from U.S. data and mapped to four regimes:
 goldilocks, high growth with high inflation, stagflation, hard landing.
 
 Everything reads through a point-in-time store, so the dashboard can be rewound

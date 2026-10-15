@@ -111,14 +111,14 @@ if cx is not None and len(cx):
     rows.append([
         "Supply", "Energy investment now, supply later",
         f"score {cx.iloc[-1]:+.2f}",
-        "What the majors commit to wells and LNG becomes barrels about five years out. "
+        "What the S&P 500 energy sector commits to wells and LNG becomes barrels about five years out. "
         "Directionally consistent across four regions (+0.24 to +0.41 against world oil "
         "supply at five years) but no interval clears zero: Bloomberg capex history "
         "starts in 2007, leaving two or three independent windows. Mechanism, not proof."])
 
 for ind_id, label, note in (
         ("supply::cbo_labour_force_revision", "How many people there will be to employ",
-         "CBO's projection of the labour force five years out, revised. Demographics are "
+         "CBO's projection of the labor force five years out, revised. Demographics are "
          "the most forecastable thing in the set: the people who will be working in 2031 "
          "have already been born and mostly already hired."),
         ("supply::cbo_lfpr_revision", "How many of them will choose to work",
@@ -149,7 +149,7 @@ st.html(
     'windows) it ranges only <b>−0.52 to −0.57</b>: removing the financial crisis gives '
     '−0.52, removing covid −0.57, removing both −0.53, and the pre-2013 period alone '
     '−0.57. At five years it is −0.65.</p>'
-    '<p>It is <b>not</b> in the scored driver, deliberately. The investment driver reads '
+    '<p>It is <b>not</b> in the scored driver, deliberately. The reforms and industrial policy signpost reads '
     '"how strong is capex now", and a reversion measure would push it toward <i>Low '
     'investment</i> during a boom — right about 2029 and wrong about today. It belongs '
     'here, where it needs no sign convention to fight with.</p></div>')
@@ -176,7 +176,7 @@ st.html(
     '<div class="m-body" style="max-width:46rem"><p>The asymmetry is the finding. '
     '<b>Fiscal and supply</b> have committed quantities — debt schedules, capacity under '
     'construction, demographics — so they can say something about 2029. '
-    '<b>Demand and investment</b> largely cannot: spending decisions are not made three '
+    '<b>Growth and reforms and industrial policy</b> largely cannot: spending decisions are not made three '
     'years ahead in any observable way, and every long-horizon candidate tested for them '
     'failed. <b>Monetary</b> is worse still, because the policy rate is set meeting by '
     'meeting and the measures that appear to predict it are reading the Fed\'s reaction '
@@ -198,21 +198,21 @@ LEVERS = [
      "Locked-in refinancing, monthly",
      "Each point of yield above the 3.2% being paid adds about 0.16 pts of GDP a year "
      "to the interest bill at current maturity."],
-    ["Supply", "The majors cut capex",
+    ["Supply", "The energy sector cuts capex",
      "Energy sector capex revision, monthly",
      "Roughly five years from spending to barrels, so a cut now shows in supply around "
      "2031. Four regions agree on direction; none of the intervals clears zero."],
     ["Supply", "Immigration or participation policy shifts",
-     "CBO labour force and participation revisions, quarterly",
+     "CBO labor force and participation revisions, quarterly",
      "The clearest arithmetic in the set: the 2024 immigration upgrade moved the "
-     "labour force projection directly."],
-    ["Investment", "The capex boom matures",
+     "labor force projection directly."],
+    ["Reforms and industrial policy", "The capex boom matures",
      "Investment intensity vs its 10-year norm, quarterly",
      "Currently +26.9 against a 23.2 norm. Historically −0.56 with growth three years "
      "out, Oct 1976 – Apr 2023."],
     ["Inflation", "The anchor moves",
      "SPF ten-year CPI, level and revision, quarterly",
-     "Neither predicts realised inflation; together they say whether expectations are "
+     "Neither predicts realized inflation; together they say whether expectations are "
      "where they should be and whether they are moving."],
     ["Monetary", "The Fed's reaction function changes",
      "Taylor gap, monthly",
