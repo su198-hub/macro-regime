@@ -124,3 +124,10 @@ def test_source_lines_need_nothing_from_the_store_but_its_connection():
             self.con.execute("INSERT INTO series_meta VALUES ('A','macrobond'),('B','bloomberg'),('C','energy-eia')")
 
     assert model_vendors(OldStore(), ["A", "B"]) == {"macrobond", "bloomberg"}
+
+
+def test_rich_bolds_marked_text_and_escapes_the_rest():
+    from src.ui import rich
+    assert rich("**Changes in potential growth**: a <b>raw</b> tag") == \
+        "<b>Changes in potential growth</b>: a &lt;b&gt;raw&lt;/b&gt; tag"
+    assert rich("no markers") == "no markers"

@@ -159,7 +159,7 @@ series:
     macrobond: usfcst0101
     note: Cleveland Fed model-based expected inflation, 1 year.
   # Wages, productivity, the Fed's balance sheet and corporate leverage, added
-  # to match the drivers on the scenario slide.
+  # to match the drivers in the scenario framework.
   ECIWAG:
     fred_page: true
     macrobond: uslama4604

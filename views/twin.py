@@ -39,9 +39,9 @@ if not os.path.exists(db):
     st.stop()
 
 overlay = tw.load_overlay()
-# The overlay's swaps are written against the default framework's signposts,
-# so the twin always compares with it, whichever framework the reader picked.
-base = ctry.resolve(registry(), country()["code"])
+# The overlay's swaps are written against v1's signposts, so the twin always
+# compares with v1, whichever framework the reader picked.
+base = ctry.resolve(registry(), country()["code"], framework="v1")
 live_cfg = load_config(base["indicators"])
 twin_cfg = tw.build_config(live_cfg, overlay)
 reg = load_regimes(base["regimes"])

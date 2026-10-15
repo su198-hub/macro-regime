@@ -8,7 +8,7 @@
 # in a config file rather than in code.
 #
 # Monetary archetypes carry over from the single policy driver. Fiscal
-# archetypes follow the ordering on the scenario slide, small to large fiscal:
+# archetypes follow the agreed scenario ordering, small to large fiscal:
 # hard landing, then goldilocks and high growth, then stagflation. Neither has
 # been validated against history.
 

@@ -1,6 +1,4 @@
-# The v2 signposts: the framework on the October 2026 scenario slides
-# ("Regime: Scenario Drivers/Signposts (v2)" and "Long-term Scenarios: What
-# are we tracking?").
+# The v2 signposts, October 2026.
 #
 # Five signposts, fiscal read on two axes, and supply folded into growth:
 #
@@ -15,15 +13,16 @@
 #   reforms                how far reforms and industrial policy draw in
 #                          private investment, read through the investment
 #
-# Every score runs from the slide's left pole (-1) to its right pole (+1):
+# Every score runs from its left pole (-1) to its right pole (+1):
 # weak to strong, de-anchored lower to higher, losing to keeping credibility,
 # unsustainable to sustainable, low to high multiplier, reactive to proactive.
 # That differs from v1, where +1 meant hot, tight or restrictive.
 #
-# Indicators follow the slide's list. Two departures, both stated where they
-# are made: the multiplier axis has no indicator on the slide, so two are
-# proposed here; and B-Ready and Global Trade Alert, named under reforms, have
-# no history to score yet. Centers and scales come from each series' history
+# Indicators follow the agreed list, with two departures stated where they
+# are made: the multiplier axis has no agreed indicator, so two are proposed
+# here; and B-Ready and Global Trade Alert, listed under reforms, have no
+# history to score yet. The reason for each indicator opens with the item on
+# the list it measures, in bold. Centers and scales come from each series' history
 # to 2019 where it has one, otherwise all of it; for inflation and
 # credibility, 1990-2019, the inflation-targeting era, as in v1. Revisions
 # and changes are centered on zero, absolute anchors (2% inflation, r = g,
@@ -35,18 +34,18 @@ meta:
   # Read by the dashboard and the methodology page, so each framework
   # describes itself rather than borrowing v1's words.
   sign: >-
-    positive means the right-hand pole on the scenario slide: stronger growth,
-    inflation de-anchored higher, a more credible central bank, a more
-    sustainable debt path, a higher fiscal multiplier, more proactive reform
+    positive means stronger growth, inflation de-anchored higher, a more
+    credible central bank, a more sustainable debt path, a higher fiscal
+    multiplier and more proactive reform
   framework_note: >-
     Five signposts, scored on six axes: fiscal is read twice, for
-    sustainability and for the multiplier, as on the slide. Supply is folded
+    sustainability and for the multiplier. Supply is folded
     into growth, which reads long-run prospects rather than this year's
     demand.
   summary_note: >-
-    The scenario positions are the October 2026 slide's judgments. Against the
-    labeled history they fit poorly: goldilocks is never the leading scenario
-    after 1990.
+    The scenario positions are judgments, not estimates. Against the labeled
+    history they fit poorly: goldilocks is never the leading scenario after
+    1990.
   limitations:
     - title: Scenario positions fit the labeled history poorly
       text: >-
@@ -77,8 +76,8 @@ meta:
         receipts, while the primary deficit ran at 3.3 to 4.5% of GDP.
     - title: Proposed, thin or contaminated inputs
       text: >-
-        The multiplier's two indicators are proposed rather than taken from
-        the slide, and Covid's swing in transfers dominates them. The CBO
+        The multiplier's two indicators are proposals, not yet agreed, and
+        Covid's swing in transfers dominates them. The CBO
         potential-growth revision starts in 1997 and the forecasters'
         productivity revision is annual from 1993. Growth and reforms both
         lean on the AI capex surge, which is investment, not policy. B-Ready
@@ -144,8 +143,8 @@ drivers:
         weight: 0.20
         carry_forward_periods: 2
         why: >-
-          The slide's "changes in potential growth": how CBO's view of the
-          economy's speed limit moves between projections.
+          **Changes in potential growth**: how CBO's view of the economy's
+          speed limit moves between projections.
 
       - id: spf_growth_revision
         label: Revision to forecasters' 10-year GDP growth
@@ -156,7 +155,7 @@ drivers:
         weight: 0.15
         carry_forward_periods: 2
         release: Survey of Professional Forecasters
-        why: Revisions to long-term growth forecasts, from forecasters rather than CBO.
+        why: "**Revisions to long-term growth forecasts**, from forecasters rather than CBO."
 
       - id: spf_productivity_revision
         label: Revision to forecasters' 10-year productivity growth
@@ -167,7 +166,7 @@ drivers:
         weight: 0.10
         carry_forward_periods: 2
         release: Survey of Professional Forecasters
-        why: The slide's "revisions to productivity estimates".
+        why: "**Revisions to productivity estimates**: forecasters' ten-year view of productivity growth."
 
       - id: tfp_pace
         label: Total factor productivity, five-year average pace
@@ -178,9 +177,9 @@ drivers:
         weight: 0.10
         carry_forward_periods: 2
         why: >-
-          Utilization-adjusted, so a boom running machines harder is not
-          mistaken for better technology. The average pace, not the latest
-          quarter.
+          **Total factor productivity, average pace**. Utilization-adjusted,
+          so a boom running machines harder is not mistaken for better
+          technology.
 
       - id: labor_productivity_pace
         label: Labor productivity, five-year annualized growth
@@ -190,7 +189,7 @@ drivers:
         direction: 1
         weight: 0.10
         carry_forward_periods: 2
-        why: Output per hour over five years, the average pace the slide asks for.
+        why: "**Labor productivity, average pace**: output per hour over five years."
 
       - id: capex_revision
         label: Revision to the S&P 500's three-year capex consensus
@@ -201,8 +200,8 @@ drivers:
         weight: 0.15
         release: Bloomberg consensus
         why: >-
-          Revision to capex plans: what analysts expect companies to spend
-          three years out, against a year ago.
+          **Revision to capex plans**: what analysts expect companies to
+          spend three years out, against a year ago.
 
       - id: cbo_labour_force_revision
         label: Revision to CBO potential labor force
@@ -212,7 +211,7 @@ drivers:
         direction: 1
         weight: 0.10
         carry_forward_periods: 2
-        why: More workers in the projection means faster potential growth.
+        why: "**Revision to the labor force**: more workers in the projection means faster potential growth."
 
       - id: cbo_lfpr_revision
         label: Revision to CBO potential participation rate
@@ -222,7 +221,7 @@ drivers:
         direction: 1
         weight: 0.10
         carry_forward_periods: 2
-        why: The participation half of the labor force projection.
+        why: "**Revision to the participation rate**: the participation half of the labor force projection."
 
   inflation:
     label: Inflation
@@ -240,7 +239,7 @@ drivers:
         direction: 1
         absolute_level: true
         weight: 0.25
-        why: The market's long-run inflation expectation, against its usual level.
+        why: "**5Y5Y inflation expectations**: the market's long-run expectation, against its usual level."
 
       - id: cleveland_10y
         label: Cleveland Fed 10-year expected inflation
@@ -250,7 +249,7 @@ drivers:
         direction: 1
         absolute_level: true
         weight: 0.20
-        why: A model-based 10-year expectation, against the 2% target.
+        why: "**10-year expected inflation**: a model-based expectation, against the 2% target."
 
       - id: spf_cpi_revision
         label: Revision to forecasters' 10-year CPI
@@ -261,7 +260,7 @@ drivers:
         weight: 0.15
         carry_forward_periods: 2
         release: Survey of Professional Forecasters
-        why: Whether professional forecasters are moving their long-run view.
+        why: "**Revisions to forecasters' 10-year CPI**: whether they are moving their long-run view."
 
       - id: inflation_risk_premium
         label: Inflation risk premium, 10 year
@@ -271,7 +270,7 @@ drivers:
         direction: 1
         absolute_level: true
         weight: 0.15
-        why: What investors pay to insure against inflation surprises.
+        why: "**Inflation risk premium**: what investors pay to insure against inflation surprises."
 
       - id: core_inflation_3y
         label: Core PCE inflation, three-year annualized
@@ -284,8 +283,8 @@ drivers:
         anchor: true
         release: PCE report
         why: >-
-          Inflation against target over a policy cycle: what has actually
-          been delivered, which expectations eventually follow. The anchor, as
+          **Inflation against target**, over a policy cycle: what has
+          actually been delivered, which expectations eventually follow. The anchor, as
           in v1: a month is confirmed once the PCE report is out.
 
   monetary:
@@ -303,7 +302,7 @@ drivers:
         normalize: {method: gap, center: 42.8, scale: 30.7}
         direction: -1
         weight: 0.25
-        why: The slide's "inflation vs target hit rate", as its complement.
+        why: "**Inflation against target, hit rate**, as its complement: the share of months missed."
 
       - id: inflation_volatility
         label: Inflation volatility, 36 months
@@ -312,7 +311,7 @@ drivers:
         normalize: {method: gap, center: 0.29, scale: 0.12}
         direction: -1
         weight: 0.20
-        why: Steady inflation, even off target, is easier to believe than violent swings.
+        why: "**Inflation volatility**: steady inflation, even off target, is easier to believe than violent swings."
 
       - id: inflation_trajectory
         label: Change in core inflation's distance from 2%, over a year
@@ -322,8 +321,8 @@ drivers:
         direction: -1
         weight: 0.15
         why: >-
-          The slide's "trajectory": whether inflation is closing on target or
-          drifting away from it.
+          **Inflation trajectory**: whether inflation is closing on target
+          or drifting away from it.
 
       - id: forecaster_disagreement
         label: Forecaster disagreement on inflation
@@ -333,7 +332,7 @@ drivers:
         direction: -1
         weight: 0.20
         carry_forward_periods: 2
-        why: When the anchor holds, forecasters agree on where inflation is going.
+        why: "**Forecaster disagreement on inflation**: when the anchor holds, forecasters agree on where inflation is going."
 
       - id: taylor_gap_trailing
         label: Fed funds less the Taylor rule rate, three-year average
@@ -355,7 +354,7 @@ drivers:
         release: PCE report
         carry_forward_periods: 6
         why: >-
-          Actual against the Taylor rule, averaged over three years. A bank
+          **Actual against the Taylor rule, trailing average**. A bank
           that has run looser than the rule for years has spent credibility;
           one that has run tighter has banked it.
 
@@ -382,8 +381,8 @@ drivers:
         absolute_level: true
         weight: 0.35
         why: >-
-          r minus g: the rate the debt actually pays against the economy's
-          three-year growth. Above zero, debt grows faster than the economy
+          **Trajectory of the debt stock (r − g)**: the rate the debt actually
+          pays against the economy's three-year growth. Above zero, debt grows faster than the economy
           before any new deficit.
 
       - id: revenue_vs_spending
@@ -402,8 +401,8 @@ drivers:
         weight: 0.35
         release: Monthly Treasury Statement
         why: >-
-          Revenue against expenditure trajectory: receipts growing faster than
-          outlays over three years closes the gap.
+          **Revenue against expenditure trajectory**: receipts growing faster
+          than outlays over three years closes the gap.
 
       - id: capb_3y_change
         label: Cyclically adjusted primary balance, three-year change
@@ -414,15 +413,16 @@ drivers:
         weight: 0.30
         carry_forward_periods: 2
         why: >-
-          Consolidation or impulse, with the cycle taken out. OECD estimates,
+          **Cyclically adjusted primary balance, 3-year change**:
+          consolidation or impulse, with the cycle taken out. OECD estimates,
           annual and general government; the latest year is a projection.
 
   fiscal_multiplier:
     label: "Fiscal policy: multiplier"
     description: >-
       Whether federal spending goes to investment, with a high multiplier, or
-      to consumption support, with a low one. The slide names this axis but
-      lists no indicator for it; these two are proposed.
+      to consumption support, with a low one. These two indicators are
+      proposals, not yet agreed.
     signpost:
       low: {label: Low multiplier, tone: risk, phrase: spending is tilting to consumption support}
       high: {label: High multiplier, tone: good, phrase: spending is tilting to investment}
@@ -438,7 +438,7 @@ drivers:
         direction: 1
         weight: 0.5
         carry_forward_periods: 2
-        why: Gross investment, physical and R&D, as a share of federal expenditure.
+        why: "**Investment share of federal spending**: gross investment, physical and R&D."
 
       - id: transfers_share
         label: Federal transfers share of spending, three-year change
@@ -450,14 +450,14 @@ drivers:
         direction: -1
         weight: 0.5
         carry_forward_periods: 2
-        why: Transfer payments, the consumption-support end, as a share of federal expenditure.
+        why: "**Transfers share of federal spending**: the consumption-support end."
 
   reforms:
     label: Reforms and industrial policy
     description: >-
       How far reforms and industrial policy are drawing in private
       investment, read through the investment itself. B-Ready and Global
-      Trade Alert, on the slide, have no history to score yet.
+      Trade Alert have no history to score yet.
     signpost:
       low: {label: Reactive / limited, tone: risk, phrase: private investment is not responding}
       high: {label: Proactive / extensive, tone: good, phrase: private investment is responding}
@@ -471,7 +471,7 @@ drivers:
         direction: 1
         weight: 0.25
         carry_forward_periods: 2
-        why: The slide's "GFCF as a % of GDP", in points above its own decade.
+        why: "**GFCF as a % of GDP**: business investment's share, in points above its own decade."
 
       - id: core_capex_orders_yoy
         label: Core capital goods orders, year over year
@@ -480,7 +480,7 @@ drivers:
         normalize: {method: gap, center: 3.5, scale: 3.0}
         direction: 1
         weight: 0.25
-        why: Leading edge of business investment, monthly.
+        why: "**Capital goods orders**: the leading edge of business investment, monthly."
 
       - id: real_nonres_investment_yoy
         label: Real business investment, year over year
@@ -490,7 +490,7 @@ drivers:
         direction: 1
         weight: 0.25
         carry_forward_periods: 2
-        why: Real business investment growth, quarterly.
+        why: "**Real business investment growth**, quarterly."
 
       - id: equity_risk_premium
         label: Change in equity risk premium
@@ -502,6 +502,7 @@ drivers:
         direction: -1
         weight: 0.25
         why: >-
-          E10/P less the real 10-year yield, changed over a year. A falling
+          **Equity risk premium**: E10/P less the real 10-year yield, changed
+          over a year. A falling
           premium is cheaper equity capital for the investment the policy
           wants.

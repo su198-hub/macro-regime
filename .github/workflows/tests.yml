@@ -52,10 +52,10 @@ jobs:
           assert "What cannot be changed here" in body, "control room incomplete"
           assert at.toggle and at.slider and at.number_input, "controls missing"
           # Changing an assumption must reach the dashboard, and only for this session.
-          at.slider(key="sal::us::demand").set_value(2.0).run()
+          at.slider(key="sal::us::growth").set_value(2.0).run()
           [b for b in at.button if b.label == "Apply salience"][0].click().run()
           assert not [e.value for e in at.exception], [e.value for e in at.exception]
-          assert at.session_state["mr_overrides"]["us"]["salience"]["demand"] == 2.0, \
+          assert at.session_state["mr_overrides"]["us"]["salience"]["growth"] == 2.0, \
               "override lost"
           at.switch_page("views/dashboard.py").run()
           assert any('class="mr-custom"' in h.proto.body for h in at.get("html")), \
@@ -85,7 +85,9 @@ jobs:
           assert not [e.value for e in at.exception], [e.value for e in at.exception]
           assert "1 added" in "\n".join(c.value for c in at.code), "export did not update"
           held = at.session_state["mr_overrides"] if "mr_overrides" in at.session_state else {}
-          assert not (held or {}).get("us"), "the bench wrote an override"
+          # A reset leaves empty sections behind, so count settings, not keys.
+          from src.overrides import count
+          assert count((held or {}).get("us") or {}) == 0, "the bench wrote an override"
 
           print("Rendered the dashboard, control room, methodology and bench")
           EOF

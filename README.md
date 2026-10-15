@@ -4,10 +4,10 @@ Six drivers — growth, inflation, supply constraint, monetary policy, fiscal
 policy, reforms and industrial policy — scored monthly from U.S. data and mapped to four regimes:
 goldilocks, high growth with high inflation, stagflation, hard landing.
 
-A second framework is on trial beside it, chosen from the Framework menu: the
-October 2026 v2 signposts (`config/indicators_v2.yml`, `config/regimes_v2.yml`),
-five signposts scored on six axes with a Baseline scenario added. The first
-framework listed in `config/countries.yml` is the default.
+That is v1. The default since October 2026 is v2 (`config/indicators_v2.yml`,
+`config/regimes_v2.yml`): five signposts scored on six axes, with a Baseline
+scenario added. The Framework menu switches between them; the first framework
+listed in `config/countries.yml` is the default.
 
 Everything reads through a point-in-time store, so the dashboard can be rewound
 to any date and will show the call you would have made then.

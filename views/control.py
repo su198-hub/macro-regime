@@ -222,7 +222,7 @@ for driver, spec in cfg["drivers"].items():
                 st.markdown(f"**{spec_i['label']}**"
                             + (" · anchor" if spec_i["anchor"] else ""))
                 if spec_i["why"]:
-                    st.html(f'<p class="mr-ctl-why">{ui.esc(spec_i["why"])}</p>')
+                    st.html(f'<p class="mr-ctl-why">{ui.rich(spec_i["why"])}</p>')
                 cols = st.columns(3, gap="medium")
                 stage[ovr.WEIGHTS][k] = cols[0].number_input(
                     f"Weight — {share_now:.0%} of the driver"

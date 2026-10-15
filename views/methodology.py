@@ -37,8 +37,8 @@ cfg, reg = results["config"], results["regimes"]
 # Words that belong to the framework in view rather than to the page: each
 # indicator file says what its signs mean and what it cannot do.
 META = cfg.get("meta") or {}
-_fw = country()
-IS_DEFAULT_FW = _fw["framework"] == _fw["default_framework"]
+# A few passages quote figures measured on v1 itself, and appear only with it.
+IS_V1 = country()["framework"] == "v1"
 drivers, probs = results["drivers"], results["probabilities"].dropna(how="all")
 settings, salience = reg["settings"], reg["driver_salience"]
 driver_names = list(cfg["drivers"])
@@ -186,7 +186,7 @@ rows = []
 for n in driver_names:
     d = cfg["drivers"][n]
     sp = d.get("signpost") or {}
-    rows.append([dlabel[n], d.get("description", ""),
+    rows.append([dlabel[n], ui.Raw(ui.rich(d.get("description", ""))),
                  (sp.get("low") or {}).get("label", "−1"),
                  (sp.get("high") or {}).get("label", "+1"),
                  len(d["indicators"]),
@@ -235,8 +235,8 @@ prose(
     'earlier, as the data is known today.</li>'
     '<li><b>The thin center line</b> is zero, the neutral reading.</li>'
     + (f'<li><b>{ui.esc(ui.join_words([reversed_[0]] + [n.lower() for n in reversed_[1:]]))}</b> '
-       f'{"is" if len(reversed_) == 1 else "are"} drawn with the tighter end on the left, as on '
-       f'the scenario slide. Scores still count restrictive as positive.</li>' if reversed_ else '')
+       f'{"is" if len(reversed_) == 1 else "are"} drawn with the tighter end on the left. '
+       f'Scores still count restrictive as positive.</li>' if reversed_ else '')
     + '<li>A star sitting near a regime\'s code on most rows is what a high probability '
     'for that regime looks like.</li></ul>')
 
@@ -403,7 +403,7 @@ for n in driver_names:
             norm_text, "+1" if int(i["direction"]) > 0 else "−1",
             ui.Raw(ui.horizon_chip(horizon_of.get(i["id"], "medium"))),
             f'{float(i["weight"]) / total:.0%}',
-            i.get("why", "")])
+            ui.Raw(ui.rich(i.get("why", "")))])
 st.html(ui.table(["Indicator", "Source", "Transform", "Normalization", "Direction",
                   "Horizon", "Weight", "Why it is included"], rows, numeric={4, 5, 6}))
 
@@ -471,7 +471,7 @@ if str(settings.get("fit_gate", "none")) == "closer_than_neutral":
         'describes the month, so on their own they turn every middling month into whichever '
         'regime sits nearest the center.'
         + (' Without a check, the slow, disinflationary recovery of 2011 to 2014 came out as '
-           'goldilocks.' if IS_DEFAULT_FW else '') + '</p>'
+           'goldilocks.' if IS_V1 else '') + '</p>'
         '<p>So each month is also measured against its nearest regime on an absolute yardstick: '
         'how far <b>a neutral economy</b>, with every driver at zero, would sit from that '
         f'regime\'s archetype. Those distances are {ui.esc(thresholds)}. A regime far from '
@@ -489,9 +489,9 @@ if str(settings.get("fit_gate", "none")) == "closer_than_neutral":
            f'half the time says little. At {tolerance:.2f}, {unclassified_share:.0%} of months '
            f'since 1990 are unclassified: the shocks are all still called, while the slower '
            f'stretches in between, 2010 to 2014 above all, report no clear regime rather than a '
-           f'quiet goldilocks.</p>' if IS_DEFAULT_FW else
-           f'<p>The tolerance is a judgment, set for the default framework and not re-tuned for '
-           f'this one. At {tolerance:.2f}, {unclassified_share:.0%} of months since 1990 are '
+           f'quiet goldilocks.</p>' if IS_V1 else
+           f'<p>The tolerance is a judgment, carried over from v1 and not yet re-tuned. At '
+           f'{tolerance:.2f}, {unclassified_share:.0%} of months since 1990 are '
            f'unclassified.</p>')
         + '<p>No clear regime goes through the same persistence rule as any regime, so the call '
         'moves to and from it deliberately. It is different from transitional: transitional '
@@ -578,9 +578,9 @@ prose(f'<p>{ui.esc(rlabel[leader])} is closest, at a distance of {dist[leader]:.
 # ---------- 9. limitations ----------
 
 section("m-limits", 9, "Limitations")
-# The default framework's limitations are written here; any other framework
-# lists its own under meta.limitations in its indicator file.
-_own_limits = "".join(f'<li><b>{ui.esc(x["title"])}.</b> {ui.esc(x["text"])}</li>'
+# v1's limitations are written here; v2 lists its own under meta.limitations
+# in its indicator file.
+_own_limits = "".join(f'<li><b>{ui.esc(x["title"])}.</b> {ui.rich(x["text"])}</li>'
                       for x in META.get("limitations") or [])
 prose(
     '<ul>' + (_own_limits or
@@ -625,6 +625,11 @@ section("m-versions", 11, "Versions and reproducibility")
 # table wants to know what the model is, not what it was.
 prose(
     '<h3 class="m-h3">What changed</h3>'
+    '<p><b>October 2026 — five signposts.</b> The default framework is now v2: growth, read '
+    'as long-run prospects; inflation, read as anchoring; monetary policy, read as credibility; '
+    'fiscal policy on two axes, sustainability and multiplier; and reforms and industrial '
+    'policy. Supply is folded into growth, and a Baseline scenario joins the four. The six-driver '
+    'framework below remains available as v1 under the Framework menu.</p>'
     '<p><b>October 2026 — reworked on the manager’s feedback, and renamed.</b> Three drivers '
     'took new names: demand is now <b>Growth</b>, inflation expectations <b>Inflation</b>, and '
     'investment spending <b>Reforms and industrial policy</b>, whose indicators still measure the '

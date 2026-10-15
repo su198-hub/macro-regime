@@ -75,11 +75,11 @@ def test_a_registry_with_no_countries_is_rejected(tmp_path):
 
 def test_frameworks_default_to_the_first_listed_and_fall_back_when_unknown():
     here = ctry.resolve(REG, "us")
-    assert here["framework"] == here["default_framework"] == "v1"
-    assert here["indicators"] == "config/indicators.yml"
-    v2 = ctry.resolve(REG, "us", framework="v2")
-    assert (v2["indicators"], v2["regimes"]) == ("config/indicators_v2.yml", "config/regimes_v2.yml")
-    assert ctry.resolve(REG, "us", framework="nonsense")["framework"] == "v1"
+    assert here["framework"] == here["default_framework"] == "v2"
+    assert (here["indicators"], here["regimes"]) == ("config/indicators_v2.yml", "config/regimes_v2.yml")
+    v1 = ctry.resolve(REG, "us", framework="v1")
+    assert (v1["indicators"], v1["regimes"]) == ("config/indicators.yml", "config/regimes.yml")
+    assert ctry.resolve(REG, "us", framework="nonsense")["framework"] == "v2"
     assert set(here["all_indicators"]) == {"config/indicators.yml", "config/indicators_v2.yml"}
 
 

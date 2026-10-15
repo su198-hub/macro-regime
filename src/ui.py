@@ -8,6 +8,7 @@ on a signpost track: a flipped sign there draws a confident, wrong picture.
 from __future__ import annotations
 
 import html
+import re
 
 import altair as alt
 import pandas as pd
@@ -266,6 +267,12 @@ CSS = f"""
 
 def esc(s) -> str:
     return html.escape(str(s))
+
+
+def rich(s) -> str:
+    """Escaped text with **bold** turned into <b>bold</b>: config prose that
+    names the item it measures in bold, such as an indicator's reason."""
+    return re.sub(r"\*\*(.+?)\*\*", lambda m: "<b>" + m.group(1) + "</b>", esc(s))
 
 
 def section_head(title: str, meta: str = "", caption: str = "") -> str:

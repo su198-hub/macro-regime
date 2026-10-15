@@ -109,7 +109,7 @@ drivers:
         release: PCE report
         why: Consumption is two thirds of GDP and revises less than GDP itself.
 
-      # Wage growth is the labor-market read the scenario slide asks for that
+      # Wage growth is the labor-market read the scenario framework asks for that
       # payrolls and the unemployment gap do not give: how much income the
       # labor market is actually generating. ECI rather than average hourly
       # earnings, which rose eight percent in 2020 because low-wage jobs left
@@ -717,5 +717,5 @@ drivers:
       # high and every year since 2016 a point low, which is an era bias rather
       # than a signal. Measured as a change it cycles, but the sign is
       # ambiguous, since leverage also rises when firms are investing hard. The
-      # slide's capital-allocation row needs ROIC or ICOR, which is not a
+      # framework's capital-allocation row needs ROIC or ICOR, which is not a
       # monthly series.

@@ -1,17 +1,16 @@
 # The v2 scenarios, placed on the v2 signposts (config/indicators_v2.yml).
 #
-# Positions are read off the October 2026 slide "Regime: Scenario
-# Drivers/Signposts (v2)". Each row there has the two poles and five columns
-# between them; the poles are -1 and +1 and the columns sit at -0.67, -0.33,
-# 0, +0.33 and +0.67, left to right. Where the slide puts two scenarios in one
-# cell (HL / STF, Baseline / HGHI), both take that position.
+# Each signpost has two poles and five positions between them; the poles are
+# -1 and +1 and the positions -0.67, -0.33, 0, +0.33 and +0.67, left to right.
+# Where two scenarios share a position (HL / STF, Baseline / HGHI), both take
+# it.
 #
-# Scores run from the slide's left pole to its right: weak to strong growth,
+# Scores run from the left pole to the right: weak to strong growth,
 # inflation de-anchored lower to higher, credibility lost to kept, fiscal
 # unsustainable to sustainable and low to high multiplier, reforms reactive to
 # proactive.
 #
-# These are the slide's judgments, not estimates. Against the labeled history
+# These are judgments, not estimates. Against the labeled history
 # on the Regime history page only the four growth-inflation regimes can be
 # checked: Baseline has no counterpart there.
 
@@ -33,7 +32,7 @@ driver_salience:
 rationale:
   driver_salience:
     growth: >-
-      Full weight. The slide's first signpost, and the one that separates
+      Full weight. The first signpost, and the one that separates
       goldilocks from the rest.
     inflation: >-
       Full weight. Whether the anchor holds separates high growth, high
@@ -42,11 +41,10 @@ rationale:
       Full weight. Credibility is what decides whether an inflation shock
       becomes stagflation.
     fiscal_sustainability: >-
-      Half weight, so the two fiscal axes together count as one signpost, as
-      on the slide.
+      Half weight, so the two fiscal axes together count as one signpost.
     fiscal_multiplier: >-
-      Half weight, as the other half of fiscal. Its indicators are proposed
-      rather than taken from the slide.
+      Half weight, as the other half of fiscal. Its indicators are
+      proposals, not yet agreed.
     reforms: >-
       Full weight. Read through private investment, so it measures the
       response to policy rather than the policy itself.

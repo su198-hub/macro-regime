@@ -100,10 +100,12 @@ def _store_for(version: str):
     # never lands in a real store by accident.
     if os.environ.get("MACRO_REGIME_SEED_DEMO") == "1" and store.coverage().empty:
         from ingest import load_demo
-        # Demo data seeds every live country, so the menu works without a vendor.
+        # Demo data seeds every live country and every framework, so both
+        # menus work without a vendor.
         reg = ctry.load_registry()
         for code in ctry.live_codes(reg):
-            load_demo(store, load_config(ctry.resolve(reg, code)["indicators"]))
+            for path in ctry.resolve(reg, code)["all_indicators"]:
+                load_demo(store, load_config(path))
     return store
 
 
