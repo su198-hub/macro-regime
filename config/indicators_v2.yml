@@ -32,6 +32,61 @@
 meta:
   region: US
   base_frequency: M
+  # Read by the dashboard and the methodology page, so each framework
+  # describes itself rather than borrowing v1's words.
+  sign: >-
+    positive means the right-hand pole on the scenario slide: stronger growth,
+    inflation de-anchored higher, a more credible central bank, a more
+    sustainable debt path, a higher fiscal multiplier, more proactive reform
+  framework_note: >-
+    Five signposts, scored on six axes: fiscal is read twice, for
+    sustainability and for the multiplier, as on the slide. Supply is folded
+    into growth, which reads long-run prospects rather than this year's
+    demand.
+  summary_note: >-
+    The scenario positions are the October 2026 slide's judgments. Against the
+    labeled history they fit poorly: goldilocks is never the leading scenario
+    after 1990.
+  limitations:
+    - title: Scenario positions fit the labeled history poorly
+      text: >-
+        Graded against the Regime history page from 1990, the leading scenario
+        matches the labeled regime in 24% of months (v1: 64%), and goldilocks
+        is never the leading scenario: it sits far from neutral, and high
+        growth, high inflation sits halfway along the same line, so every good
+        month lands there. 29% of months fit no scenario. Baseline cannot be
+        graded at all: the labels have only the four growth-inflation regimes.
+    - title: The signposts measure the long run; the labels measure the cycle
+      text: >-
+        The growth signpost reads potential growth itself, where the labeled
+        regime reads growth against potential: a productivity boom raises both,
+        so the label never calls it goldilocks.
+    - title: A 2% anchor before there was a target
+      text: >-
+        Inflation is read against 2%. Before the late 1990s expectations ran at
+        4 to 5%, so those years all read as de-anchored higher.
+    - title: Credibility is a track record only
+      text: >-
+        The miss rate, volatility, trajectory and trailing Taylor gap all look
+        back. Since 2021 they read as losing credibility while long-run
+        breakevens held near 2.3%; a market anchor is not in the signpost.
+    - title: Sustainability leaves out the size of the deficit
+      text: >-
+        r minus g and receipts against outlays read 2022 to 2024 as strongly
+        sustainable, on the nominal GDP boom and the post-Covid rebound in
+        receipts, while the primary deficit ran at 3.3 to 4.5% of GDP.
+    - title: Proposed, thin or contaminated inputs
+      text: >-
+        The multiplier's two indicators are proposed rather than taken from
+        the slide, and Covid's swing in transfers dominates them. The CBO
+        potential-growth revision starts in 1997 and the forecasters'
+        productivity revision is annual from 1993. Growth and reforms both
+        lean on the AI capex surge, which is investment, not policy. B-Ready
+        and Global Trade Alert are not included.
+    - title: Settings carried over from v1
+      text: >-
+        Temperature, the fit gate and the persistence rule are v1's, not yet
+        tested for five scenarios.
   history_start: "1970-01-01"
   carry_forward_periods: 2
   min_reported_share: 0.6
@@ -226,9 +281,12 @@ drivers:
         direction: 1
         absolute_level: true
         weight: 0.25
+        anchor: true
+        release: PCE report
         why: >-
           Inflation against target over a policy cycle: what has actually
-          been delivered, which expectations eventually follow.
+          been delivered, which expectations eventually follow. The anchor, as
+          in v1: a month is confirmed once the PCE report is out.
 
   monetary:
     label: Monetary policy

@@ -107,3 +107,20 @@ def test_what_moved_says_what_held_when_nothing_moved():
     assert text.startswith("little has moved")
     assert "demand" in text and "investment spending" in text
 
+
+
+def test_source_lines_need_nothing_from_the_store_but_its_connection():
+    """The store is a cached resource: a hosted session that began before a
+    deploy holds an instance of the old Store class. Page code that called a
+    method added since raised a TypeError on the live app, so the vendor lookup
+    asks only the connection, which every version has."""
+    import duckdb
+    from views.common import model_vendors
+
+    class OldStore:
+        def __init__(self):
+            self.con = duckdb.connect()
+            self.con.execute("CREATE TABLE series_meta (series_id VARCHAR, source VARCHAR)")
+            self.con.execute("INSERT INTO series_meta VALUES ('A','macrobond'),('B','bloomberg'),('C','energy-eia')")
+
+    assert model_vendors(OldStore(), ["A", "B"]) == {"macrobond", "bloomberg"}

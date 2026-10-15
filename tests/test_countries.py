@@ -91,3 +91,14 @@ def test_every_framework_loads_and_its_scenarios_cover_its_signposts():
             for name, spec in reg["regimes"].items():
                 assert set(spec["archetype"]) == set(cfg["drivers"]), f"{code}/{fw}/{name}"
             assert set(reg["driver_salience"]) == set(cfg["drivers"]), f"{code}/{fw}"
+
+
+def test_a_country_whose_frameworks_are_all_missing_falls_back_to_its_own_files(tmp_path):
+    for name in ("ind.yml", "reg.yml", "src.yml"):
+        (tmp_path / name).write_text("{}\n")
+    reg = {"default": "xx", "countries": {"xx": {
+        "label": "X", "status": "live", "indicators": "ind.yml", "regimes": "reg.yml", "sources": "src.yml",
+        "frameworks": {"v9": {"label": "gone", "indicators": "missing.yml", "regimes": "missing.yml"}}}}}
+    here = ctry.resolve(reg, "xx", root=tmp_path)
+    assert here["indicators"].endswith("ind.yml") and here["regimes"].endswith("reg.yml")
+    assert len(here["frameworks"]) == 1

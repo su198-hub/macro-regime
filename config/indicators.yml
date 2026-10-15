@@ -34,6 +34,12 @@
 meta:
   region: US
   base_frequency: M
+  # Read by the dashboard and the methodology page, so each framework
+  # describes itself.
+  sign: positive means hot, tight or restrictive
+  framework_note: >-
+    Policy is split into monetary and fiscal, because the two often pull in
+    opposite directions and regimes differ on each.
   history_start: "1970-01-01"
   # Quarterly and annual inputs hold their last value until the next release,
   # for at most this many of their own periods (2 = six months for quarterly,

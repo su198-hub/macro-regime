@@ -34,6 +34,11 @@ if results is None:
     st.stop()
 
 cfg, reg = results["config"], results["regimes"]
+# Words that belong to the framework in view rather than to the page: each
+# indicator file says what its signs mean and what it cannot do.
+META = cfg.get("meta") or {}
+_fw = country()
+IS_DEFAULT_FW = _fw["framework"] == _fw["default_framework"]
 drivers, probs = results["drivers"], results["probabilities"].dropna(how="all")
 settings, salience = reg["settings"], reg["driver_salience"]
 driver_names = list(cfg["drivers"])
@@ -164,17 +169,19 @@ prose(
     f'data, including consumer spending, is out. Until then the month gets a provisional '
     f'reading from faster indicators, labeled as such (section {num("m-provisional")}).</li></ol>'
     '<div class="m-callout"><p><b>What it is not.</b> The monitor describes current '
-    'conditions; it is not a forecast, and it makes no subjective adjustments. The regime '
-    'archetypes are judgments, and the labeled history shows several placed further out than '
-    'the data, with monetary and fiscal reversed for stagflation and hard landing '
-    f'(section {num("m-limits")}).</p></div>')
+    'conditions; it is not a forecast, and it makes no subjective adjustments. '
+    + ui.esc(META.get("summary_note") or
+             'The regime archetypes are judgments, and the labeled history shows several placed '
+             'further out than the data, with monetary and fiscal reversed for stagflation and '
+             'hard landing') .rstrip(".")
+    + f' (section {num("m-limits")}).</p></div>')
 
 # ---------- 2. framework ----------
 
 section("m-framework", 2, "Framework: drivers and regimes")
 prose(f'<p>{n_drivers.capitalize()} drivers summarize the macro environment. Each runs from −1 '
-      f'to +1; positive means hot, tight or restrictive. Policy is split into monetary and '
-      f'fiscal, because the two often pull in opposite directions and regimes differ on each.</p>')
+      f'to +1; {ui.esc(META.get("sign") or "positive means hot, tight or restrictive")}. '
+      f'{ui.esc(META.get("framework_note") or "")}</p>')
 rows = []
 for n in driver_names:
     d = cfg["drivers"][n]
@@ -304,8 +311,8 @@ prose(
     '<p>What differs between indicators is what that reference is, and the choice is not a '
     'matter of taste. There are three:</p><ul>'
     '<li><b>A fixed anchor</b>, where a level has economic meaning of its own: the 2% '
-    'inflation target, the neutral real rate, the noncyclical unemployment rate, long-run '
-    'average capacity utilization. This is the strongest form, because the score then says '
+    'inflation target, the neutral real rate, the noncyclical unemployment rate. This is the '
+    'strongest form, because the score then says '
     '<i>tight</i> or <i>loose</i> rather than merely <i>unusual</i>.</li>'
     '<li><b>The series\' own past</b>, for anything that grows: a year-on-year or '
     'twelve-month change is a gap whose reference is the value a year ago. Consumption, '
@@ -454,33 +461,39 @@ if str(settings.get("fit_gate", "none")) == "closer_than_neutral":
     # the tolerance changes, and a stale one here would be the page's own lie.
     _called = results["calls"]["called"].loc["1990":].dropna()
     unclassified_share = (_called == "unclassified").mean() if len(_called) else float("nan")
-    thresholds = ", ".join(
-        f'{rlabel[r]} {np.sqrt(sum(float(salience.get(n, 1.0)) * float(reg["regimes"][r]["archetype"][n]) ** 2 for n in driver_names)):.2f}'
-        for r in regime_names)
+    _from_neutral = {r: np.sqrt(sum(float(salience.get(n, 1.0)) * float(reg["regimes"][r]["archetype"][n]) ** 2
+                                    for n in driver_names)) for r in regime_names}
+    _far, _near = max(_from_neutral, key=_from_neutral.get), min(_from_neutral, key=_from_neutral.get)
+    thresholds = ", ".join(f'{rlabel[r]} {d:.2f}' for r, d in _from_neutral.items())
     prose(
         '<h3 class="m-h3">Fit gate: no clear regime</h3>'
         '<p>Probabilities are relative. They always add up to 100%, whether or not any regime '
         'describes the month, so on their own they turn every middling month into whichever '
-        'regime sits nearest the center. Without a check, the slow, disinflationary recovery of '
-        '2011 to 2014 came out as goldilocks.</p>'
+        'regime sits nearest the center.'
+        + (' Without a check, the slow, disinflationary recovery of 2011 to 2014 came out as '
+           'goldilocks.' if IS_DEFAULT_FW else '') + '</p>'
         '<p>So each month is also measured against its nearest regime on an absolute yardstick: '
         'how far <b>a neutral economy</b>, with every driver at zero, would sit from that '
         f'regime\'s archetype. Those distances are {ui.esc(thresholds)}. A regime far from '
-        'neutral, like a hard landing, accepts months far from neutral; one near it, like '
-        'goldilocks, demands a closer match. The month then gets one of three grades:</p><ul>'
+        f'neutral, like {rlabel[_far].lower()}, accepts months far from neutral; one near it, '
+        f'like {rlabel[_near].lower()}, demands a closer match. The month then gets one of three '
+        'grades:</p><ul>'
         '<li><b>Clear fit.</b> Closer to the archetype than neutral would be.</li>'
         f'<li><b>Weak fit.</b> Further than neutral, but within {tolerance:.2f} times that '
         'distance. The regime is still called, flagged as a weak fit and drawn in a paler shade '
         'on the history chart.</li>'
         f'<li><b>No fit.</b> Beyond {tolerance:.2f} times the distance. The month is <b>no clear '
         'regime</b>.</li></ul>'
-        '<p>The tolerance is a judgment. With no tolerance at all, 53% of months since 1990 '
-        f'fitted no regime, most of them only just, and a monitor that says "no clear regime" '
-        f'half the time says little. At {tolerance:.2f}, {unclassified_share:.0%} of months '
-        f'since 1990 are unclassified: the shocks are all still called, while the slower '
-        f'stretches in between, 2010 to 2014 above all, report no clear regime rather than a '
-        f'quiet goldilocks.</p>'
-        '<p>No clear regime goes through the same persistence rule as any regime, so the call '
+        + ('<p>The tolerance is a judgment. With no tolerance at all, 53% of months since 1990 '
+           f'fitted no regime, most of them only just, and a monitor that says "no clear regime" '
+           f'half the time says little. At {tolerance:.2f}, {unclassified_share:.0%} of months '
+           f'since 1990 are unclassified: the shocks are all still called, while the slower '
+           f'stretches in between, 2010 to 2014 above all, report no clear regime rather than a '
+           f'quiet goldilocks.</p>' if IS_DEFAULT_FW else
+           f'<p>The tolerance is a judgment, set for the default framework and not re-tuned for '
+           f'this one. At {tolerance:.2f}, {unclassified_share:.0%} of months since 1990 are '
+           f'unclassified.</p>')
+        + '<p>No clear regime goes through the same persistence rule as any regime, so the call '
         'moves to and from it deliberately. It is different from transitional: transitional '
         'means regimes are close to one another; no clear regime means none of them fits.</p>')
 
@@ -565,8 +578,12 @@ prose(f'<p>{ui.esc(rlabel[leader])} is closest, at a distance of {dist[leader]:.
 # ---------- 9. limitations ----------
 
 section("m-limits", 9, "Limitations")
+# The default framework's limitations are written here; any other framework
+# lists its own under meta.limitations in its indicator file.
+_own_limits = "".join(f'<li><b>{ui.esc(x["title"])}.</b> {ui.esc(x["text"])}</li>'
+                      for x in META.get("limitations") or [])
 prose(
-    '<ul>'
+    '<ul>' + (_own_limits or
     '<li><b>Archetypes do not match the labeled history.</b> Where each regime sits in driver '
     'space is a judgment, informed but not estimated. Against the labeled history on the Regime '
     'history page (1983 onward, on revised data), the months in each regime sit closer to '
@@ -594,8 +611,8 @@ prose(
     '<li><b>Persistence can hold a call through a turn.</b> The rule that stops the call '
     'flipping on noise also delays it at a genuine turning point. In 2008 the monthly readings '
     'moved to stagflation in July and to a hard landing from August, but the call only became '
-    'hard landing in October, once the new leader had held three months in a row.</li>'
-    '<li><b>Calibration risk.</b> Tuning thresholds on 2021 to 2023 would overfit an '
+    'hard landing in October, once the new leader had held three months in a row.</li>')
+    + '<li><b>Calibration risk.</b> Tuning thresholds on 2021 to 2023 would overfit an '
     'unusual episode.</li>'
     + ('<li><b>Demo data.</b> This deployment runs on synthetic series.</li>' if demo else '')
     + '</ul>')

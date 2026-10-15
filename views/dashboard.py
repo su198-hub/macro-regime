@@ -365,8 +365,8 @@ with tab_pull:
             width="stretch")
 
 with tab_drivers:
-    st.caption("Scores run from −1 to +1. Positive means hot, tight or "
-               "restrictive depending on the driver.")
+    st.caption("Scores run from −1 to +1; "
+               + ((cfg.get("meta") or {}).get("sign") or "positive means hot, tight or restrictive") + ".")
     st.altair_chart(ui.drivers_chart(drivers.tail(180), cfg), width="content")
     cov_cols = [f"{c}__coverage" for c in driver_cols
                 if f"{c}__coverage" in drivers.columns]

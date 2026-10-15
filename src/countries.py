@@ -98,7 +98,10 @@ def resolve(reg: dict, code: str | None = None, root: str | Path = ".",
                 f"Live: {', '.join(live_codes(reg, root))}")
         code = default_code(reg, root)
     spec = _spec(reg, code)
-    fws = frameworks(reg, code, root)
+    # A live country's own files always exist, so they stand in if none of
+    # its listed frameworks do: the page falls back rather than failing.
+    fws = frameworks(reg, code, root) or {
+        "default": {"label": "", "indicators": spec["indicators"], "regimes": spec["regimes"]}}
     default_fw = next(iter(fws))
     fw = framework if framework in fws else default_fw
     paths = {k: spec[k] for k in REQUIRED_PATHS}
