@@ -52,7 +52,9 @@ jobs:
           assert "What cannot be changed here" in body, "control room incomplete"
           assert at.toggle and at.slider and at.number_input, "controls missing"
           # Changing an assumption must reach the dashboard, and only for this session.
-          at.slider(key="sal::us::growth").set_value(2.0).run()
+          # Set and submit in one run, as a browser does: since Streamlit 1.66 a form
+          # widget changed in one run and submitted in the next is discarded.
+          at.slider(key="sal::us::growth").set_value(2.0)
           [b for b in at.button if b.label == "Apply salience"][0].click().run()
           assert not [e.value for e in at.exception], [e.value for e in at.exception]
           assert at.session_state["mr_overrides"]["us"]["salience"]["growth"] == 2.0, \
