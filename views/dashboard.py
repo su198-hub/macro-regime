@@ -18,7 +18,7 @@ from src.drivers import DRIVER_SCALE, driver_breakdown, load_config, required_se
 from src.regimes import contributions, load_regimes
 from views.common import (INDICATORS, REGIMES, country_picker, get_results, get_store,
                           is_demo as store_is_demo, planned_note, published_note,
-                          refresh_button, settings_banner, source_sentence)
+                          model_vendors, refresh_button, settings_banner, source_sentence)
 
 # Diverging blue to red through a neutral gray, for signed indicator scores.
 DIVERGING = LinearSegmentedColormap.from_list(
@@ -68,7 +68,7 @@ driver_label = {n: cfg["drivers"].get(n, {}).get("label", n) for n in driver_col
 regime_label = {n: s["label"] for n, s in reg["regimes"].items()}
 # Only the vendors behind the model's own series: the store also holds the
 # energy page's and the twin's.
-vendors = store.sources(required_series(cfg))
+vendors = model_vendors(store, required_series(cfg))
 source_line = (f'<p class="mr-source">Source: '
                f'{", ".join(VENDOR_NAME.get(v, v) for v in sorted(vendors))}; '
                f'Macro Regime Monitor calculations.</p>')

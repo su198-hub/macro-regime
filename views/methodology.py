@@ -20,7 +20,7 @@ from src.regimes import contributions
 from src.transform import CLIP
 from views.common import (INDICATORS, REGIMES, REPO_URL, country, country_picker,
                           get_results, get_store, is_demo, settings_banner,
-                          source_sentence)
+                          model_vendors, source_sentence)
 
 store = get_store()
 here = country()
@@ -239,7 +239,7 @@ section("m-data", 4, "Data and point-in-time vintages")
 meta_cfg = cfg.get("meta") or {}
 carry = int(meta_cfg.get("carry_forward_periods", 0))
 reported = float(meta_cfg.get("min_reported_share", 0))
-vendors = store.sources(required_series(cfg))
+vendors = model_vendors(store, required_series(cfg))
 prose(
     '<p><b>Source.</b> ' + source_sentence(vendors) + '</p>'
     '<p><b>Point in time.</b> Every observation is stored with its <i>vintage</i>: the date '

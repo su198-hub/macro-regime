@@ -315,6 +315,20 @@ def refresh_button() -> None:
         st.rerun()
 
 
+def model_vendors(store, series_ids: list[str]) -> set[str]:
+    """The vendors behind these series, for the source lines.
+
+    Asked of the store's connection rather than through a new Store method on
+    purpose: the store is a cached resource, so a hosted session that began
+    before a deploy keeps an instance of the old class, and a method added
+    since does not exist on it. That is how this broke once.
+    """
+    rows = store.con.execute(
+        "SELECT DISTINCT source FROM series_meta WHERE series_id IN (SELECT unnest(?))",
+        [list(series_ids)]).fetchall()
+    return {r[0] for r in rows}
+
+
 def source_sentence(vendors: set[str]) -> str:
     """Plain-language data source, as HTML, for footers and the methodology."""
     parts = []
