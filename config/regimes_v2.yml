@@ -7,7 +7,7 @@
 #
 # Scores run from the left pole to the right: weak to strong growth,
 # inflation de-anchored lower to higher, credibility lost to kept, fiscal
-# unsustainable to sustainable and low to high multiplier, reforms reactive to
+# unsustainable to sustainable, reforms reactive to
 # proactive.
 #
 # These are judgments, not estimates. Against the labeled history
@@ -25,8 +25,7 @@ driver_salience:
   growth: 1.0
   inflation: 1.0
   monetary: 1.0
-  fiscal_sustainability: 0.5
-  fiscal_multiplier: 0.5
+  fiscal: 1.0
   reforms: 1.0
 
 rationale:
@@ -40,11 +39,8 @@ rationale:
     monetary: >-
       Full weight. Credibility is what decides whether an inflation shock
       becomes stagflation.
-    fiscal_sustainability: >-
-      Half weight, so the two fiscal axes together count as one signpost.
-    fiscal_multiplier: >-
-      Half weight, as the other half of fiscal. Its indicators are
-      proposals, not yet agreed.
+    fiscal: >-
+      Full weight, read as the sustainability of the debt path.
     reforms: >-
       Full weight. Read through private investment, so it measures the
       response to policy rather than the policy itself.
@@ -74,8 +70,7 @@ regimes:
       growth: 0.00
       inflation: 0.33
       monetary: 0.67
-      fiscal_sustainability: 0.33
-      fiscal_multiplier: 0.00
+      fiscal: 0.33
       reforms: 0.00
     tell: Growth near trend, inflation a little above target, a credible central bank.
 
@@ -88,8 +83,7 @@ regimes:
       growth: 0.67
       inflation: 0.00
       monetary: 0.67
-      fiscal_sustainability: 0.67
-      fiscal_multiplier: 0.67
+      fiscal: 0.67
       reforms: 0.67
     tell: Productivity and capex plans rising together with expectations at target.
 
@@ -102,8 +96,7 @@ regimes:
       growth: 0.33
       inflation: 0.33
       monetary: 0.33
-      fiscal_sustainability: 0.33
-      fiscal_multiplier: 0.33
+      fiscal: 0.33
       reforms: 0.33
     tell: Investment strong and inflation above target, with credibility stretched.
 
@@ -116,8 +109,7 @@ regimes:
       growth: -0.67
       inflation: 0.67
       monetary: -0.67
-      fiscal_sustainability: -0.67
-      fiscal_multiplier: -0.67
+      fiscal: -0.67
       reforms: -0.67
     tell: Expectations rising while credibility and the debt trajectory both weaken.
 
@@ -130,7 +122,6 @@ regimes:
       growth: -0.67
       inflation: -0.67
       monetary: -0.33
-      fiscal_sustainability: 0.00
-      fiscal_multiplier: -0.67
+      fiscal: 0.00
       reforms: -0.67
     tell: Expectations falling below target while growth prospects weaken.

@@ -5,7 +5,7 @@ policy, reforms and industrial policy — scored monthly from U.S. data and mapp
 goldilocks, high growth with high inflation, stagflation, hard landing.
 
 That is v1. The default since October 2026 is v2 (`config/indicators_v2.yml`,
-`config/regimes_v2.yml`): five signposts scored on six axes, with a Baseline
+`config/regimes_v2.yml`): five signposts, with a Baseline
 scenario added. The Framework menu switches between them; the first framework
 listed in `config/countries.yml` is the default.
 

@@ -627,7 +627,7 @@ prose(
     '<h3 class="m-h3">What changed</h3>'
     '<p><b>October 2026 — five signposts.</b> The default framework is now v2: growth, read '
     'as long-run prospects; inflation, read as anchoring; monetary policy, read as credibility; '
-    'fiscal policy on two axes, sustainability and multiplier; and reforms and industrial '
+    'fiscal policy, read as the sustainability of the debt path; and reforms and industrial '
     'policy. Supply is folded into growth, and a Baseline scenario joins the four. The six-driver '
     'framework below remains available as v1 under the Framework menu.</p>'
     '<p><b>October 2026 — reworked on the manager’s feedback, and renamed.</b> Three drivers '

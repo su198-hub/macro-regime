@@ -1,27 +1,24 @@
 # The v2 signposts, October 2026.
 #
-# Five signposts, fiscal read on two axes, and supply folded into growth:
+# Five signposts, with supply folded into growth:
 #
 #   growth                 long-run growth prospects: potential growth and
 #                          revisions to it, productivity's average pace,
 #                          capex plans, the labor force
 #   inflation              whether long-run inflation stays anchored at 2%
 #   monetary               whether the central bank keeps its credibility
-#   fiscal_sustainability  whether the debt trajectory is sustainable
-#   fiscal_multiplier      whether spending goes to investment or to
-#                          consumption support
+#   fiscal                 whether the debt trajectory is sustainable
 #   reforms                how far reforms and industrial policy draw in
 #                          private investment, read through the investment
 #
 # Every score runs from its left pole (-1) to its right pole (+1):
 # weak to strong, de-anchored lower to higher, losing to keeping credibility,
-# unsustainable to sustainable, low to high multiplier, reactive to proactive.
+# unsustainable to sustainable, reactive to proactive.
 # That differs from v1, where +1 meant hot, tight or restrictive.
 #
-# Indicators follow the agreed list, with two departures stated where they
-# are made: the multiplier axis has no agreed indicator, so two are proposed
-# here; and B-Ready and Global Trade Alert, listed under reforms, have no
-# history to score yet. The reason for each indicator opens with the item on
+# Indicators follow the agreed list, except B-Ready and Global Trade Alert,
+# listed under reforms, which have no history to score yet. A fiscal
+# multiplier axis was tried and left out for now. The reason for each indicator opens with the item on
 # the list it measures, in bold. Centers and scales come from each series' history
 # to 2019 where it has one, otherwise all of it; for inflation and
 # credibility, 1990-2019, the inflation-targeting era, as in v1. Revisions
@@ -35,11 +32,11 @@ meta:
   # describes itself rather than borrowing v1's words.
   sign: >-
     positive means stronger growth, inflation de-anchored higher, a more
-    credible central bank, a more sustainable debt path, a higher fiscal
-    multiplier and more proactive reform
+    credible central bank, a more sustainable debt path and more proactive
+    reform
   framework_note: >-
-    Five signposts, scored on six axes: fiscal is read twice, for
-    sustainability and for the multiplier. Supply is folded
+    Five signposts. Fiscal policy reads the sustainability of the debt
+    path. Supply is folded
     into growth, which reads long-run prospects rather than this year's
     demand.
   summary_note: >-
@@ -50,10 +47,10 @@ meta:
     - title: Scenario positions fit the labeled history poorly
       text: >-
         Graded against the Regime history page from 1990, the leading scenario
-        matches the labeled regime in 24% of months (v1: 64%), and goldilocks
+        matches the labeled regime in 25% of months (v1: 64%), and goldilocks
         is never the leading scenario: it sits far from neutral, and high
         growth, high inflation sits halfway along the same line, so every good
-        month lands there. 29% of months fit no scenario. Baseline cannot be
+        month lands there. 26% of months fit no scenario. Baseline cannot be
         graded at all: the labels have only the four growth-inflation regimes.
     - title: The signposts measure the long run; the labels measure the cycle
       text: >-
@@ -76,8 +73,7 @@ meta:
         receipts, while the primary deficit ran at 3.3 to 4.5% of GDP.
     - title: Proposed, thin or contaminated inputs
       text: >-
-        The multiplier's two indicators are proposals, not yet agreed, and
-        Covid's swing in transfers dominates them. The CBO
+        The CBO
         potential-growth revision starts in 1997 and the forecasters'
         productivity revision is annual from 1993. Growth and reforms both
         lean on the AI capex surge, which is investment, not policy. B-Ready
@@ -119,8 +115,6 @@ meta:
       - taylor_gap_trailing
       - r_minus_g
       - capb_3y_change
-      - public_investment_share
-      - transfers_share
       - investment_share_vs_norm
       - equity_risk_premium
 
@@ -358,8 +352,8 @@ drivers:
           that has run looser than the rule for years has spent credibility;
           one that has run tighter has banked it.
 
-  fiscal_sustainability:
-    label: "Fiscal policy: sustainability"
+  fiscal:
+    label: Fiscal policy
     description: Whether the federal debt trajectory is sustainable.
     signpost:
       low: {label: Unsustainable, tone: risk, phrase: the debt trajectory is unsustainable}
@@ -416,41 +410,6 @@ drivers:
           **Cyclically adjusted primary balance, 3-year change**:
           consolidation or impulse, with the cycle taken out. OECD estimates,
           annual and general government; the latest year is a projection.
-
-  fiscal_multiplier:
-    label: "Fiscal policy: multiplier"
-    description: >-
-      Whether federal spending goes to investment, with a high multiplier, or
-      to consumption support, with a low one. These two indicators are
-      proposals, not yet agreed.
-    signpost:
-      low: {label: Low multiplier, tone: risk, phrase: spending is tilting to consumption support}
-      high: {label: High multiplier, tone: good, phrase: spending is tilting to investment}
-      mid: {phrase: the spending mix is little changed}
-    indicators:
-      - id: public_investment_share
-        label: Federal investment share of spending, three-year change
-        source:
-          expr: "FEDGROSSINV / FEDEXPEND * 100"
-          series: [FEDGROSSINV, FEDEXPEND]
-        transform: diff_36m_ann
-        normalize: {method: gap, center: 0.0, scale: 0.48}
-        direction: 1
-        weight: 0.5
-        carry_forward_periods: 2
-        why: "**Investment share of federal spending**: gross investment, physical and R&D."
-
-      - id: transfers_share
-        label: Federal transfers share of spending, three-year change
-        source:
-          expr: "FEDTRANSFERS / FEDEXPEND * 100"
-          series: [FEDTRANSFERS, FEDEXPEND]
-        transform: diff_36m_ann
-        normalize: {method: gap, center: 0.0, scale: 1.08}
-        direction: -1
-        weight: 0.5
-        carry_forward_periods: 2
-        why: "**Transfers share of federal spending**: the consumption-support end."
 
   reforms:
     label: Reforms and industrial policy
