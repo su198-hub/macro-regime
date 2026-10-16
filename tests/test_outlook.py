@@ -1,0 +1,79 @@
+"""The forecast scorecard's grading: what makes it fair is what these pin down.
+
+Held-out grading must not see the episode it grades, or anything sharing its
+outcome window; real-time grading must not see a label before it was known;
+the benchmarks must not use hindsight either.
+"""
+
+import numpy as np
+import pandas as pd
+import pytest
+
+from src import outlook as ol
+
+NAMES = ["g", "i"]
+
+
+def frame(labels, g=None, i=None, start="2000-01"):
+    idx = pd.period_range(start, periods=len(labels), freq="M")
+    g = np.zeros(len(labels)) if g is None else np.asarray(g, dtype=float)
+    i = np.zeros(len(labels)) if i is None else np.asarray(i, dtype=float)
+    return pd.DataFrame({"g": g, "i": i, "label": labels}, index=idx)
+
+
+JUDGMENT = pd.DataFrame({"g": [9.0, -9.0], "i": [0.0, 0.0]}, index=["up", "down"])
+
+
+def test_purge_covers_every_month_sharing_an_outcome_window():
+    idx = pd.period_range("2000-01", periods=200, freq="M")
+    mask = ol.purged(idx, idx[100], idx[110])
+    assert mask[100 - 35] and mask[110 + 35]
+    assert not mask[100 - 36] and not mask[110 + 36]
+
+
+def test_held_out_never_learns_from_the_episode_it_grades():
+    # Two long episodes. Holding out "up" purges it and the 35 months after,
+    # leaving only "down" months: "up" must fall back to its judgment position.
+    tr = frame(["up"] * 60 + ["down"] * 100, g=[1.0] * 60 + [-1.0] * 100)
+    p = ol.held_out(tr, JUDGMENT, NAMES, temperature=1.0)
+    pos = pd.DataFrame({"g": [9.0, -1.0], "i": [0.0, 0.0]}, index=["up", "down"])
+    want = ol.probabilities(tr.loc[tr.index[:60], NAMES], pos, 1.0)
+    assert np.allclose(p.loc[tr.index[:60]].to_numpy(), want[["up", "down"]].to_numpy())
+
+
+def test_real_time_uses_only_labels_known_at_the_time():
+    # "down" first appears at month 60, so it is not known before month 96.
+    tr = frame(["up"] * 60 + ["down"] * 100, g=[1.0] * 60 + [-1.0] * 100)
+    p = ol.real_time(tr, JUDGMENT, NAMES, temperature=1.0, first="2000-01")
+    early = tr.index[95]           # down not yet known: its judgment position stands
+    later = tr.index[96]           # month 60's label known now
+    pos_early = pd.DataFrame({"g": [1.0, -9.0], "i": [0.0, 0.0]}, index=["up", "down"])
+    want = ol.probabilities(tr.loc[[early], NAMES], pos_early, 1.0).iloc[0]
+    assert p.loc[early].to_numpy() == pytest.approx(want[["up", "down"]].to_numpy())
+    assert p.loc[later, "down"] > p.loc[early, "down"]
+    assert tr.index[35] not in p.index        # nothing known yet: no call
+
+
+def test_base_rate_counts_only_known_labels():
+    tr = frame(["up"] * 40 + ["down"] * 40)
+    b = ol.base_rate(tr, ["up", "down"], first="2000-01")
+    t = tr.index[40]               # labels for months 0-4 known: all "up"
+    assert b.loc[t, "up"] == pytest.approx((5 + 1) / (5 + 2))
+
+
+def test_log_loss_is_log_four_for_an_even_split_and_counts_baseline_as_a_miss():
+    idx = pd.period_range("2000-01", periods=3, freq="M")
+    even = pd.DataFrame(0.25, index=idx, columns=["a", "b", "c", "d"])
+    labels = pd.Series(["a", "b", "c"], index=idx)
+    assert ol.log_loss(even, labels) == pytest.approx(np.log(4))
+    with_baseline = pd.DataFrame({"baseline": [1.0], "a": [0.0]}, index=idx[:1])
+    assert ol.log_loss(with_baseline, labels.iloc[:1]) == pytest.approx(-np.log(1e-3))
+
+
+def test_grade_counts_a_hard_landing_runup_as_caught_at_half_its_months():
+    tr = frame(["hard_landing"] * 10 + ["goldilocks"] * 10 + ["hard_landing"] * 10)
+    calls = pd.Series(["hard_landing"] * 5 + ["goldilocks"] * 5 + ["goldilocks"] * 10
+                      + ["goldilocks"] * 6 + ["hard_landing"] * 4, index=tr.index)
+    g = ol.grade(calls, tr["label"], tr)
+    assert (g["hard_landing_runups"], g["hard_landing_caught"]) == (2, 1)
+    assert g["months"] == pytest.approx(19 / 30)
