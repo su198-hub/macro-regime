@@ -14,7 +14,8 @@ import streamlit as st
 from matplotlib.colors import LinearSegmentedColormap
 
 from src import ui
-from src.drivers import DRIVER_SCALE, driver_breakdown, load_config, required_series
+from src.drivers import (DRIVER_SCALE, driver_breakdown, driver_groups, group_scores,
+                         load_config, required_series)
 from src.regimes import contributions, load_regimes
 from views.common import (INDICATORS, REGIMES, country_picker, get_results, get_store,
                           is_demo as store_is_demo, planned_note, published_note,
@@ -203,7 +204,15 @@ st.html(ui.section_head(
     "the driver to be; the solid star is the confirmed month"
     + (", the outlined star the provisional one" if prov is not None else "")
     + ". Hover any mark for the exact score."))
-st.html(ui.signpost_html(drivers, cfg, reg, latest, then, prov)
+# A driver scored in blocks shows what each block says on its own.
+blocks = {}
+for d in driver_cols:
+    groups = driver_groups(cfg, d)
+    if len(groups) > 1:
+        gs = group_scores(cfg, d, results["indicators"])
+        if latest in gs.index:
+            blocks[d] = {groups[g].get("label") or g: gs.at[latest, g] for g in gs.columns}
+st.html(ui.signpost_html(drivers, cfg, reg, latest, then, prov, blocks=blocks)
         + source_line.replace("</p>", ' · <a href="/methodology#m-signposts" target="_self">'
                                       'How to read this chart</a></p>'))
 
@@ -344,7 +353,8 @@ with tab_pull:
             f'<span style="font-weight:400;color:{ui.INK_2}">'
             f'{ui.esc(ui.horizon_text(cfg, focus_driver))}</span></p>'
             + ui.breakdown_table(parts, cfg["drivers"][focus_driver]["indicators"], score,
-                                 horizon_of=ui.horizons(cfg))
+                                 horizon_of=ui.horizons(cfg),
+                                 groups=driver_groups(cfg, focus_driver))
             + f'<p class="mr-caption">Score is the reading measured against its center, '
               f'with direction applied, so positive always pushes the driver up. '
               f'Contribution is weight × score ÷ {DRIVER_SCALE:g}; the column sums to '

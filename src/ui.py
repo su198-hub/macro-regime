@@ -504,7 +504,9 @@ def run_length(series: pd.Series) -> int:
 
 def signpost_html(drivers: pd.DataFrame, ind_cfg: dict, reg_cfg: dict,
                   as_of: pd.Timestamp, then: pd.Timestamp | None,
-                  provisional: dict | None = None) -> str:
+                  provisional: dict | None = None, blocks: dict | None = None) -> str:
+    """The driver chart. `blocks` maps a driver scored in blocks to each
+    block's label and score this month, shown under the driver's reading."""
     regimes = reg_cfg["regimes"]
     then_label = f"{then:%B %Y}" if then is not None else ""
     legend = [
@@ -576,6 +578,10 @@ def signpost_html(drivers: pd.DataFrame, ind_cfg: dict, reg_cfg: dict,
             read += f" · {provisional['month']:%b}* {signed(prov)}"
         if not pd.isna(prior):
             read += f" · 12m ago {signed(prior)}"
+        parts = [f"{esc(label)} {signed(v)}" for label, v in ((blocks or {}).get(name) or {}).items()
+                 if not pd.isna(v)]
+        if parts:
+            read += "<br>" + " · ".join(parts)
         rows.append(
             f'<div class="sp-row"><div><div class="sp-pill">{esc(driver.get("label", name))}</div>'
             f'<div class="sp-read">{read}</div></div>'
@@ -1105,7 +1111,7 @@ def gap_chart(drivers: pd.DataFrame, driver: str, archetype: float, regime_label
 
 
 def breakdown_table(parts: pd.DataFrame, indicators: list[dict], clipped_to: float | None,
-                    horizon_of: dict | None = None) -> str:
+                    horizon_of: dict | None = None, groups: dict | None = None) -> str:
     """Indicators behind one driver this month, heaviest weight first.
 
     Ordered by weight rather than by contribution: the reader's first question
@@ -1113,17 +1119,43 @@ def breakdown_table(parts: pd.DataFrame, indicators: list[dict], clipped_to: flo
     that by putting whichever indicator happened to move at the top. Within one
     weight, the largest contribution leads; anything with no data this month
     sinks to the bottom.
+
+    A driver scored in blocks (`groups`, from drivers.driver_groups) lists each
+    block under its own heading row, with the block's share of the driver, its
+    own score and its part of the total.
     """
     spec = {i["id"]: i for i in indicators}
+    blocked = bool(groups) and len(groups) > 1 and "group" in parts
+    order = {g: n for n, g in enumerate(groups or {})}
     parts = parts.assign(
+        by_group=parts["group"].map(order).fillna(0) if blocked else 0,
         by_weight=parts["share"].fillna(-1),
         by_move=parts["contribution"].abs().fillna(-1),
-    ).sort_values(["by_weight", "by_move"], ascending=False)
+    ).sort_values(["by_group", "by_weight", "by_move"], ascending=[True, False, False])
     biggest = parts["contribution"].abs().max()
     biggest = biggest if biggest and not pd.isna(biggest) else 1.0
 
     rows = []
+    current = None
     for r in parts.itertuples():
+        if blocked and r.group != current:
+            current = r.group
+            members = parts[parts["group"] == current]
+            share = members["share"].sum(min_count=1)
+            part = members["contribution"].sum(min_count=1)
+            # The block's own score, in the same units as the indicator scores
+            # below it: their share-weighted mean.
+            own = ((members["share"] * members["score"]).sum(min_count=1) / share
+                   if share and not pd.isna(share) else float("nan"))
+            g = groups[current]
+            head = f'<b>{esc(g.get("label") or current)}</b>'
+            if g.get("description"):
+                head += (f'<br><span style="color:{INK_2};font-size:0.8rem">'
+                         f'{esc(g["description"])}</span>')
+            rows.append([Raw(head), "", "",
+                         Raw("<b>–</b>" if pd.isna(own) else f"<b>{signed(own)}</b>"),
+                         Raw("<b>–</b>" if pd.isna(share) else f"<b>{share:.0%}</b>"),
+                         Raw("<b>No data</b>" if pd.isna(part) else f"<b>{signed(part)}</b>")])
         ind = spec[r.id]
         label = esc(ind.get("label") or r.id)
         if (horizon_of or {}).get(r.id):

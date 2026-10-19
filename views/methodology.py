@@ -15,7 +15,8 @@ import pandas as pd
 import streamlit as st
 
 from src import ui
-from src.drivers import DRIVER_SCALE, config_hash, indicator_inputs, required_series
+from src.drivers import (DRIVER_SCALE, config_hash, driver_groups, indicator_group,
+                         indicator_inputs, required_series)
 from src.regimes import contributions
 from src.transform import CLIP
 from views.common import (INDICATORS, REGIMES, REPO_URL, country, country_picker,
@@ -371,8 +372,20 @@ for n in driver_names:
         f'<span style="font-weight:400;color:{ui.INK_2};font-size:0.82rem;margin-left:0.4rem">'
         f'{ui.esc(ui.horizon_text(cfg, n))}</span>'))
     # Heaviest first, so the table reads as what each driver leans on rather
-    # than the order the indicators happen to sit in the config file.
-    for i in sorted(inds, key=lambda x: float(x["weight"]), reverse=True):
+    # than the order the indicators happen to sit in the config file. A driver
+    # scored in blocks lists each block under its own heading.
+    blocks = driver_groups(cfg, n)
+    block_order = {g: k for k, g in enumerate(blocks)}
+    current = None
+    for i in sorted(inds, key=lambda x: (block_order[indicator_group(x)], -float(x["weight"]))):
+        if len(blocks) > 1 and indicator_group(i) != current:
+            current = indicator_group(i)
+            b = blocks[current]
+            rows.append(ui.Raw(
+                f'<span style="font-weight:600;color:{ui.INK_2}">{ui.esc(b.get("label") or current)}, '
+                f'{b["weight"] / total:.0%} of {ui.esc(dlabel[n].lower())}</span>'
+                + (f'<span style="font-weight:400;color:{ui.INK_2};font-size:0.82rem;margin-left:0.4rem">'
+                   f'{ui.esc(b["description"])}</span>' if b.get("description") else "")))
         src = i["source"]
         if src.get("expr"):
             # The expression, with its series linked. Intermediate aliases used
@@ -421,7 +434,14 @@ prose(f'<p>where <i>A<sub>t</sub></i> is the set of indicators available in mont
       'do not yet exist. Rather than let a driver drift toward zero, weights are rescaled '
       'over what is present. The cost is that early scores rest on fewer inputs, so '
       'coverage is tracked: the share of the driver\'s intended weight that was actually '
-      'present. The dashboard warns when a driver runs below 75% coverage.</p>')
+      'present. The dashboard warns when a driver runs below 75% coverage.</p>'
+      '<p><b>Blocks.</b> A driver can split its indicators into blocks, each scored on its own '
+      'and then combined at the block\'s share of the weight. Growth does this in v2: a cycle '
+      'block (room to grow over the next three years) and a potential-growth block. Within a '
+      'block, weights are rescaled over the indicators present, as above. Across blocks, each '
+      'block with any reading keeps its full share, so a block whose indicators start late does '
+      'not dilute the other. Before any potential-growth indicator exists, growth is the cycle '
+      'block alone.</p>')
 cov_now = {n: drivers.at[latest, f"{n}__coverage"] for n in driver_names
            if f"{n}__coverage" in drivers.columns}
 st.html(ui.table(["Driver", f"Score, {latest:%B %Y}", "Coverage"],
@@ -625,6 +645,19 @@ section("m-versions", 11, "Versions and reproducibility")
 # table wants to know what the model is, not what it was.
 prose(
     '<h3 class="m-h3">What changed</h3>'
+    '<p><b>October 2026 — growth in two blocks (v2).</b> Growth now reads whether growth will '
+    'run above or below potential over the next three years, and whether potential growth '
+    'itself is rising. The <b>cycle</b> block, 75% of the driver: unemployment against CBO’s '
+    'long-run rate, capacity utilization against its 10-year average, and real growth in '
+    'company and in household debt over three years. The <b>potential growth</b> block, 25%: '
+    'CBO’s potential-growth revision, the forecasters’ productivity revision, the capex '
+    'consensus revision and CBO’s labor force revision. Out: the forecasters’ ten-year GDP '
+    'revision (a near-copy of the productivity revision), the five-year pace of total factor '
+    'and labor productivity (they look back, and strong runs were followed by slower decades) '
+    'and CBO’s participation revision (from 2019 only). Graded on the three years that '
+    'followed, 1993 to 2023, with each episode held out of its own fit, the average hit rate '
+    'across the four regimes rose from 23% to 36%, and all three hard-landing run-ups were '
+    'caught, against two.</p>'
     '<p><b>October 2026 — five signposts.</b> The default framework is now v2: growth, read '
     'as long-run prospects; inflation, read as anchoring; monetary policy, read as credibility; '
     'fiscal policy, read as the sustainability of the debt path; and reforms and industrial '

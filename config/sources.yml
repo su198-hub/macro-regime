@@ -397,6 +397,22 @@ series:
   NONRESSHARE:
     macrobond: usnaac0569
     note: Private nonresidential fixed investment, % of GDP, quarterly (BEA).
+  # Debt owed by US non-financial companies and by households, from every
+  # lender: banks, bond investors, nonbanks and foreign lenders. In dollars
+  # rather than % of GDP, because the ratio falls whenever inflation lifts
+  # nominal GDP, which reads as deleveraging when it is not.
+  BIS_NFC_CREDIT:
+    macrobond: bis_qusnamusda
+    note: >-
+      BIS credit to US non-financial corporations from all sectors, market
+      value, adjusted for breaks, USD, quarterly from 1945. Includes
+      non-corporate business. Bonds at market value, so the stock grows more
+      slowly when yields rise.
+  BIS_HH_CREDIT:
+    macrobond: bis_qushamusda
+    note: >-
+      BIS credit to US households and non-profits serving them, from all
+      sectors, market value, adjusted for breaks, USD, quarterly from 1945.
   # Built by `ingest.py energy` from the energy page (config/energy.yml), whose
   # inputs are all public: EIA, Census, BEA and BLS via FRED, the GPR index.
   # backfill and sync skip it; run `ingest.py energy` to refresh it.

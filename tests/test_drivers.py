@@ -125,3 +125,61 @@ def test_a_derived_step_built_on_another_step_is_not_fetched():
         "derived": {"a_12m": {"series": "RECEIPTS", "transform": "sum_12m"},
                     "a_growth": {"series": "a_12m", "transform": "pct_change_3y_ann"}}}}]}}}
     assert required_series(cfg) == ["RECEIPTS"]
+
+
+# Three indicators in two blocks: a and b make up the cycle block (0.75),
+# c alone the potential block (0.25).
+BLOCKS = {"drivers": {"growth": {
+    "groups": {"cycle": {"label": "Cycle"}, "potential": {"label": "Potential growth"}},
+    "indicators": [
+        {"id": i, "group": g, "source": {"series": i.upper()}, "transform": "level",
+         "normalize": {"method": "gap", "center": 0.0, "scale": 1.0},
+         "direction": 1, "weight": w}
+        for i, g, w in (("a", "cycle", 0.5), ("b", "cycle", 0.25), ("c", "potential", 0.25))]}}}
+
+
+def blocks_wide(c_values):
+    idx = pd.date_range("2024-01-31", periods=2, freq="ME")
+    return pd.DataFrame({"A": [1.0, 1.0], "B": [-2.0, -2.0], "C": c_values}, index=idx)
+
+
+def test_blocks_combine_at_their_weights():
+    # cycle = (0.5 * 1 + 0.25 * -2) / 0.75 = 0; potential = 2; driver = 0.25 * 2 / 2.
+    from src.drivers import group_scores
+    w = blocks_wide([2.0, 2.0])
+    d = driver_scores(BLOCKS, w)
+    assert d["growth"].iloc[-1] == pytest.approx(0.25)
+    _, scores = indicator_frames(BLOCKS, w)
+    g = group_scores(BLOCKS, "growth", scores)
+    assert g["cycle"].iloc[-1] == pytest.approx(0.0)
+    assert g["potential"].iloc[-1] == pytest.approx(1.0)
+
+
+def test_a_block_without_readings_leaves_the_other_block_alone():
+    # Before the potential block starts, the driver is the cycle block alone,
+    # not the cycle block diluted toward zero.
+    w = blocks_wide([np.nan, 2.0])
+    d = driver_scores(BLOCKS, w)["growth"]
+    assert d.iloc[0] == pytest.approx(0.0)
+    w2 = pd.DataFrame({"A": [1.0], "B": [np.nan], "C": [np.nan]},
+                      index=pd.date_range("2024-01-31", periods=1, freq="ME"))
+    assert driver_scores(BLOCKS, w2)["growth"].iloc[0] == pytest.approx(0.5)
+
+
+def test_block_contributions_and_provisional_reading_match_the_driver():
+    from src.drivers import provisional_reading
+    w = blocks_wide([2.0, 2.0])
+    inputs, scores = indicator_frames(BLOCKS, w)
+    month = w.index[-1]
+    parts = driver_breakdown(BLOCKS, "growth", inputs, scores, month).set_index("id")
+    assert parts.at["c", "share"] == pytest.approx(0.25)
+    assert parts.at["a", "share"] == pytest.approx(0.5)
+    assert parts["contribution"].sum() == pytest.approx(driver_scores(BLOCKS, w).at[month, "growth"])
+    assert provisional_reading(BLOCKS, scores, month)["drivers"]["growth"] == pytest.approx(
+        parts["contribution"].sum())
+    # With b never reported, a carries the whole cycle block: 0.75 of the driver.
+    scores["growth::b"] = np.nan
+    parts = driver_breakdown(BLOCKS, "growth", inputs, scores, month).set_index("id")
+    assert parts.at["a", "share"] == pytest.approx(0.75)
+    reading = provisional_reading(BLOCKS, scores, month)
+    assert reading["drivers"]["growth"] == pytest.approx(parts["contribution"].sum())

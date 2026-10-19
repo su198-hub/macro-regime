@@ -176,6 +176,67 @@ def indicator_scores(cfg: dict, wide: pd.DataFrame) -> pd.DataFrame:
     return indicator_frames(cfg, wide)[1]
 
 
+def _blocks(present: np.ndarray, values: np.ndarray, w: np.ndarray,
+            groups: list, block_w: dict | None = None) -> tuple[np.ndarray, np.ndarray]:
+    """Combine indicator scores block by block (rows x indicators in, rows out).
+
+    Within a block, a weighted mean over the indicators present. Across
+    blocks, a weighted mean over the blocks with any reading, each weighted by
+    `block_w`: the sum of its indicators' configured weights, whether or not
+    each has data. With one block this is simply the weighted mean over the
+    indicators present. Returns (value, has_value).
+    """
+    num = np.zeros(present.shape[0])
+    den = np.zeros(present.shape[0])
+    for g in dict.fromkeys(groups):
+        m = np.array([x == g for x in groups])
+        gden = present[:, m] @ w[m]
+        gnum = np.nansum(np.where(present[:, m] > 0, values[:, m], 0.0) * w[m], axis=1)
+        bw = w[m].sum() if block_w is None else float(block_w[g])
+        has = gden > 0
+        with np.errstate(invalid="ignore", divide="ignore"):
+            num += np.where(has, bw * gnum / np.where(has, gden, 1.0), 0.0)
+        den += np.where(has, bw, 0.0)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        return np.where(den > 0, num / np.where(den > 0, den, 1.0), np.nan), den > 0
+
+
+def indicator_group(ind: dict) -> str:
+    """The block an indicator belongs to; drivers without blocks have one."""
+    return ind.get("group") or ""
+
+
+def driver_groups(cfg: dict, driver_name: str) -> dict[str, dict]:
+    """A driver's blocks, in config order, with each one's weight and members."""
+    driver = cfg["drivers"][driver_name]
+    meta = driver.get("groups") or {}
+    out: dict[str, dict] = {}
+    for ind in driver["indicators"]:
+        g = indicator_group(ind)
+        b = out.setdefault(g, {**(meta.get(g) or {}), "weight": 0.0, "indicators": []})
+        b["weight"] += float(ind["weight"])
+        b["indicators"].append(ind["id"])
+    return out
+
+
+def group_scores(cfg: dict, driver_name: str, scores: pd.DataFrame) -> pd.DataFrame:
+    """Each block's own score per month, on the driver's scale (-1 to +1).
+
+    Not used in the regime call, which reads the combined driver score; it is
+    there so a page can show what each block says on its own."""
+    out = {}
+    for g, b in driver_groups(cfg, driver_name).items():
+        cols = [f"{driver_name}::{i}" for i in b["indicators"] if f"{driver_name}::{i}" in scores.columns]
+        if not cols:
+            continue
+        inds = {i["id"]: i for i in cfg["drivers"][driver_name]["indicators"]}
+        w = np.array([float(inds[c.split("::", 1)[1]]["weight"]) for c in cols])
+        block = scores[cols]
+        value, _ = _blocks(block.notna().to_numpy().astype(float), block.to_numpy(), w, [g] * len(cols))
+        out[g] = pd.Series(np.clip(value / DRIVER_SCALE, -1, 1), index=block.index)
+    return pd.DataFrame(out)
+
+
 def driver_scores(cfg: dict, wide: pd.DataFrame, scores: pd.DataFrame | None = None) -> pd.DataFrame:
     """Weighted mean of available indicators, renormalised for coverage.
 
@@ -183,6 +244,11 @@ def driver_scores(cfg: dict, wide: pd.DataFrame, scores: pd.DataFrame | None = N
     a driver does not silently collapse toward zero in early history when only
     two of its four indicators exist. It does mean early driver scores rest on
     fewer inputs, which the coverage column reports.
+
+    A driver can split its indicators into blocks (`group:` on each indicator,
+    `groups:` on the driver). Each block is then renormalised on its own and
+    keeps its total weight whenever it has any reading, so a block whose
+    indicators start late is not diluted by the other's longer history.
 
     These are confirmed scores. The latest months, where releases are still
     arriving, are left unscored and read by provisional_reading instead.
@@ -200,12 +266,13 @@ def driver_scores(cfg: dict, wide: pd.DataFrame, scores: pd.DataFrame | None = N
 
     frames = {}
     for driver_name, driver in cfg["drivers"].items():
-        cols, weights, anchors = [], [], []
+        cols, weights, anchors, groups = [], [], [], []
         for ind in driver["indicators"]:
             col = f"{driver_name}::{ind['id']}"
             if col in scores.columns:
                 cols.append(col)
                 weights.append(float(ind["weight"]))
+                groups.append(indicator_group(ind))
                 if ind.get("anchor"):
                     anchors.append(col)
         if not cols:
@@ -215,10 +282,10 @@ def driver_scores(cfg: dict, wide: pd.DataFrame, scores: pd.DataFrame | None = N
         w = np.array(weights)
         present = block.notna().to_numpy().astype(float)
         denom = present @ w
-        numer = np.nansum(block.to_numpy() * w, axis=1)
         started = block.notna().cummax().to_numpy().astype(float) @ w
+        block_w = {g: b["weight"] for g, b in driver_groups(cfg, driver_name).items()}
+        value, _ = _blocks(present, block.to_numpy(), w, groups, block_w)
         with np.errstate(invalid="ignore", divide="ignore"):
-            value = np.where(denom > 0, numer / denom, np.nan)
             reported = np.where(started > 0, denom / started, 0.0)
         value = np.where(reported >= min_reported, value, np.nan)
         # An anchor that has started but not reported this month holds the
@@ -242,7 +309,10 @@ def driver_breakdown(cfg: dict, driver_name: str, inputs: pd.DataFrame,
     """Each indicator's part in one driver's score for one month.
 
     contribution = weight share among available indicators × score / DRIVER_SCALE,
-    so the column sums to the driver score before it is clipped to ±1.
+    so the column sums to the driver score before it is clipped to ±1. In a
+    driver with blocks, the share is the block's share of the blocks reporting
+    times the indicator's share within its block, as driver_scores combines
+    them.
     """
     rows = []
     for ind in cfg["drivers"][driver_name]["indicators"]:
@@ -250,16 +320,30 @@ def driver_breakdown(cfg: dict, driver_name: str, inputs: pd.DataFrame,
         has = key in scores.columns and as_of in scores.index
         rows.append({
             "id": ind["id"],
+            "group": indicator_group(ind),
             "value": inputs.at[as_of, key] if has else np.nan,
             "score": scores.at[as_of, key] if has else np.nan,
             "weight": float(ind["weight"]),
         })
     out = pd.DataFrame(rows)
-    present = out["score"].notna()
-    total = out.loc[present, "weight"].sum()
-    out["share"] = np.where(present & (total > 0), out["weight"] / (total or 1), np.nan)
+    out["share"] = _shares(out["score"].notna().to_numpy(), out["weight"].to_numpy(dtype=float),
+                           out["group"].tolist())
     out["contribution"] = out["share"] * out["score"] / DRIVER_SCALE
     return out
+
+
+def _shares(present: np.ndarray, w: np.ndarray, groups: list) -> np.ndarray:
+    """Each present indicator's effective share of the driver (NaN if absent),
+    block-aware in the same way as driver_scores."""
+    share = np.full(len(w), np.nan)
+    live = {g: w[[x == g for x in groups]].sum() for g in dict.fromkeys(groups)
+            if (present & np.array([x == g for x in groups])).any()}
+    total = sum(live.values())
+    for g in live:
+        m = present & np.array([x == g for x in groups])
+        if total > 0 and w[m].sum() > 0:
+            share[m] = live[g] / total * w[m] / w[m].sum()
+    return share
 
 
 # ---------- provisional reading ----------
@@ -297,7 +381,8 @@ def provisional_reading(cfg: dict, scores: pd.DataFrame, month: pd.Timestamp) ->
     history = scores.loc[:month]
     rows, drivers, reported = [], {}, {}
     for driver_name, driver in cfg["drivers"].items():
-        num = den = rep = started = 0.0
+        rep = started = 0.0
+        ws, vals, gs = [], [], []
         for ind in driver["indicators"]:
             key = f"{driver_name}::{ind['id']}"
             w = float(ind["weight"])
@@ -317,11 +402,16 @@ def provisional_reading(cfg: dict, scores: pd.DataFrame, month: pd.Timestamp) ->
                     row.update(status="carried", score=s.iloc[-1])
                 else:
                     row["status"] = "pending"
-                if not np.isnan(row["score"]):
-                    num += w * row["score"]
-                    den += w
+            row["group"] = indicator_group(ind)
+            ws.append(w)
+            vals.append(row["score"])
+            gs.append(row["group"])
             rows.append(row)
-        drivers[driver_name] = np.clip(num / den / DRIVER_SCALE, -1, 1) if den else np.nan
+        block_w = {g: b["weight"] for g, b in driver_groups(cfg, driver_name).items()}
+        v = np.array(vals, dtype=float)
+        value, has = _blocks((~np.isnan(v)).astype(float)[None, :], v[None, :],
+                             np.array(ws), gs, block_w)
+        drivers[driver_name] = float(np.clip(value[0] / DRIVER_SCALE, -1, 1)) if has[0] else np.nan
         reported[driver_name] = rep / started if started else np.nan
     reported = pd.Series(reported)
     return {"month": month, "drivers": pd.Series(drivers), "reported": reported,

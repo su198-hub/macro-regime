@@ -143,3 +143,24 @@ def test_cached_results_are_keyed_on_what_the_config_says(tmp_path):
     before = config_stamp(str(ind), str(reg))
     ind.write_text("drivers: {fiscal: {}}\n")
     assert config_stamp(str(ind), str(reg)) != before
+
+
+def test_breakdown_table_heads_each_block_with_its_share_and_part():
+    import pandas as pd
+    from src import ui
+    from src.drivers import driver_groups
+    cfg = {"drivers": {"growth": {
+        "groups": {"cycle": {"label": "Cycle"}, "potential": {"label": "Potential growth"}},
+        "indicators": [
+            {"id": i, "group": g, "label": f"Indicator {i}", "source": {"series": i},
+             "transform": "level", "normalize": {"method": "gap", "center": 0.0, "scale": 1.0},
+             "direction": 1, "weight": w}
+            for i, g, w in (("a", "cycle", 0.75), ("c", "potential", 0.25))]}}}
+    parts = pd.DataFrame({"id": ["a", "c"], "group": ["cycle", "potential"],
+                          "value": [1.0, 2.0], "score": [1.0, 2.0], "weight": [0.75, 0.25],
+                          "share": [0.75, 0.25], "contribution": [0.375, 0.25]})
+    out = ui.breakdown_table(parts, cfg["drivers"]["growth"]["indicators"], 0.625,
+                             groups=driver_groups(cfg, "growth"))
+    assert (out.index("Cycle") < out.index("Indicator a") < out.index("Potential growth")
+            < out.index("Indicator c"))
+    assert "<b>75%</b>" in out and "<b>25%</b>" in out

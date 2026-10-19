@@ -2,9 +2,10 @@
 #
 # Five signposts, with supply folded into growth:
 #
-#   growth                 long-run growth prospects: potential growth and
-#                          revisions to it, productivity's average pace,
-#                          capex plans, the labor force
+#   growth                 whether growth will beat potential over the next
+#                          three years (the cycle block: slack and borrowing,
+#                          75%), and whether potential growth itself is
+#                          rising (revisions to it and its parts, 25%)
 #   inflation              whether long-run inflation stays anchored at 2%
 #   monetary               whether the central bank keeps its credibility
 #   fiscal                 whether the debt trajectory is sustainable
@@ -35,10 +36,9 @@ meta:
     credible central bank, a more sustainable debt path and more proactive
     reform
   framework_note: >-
-    Five signposts. Fiscal policy reads the sustainability of the debt
-    path. Supply is folded
-    into growth, which reads long-run prospects rather than this year's
-    demand.
+    Five signposts. Growth has two blocks: the cycle, whether growth will run
+    above or below potential over the next three years, and potential growth
+    itself. Fiscal policy reads the sustainability of the debt path.
   summary_note: >-
     The scenario positions are judgments, not estimates. Against the labeled
     history they fit poorly: goldilocks is never the leading scenario after
@@ -47,16 +47,20 @@ meta:
     - title: Scenario positions fit the labeled history poorly
       text: >-
         Graded against the Regime history page from 1990, the leading scenario
-        matches the labeled regime in 25% of months (v1: 64%), and goldilocks
+        matches the labeled regime in 27% of months (v1: 64%), and goldilocks
         is never the leading scenario: it sits far from neutral, and high
         growth, high inflation sits halfway along the same line, so every good
-        month lands there. 26% of months fit no scenario. Baseline cannot be
+        month lands there. 31% of months fit no scenario. Baseline cannot be
         graded at all: the labels have only the four growth-inflation regimes.
-    - title: The signposts measure the long run; the labels measure the cycle
+    - title: Potential growth is there by design, not for the forecast
       text: >-
-        The growth signpost reads potential growth itself, where the labeled
-        regime reads growth against potential: a productivity boom raises both,
-        so the label never calls it goldilocks.
+        The labeled regime reads growth against potential, so revisions to
+        potential raise the bar rather than predict clearing it: on their own
+        they correlate -0.35 to +0.03 with the next three years' growth gap.
+        They are kept, at 25% of growth, to hold the long-run view in the
+        driver; at that weight they cost the three-year call about three
+        points. The cycle block does the forecasting: +0.55 with the next
+        three years' gap, 1985-2023, and the right sign in both halves.
     - title: A 2% anchor before there was a target
       text: >-
         Inflation is read against 2%. Before the late 1990s expectations ran at
@@ -73,11 +77,13 @@ meta:
         receipts, while the primary deficit ran at 3.3 to 4.5% of GDP.
     - title: Proposed, thin or contaminated inputs
       text: >-
-        The CBO
-        potential-growth revision starts in 1997 and the forecasters'
-        productivity revision is annual from 1993. Growth and reforms both
-        lean on the AI capex surge, which is investment, not policy. B-Ready
-        and Global Trade Alert are not included.
+        The potential-growth block starts in 1993: the forecasters'
+        productivity revision is annual from then, the CBO revisions start in
+        1997 and 2003, and the capex consensus in 2009. Before 1993 growth is
+        the cycle block alone. Company and household debt come from the BIS
+        about two quarters after the quarter ends. Growth and reforms both lean
+        on the AI capex surge, which is investment, not policy. B-Ready and
+        Global Trade Alert are not included.
     - title: Settings carried over from v1
       text: >-
         Temperature, the fit gate and the persistence rule are v1's, not yet
@@ -91,6 +97,10 @@ meta:
   horizons:
     short: []
     medium:
+      - unemployment_gap
+      - capacity_utilization_gap
+      - company_credit_real_3y
+      - household_credit_real_3y
       - core_capex_orders_yoy
       - real_nonres_investment_yoy
       - capex_revision
@@ -99,12 +109,8 @@ meta:
       - revenue_vs_spending
     long:
       - cbo_potential_growth_revision
-      - spf_growth_revision
       - spf_productivity_revision
-      - tfp_pace
-      - labor_productivity_pace
       - cbo_labour_force_revision
-      - cbo_lfpr_revision
       - breakeven_5y5y
       - cleveland_10y
       - spf_cpi_revision
@@ -122,100 +128,176 @@ drivers:
 
   growth:
     label: Growth
-    description: Long-run growth prospects, read through potential growth, productivity and the inputs to it.
+    description: >-
+      Whether growth will run above or below potential over the next three
+      years, and whether potential growth itself is rising.
     signpost:
-      low: {label: Weak, tone: risk, phrase: long-run growth prospects are weakening}
-      high: {label: Strong, tone: good, phrase: long-run growth prospects are improving}
-      mid: {phrase: long-run growth prospects are steady}
+      low: {label: Weak, tone: risk, phrase: the growth outlook is weakening}
+      high: {label: Strong, tone: good, phrase: the growth outlook is improving}
+      mid: {phrase: the growth outlook is steady}
+    # Two blocks, scored separately and then combined 75/25. Each indicator's
+    # weight is its share of the driver; a block's weight is the sum of its
+    # indicators'. When a block has no readings (potential growth before 1993),
+    # the driver is the other block alone.
+    groups:
+      cycle:
+        label: Cycle
+        description: >-
+          Room to grow over the next three years: spare capacity, and borrowing
+          that will have to be paid back.
+      potential:
+        label: Potential growth
+        description: >-
+          Revisions to potential growth and its parts: the economy's long-run
+          speed, from labor, capital and productivity.
     indicators:
+      - id: unemployment_gap
+        group: cycle
+        label: Unemployment rate less CBO's long-run rate
+        source:
+          expr: "UNRATE - NROU"
+          series: [UNRATE, NROU]
+        transform: level
+        normalize: {method: gap, center: 0.0, scale: 1.46}
+        direction: 1
+        weight: 0.1875
+        # CBO revises its long-run rate once or twice a year and it moves
+        # slowly, so hold it for up to six quarters.
+        carry_forward_periods: 6
+        release: Employment report
+        why: >-
+          **Slack in the labor market.** Potential growth is how fast output
+          can grow once everyone who wants a job has one. With unemployment
+          above its long-run rate, output sits below potential, and as idle
+          workers are rehired it grows faster than potential until the gap
+          closes. Below the long-run rate there is no room left, and growth
+          usually slows back toward potential.
+
+      - id: capacity_utilization_gap
+        group: cycle
+        label: Capacity utilization less its 10-year average
+        source: {series: TCU}
+        transform: dev_10y
+        normalize: {method: gap, center: 0.0, scale: 3.07}
+        direction: -1
+        weight: 0.1875
+        release: Industrial production report
+        why: >-
+          **Slack in plants and machines.** With spare capacity, firms can
+          raise output by running existing plants harder, so production can
+          outgrow potential without waiting for new investment. Running hotter
+          than usual, more output needs new capacity first, so costs rise and
+          growth slows. Read against its own 10-year average because
+          utilization has drifted down for decades as the economy moved to
+          services.
+
+      - id: company_credit_real_3y
+        group: cycle
+        label: Company debt, real growth over three years
+        source:
+          expr: "credit_growth - price_growth"
+          series: [BIS_NFC_CREDIT, PCEPILFE]
+          derived:
+            credit_growth: {series: BIS_NFC_CREDIT, transform: pct_change_3y_ann}
+            price_growth: {series: PCEPILFE, transform: pct_change_3y_ann}
+        transform: level
+        normalize: {method: gap, center: 3.9, scale: 3.4}
+        direction: -1
+        weight: 0.1875
+        # BIS publishes about two quarters after the quarter ends.
+        carry_forward_periods: 3
+        release: BIS credit statistics
+        why: >-
+          **Borrowing by companies.** Companies that borrow fast are spending
+          beyond their cash flow, mostly on investment. That lifts demand now
+          but borrows it from later: the debt has to be serviced, and if the
+          investment earns less than hoped, firms cut capex and hiring to
+          repair their balance sheets. Fast growth means a payback ahead, as
+          after the dot-com boom; slow growth means nothing has to unwind.
+          Net of core inflation, because inflation shrinks debt in real terms.
+
+      - id: household_credit_real_3y
+        group: cycle
+        label: Household debt, real growth over three years
+        source:
+          expr: "credit_growth - price_growth"
+          series: [BIS_HH_CREDIT, PCEPILFE]
+          derived:
+            credit_growth: {series: BIS_HH_CREDIT, transform: pct_change_3y_ann}
+            price_growth: {series: PCEPILFE, transform: pct_change_3y_ann}
+        transform: level
+        normalize: {method: gap, center: 4.27, scale: 3.84}
+        direction: -1
+        weight: 0.1875
+        carry_forward_periods: 3
+        release: BIS credit statistics
+        why: >-
+          **Borrowing by households.** Households that borrow faster than
+          their incomes grow pull spending on homes and goods forward, and a
+          rising share of income goes to debt payments. Once borrowing stops,
+          because rates rise or house prices fall, spending has to grow slower
+          than income for years while the debt is paid down, as after 2008.
+          Kept apart from company debt because the two drive different busts.
+
       - id: cbo_potential_growth_revision
+        group: potential
         label: Revision to CBO potential growth, next five years
         source: {series: CBO_POTGROWTH_REV}
         transform: level
         normalize: {method: gap, center: 0.0, scale: 0.16}
         direction: 1
-        weight: 0.20
+        weight: 0.0625
         carry_forward_periods: 2
         why: >-
-          **Changes in potential growth**: how CBO's view of the economy's
-          speed limit moves between projections.
-
-      - id: spf_growth_revision
-        label: Revision to forecasters' 10-year GDP growth
-        source: {series: SPF10GDP}
-        transform: diff_12m
-        normalize: {method: gap, center: 0.0, scale: 0.19}
-        direction: 1
-        weight: 0.15
-        carry_forward_periods: 2
-        release: Survey of Professional Forecasters
-        why: "**Revisions to long-term growth forecasts**, from forecasters rather than CBO."
+          **Changes in potential growth.** CBO rebuilds potential from labor,
+          capital and productivity at each projection, so a revision means
+          new evidence about the trend has arrived, such as productivity
+          running faster than assumed.
 
       - id: spf_productivity_revision
+        group: potential
         label: Revision to forecasters' 10-year productivity growth
         source: {series: SPF10PROD}
         transform: diff_12m
         normalize: {method: gap, center: 0.0, scale: 0.20}
         direction: 1
-        weight: 0.10
+        weight: 0.0625
         carry_forward_periods: 2
         release: Survey of Professional Forecasters
-        why: "**Revisions to productivity estimates**: forecasters' ten-year view of productivity growth."
-
-      - id: tfp_pace
-        label: Total factor productivity, five-year average pace
-        source: {series: TFPUA}
-        transform: mean_5y
-        normalize: {method: gap, center: 1.23, scale: 0.82}
-        direction: 1
-        weight: 0.10
-        carry_forward_periods: 2
         why: >-
-          **Total factor productivity, average pace**. Utilization-adjusted,
-          so a boom running machines harder is not mistaken for better
-          technology.
-
-      - id: labor_productivity_pace
-        label: Labor productivity, five-year annualized growth
-        source: {series: OPHNFB}
-        transform: pct_change_5y_ann
-        normalize: {method: gap, center: 2.12, scale: 0.78}
-        direction: 1
-        weight: 0.10
-        carry_forward_periods: 2
-        why: "**Labor productivity, average pace**: output per hour over five years."
+          **Revisions to productivity estimates.** Productivity is the lasting
+          source of growth. Forecasters raise their ten-year view when they
+          judge a change is durable, such as a new technology spreading
+          through firms: a forward view of what the trailing pace records.
 
       - id: capex_revision
+        group: potential
         label: Revision to the S&P 500's three-year capex consensus
         source: {series: SPX_CAPEX_3FY}
         transform: yoy_pct
         normalize: {method: gap, center: 3.1, scale: 8.8}
         direction: 1
-        weight: 0.15
+        weight: 0.0625
         release: Bloomberg consensus
         why: >-
-          **Revision to capex plans**: what analysts expect companies to
-          spend three years out, against a year ago.
+          **Revision to capex plans.** More machines, data centers and
+          software per worker raise output per hour once they are built.
+          Upgraded spending plans are the earliest read on tomorrow's capital
+          stock.
 
       - id: cbo_labour_force_revision
+        group: potential
         label: Revision to CBO potential labor force
         source: {series: CBO_LABFORCE_REV}
         transform: level
         normalize: {method: gap, center: 0.0, scale: 0.54}
         direction: 1
-        weight: 0.10
+        weight: 0.0625
         carry_forward_periods: 2
-        why: "**Revision to the labor force**: more workers in the projection means faster potential growth."
-
-      - id: cbo_lfpr_revision
-        label: Revision to CBO potential participation rate
-        source: {series: CBO_LFPR_REV}
-        transform: level
-        normalize: {method: gap, center: 0.0, scale: 0.27}
-        direction: 1
-        weight: 0.10
-        carry_forward_periods: 2
-        why: "**Revision to the participation rate**: the participation half of the labor force projection."
+        why: >-
+          **Revision to the labor force.** Potential growth is growth in
+          workers plus growth in output per worker. Immigration, retirement
+          and participation move the first for a decade at a time.
 
   inflation:
     label: Inflation
