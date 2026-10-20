@@ -11,13 +11,16 @@
 #                          house prices, underlying inflation, 75%), and
 #                          whether long-run expectations are drifting from 2%
 #                          (the anchoring block, 25%)
-#   monetary               whether the central bank keeps its credibility
+#   monetary               how hawkish the central bank is: stance (the yield
+#                          curve, the hiking pace, the real rate against
+#                          neutral, 50%) and credibility (the record against
+#                          2% and the Taylor gap, 50%)
 #   fiscal                 whether the debt trajectory is sustainable
 #   reforms                how far reforms and industrial policy draw in
 #                          private investment, read through the investment
 #
 # Every score runs from its left pole (-1) to its right pole (+1):
-# weak to strong, de-anchored lower to higher, losing to keeping credibility,
+# weak to strong, de-anchored lower to higher, dovish to hawkish,
 # unsustainable to sustainable, reactive to proactive.
 # That differs from v1, where +1 meant hot, tight or restrictive.
 #
@@ -37,14 +40,15 @@ meta:
   # describes itself rather than borrowing v1's words.
   sign: >-
     positive means stronger growth, inflation de-anchored higher, a more
-    credible central bank, a more sustainable debt path and more proactive
-    reform
+    hawkish central bank (tighter and more credible), a more sustainable debt
+    path and more proactive reform
   framework_note: >-
     Five signposts. Growth and inflation each have two blocks: one reads the
     next three years (growth against potential, inflation against expected
     inflation), the other the long run (potential growth itself, and whether
-    inflation expectations are drifting from 2%). Fiscal policy reads the
-    sustainability of the debt path.
+    inflation expectations are drifting from 2%). Monetary policy reads how
+    hawkish the Fed is, from its stance and its credibility. Fiscal policy
+    reads the sustainability of the debt path.
   summary_note: >-
     The scenario positions are judgments, not estimates. Against the labeled
     history they fit poorly: goldilocks is never the leading scenario after
@@ -83,11 +87,19 @@ meta:
       text: >-
         Inflation is read against 2%. Before the late 1990s expectations ran at
         4 to 5%, so those years all read as de-anchored higher.
+    - title: Hawkish is not the same as good
+      text: >-
+        Monetary reads tight and credible policy as hawkish. Both point the
+        same way in the data: hard landings came after tight policy, and after
+        spells of low, steady inflation, when a slowdown brings inflation down
+        rather than up. The scenario positions were set when this signpost read
+        credibility alone, with hard landing on the losing-credibility side,
+        and have not been moved yet.
     - title: Credibility is a track record only
       text: >-
-        The miss rate, volatility, trajectory and trailing Taylor gap all look
-        back. Since 2021 they read as losing credibility while long-run
-        breakevens held near 2.3%; a market anchor is not in the signpost.
+        The miss rate, volatility and trajectory look back. Since 2021 they
+        read as losing credibility while long-run breakevens held near 2.3%; a
+        market anchor is not in the signpost.
     - title: Sustainability leaves out the size of the deficit
       text: >-
         r minus g and receipts against outlays read 2022 to 2024 as strongly
@@ -122,6 +134,10 @@ meta:
       - m2_growth_3y
       - house_prices_3y
       - underlying_inflation_gap
+      - yield_curve
+      - hiking_pace_3y
+      - real_rate_gap
+      - taylor_gap
       - core_capex_orders_yoy
       - real_nonres_investment_yoy
       - capex_revision
@@ -138,7 +154,6 @@ meta:
       - inflation_risk_premium
       - target_miss_rate
       - inflation_volatility
-      - taylor_gap_trailing
       - r_minus_g
       - capb_3y_change
       - investment_share_vs_norm
@@ -456,53 +471,87 @@ drivers:
 
   monetary:
     label: Monetary policy
-    description: Whether the central bank keeps its inflation-fighting credibility, judged on its track record.
+    description: >-
+      How hawkish the central bank is: whether policy is tight, and whether it
+      is credible enough that a slowdown brings inflation down rather than up.
     signpost:
-      low: {label: Loses credibility, tone: risk, phrase: the central bank is losing credibility}
-      high: {label: Remains credible, tone: good, phrase: the central bank remains credible}
-      mid: {phrase: the central bank's credibility is intact but tested}
+      low: {label: Dovish, tone: risk, phrase: policy is loose and its credibility slipping}
+      high: {label: Hawkish, tone: neutral, phrase: policy is tight and credible}
+      mid: {phrase: policy is close to neutral}
+    # Two blocks at equal weight, both read as hawkish (+) or dovish (-).
+    # Stance carries the timing of slowdowns and hard landings; credibility
+    # decides whether a slowdown turns disinflationary or stagflationary.
+    groups:
+      stance:
+        label: Stance
+        description: >-
+          Whether policy is squeezing the economy: the yield curve, how hard
+          the Fed has tightened, and the real rate against neutral.
+      credibility:
+        label: Credibility
+        description: >-
+          Whether inflation stays anchored: the track record against 2%, and
+          whether policy is behind the curve.
     indicators:
-      - id: target_miss_rate
-        label: Share of the last 36 months off target
-        source: {series: PCEPILFE}
-        transform: off_target_share_36m
-        normalize: {method: gap, center: 42.8, scale: 30.7}
-        direction: -1
-        weight: 0.25
-        why: "**Inflation against target, hit rate**, as its complement: the share of months missed."
-
-      - id: inflation_volatility
-        label: Inflation volatility, 36 months
-        source: {series: PCEPILFE}
-        transform: vol_36m
-        normalize: {method: gap, center: 0.29, scale: 0.12}
-        direction: -1
-        weight: 0.20
-        why: "**Inflation volatility**: steady inflation, even off target, is easier to believe than violent swings."
-
-      - id: inflation_trajectory
-        label: Change in core inflation's distance from 2%, over a year
-        source: {series: PCEPILFE}
-        transform: target_distance_change_12m
-        normalize: {method: gap, center: 0.0, scale: 0.42}
-        direction: -1
-        weight: 0.15
-        why: >-
-          **Inflation trajectory**: whether inflation is closing on target
-          or drifting away from it.
-
-      - id: forecaster_disagreement
-        label: Forecaster disagreement on inflation
-        source: {series: SPFDISP}
+      - id: yield_curve
+        group: stance
+        label: 10-year Treasury yield less fed funds
+        source:
+          expr: "DGS10 - FEDFUNDS"
+          series: [DGS10, FEDFUNDS]
         transform: level
-        normalize: {method: gap, center: 0.68, scale: 0.21}
+        normalize: {method: gap, center: 1.6, scale: 1.24}
         direction: -1
-        weight: 0.20
-        carry_forward_periods: 2
-        why: "**Forecaster disagreement on inflation**: when the anchor holds, forecasters agree on where inflation is going."
+        weight: 0.1667
+        why: >-
+          **The yield curve.** The 10-year yield is roughly the market's
+          forecast of short rates over the next decade. Below fed funds, the
+          market expects the Fed to cut, usually because it has tightened
+          enough to slow the economy, and banks that borrow short and lend long
+          tighten credit. Inverted reads as tight. Inversions came before 2001
+          and 2008; the one from 2022 did not end in recession.
 
-      - id: taylor_gap_trailing
-        label: Fed funds less the Taylor rule rate, three-year average
+      - id: hiking_pace_3y
+        group: stance
+        label: Change in fed funds over three years, per year
+        source: {series: FEDFUNDS}
+        transform: diff_36m_ann
+        normalize: {method: gap, center: 0.0, scale: 0.9}
+        direction: 1
+        weight: 0.1667
+        why: >-
+          **How hard the Fed has tightened.** Policy works with long lags, so a
+          large cumulative hike keeps squeezing housing, investment and credit
+          for a year or two after the last move, and big cycles have usually
+          overshot. The 2004-06 cycle, 1% to 5.25%, came before 2008; the 1994
+          cycle ended softly.
+
+      - id: real_rate_gap
+        group: stance
+        label: Real fed funds less the neutral rate
+        source:
+          expr: "FEDFUNDS - core_pce_yoy - neutral_rate"
+          series: [FEDFUNDS, PCEPILFE, SEPLR, HLWRSTAR]
+          derived:
+            core_pce_yoy: {series: PCEPILFE, transform: yoy_pct}
+            neutral_sep: {expr: "SEPLR - 2"}
+            neutral_rate: {first_of: [neutral_sep, HLWRSTAR]}
+        transform: level
+        normalize: {method: gap, center: 0.0, scale: 1.52}
+        direction: 1
+        weight: 0.1666
+        carry_forward_periods: 6
+        release: PCE report
+        why: >-
+          **The real rate against neutral.** Policy restrains only when the
+          real rate sits above neutral, the rate that neither speeds up nor
+          slows the economy. Neutral is the FOMC's longer-run median less 2%
+          from 2012, the New York Fed's one-sided Holston-Laubach-Williams
+          estimate before; both are uncertain by a point or more.
+
+      - id: taylor_gap
+        group: credibility
+        label: Fed funds less the Taylor rule rate
         source:
           expr: "FEDFUNDS - taylor_rate"
           series: [FEDFUNDS, PCEPILFE, UNRATE, NROU, SEPLR, HLWRSTAR]
@@ -514,16 +563,63 @@ drivers:
             taylor_rate:
               expr: "neutral_rate + core_pce_yoy + 0.5 * (core_pce_yoy - 2) + 0.5 * output_gap"
               floor: 0.125
-        transform: mean_36m
-        normalize: {method: gap, center: 0.0, scale: 0.80}
+        transform: level
+        normalize: {method: gap, center: 0.0, scale: 0.98}
         direction: 1
-        weight: 0.20
+        weight: 0.10
         release: PCE report
         carry_forward_periods: 6
         why: >-
-          **Actual against the Taylor rule, trailing average**. A bank
-          that has run looser than the rule for years has spent credibility;
-          one that has run tighter has banked it.
+          **Actual against the Taylor rule.** A Fed that lets the rate sit well
+          below what inflation and slack call for is behind the curve and
+          tolerating inflation. The current gap rather than its three-year
+          average: it reads faster and predicts inflation better.
+
+      - id: target_miss_rate
+        group: credibility
+        label: Share of the last 36 months off target
+        source: {series: PCEPILFE}
+        transform: off_target_share_36m
+        normalize: {method: gap, center: 42.8, scale: 30.7}
+        direction: -1
+        weight: 0.10
+        why: >-
+          **Inflation against target, hit rate**, as its complement: the share
+          of months missed. With a good record a slowdown pulls inflation down
+          rather than up.
+
+      - id: inflation_volatility
+        group: credibility
+        label: Inflation volatility, 36 months
+        source: {series: PCEPILFE}
+        transform: vol_36m
+        normalize: {method: gap, center: 0.29, scale: 0.12}
+        direction: -1
+        weight: 0.10
+        why: "**Inflation volatility**: steady inflation, even off target, is easier to believe than violent swings."
+
+      - id: inflation_trajectory
+        group: credibility
+        label: Change in core inflation's distance from 2%, over a year
+        source: {series: PCEPILFE}
+        transform: target_distance_change_12m
+        normalize: {method: gap, center: 0.0, scale: 0.42}
+        direction: -1
+        weight: 0.10
+        why: >-
+          **Inflation trajectory**: whether inflation is closing on target
+          or drifting away from it.
+
+      - id: forecaster_disagreement
+        group: credibility
+        label: Forecaster disagreement on inflation
+        source: {series: SPFDISP}
+        transform: level
+        normalize: {method: gap, center: 0.68, scale: 0.21}
+        direction: -1
+        weight: 0.10
+        carry_forward_periods: 2
+        why: "**Forecaster disagreement on inflation**: when the anchor holds, forecasters agree on where inflation is going."
 
   fiscal:
     label: Fiscal policy
