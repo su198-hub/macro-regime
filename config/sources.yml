@@ -408,6 +408,24 @@ series:
       value, adjusted for breaks, USD, quarterly from 1945. Includes
       non-corporate business. Bonds at market value, so the stock grows more
       slowly when yields rise.
+  # The inflation driver's pressure block (v2): money, house prices and
+  # underlying inflation.
+  M2SL:
+    fred_page: true
+    macrobond: uslead0286
+    note: >-
+      M2 money stock, SA, USD, monthly from 1947: the Fed's H.6 series as
+      carried in the Conference Board's leading indicators database.
+  CSUSHPISA:
+    fred_page: true
+    macrobond: uscons0384
+    note: S&P CoreLogic Case-Shiller US national home price index, SA, monthly from 1975.
+  PCETRIM12M159SFRBDAL:
+    fred_page: true
+    macrobond: uspric0050
+    note: >-
+      Dallas Fed trimmed-mean PCE inflation, 12-month, monthly from 1978. Each
+      month drops the largest and smallest price changes and averages the rest.
   BIS_HH_CREDIT:
     macrobond: bis_qushamusda
     note: >-

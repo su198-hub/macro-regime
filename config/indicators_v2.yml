@@ -6,7 +6,11 @@
 #                          three years (the cycle block: slack and borrowing,
 #                          75%), and whether potential growth itself is
 #                          rising (revisions to it and its parts, 25%)
-#   inflation              whether long-run inflation stays anchored at 2%
+#   inflation              whether inflation will beat expected inflation over
+#                          the next three years (the pressure block: money,
+#                          house prices, underlying inflation, 75%), and
+#                          whether long-run expectations are drifting from 2%
+#                          (the anchoring block, 25%)
 #   monetary               whether the central bank keeps its credibility
 #   fiscal                 whether the debt trajectory is sustainable
 #   reforms                how far reforms and industrial policy draw in
@@ -36,9 +40,11 @@ meta:
     credible central bank, a more sustainable debt path and more proactive
     reform
   framework_note: >-
-    Five signposts. Growth has two blocks: the cycle, whether growth will run
-    above or below potential over the next three years, and potential growth
-    itself. Fiscal policy reads the sustainability of the debt path.
+    Five signposts. Growth and inflation each have two blocks: one reads the
+    next three years (growth against potential, inflation against expected
+    inflation), the other the long run (potential growth itself, and whether
+    inflation expectations are drifting from 2%). Fiscal policy reads the
+    sustainability of the debt path.
   summary_note: >-
     The scenario positions are judgments, not estimates. Against the labeled
     history they fit poorly: goldilocks is never the leading scenario after
@@ -47,10 +53,12 @@ meta:
     - title: Scenario positions fit the labeled history poorly
       text: >-
         Graded against the Regime history page from 1990, the leading scenario
-        matches the labeled regime in 27% of months (v1: 64%), and goldilocks
+        matches the labeled regime in 18% of months (v1: 64%), and goldilocks
         is never the leading scenario: it sits far from neutral, and high
         growth, high inflation sits halfway along the same line, so every good
-        month lands there. 31% of months fit no scenario. Baseline cannot be
+        month lands there. 30% of months fit no scenario. The positions were
+        set before growth and inflation were reworked to read the next three
+        years, and have not been moved since. Baseline cannot be
         graded at all: the labels have only the four growth-inflation regimes.
     - title: Potential growth is there by design, not for the forecast
       text: >-
@@ -61,6 +69,16 @@ meta:
         driver; at that weight they cost the three-year call about three
         points. The cycle block does the forecasting: +0.55 with the next
         three years' gap, 1985-2023, and the right sign in both halves.
+    - title: Inflation expectations are there by design, not for the forecast
+      text: >-
+        The labeled regime reads inflation against expected inflation, so the
+        anchoring measures are the bar itself: on their own they correlate
+        -0.46 to +0.30 with the next three years' inflation gap, and the
+        breakeven and Cleveland measures have the wrong sign. They are kept, at
+        25% of inflation, to hold the long-run view. The pressure block does
+        the forecasting: +0.52 with the next three years' gap, 1985-2023, and
+        the right sign in both halves. Before 1991 it is money and house
+        prices alone; underlying inflation starts with the forecasters' survey.
     - title: A 2% anchor before there was a target
       text: >-
         Inflation is read against 2%. Before the late 1990s expectations ran at
@@ -101,6 +119,9 @@ meta:
       - capacity_utilization_gap
       - company_credit_real_3y
       - household_credit_real_3y
+      - m2_growth_3y
+      - house_prices_3y
+      - underlying_inflation_gap
       - core_capex_orders_yoy
       - real_nonres_investment_yoy
       - capex_revision
@@ -115,7 +136,6 @@ meta:
       - cleveland_10y
       - spf_cpi_revision
       - inflation_risk_premium
-      - core_inflation_3y
       - target_miss_rate
       - inflation_volatility
       - taylor_gap_trailing
@@ -301,67 +321,138 @@ drivers:
 
   inflation:
     label: Inflation
-    description: Whether long-run inflation stays anchored at the 2% target, in expectations and in what is delivered.
+    description: >-
+      Whether inflation will run above or below expected inflation over the
+      next three years, and whether long-run expectations are drifting from
+      the 2% target.
     signpost:
-      low: {label: De-anchored lower, tone: risk, phrase: inflation is drifting below its anchor}
-      high: {label: De-anchored higher, tone: risk, phrase: inflation is drifting above its anchor}
+      low: {label: De-anchored lower, tone: risk, phrase: inflation pressure is easing below its anchor}
+      high: {label: De-anchored higher, tone: risk, phrase: inflation pressure is building above its anchor}
       mid: {phrase: inflation is anchored}
+    # Two blocks, as for growth: pressure (75%) and anchoring (25%).
+    groups:
+      pressure:
+        label: Pressure
+        description: >-
+          What pushes inflation away from expectations over the next three
+          years: money, house prices, and where underlying inflation starts.
+      anchoring:
+        label: Anchoring
+        description: >-
+          Whether long-run inflation expectations are drifting from the 2%
+          anchor, read from forecasters, markets and a model.
     indicators:
+      - id: m2_growth_3y
+        group: pressure
+        label: M2 money supply, three-year annualized growth
+        source: {series: M2SL}
+        transform: pct_change_3y_ann
+        normalize: {method: gap, center: 5.43, scale: 1.73}
+        direction: 1
+        weight: 0.25
+        release: Fed H.6
+        why: >-
+          **Money growth.** Prices rise when spending outgrows what the economy
+          can supply, and spending needs money: when money grows much faster
+          than the economy, the excess eventually chases goods and services.
+          It is also where Fed easing and deficit financing meet, since both
+          create deposits. The link is strongest when inflation is already
+          elevated, and weak when money sits idle in bank reserves, as in 2009.
+
+      - id: house_prices_3y
+        group: pressure
+        label: House prices (Case-Shiller national), three-year annualized growth
+        source: {series: CSUSHPISA}
+        transform: pct_change_3y_ann
+        normalize: {method: gap, center: 3.65, scale: 4.8}
+        direction: 1
+        release: Case-Shiller
+        weight: 0.25
+        why: >-
+          **House prices.** Shelter is the largest slow-moving part of core
+          inflation. Rents and owners' equivalent rent follow house prices with
+          a lag of a year or more as leases reset, and rising home values feed
+          spending through household wealth. Misleads when a boom ends in a
+          bust, as in 2006.
+
+      - id: underlying_inflation_gap
+        group: pressure
+        label: Trimmed-mean PCE inflation less forecasters' 10-year CPI
+        source:
+          expr: "PCETRIM12M159SFRBDAL - SPFCPI10"
+          series: [PCETRIM12M159SFRBDAL, SPFCPI10]
+        transform: level
+        normalize: {method: gap, center: -0.58, scale: 0.39}
+        direction: 1
+        weight: 0.25
+        anchor: true
+        carry_forward_periods: 2
+        release: PCE report
+        why: >-
+          **Underlying inflation against expectations.** The trimmed mean drops
+          each month's most extreme price changes and averages the rest, so it
+          shows the broad pace of inflation rather than a few volatile items,
+          and it gauges the trend better than core. Against long-run
+          expectations it shows where inflation starts relative to the anchor.
+          The most short-term of the three: such gaps tend to close within a
+          couple of years. The anchor: a month is confirmed once the PCE report
+          is out.
+
+      - id: spf_cpi_revision
+        group: anchoring
+        label: Revision to forecasters' 10-year CPI
+        source: {series: SPFCPI10}
+        transform: diff_12m
+        normalize: {method: gap, center: 0.0, scale: 0.14}
+        direction: 1
+        weight: 0.0625
+        carry_forward_periods: 2
+        release: Survey of Professional Forecasters
+        why: >-
+          **Revisions to forecasters' 10-year CPI.** Forecasters move their
+          long-run view when inflation is already building, so a revision up is
+          an early sign the anchor is being tested.
+
       - id: breakeven_5y5y
+        group: anchoring
         label: 5-year inflation expectations, 5 years ahead
         source: {series: T5YIFR}
         transform: level
         normalize: {method: gap, center: 2.3, scale: 0.35}
         direction: 1
         absolute_level: true
-        weight: 0.25
-        why: "**5Y5Y inflation expectations**: the market's long-run expectation, against its usual level."
+        weight: 0.0625
+        why: >-
+          **5Y5Y inflation expectations.** The market's view of inflation five
+          to ten years out, past any cycle: where a de-anchoring would show
+          first in prices.
 
       - id: cleveland_10y
+        group: anchoring
         label: Cleveland Fed 10-year expected inflation
         source: {series: EXPINF10YR}
         transform: level
         normalize: {method: gap, center: 2.0, scale: 0.4}
         direction: 1
         absolute_level: true
-        weight: 0.20
-        why: "**10-year expected inflation**: a model-based expectation, against the 2% target."
-
-      - id: spf_cpi_revision
-        label: Revision to forecasters' 10-year CPI
-        source: {series: SPFCPI10}
-        transform: diff_12m
-        normalize: {method: gap, center: 0.0, scale: 0.14}
-        direction: 1
-        weight: 0.15
-        carry_forward_periods: 2
-        release: Survey of Professional Forecasters
-        why: "**Revisions to forecasters' 10-year CPI**: whether they are moving their long-run view."
+        weight: 0.0625
+        why: >-
+          **10-year expected inflation.** A model blending Treasury yields,
+          inflation swaps and surveys, against the 2% target.
 
       - id: inflation_risk_premium
+        group: anchoring
         label: Inflation risk premium, 10 year
         source: {series: INFRISKPREM}
         transform: level
         normalize: {method: gap, center: 0.41, scale: 0.07}
         direction: 1
         absolute_level: true
-        weight: 0.15
-        why: "**Inflation risk premium**: what investors pay to insure against inflation surprises."
-
-      - id: core_inflation_3y
-        label: Core PCE inflation, three-year annualized
-        source: {series: PCEPILFE}
-        transform: pct_change_3y_ann
-        normalize: {method: gap, center: 2.0, scale: 0.74}
-        direction: 1
-        absolute_level: true
-        weight: 0.25
-        anchor: true
-        release: PCE report
+        weight: 0.0625
         why: >-
-          **Inflation against target**, over a policy cycle: what has
-          actually been delivered, which expectations eventually follow. The anchor, as
-          in v1: a month is confirmed once the PCE report is out.
+          **Inflation risk premium.** What investors pay to insure against
+          inflation surprises: it rises when they are less sure the anchor will
+          hold.
 
   monetary:
     label: Monetary policy
