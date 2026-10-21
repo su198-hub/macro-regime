@@ -155,16 +155,22 @@ def mean_12m(s: pd.Series) -> pd.Series:
 
 
 def diff_5y(s: pd.Series) -> pd.Series:
-    """Change over five years. A series published every five years and then
-    yearly, such as the Fraser index, is first put on a yearly footing by
-    interpolating between its points, so five steps are always five years."""
+    """Change over five years, matched by date rather than by position, so a
+    gap in the series never stretches the window. An annual or irregular
+    series (one published every five years and then yearly) is first put on a
+    yearly footing, interpolating only between points both published, so five
+    steps are always five years."""
     s = s.dropna()
-    if _periods_per_year(s) <= 1:
+    if s.empty:
+        return s
+    days = pd.Series(s.index).diff().dt.days.median() if len(s) > 1 else 365
+    if days > 135:
         s = s.groupby(s.index.year).last()
         s = s.reindex(range(s.index.min(), s.index.max() + 1)).interpolate(limit_area="inside")
         s.index = pd.to_datetime([f"{y}-12-31" for y in s.index])
         return s - s.shift(5)
-    return s - s.shift(5 * _periods_per_year(s))
+    back = s.reindex(s.index - pd.DateOffset(years=5))
+    return s - pd.Series(back.to_numpy(), index=s.index)
 
 
 def target_distance_change_12m(s: pd.Series) -> pd.Series:

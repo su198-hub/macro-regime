@@ -146,7 +146,7 @@ def cmd_twin_build(args) -> None:
 
     Separate so the Bloomberg series never enter the store `publish` pushes.
     Rerun it to refresh; it recopies the main store each time, so the twin never
-    scores older data than the presentation does.
+    scores older data than the published model does.
     """
     from src import twin as tw
 
@@ -626,7 +626,7 @@ def main():
                    help="Country code from config/countries.yml (default: its default).")
     p.add_argument("--config", default=None)
     p.add_argument("--sources", default=None)
-    p.add_argument("--source", choices=["fred", "macrobond", "ciq", "bloomberg", "quantgov"], default=None,
+    p.add_argument("--source", choices=["fred", "macrobond", "ciq", "bloomberg"], default=None,
                    help="Use this vendor for every series, ignoring sources.yml.")
     # Comma separated, not nargs="+", which would swallow the subcommand.
     p.add_argument("--only", default=None, metavar="A,B,C",

@@ -30,6 +30,7 @@ import sys
 
 import numpy as np
 import pandas as pd
+import yaml
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from scripts.window_sweep import DB, load_inputs  # noqa: E402
@@ -104,7 +105,17 @@ def write(pos: pd.DataFrame, path: str = REGIMES_CFG) -> None:
                 lines[i] = f"{m.group(1)}{m.group(2)}: {pos.at[regime, m.group(2)]:.2f}"
             else:
                 inside = False
-    open(path, "w", encoding="utf-8", newline="\n").write("\n".join(lines))
+    text = "\n".join(lines)
+    # Check before replacing the file: every position must read back as written.
+    back = yaml.safe_load(text)["regimes"]
+    for r in pos.index:
+        for n in pos.columns:
+            if abs(float(back[r]["archetype"][n]) - round(float(pos.at[r, n]), 2)) > 1e-9:
+                raise SystemExit(f"{path}: {r}.{n} did not update; nothing written.")
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8", newline="\n") as f:
+        f.write(text)
+    os.replace(tmp, path)
 
 
 def main() -> None:

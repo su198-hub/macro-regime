@@ -120,3 +120,14 @@ def test_realigned_positions_fall_back_to_the_prior_for_an_unseen_regime():
     pos = ol.realigned_positions(train, prior, NAMES)
     scale = 0.15 / 0.3
     assert pos.at["stagflation", "g"] == pytest.approx(-0.6 * scale)
+
+
+def test_a_purged_hole_keeps_episodes_either_side_apart():
+    """Goldilocks / hard landing (held out) / goldilocks: what is left is two
+    goldilocks episodes, not one, so the data keeps its full weight against
+    the prior."""
+    labels = ["goldilocks"] * 100 + ["hard_landing"] * 40 + ["goldilocks"] * 160
+    train = frame(labels)
+    rest = train[~ol.purged(train.index, train.index[100], train.index[139])]
+    sp = ol.spells(rest["label"])
+    assert list(sp["label"]) == ["goldilocks", "goldilocks"]

@@ -106,6 +106,10 @@ def _build_input(ind: dict, wide: pd.DataFrame, carry: int = 0) -> pd.Series | N
 
     # Derived inputs are built in order, so each can use the ones before it:
     #   {series: X, transform: t}    a transform of one source series
+    #   ... fill: n                  ... carried up to n months past its last
+    #                                value, for a slow-moving monthly input
+    #                                published late (monthly series are
+    #                                otherwise never carried)
     #   {expr: "...", floor: f}      a formula over inputs so far, optionally floored
     #   {first_of: [a, b]}           a where available, otherwise b
     for alias, spec in (src.get("derived") or {}).items():
@@ -140,6 +144,9 @@ def _build_input(ind: dict, wide: pd.DataFrame, carry: int = 0) -> pd.Series | N
                 env[alias] = to_monthly(fn(raw), end, carry)
             else:
                 env[alias] = fn(base)
+            if spec.get("fill"):
+                months = pd.DatetimeIndex(sorted(set().union(*(v.index for v in env.values()))))
+                env[alias] = env[alias].reindex(months).ffill(limit=int(spec["fill"]))
 
     frame = pd.DataFrame(env).dropna(how="all")
     if frame.empty:

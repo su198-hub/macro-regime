@@ -11,7 +11,7 @@ build_store makes the twin's own data store: a copy of the main store with the
 twin-only series added. It is a separate file on purpose. Two of those series
 come from the Bloomberg terminal, and `publish` refuses to run while the store
 it pushes holds any licensed series; putting them in the main store would block
-every presentation update. The twin store is never published.
+every published update. The twin store is never published.
 """
 
 from __future__ import annotations

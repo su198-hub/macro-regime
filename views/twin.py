@@ -1,6 +1,6 @@
 """Twin: what the proposed indicator set would have called, against what ships.
 
-A hidden page — reachable at /twin, never in the nav — so the presentation is
+A hidden page — reachable at /twin, never in the nav — so the published model is
 untouched while the proposal is being weighed. Both models are scored on the
 same store at the same vintage, so the only thing that differs between the two
 columns is the indicator set in config/twin.yml.
@@ -29,7 +29,7 @@ from views.common import country, registry
 
 st.html('<h1 class="mr-title">Twin</h1>'
         '<p class="mr-sub">The live model and the bench\'s proposed indicator set, '
-        'scored side by side on the same data. Not part of the presentation.</p>')
+        'scored side by side on the same data. Not part of the published model.</p>')
 
 db = tw.default_db()
 if not os.path.exists(db):

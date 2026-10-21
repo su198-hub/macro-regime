@@ -98,7 +98,8 @@ if custom_res is not None and base_res is not None and not custom_res["probabili
         ["", "Default", "Your settings"],
         [["Called regime", a["called"], b["called"]],
          ["Leading probability", f"{a['top']:.0%}", f"{b['top']:.0%}"],
-         ["Fit to nearest regime", a["grade"], b["grade"]],
+         *([["Fit to nearest regime", a["grade"], b["grade"]]]
+           if a["grade"] != "—" or b["grade"] != "—" else []),
          ["History that differs", "—", f"{differ:.0%} of months"]],
         numeric={1, 2}))
 
@@ -271,7 +272,10 @@ st.html('<div class="m-body"><ul>'
         '<li><b>Regime archetypes.</b> The coordinates of each regime are what the words '
         '"goldilocks" and "stagflation" mean here. Editing them privately would leave two '
         'readers using the same name for different economies. Argue them in '
-        f'<code>{ui.esc(REGIMES())}</code>, in public.</li>'
+        f'<code>{ui.esc(REGIMES())}</code>, in public. Where they are learned from the data, '
+        'they are held fixed here: changing a weight or center moves the driver scores but not '
+        'the positions, so read the impact as the direction of a change, not its full size. '
+        'Argue the judgment behind them, the prior, instead.</li>'
         '<li><b>The regime set itself.</b> Adding or removing a regime changes every '
         'probability on the page and needs the methodology rewritten with it.</li>'
         '</ul><p>Values you do set are clamped to ranges that keep the model meaningful: '

@@ -11,7 +11,8 @@ Methods
   persistence          the latest confirmed regime continues (no signposts)
   base rate            the mix of regimes known so far (no signposts)
   v1 / v2 positions    each framework's scenario positions from its config,
-                       as the dashboard uses them
+                       leading scenario only (no persistence or floor); v2's
+                       are learned from these months, so in-sample
   run-up, fitted       positions learned from every month whose next three
                        years were each regime, graded on those same months:
                        the upper bound, and the overfitting view
@@ -93,10 +94,17 @@ def scorecard() -> tuple[pd.DataFrame, pd.DataFrame, dict]:
     add("base rate", probs=ol.base_rate(trains["v2"], REGIMES, first=FIRST))
     for fw, f in fws.items():
         tr = trains[fw]
-        add(f"{fw} positions (config)", probs=R.probabilities(f["scores"].loc[window], f["reg"]), train=tr)
+        # v2's positions are learned from these same months, so its config row
+        # is in-sample; v1's are judgments.
+        learned = any("prior" in s for s in f["reg"]["regimes"].values())
+        add(f"{fw} positions (config{', in-sample' if learned else ''})",
+            probs=R.probabilities(f["scores"].loc[window], f["reg"]), train=tr)
         # The same signpost weights the dashboard's regime call uses.
         wts = f["reg"].get("driver_salience") or {}
-        judgment = pd.DataFrame({r: f["reg"]["regimes"][r]["archetype"] for r in REGIMES}).T[f["names"]]
+        # The fallback for a regime with no episode left must not be fitted on
+        # the episode being graded, so v2 falls back to its prior.
+        key = "prior" if learned else "archetype"
+        judgment = pd.DataFrame({r: f["reg"]["regimes"][r][key] for r in REGIMES}).T[f["names"]]
         fitted = ol.positions(tr, f["names"]).reindex(REGIMES).fillna(judgment)
         add(f"{fw} run-up, fitted", probs=ol.probabilities(tr[f["names"]], fitted, weights=wts), train=tr)
         add(f"{fw} run-up, held out", probs=ol.held_out(tr, judgment, f["names"], weights=wts), train=tr)

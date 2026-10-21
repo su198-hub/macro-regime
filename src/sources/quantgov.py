@@ -20,6 +20,11 @@ import zipfile
 
 import pandas as pd
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+
+# Byte offsets must be the archive's own, so the body must arrive uncompressed.
+_IDENTITY = {"Accept-Encoding": "identity"}
 
 
 class _RangeFile(io.RawIOBase):
@@ -28,8 +33,10 @@ class _RangeFile(io.RawIOBase):
 
     def __init__(self, url: str, session: requests.Session):
         self.url, self.session, self.pos = url, session, 0
-        head = session.head(url, allow_redirects=True, timeout=60)
+        head = session.head(url, allow_redirects=True, timeout=60, headers=_IDENTITY)
         head.raise_for_status()
+        if "Content-Length" not in head.headers:
+            raise IOError(f"{url}: no Content-Length, so the archive cannot be read in place")
         self.size = int(head.headers["Content-Length"])
 
     def seekable(self):
@@ -43,6 +50,8 @@ class _RangeFile(io.RawIOBase):
 
     def seek(self, offset, whence=0):
         base = {0: 0, 1: self.pos, 2: self.size}[whence]
+        if base + offset < 0:
+            raise ValueError("negative seek position")
         self.pos = base + offset
         return self.pos
 
@@ -50,8 +59,14 @@ class _RangeFile(io.RawIOBase):
         if self.pos >= self.size or len(buffer) == 0:
             return 0
         end = min(self.pos + len(buffer), self.size) - 1
-        r = self.session.get(self.url, headers={"Range": f"bytes={self.pos}-{end}"}, timeout=120)
+        r = self.session.get(self.url, headers={"Range": f"bytes={self.pos}-{end}", **_IDENTITY},
+                             timeout=120, stream=True)
         r.raise_for_status()
+        # A server that ignores Range answers 200 with the whole archive, several
+        # gigabytes: stop rather than download it.
+        if r.status_code != 206:
+            r.close()
+            raise IOError(f"{self.url}: server ignored the byte range (HTTP {r.status_code})")
         data = r.content
         buffer[:len(data)] = data
         self.pos += len(data)
@@ -63,6 +78,9 @@ class QuantgovSource:
 
     def __init__(self):
         self.session = requests.Session()
+        retry = Retry(total=4, backoff_factor=2, status_forcelist=(429, 500, 502, 503, 504),
+                      allowed_methods=("HEAD", "GET"))
+        self.session.mount("https://", HTTPAdapter(max_retries=retry))
 
     def close(self):
         self.session.close()

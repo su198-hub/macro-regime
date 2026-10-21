@@ -67,10 +67,13 @@ def test_quantgov_reads_one_member_of_a_remote_zip_and_sums_by_year():
     blob = buf.getvalue()
 
     class Resp:
-        def __init__(self, content=b"", headers=None):
-            self.content, self.headers = content, headers or {}
+        def __init__(self, content=b"", headers=None, status_code=206):
+            self.content, self.headers, self.status_code = content, headers or {}, status_code
 
         def raise_for_status(self):
+            pass
+
+        def close(self):
             pass
 
     class Session:

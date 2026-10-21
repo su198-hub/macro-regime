@@ -22,7 +22,7 @@ INK_2 = "#4d4d4d"
 MUTED = "#8c8c8c"
 GRID = "#e3e3e3"
 AXIS = "#bdbdbd"
-NAVY = "#12203f"      # driver labels on the signpost chart only, as in the deck
+NAVY = "#12203f"      # driver labels on the signpost chart only
 TRACK = "#eeeeee"
 TRANSITIONAL = "#b3b3b3"
 UNCLASSIFIED_COLOR = "#d9d9d9"
@@ -1100,7 +1100,7 @@ def gap_chart(drivers: pd.DataFrame, driver: str, archetype: float, regime_label
     label = alt.Chart(df.tail(1)).mark_text(
         align="right", baseline="bottom", dy=-4, fontSize=11, color=INK_2, font=BODY_FONT,
     ).encode(x="date:T", y="archetype:Q",
-             text=alt.value(f"{regime_label} expects {signed(archetype)}"))
+             text=alt.value(f"{regime_label} position {signed(archetype)}"))
     line = alt.Chart(df).mark_line(strokeWidth=2, color=INK).encode(
         x=x, y=y,
         tooltip=[month_tip("date"),

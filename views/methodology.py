@@ -42,6 +42,9 @@ META = cfg.get("meta") or {}
 IS_V1 = country()["framework"] == "v1"
 drivers, probs = results["drivers"], results["probabilities"].dropna(how="all")
 settings, salience = reg["settings"], reg["driver_salience"]
+GATE_ON = str(settings.get("fit_gate", "none")) == "closer_than_neutral"
+# A framework whose call reads a period ahead names it (v2: the next three years).
+HORIZON = META.get("call_horizon")
 driver_names = list(cfg["drivers"])
 regime_names = list(reg["regimes"])
 dlabel = {n: cfg["drivers"][n].get("label", n) for n in driver_names}
@@ -151,9 +154,12 @@ settings_banner()
 
 section("m-summary", 1, "Summary")
 prose(
-    '<p>The monitor answers one question: <b>which macro regime do current conditions '
-    'most resemble?</b> It does so in six steps.</p>'
-    '<ol class="m-steps">'
+    (f'<p>The monitor answers one question: <b>which macro regime will {ui.esc(HORIZON)} most '
+       'resemble, judging from where the drivers stand now?</b> It does so in six steps.</p>'
+       if HORIZON else
+       '<p>The monitor answers one question: <b>which macro regime do current conditions '
+       'most resemble?</b> It does so in six steps.</p>')
+    + '<ol class="m-steps">'
     '<li><b>Read the data as it was known.</b> Every series is taken as published on the '
     'chosen date, before later revisions.</li>'
     '<li><b>Score each indicator.</b> Each series is transformed, then measured against a '
@@ -203,17 +209,22 @@ prose(f'<p>The horizon mix is the share of each driver\'s weight looking out ove
       f'quarter ({ui.horizon_chip("short")}), a business cycle of one to three years '
       f'({ui.horizon_chip("medium")}), or longer ({ui.horizon_chip("long")}). A monthly '
       f'monitor has to carry something slower than the news, or it reports only what just '
-      f'happened. Across the six drivers <b>{_mix["medium"] + _mix["long"]:.0%}</b> of weight '
+      f'happened. Across the {n_drivers} drivers <b>{_mix["medium"] + _mix["long"]:.0%}</b> of weight '
       f'looks beyond a quarter, and <b>{_mix["long"]:.0%}</b> beyond the business cycle: '
       f'market prices of multi-year risk such as the equity risk premium, the yield curve and '
       f'five-year forward breakevens, and slow measures such as productivity and r minus g. '
-      f'Every one of them enters as a change, a spread or a deviation from its own trend '
-      f'rather than as a level, so a long horizon never becomes a standing bias.</p>')
+      f'Each enters as a change, a spread or a deviation from its own trend, or is read as a '
+      f'level on purpose with the reason given, so a long horizon never becomes a standing '
+      f'bias by accident.</p>')
 
-prose(f'<p>{n_regimes.capitalize()} regimes are defined by where each expects the drivers to '
-      'sit. A month is called a regime only when it is genuinely close to one; otherwise the call '
-      f'is <b>no clear regime</b> (section {num("m-regimes")}). Middling months are common, and '
-      'the monitor says so rather than forcing them into the nearest regime.</p>')
+prose((f'<p>{n_regimes.capitalize()} regimes are each placed where the drivers sat in the run-up '
+       f'to that regime. Every month is called the nearest one, unless none reaches the '
+       f'{settings["min_confidence"]:.0%} confidence floor, when the call is transitional '
+       f'(section {num("m-regimes")}).</p>') if not GATE_ON and HORIZON else
+      (f'<p>{n_regimes.capitalize()} regimes are defined by where each expects the drivers to '
+       'sit. A month is called a regime only when it is genuinely close to one; otherwise the call '
+       f'is <b>no clear regime</b> (section {num("m-regimes")}). Middling months are common, and '
+       'the monitor says so rather than forcing them into the nearest regime.</p>'))
 chip = lambda n: ui.Raw(
     f'<span class="sp-chip" style="background:{reg["regimes"][n]["color"]};'
     f'color:{ui.text_on(reg["regimes"][n]["color"])}">{ui.esc(reg["regimes"][n].get("short", n))}</span>')
@@ -230,7 +241,9 @@ prose(
     '<ul>'
     '<li><b>Each row is one driver</b>, drawn from one extreme to the other. Red end boxes '
     'mark outcomes that are a risk; green marks outcomes that are good for growth.</li>'
-    '<li><b>Regime codes</b> sit where that regime expects the driver to be, taken from '
+    + ('<li><b>Regime codes</b> sit where the driver stood in the run-up to that regime, taken from '
+       if HORIZON else '<li><b>Regime codes</b> sit where that regime expects the driver to be, taken from ')
+    +
     f'the archetype table in section {num("m-regimes")}. Codes close together share a slot.</li>'
     '<li><b>The solid star</b> is the latest confirmed month\'s score; <b>the outlined star</b>, '
     'when shown, is the provisional month. <b>The hollow circle</b> is the score twelve months '
@@ -595,7 +608,7 @@ if pd.notna(call.get("threshold")):
                 + {"clear": "a clear fit.", "weak": "a weak fit."}.get(call.get("fit"), "no fit."))
 prose(f'<p>{ui.esc(rlabel[leader])} is closest, at a distance of {dist[leader]:.2f}, '
       f'giving it {probs.at[latest, leader]:.0%}.{fit_text} The driver pulling hardest against it is '
-      f'<b>{ui.esc(dlabel[pull].lower())}</b>. After the fit gate, persistence rule and confidence '
+      f'<b>{ui.esc(dlabel[pull].lower())}</b>. After the {"fit gate, " if GATE_ON else ""}persistence rule and confidence '
       f'floor, the call is <b>{ui.esc(called_text)}</b>.</p>'
       f'<p>On the dashboard, click any number in "What is pulling the call" to trace it '
       f'further: the driver\'s recent path against that regime, and each indicator\'s '
@@ -731,7 +744,7 @@ prose(
     'fiscal policy, read as the sustainability of the debt path; and reforms and industrial '
     'policy. Supply is folded into growth, and a Baseline scenario joins the four. The six-driver '
     'framework below remains available as v1 under the Framework menu.</p>'
-    '<p><b>October 2026 — reworked on the manager’s feedback, and renamed.</b> Three drivers '
+    '<p><b>October 2026 — reworked after review, and renamed.</b> Three drivers '
     'took new names: demand is now <b>Growth</b>, inflation expectations <b>Inflation</b>, and '
     'investment spending <b>Reforms and industrial policy</b>, whose indicators still measure the '
     'investment rather than the policies. Against the September entry below:</p><ul>'

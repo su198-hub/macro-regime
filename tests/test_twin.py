@@ -222,7 +222,7 @@ def test_the_twin_page_explains_itself_when_there_is_no_store(tmp_path, monkeypa
 
 
 def test_the_twin_page_is_hidden_from_the_nav():
-    """Reachable by its link only, so the presentation never shows it."""
+    """Reachable by its link only, so the published app never lists it."""
     src = open("app.py", encoding="utf-8").read()
     line = next(l for l in src.splitlines() if "views/twin.py" in l)
     assert 'visibility="hidden"' in line

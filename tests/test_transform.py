@@ -31,3 +31,12 @@ def test_diff_5y_puts_five_yearly_points_on_a_yearly_footing():
 def test_diff_5y_on_a_monthly_series_is_sixty_months():
     m = pd.Series(np.arange(80, dtype=float), index=pd.date_range("2000-01-31", periods=80, freq="ME"))
     assert TRANSFORMS["diff_5y"](m).dropna().eq(60.0).all()
+
+
+def test_diff_5y_matches_by_date_across_a_gap():
+    """A two-year hole must not stretch the window to seven years."""
+    idx = pd.date_range("2000-01-31", periods=120, freq="ME")
+    s = pd.Series(np.arange(120, dtype=float), index=idx).drop(idx[24:48])
+    out = TRANSFORMS["diff_5y"](s).dropna()
+    assert out.eq(60.0).all()
+    assert pd.Timestamp("2007-01-31") not in out.index      # 2002-01 is in the hole

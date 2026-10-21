@@ -19,8 +19,10 @@
 #                          debt dynamics (forward r - g and repricing,
 #                          37.5%), and the investment
 #                          share of spending (25%); half weight in the call
-#   reforms                how far reforms and industrial policy draw in
-#                          private investment, read through the investment
+#   reforms                whether the policy environment is turning
+#                          friendlier to long-run growth: regulation, policy
+#                          uncertainty, trade policy and public R&D (25%
+#                          each); half weight in the call
 #
 # Every score runs from its left pole (-1) to its right pole (+1):
 # weak to strong, de-anchored lower to higher, dovish to hawkish,
@@ -185,15 +187,16 @@ meta:
       - hiking_pace_3y
       - real_rate_gap
       - taylor_gap
-      - capex_revision
       - forecaster_disagreement
       - inflation_trajectory
       - outlays_vs_receipts
       - repricing_drift
+      - capb_3y_change
       - primary_balance_3y
     long:
       - cbo_potential_growth_revision
       - spf_productivity_revision
+      - capex_revision
       - cbo_labour_force_revision
       - breakeven_5y5y
       - cleveland_10y
@@ -202,7 +205,6 @@ meta:
       - target_miss_rate
       - inflation_volatility
       - forward_r_minus_g
-      - capb_3y_change
       - federal_investment_share
       - regulation_growth
       - regulation_score
@@ -789,16 +791,19 @@ drivers:
           expr: "rolls_per_year * repricing_gap * debt_share"
           series: [AVGMAT_PRIV, DGS5, MTSNETINT, DEBTPUB, GDPNOM]
           derived:
+            # Average maturity arrives about three months late and moves
+            # slowly, so it is carried rather than leaving the latest months blank.
+            maturity: {series: AVGMAT_PRIV, fill: 4}
             interest_12m: {series: MTSNETINT, transform: sum_12m}
             eff_rate: {expr: "interest_12m / DEBTPUB * 100"}
-            rolls_per_year: {expr: "12 / AVGMAT_PRIV"}
+            rolls_per_year: {expr: "12 / maturity"}
             repricing_gap: {expr: "DGS5 - eff_rate"}
             debt_share: {expr: "DEBTPUB / GDPNOM"}
         transform: level
         normalize: {method: gap, center: 0.0, scale: 0.12}
         direction: -1
         weight: 0.1875
-        release: Monthly Treasury Statement
+        release: Treasury Bulletin
         why: >-
           **Debt repricing.** The government pays an average of past coupons
           on its debt, not today's yields. Each year about 12 / (average

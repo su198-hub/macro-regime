@@ -28,7 +28,7 @@ st.navigation(
      # In the menu but marked work in progress: is energy demand outrunning
      # supply? Scored on its own, not yet feeding the regime model.
      st.Page("views/energy.py", title="Energy (WIP)", url_path="energy"),
-     # Hidden: reachable at /twin, never in the nav, so the presentation is
+     # Hidden: reachable at /twin, never in the nav, so the published model is
      # untouched while the proposed indicator set is being weighed.
      st.Page("views/twin.py", title="Twin", url_path="twin", visibility="hidden"),
      # Also hidden while its shape is argued over. /forecast asks a different

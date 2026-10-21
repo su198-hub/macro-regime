@@ -1,4 +1,4 @@
-"""Two explainer charts for the steadier nowcast, for emails and slides.
+"""Two explainer charts for the steadier nowcast, for emails.
 
     python scripts/window_visuals.py [--out FOLDER] [--month 2023-02]
 

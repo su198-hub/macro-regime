@@ -69,8 +69,12 @@ def training_frame(scores: pd.DataFrame, forward: pd.DataFrame) -> pd.DataFrame:
 
 
 def spells(labels: pd.Series) -> pd.DataFrame:
-    """Unbroken runs of one label, oldest first. Assumes consecutive months."""
-    run = (labels != labels.shift()).cumsum()
+    """Unbroken runs of one label, oldest first. A gap in the months also ends a
+    run, so two episodes either side of a held-out stretch stay two."""
+    gap = np.zeros(len(labels), dtype=bool)
+    if isinstance(labels.index, pd.PeriodIndex) and len(labels) > 1:
+        gap[1:] = np.diff(labels.index.asi8) != 1
+    run = ((labels != labels.shift()) | gap).cumsum()
     rows = [{"start": g.index[0], "end": g.index[-1], "label": g.iloc[0], "months": len(g)}
             for _, g in labels.groupby(run)]
     return pd.DataFrame(rows, columns=["start", "end", "label", "months"])

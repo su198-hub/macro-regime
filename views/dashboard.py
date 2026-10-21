@@ -362,8 +362,9 @@ with tab_pull:
                                  groups=driver_groups(cfg, focus_driver))
             + f'<p class="mr-caption">Score is the reading measured against its center, '
               f'with direction applied, so positive always pushes the driver up. '
-              f'Contribution is weight × score ÷ {DRIVER_SCALE:g}; the column sums to '
-              f'the driver score. Red pushes up, blue pulls down.</p>')
+              f'Contribution is weight × score ÷ {DRIVER_SCALE:g}; the indicator rows sum to '
+              f'the driver score, and a block\'s row is the sum of its own. Red pushes up, '
+              f'blue pulls down.</p>')
 
     with st.expander(f"Indicator scores over the 18 months to {focus:%B %Y}: "
                      f"{driver_label[focus_driver].lower()}"):
