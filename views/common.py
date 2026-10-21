@@ -360,12 +360,16 @@ def source_sentence(vendors: set[str]) -> str:
         parts.append("Macrobond, carrying each series from its original publisher: BEA, "
                      "BLS, Census, the Treasury, the Federal Reserve Board, the New York, "
                      "Philadelphia and Cleveland Feds, CBO, S&amp;P with Robert Shiller, "
-                     "and the University of Michigan")
+                     "the University of Michigan, the BIS, the Fraser Institute, and Baker, "
+                     "Bloom and Davis for the policy uncertainty indexes")
     if "fred" in vendors:
         parts.append("FRED and ALFRED, Federal Reserve Bank of St. Louis")
     if "bloomberg" in vendors:
         parts.append("Bloomberg, for the equity, credit and analyst-consensus series it "
                      "licenses, published here with the vendor's approval")
+    if "quantgov" in vendors:
+        parts.append("QuantGov RegData (Mercatus Center), for restrictions in the Code of "
+                     "Federal Regulations")
     if not parts:
         return "No data loaded."
     return "; ".join(parts) + ". Each value is the latest vintage published on or before the chosen date."

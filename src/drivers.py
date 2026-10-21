@@ -77,6 +77,11 @@ def _build_input(ind: dict, wide: pd.DataFrame, carry: int = 0) -> pd.Series | N
     end = wide.index.max() if not wide.empty else None
     transform = TRANSFORMS[ind.get("transform", "level")]
 
+    # `start` drops observations before a break in how a series is compiled,
+    # so a change is never taken across it.
+    if src.get("start"):
+        wide = wide[wide.index >= pd.Timestamp(src["start"])]
+
     if not expr:
         col = src["series"]
         if col not in wide.columns:

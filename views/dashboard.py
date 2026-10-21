@@ -25,7 +25,7 @@ from views.common import (INDICATORS, REGIMES, country_picker, get_results, get_
 DIVERGING = LinearSegmentedColormap.from_list(
     "signed", ["#2a78d6", "#f0f0f0", "#e34948"])
 VENDOR_NAME = {"macrobond": "Macrobond", "fred": "FRED", "bloomberg": "Bloomberg",
-               "demo": "synthetic demo data"}
+               "quantgov": "QuantGov", "demo": "synthetic demo data"}
 
 store = get_store()
 
@@ -64,6 +64,9 @@ reg = results["regimes"]
 cfg = results["config"]
 settings = reg["settings"]
 gate_on = str(settings.get("fit_gate", "none")) == "closer_than_neutral"
+# A framework whose call describes a period ahead says so (v2: the next three
+# years); one without describes the month itself.
+horizon = (cfg.get("meta") or {}).get("call_horizon")
 driver_cols = [c for c in drivers.columns if not c.endswith("__coverage")]
 driver_label = {n: cfg["drivers"].get(n, {}).get("label", n) for n in driver_cols}
 regime_label = {n: s["label"] for n, s in reg["regimes"].items()}
@@ -178,8 +181,10 @@ if called != "transitional" and state != called and pd.notna(state):
 
 call_col, prob_col = st.columns([1.15, 1], gap="large")
 call_col.html(
-    f'<p class="mr-eyebrow">Regime call, {latest:%B %Y} · confirmed</p>'
-    f'<div class="mr-call"><span class="mr-call-swatch" '
+    (f'<p class="mr-eyebrow">Regime call for {ui.esc(horizon)}, read in {latest:%B %Y} · '
+     f'confirmed</p>' if horizon else
+     f'<p class="mr-eyebrow">Regime call, {latest:%B %Y} · confirmed</p>')
+    + f'<div class="mr-call"><span class="mr-call-swatch" '
     f'style="background:{swatch}"></span>{ui.esc(call_name)}</div>'
     f'<p class="mr-lede">{ui.esc(lede)}</p>'
     + (f'<p class="mr-lede-muted">{ui.esc(standing)}</p>' if standing else "")
@@ -409,8 +414,10 @@ st.html(
     f'distance to each archetype (<code>{ui.esc(REGIMES())}</code>), softmaxed at '
     f'temperature {settings["temperature"]}, with a '
     f'{settings["persistence_months"]}-month persistence rule before a call '
-    f'changes. The archetypes have not yet been validated against a labeled '
-    f'regime history.<br>'
+    f'changes. '
+    + ui.esc((cfg.get("meta") or {}).get("positions_note")
+             or 'The archetypes have not yet been validated against a labeled regime history.')
+    + '<br>'
     f'<b>Coverage:</b> {ui.esc(here["label"])} only. {ui.esc(planned_note())} Each country is '
     f'scored from its own indicator set, with centers derived from its own history.<br>'
     f'<b>Config:</b> {results.get("config_hash", "n/a")}</div>')

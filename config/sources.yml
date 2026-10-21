@@ -424,6 +424,43 @@ series:
   NONRESSHARE:
     macrobond: usnaac0569
     note: Private nonresidential fixed investment, % of GDP, quarterly (BEA).
+  # The reforms signpost (v2): the policy environment for long-run growth.
+  EPU:
+    macrobond: usepuindex
+    note: >-
+      Baker-Bloom-Davis economic policy uncertainty index, US, monthly from
+      1985: newspaper coverage of policy uncertainty, expiring tax provisions
+      and forecaster disagreement; 100 = the 1985-2009 average.
+  TPU:
+    macrobond: useputpu
+    note: >-
+      Caldara et al. trade policy uncertainty index, US, monthly from 1960:
+      newspaper coverage of trade policy together with uncertainty.
+  CUSTOMS:
+    macrobond: bea006_87b235rc_q
+    note: Federal customs duties, quarterly, SAAR, USD (BEA).
+  GOODS_IMPORTS_SHARE:
+    macrobond: usnaac0579
+    note: Imports of goods, % of GDP, quarterly (BEA).
+  FED_RND:
+    macrobond: usgpfi0536
+    note: Federal non-defense gross investment in research and development, quarterly, SAAR, USD (BEA).
+  FRASER_BUSREG:
+    macrobond: fraser_reg_busr_tot_us
+    note: >-
+      Fraser Institute Economic Freedom of the World, business regulations
+      (area 5C: administrative burden, bureaucracy costs, starting a business,
+      licensing, tax compliance), US score 0-10, 10 least regulated. Every
+      five years 1970-2000, annual since; published about two years late.
+      Partly built from executive surveys since 2001, when the score fell from
+      9.1 to 6.3 on the new method alone.
+  REGDATA:
+    use: quantgov
+    quantgov: "https://quantgov-bulk-downloads.s3.amazonaws.com/RegData-US_6-0.zip|RegData-US_6-0/usregdata6.csv"
+    note: >-
+      QuantGov RegData 6.0: restrictions in the Code of Federal Regulations,
+      summed over every part, yearly 1970-2025. Read from the bulk archive in
+      place (src/sources/quantgov.py).
   # Debt owed by US non-financial companies and by households, from every
   # lender: banks, bond investors, nonbanks and foreign lenders. In dollars
   # rather than % of GDP, because the ratio falls whenever inflation lifts

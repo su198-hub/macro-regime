@@ -167,6 +167,9 @@ def open_vendor(vendor: str):
     if vendor == "bloomberg":
         from src.sources.bloomberg import BloombergSource
         return BloombergSource()
+    if vendor == "quantgov":
+        from src.sources.quantgov import QuantgovSource
+        return QuantgovSource()
     from src.sources.fred import FredSource
     return FredSource()
 
@@ -623,7 +626,7 @@ def main():
                    help="Country code from config/countries.yml (default: its default).")
     p.add_argument("--config", default=None)
     p.add_argument("--sources", default=None)
-    p.add_argument("--source", choices=["fred", "macrobond", "ciq", "bloomberg"], default=None,
+    p.add_argument("--source", choices=["fred", "macrobond", "ciq", "bloomberg", "quantgov"], default=None,
                    help="Use this vendor for every series, ignoring sources.yml.")
     # Comma separated, not nargs="+", which would swallow the subcommand.
     p.add_argument("--only", default=None, metavar="A,B,C",

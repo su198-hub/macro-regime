@@ -147,6 +147,26 @@ def dev_10y(s: pd.Series) -> pd.Series:
     return s - s.rolling(n, min_periods=int(n * 0.6)).mean()
 
 
+def mean_12m(s: pd.Series) -> pd.Series:
+    """Trailing one-year average, for a news-based index that spikes month to
+    month, such as policy uncertainty."""
+    n = _periods_per_year(s)
+    return s.rolling(n, min_periods=n).mean()
+
+
+def diff_5y(s: pd.Series) -> pd.Series:
+    """Change over five years. A series published every five years and then
+    yearly, such as the Fraser index, is first put on a yearly footing by
+    interpolating between its points, so five steps are always five years."""
+    s = s.dropna()
+    if _periods_per_year(s) <= 1:
+        s = s.groupby(s.index.year).last()
+        s = s.reindex(range(s.index.min(), s.index.max() + 1)).interpolate(limit_area="inside")
+        s.index = pd.to_datetime([f"{y}-12-31" for y in s.index])
+        return s - s.shift(5)
+    return s - s.shift(5 * _periods_per_year(s))
+
+
 def target_distance_change_12m(s: pd.Series) -> pd.Series:
     """Change over a year in how far inflation sits from 2%, in points.
 
@@ -165,6 +185,8 @@ TRANSFORMS = {
     "mean_36m": mean_36m,
     "dev_10y": dev_10y,
     "target_distance_change_12m": target_distance_change_12m,
+    "mean_12m": mean_12m,
+    "diff_5y": diff_5y,
     "yoy_pct": yoy_pct,
     "pct_change_3m_ann": pct_change_3m_ann,
     "diff_12m": diff_12m,

@@ -81,6 +81,47 @@ def positions(train: pd.DataFrame, names: list[str]) -> pd.DataFrame:
     return train.groupby("label")[names].mean()
 
 
+PRIOR_STRENGTH = 0.5    # episodes' worth of weight on the prior; see realigned_positions
+
+
+def realigned_positions(train: pd.DataFrame, prior: pd.DataFrame, names: list[str],
+                        strength: float = PRIOR_STRENGTH) -> pd.DataFrame:
+    """Scenario positions for a regime call that describes the next three years.
+
+    Each labeled regime's run-up position (positions, above) is shrunk toward
+    a prior, a judgment of where the regime sits, weighting the data by its
+    number of episodes E and the prior by `strength`:
+
+        position = (E * learned + strength * prior) / (E + strength)
+
+    The prior is first scaled to the learned positions' spread. Run-ups
+    average many months and sit near the middle, about a third as far out as
+    a judgment of the regime itself, so an unscaled prior pulls every position
+    outward and the call with it. A scenario with no label of its own, such as
+    Baseline, takes the average of all months as one episode. A labeled regime
+    with no episode yet takes its scaled prior.
+    """
+    labeled = [r for r in prior.index if r in set(truth.QUADRANT.values())]
+    learned = positions(train, names)
+    seen = [r for r in labeled if r in learned.index]
+    if seen:
+        scale = (learned.loc[seen, names].abs().to_numpy().mean()
+                 / max(prior.loc[seen, names].abs().to_numpy().mean(), 1e-9))
+    else:
+        scale = 1.0
+    scaled = prior[names] * scale
+    episodes = spells(train["label"])["label"].value_counts()
+    out = scaled.copy()
+    for r in prior.index:
+        if r in labeled:
+            e = float(episodes.get(r, 0))
+            if e:
+                out.loc[r] = (e * learned.loc[r, names] + strength * scaled.loc[r]) / (e + strength)
+        elif len(train):
+            out.loc[r] = (train[names].mean() + strength * scaled.loc[r]) / (1 + strength)
+    return out
+
+
 def support(train: pd.DataFrame) -> pd.DataFrame:
     """How many months and separate episodes stand behind each position."""
     sp = spells(train["label"])

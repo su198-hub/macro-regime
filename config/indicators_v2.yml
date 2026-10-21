@@ -51,23 +51,64 @@ meta:
     inflation), the other the long run (potential growth itself, and whether
     inflation expectations are drifting from 2%). Monetary policy reads how
     hawkish the Fed is, from its stance and its credibility. Fiscal policy
-    reads how supportive the budget is, mainly a signal for inflation, and
-    takes half weight in the regime call.
+    reads how supportive the budget is, mainly a signal for inflation.
+    Reforms reads whether the policy environment is turning friendlier to
+    long-run growth. Fiscal policy and reforms take half weight in the regime
+    call.
+  call_horizon: the next three years
+  call_note: >-
+    The regime call is a reading of the next three years from where the
+    signposts stand, not a point forecast, and it makes no subjective
+    adjustments.
+  positions_note: >-
+    Each regime's position is learned from the run-ups to past regimes,
+    1983-2023; graded on the three years that followed, 1993-2023, the call
+    got 57% of each regime's months right on average held out, 43% in real
+    time.
+  positions_method: >-
+    where the drivers sat in the run-up to that regime, 1983 to 2023, shrunk
+    toward a judgment of where the regime sits, so the call reads the next
+    three years.
   summary_note: >-
-    The scenario positions are judgments, not estimates. Against the labeled
-    history they fit poorly: goldilocks is never the leading scenario after
-    1990.
+    The scenario positions are learned from only nine run-ups since 1983,
+    one each for stagflation and for high growth, high inflation, so they
+    are estimates with wide error.
   limitations:
-    - title: Scenario positions fit the labeled history poorly
+    - title: Few episodes behind the positions
       text: >-
-        Graded against the Regime history page from 1990, the leading scenario
-        matches the labeled regime in 18% of months (v1: 64%), and goldilocks
-        is never the leading scenario: it sits far from neutral, and high
-        growth, high inflation sits halfway along the same line, so every good
-        month lands there. 30% of months fit no scenario. The positions were
-        set before growth and inflation were reworked to read the next three
-        years, and have not been moved since. Baseline cannot be
-        graded at all: the labels have only the four growth-inflation regimes.
+        The positions are learned from nine run-ups since 1983: four
+        goldilocks, three hard landings, and one each of stagflation
+        (1988-90) and high growth, high inflation (2018-23). Graded on the
+        three years that followed, 1993-2023, the call got 57% of each
+        regime's months right on average held out and 43% in real time,
+        against 37% for assuming the current regime continues. It caught two
+        of three hard-landing run-ups held out, one in real time. In real
+        time, a regime not yet seen falls back to its judgment position.
+    - title: The scenarios sit close together
+      text: >-
+        Run-ups average many months, so the learned positions sit near the
+        middle and near each other, and the probabilities are modest: since
+        1983 the leading scenario has had a median of 38%, and more than 53%
+        in only one month in ten. The judgment positions are scaled
+        to the same spread before the data are weighed against them; unscaled,
+        they pulled every position outward and the call fell below 40% held
+        out.
+    - title: Baseline cannot be graded
+      text: >-
+        The answer key has only the four growth-inflation regimes. Baseline's
+        position is the average month, and a month called Baseline counts as
+        a miss in every grade above.
+    - title: Reforms reads beyond its history
+      text: >-
+        Policy uncertainty, trade policy uncertainty and the change in the
+        effective tariff rate all sit at the -3 cap in 2026, and the reforms
+        signpost at -1, further out than in any month the positions were
+        learned from. It counts at half weight and adds about the same
+        distance to every scenario, so it moves the call little. Reforms is
+        there for the long run: it goes with faster productivity over the
+        following decade (+0.47, trend removed), but runs the wrong way for
+        the next three years (-0.43 with the growth gap), because policy
+        uncertainty spikes in recessions and recoveries follow.
     - title: Potential growth is there by design, not for the forecast
       text: >-
         The labeled regime reads growth against potential, so revisions to
@@ -91,21 +132,13 @@ meta:
       text: >-
         Inflation is read against 2%. Before the late 1990s expectations ran at
         4 to 5%, so those years all read as de-anchored higher.
-    - title: Scenario positions predate the reworked signposts
-      text: >-
-        The scenario positions were set when growth read potential growth,
-        monetary policy credibility and fiscal policy sustainability. Each now
-        reads something else, so a month can sit far from every scenario and
-        go unclassified even when one leads clearly. The positions are to be
-        relearned from the data once every signpost is final.
     - title: Hawkish is not the same as good
       text: >-
         Monetary reads tight and credible policy as hawkish. Both point the
         same way in the data: hard landings came after tight policy, and after
         spells of low, steady inflation, when a slowdown brings inflation down
-        rather than up. The scenario positions were set when this signpost read
-        credibility alone, with hard landing on the losing-credibility side,
-        and have not been moved yet.
+        rather than up. The learned positions agree: hard landing sits on the
+        hawkish side, the other regimes on the dovish side.
     - title: Credibility is a track record only
       text: >-
         The miss rate, volatility and trajectory look back. Since 2021 they
@@ -127,13 +160,10 @@ meta:
         productivity revision is annual from then, the CBO revisions start in
         1997 and 2003, and the capex consensus in 2009. Before 1993 growth is
         the cycle block alone. Company and household debt come from the BIS
-        about two quarters after the quarter ends. Growth and reforms both lean
-        on the AI capex surge, which is investment, not policy. B-Ready and
-        Global Trade Alert are not included.
-    - title: Settings carried over from v1
-      text: >-
-        Temperature, the fit gate and the persistence rule are v1's, not yet
-        tested for five scenarios.
+        about two quarters after the quarter ends. Growth leans on the AI
+        capex surge. RegData counts restrictions once a year, and the Fraser
+        score arrives about two years late and is read only from 2001, when
+        its method changed. B-Ready and Global Trade Alert are not included.
   history_start: "1970-01-01"
   carry_forward_periods: 2
   min_reported_share: 0.6
@@ -150,12 +180,11 @@ meta:
       - m2_growth_3y
       - house_prices_3y
       - underlying_inflation_gap
+      - tariff_rate_change
       - yield_curve
       - hiking_pace_3y
       - real_rate_gap
       - taylor_gap
-      - core_capex_orders_yoy
-      - real_nonres_investment_yoy
       - capex_revision
       - forecaster_disagreement
       - inflation_trajectory
@@ -175,8 +204,11 @@ meta:
       - forward_r_minus_g
       - capb_3y_change
       - federal_investment_share
-      - investment_share_vs_norm
-      - equity_risk_premium
+      - regulation_growth
+      - regulation_score
+      - policy_uncertainty
+      - trade_policy_uncertainty
+      - public_rnd_change
 
 drivers:
 
@@ -798,54 +830,134 @@ drivers:
   reforms:
     label: Reforms and industrial policy
     description: >-
-      How far reforms and industrial policy are drawing in private
-      investment, read through the investment itself. B-Ready and Global
-      Trade Alert have no history to score yet.
+      Whether the policy environment is turning more or less friendly to
+      long-run growth: regulation, how predictable policy is, trade policy and
+      public research.
     signpost:
-      low: {label: Reactive / limited, tone: risk, phrase: private investment is not responding}
-      high: {label: Proactive / extensive, tone: good, phrase: private investment is responding}
-      mid: {phrase: private investment is steady}
+      low: {label: Reactive / limited, tone: risk, phrase: the policy environment is turning against long-run growth}
+      high: {label: Proactive / extensive, tone: good, phrase: the policy environment is turning toward long-run growth}
+      mid: {phrase: the policy environment is roughly unchanged}
+    # Four blocks at a quarter each. The long-run part of the model, kept by
+    # design: together they go with faster productivity over the following
+    # decade, and are close to neutral for the three-year call, so the
+    # signpost takes half weight there (config/regimes_v2.yml).
+    groups:
+      regulation:
+        label: Regulation
+        description: Whether federal rules are accumulating faster or slower than usual.
+      uncertainty:
+        label: Policy uncertainty
+        description: How unpredictable economic policy is.
+      trade:
+        label: Trade policy
+        description: Whether tariffs are rising, and how uncertain trade policy is.
+      research:
+        label: Public research
+        description: Whether federal non-defense R&D is growing as a share of the economy.
     indicators:
-      - id: investment_share_vs_norm
-        label: Business investment share of GDP, against its 10-year norm
-        source: {series: NONRESSHARE}
-        transform: dev_10y
-        normalize: {method: gap, center: 0.0, scale: 0.92}
-        direction: 1
-        weight: 0.25
+      - id: regulation_growth
+        group: regulation
+        label: Restrictions in the Code of Federal Regulations, 5-year growth (slower +)
+        source: {series: REGDATA}
+        transform: pct_change_5y_ann
+        normalize: {method: gap, center: 1.39, scale: 0.76}
+        direction: -1
+        weight: 0.125
         carry_forward_periods: 2
-        why: "**GFCF as a % of GDP**: business investment's share, in points above its own decade."
+        release: QuantGov RegData
+        why: >-
+          **Regulatory changes.** RegData counts the words that bind ("shall",
+          "must", "may not", "prohibited", "required") across the whole Code of
+          Federal Regulations each year. Rules raise costs, deter entry and slow
+          the shift of resources toward productive firms; restrictions growing
+          more slowly than usual reads as reform. Counted by year, so the latest
+          year arrives the following year.
 
-      - id: core_capex_orders_yoy
-        label: Core capital goods orders, year over year
-        source: {series: NEWORDER}
-        transform: yoy_pct
-        normalize: {method: gap, center: 3.5, scale: 3.0}
+      - id: regulation_score
+        group: regulation
+        label: Fraser business regulation score, 5-year change (lighter +)
+        source: {series: FRASER_BUSREG, start: "2001-01-01"}
+        transform: diff_5y
+        normalize: {method: gap, center: 0.0, scale: 0.378}
         direction: 1
-        weight: 0.25
-        why: "**Capital goods orders**: the leading edge of business investment, monthly."
+        weight: 0.125
+        carry_forward_periods: 3
+        release: Fraser Institute
+        why: >-
+          **Ease of doing business.** The Fraser Institute's score for
+          business regulation, 0 to 10: administrative burden, bureaucracy
+          costs, the cost of starting a business, licensing and tax
+          compliance, partly from executive surveys. The nearest long-running
+          stand-in for ease of doing business. It scores how burdensome rules
+          feel, where RegData counts them, so the two are averaged. Read from
+          2001, when the method changed, and published about two years late.
 
-      - id: real_nonres_investment_yoy
-        label: Real business investment, year over year
-        source: {series: PNFIC1}
-        transform: yoy_pct
-        normalize: {method: gap, center: 3.5, scale: 3.0}
-        direction: 1
-        weight: 0.25
-        carry_forward_periods: 2
-        why: "**Real business investment growth**, quarterly."
-
-      - id: equity_risk_premium
-        label: Change in equity risk premium
-        source:
-          expr: "100 / CAPE - (DGS10 - EXPINF10YR)"
-          series: [CAPE, DGS10, EXPINF10YR]
-        transform: diff_12m
-        normalize: {method: gap, center: 0.0, scale: 0.92}
+      - id: policy_uncertainty
+        group: uncertainty
+        label: Economic policy uncertainty, 12-month average (low +)
+        source: {series: EPU}
+        transform: mean_12m
+        normalize: {method: gap, center: 108.68, scale: 25.89}
         direction: -1
         weight: 0.25
+        absolute_level: true
+        release: Baker, Bloom and Davis
         why: >-
-          **Equity risk premium**: E10/P less the real 10-year yield, changed
-          over a year. A falling
-          premium is cheaper equity capital for the investment the policy
-          wants.
+          **Policy uncertainty.** When policy is unpredictable, firms delay
+          investment and hiring until it clears (Baker, Bloom and Davis). Read
+          from newspaper coverage of policy uncertainty, expiring tax
+          provisions and forecaster disagreement. It also spikes in recessions
+          and crises, whatever the policy. Read as a level against its
+          1985-2019 average: it is how much uncertainty there is that holds
+          investment back, not whether it is rising.
+
+      - id: tariff_rate_change
+        group: trade
+        label: Effective tariff rate, change over three years (falling +)
+        source:
+          expr: "CUSTOMS / (GOODS_IMPORTS_SHARE / 100 * GDPNOM) * 100"
+          series: [CUSTOMS, GOODS_IMPORTS_SHARE, GDPNOM]
+        transform: diff_36m_ann
+        normalize: {method: gap, center: 0.0, scale: 0.148}
+        direction: -1
+        weight: 0.125
+        carry_forward_periods: 2
+        why: >-
+          **Trade policy: tariffs.** Customs duties as a share of goods imports,
+          the tariff actually paid. Tariffs pass through to US prices, raise
+          input costs and shield weak firms (Amiti, Redding and Weinstein).
+          Over the next three years a rising rate has gone with higher
+          inflation; the long-run case rests on the economics.
+
+      - id: trade_policy_uncertainty
+        group: trade
+        label: Trade policy uncertainty, 12-month average (low +)
+        source: {series: TPU}
+        transform: mean_12m
+        normalize: {method: gap, center: 41.62, scale: 27.48}
+        direction: -1
+        weight: 0.125
+        absolute_level: true
+        why: >-
+          **Trade policy: uncertainty.** How much newspapers discuss trade
+          policy together with uncertainty. Uncertainty about future tariffs
+          freezes supply-chain investment (Caldara, Iacoviello and others).
+          Read as a level against its 1985-2019 average, like policy
+          uncertainty.
+
+      - id: public_rnd_change
+        group: research
+        label: Federal non-defense R&D, % of GDP, change over five years
+        source:
+          expr: "FED_RND / GDPNOM * 100"
+          series: [FED_RND, GDPNOM]
+        transform: diff_5y
+        normalize: {method: gap, center: 0.0, scale: 0.05}
+        direction: 1
+        weight: 0.25
+        carry_forward_periods: 2
+        why: >-
+          **Public research.** Non-defense federal R&D feeds private
+          innovation and raises productivity, but slowly: the effect builds over
+          8 to 15 years (Fieldhouse and Mertens).
+

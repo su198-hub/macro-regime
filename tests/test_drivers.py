@@ -183,3 +183,23 @@ def test_block_contributions_and_provisional_reading_match_the_driver():
     assert parts.at["a", "share"] == pytest.approx(0.75)
     reading = provisional_reading(BLOCKS, scores, month)
     assert reading["drivers"]["growth"] == pytest.approx(parts["contribution"].sum())
+
+
+def test_source_start_drops_observations_before_a_break():
+    """A change is never taken across a break in how a series is compiled."""
+    def cfg(start=None):
+        src = {"series": "F"} if start is None else {"series": "F", "start": start}
+        return {"drivers": {"reforms": {"indicators": [{
+            "id": "score", "source": src, "transform": "diff_5y", "direction": 1,
+            "weight": 1.0, "carry_forward_periods": 3,
+            "normalize": {"method": "gap", "center": 0.0, "scale": 1.0}}]}}}
+    idx = pd.to_datetime([f"{y}-01-01" for y in range(1995, 2011)])
+    # The method changes in 2001: a one-off drop of three points.
+    values = [9.0] * 6 + [6.0 + 0.1 * k for k in range(10)]
+    w = pd.DataFrame({"F": values}, index=idx)
+    whole, _ = indicator_frames(cfg(), w)
+    after, _ = indicator_frames(cfg("2001-01-01"), w)
+    s, t = whole["reforms::score"].dropna(), after["reforms::score"].dropna()
+    assert s.min() < -2.0                      # the break reads as a collapse
+    assert t.index.min().year == 2006          # five years after the first kept point
+    assert t.iloc[-1] == pytest.approx(0.5)    # 6.9 - 6.4: the real five-year change

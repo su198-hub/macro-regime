@@ -51,3 +51,44 @@ def test_as_of_is_unchanged_by_tidying(tmp_path):
     tidy.upsert_observations(tidy_vintages(raw))
     for day in (D(2024, 2, 15), D(2024, 3, 15), D(2024, 4, 15)):
         pd.testing.assert_frame_equal(full.as_of(["x"], day), tidy.as_of(["x"], day))
+
+
+def test_quantgov_reads_one_member_of_a_remote_zip_and_sums_by_year():
+    """Only the byte ranges asked for are served, as S3 would."""
+    import io
+    import zipfile
+
+    from src.sources.quantgov import QuantgovSource
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("big/other.csv", "x" * 50_000)
+        z.writestr("big/usregdata6.csv", "year,part,restrictions\n2019,a,10\n2019,b,5\n2020,a,12\n")
+    blob = buf.getvalue()
+
+    class Resp:
+        def __init__(self, content=b"", headers=None):
+            self.content, self.headers = content, headers or {}
+
+        def raise_for_status(self):
+            pass
+
+    class Session:
+        ranges = []
+
+        def head(self, url, **kw):
+            return Resp(headers={"Content-Length": str(len(blob))})
+
+        def get(self, url, headers=None, **kw):
+            lo, hi = map(int, headers["Range"].removeprefix("bytes=").split("-"))
+            self.ranges.append((lo, hi))
+            return Resp(blob[lo:hi + 1])
+
+        def close(self):
+            pass
+
+    src = QuantgovSource()
+    src.session = Session()
+    out = src.fetch_current("https://example.test/r.zip|big/usregdata6.csv")
+    assert out["observation_date"].tolist() == [D(2019, 12, 31), D(2020, 12, 31)]
+    assert out["value"].tolist() == [15.0, 12.0]

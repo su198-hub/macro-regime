@@ -90,3 +90,33 @@ def test_a_signpost_weight_scales_its_squared_distance():
     want = np.exp(-da) / (np.exp(-da) + np.exp(-db))
     assert half.iloc[0]["a"] == pytest.approx(want)
     assert half.iloc[0]["a"] > even.iloc[0]["a"]
+
+
+def test_realigned_positions_shrink_toward_a_scaled_prior():
+    """Two goldilocks episodes at g = +0.2 and one hard landing at g = -0.1;
+    a prior at +/-0.6. The prior is scaled to the learned spread (0.15 / 0.6),
+    then weighted as `strength` episodes against each regime's episodes."""
+    labels = (["goldilocks"] * 10 + ["hard_landing"] * 10 + ["goldilocks"] * 10)
+    g = [0.2] * 10 + [-0.1] * 10 + [0.2] * 10
+    train = frame(labels, g=g)
+    prior = pd.DataFrame({"g": [0.6, -0.6, 0.0], "i": [0.0, 0.0, 0.3]},
+                         index=["goldilocks", "hard_landing", "baseline"])
+    pos = ol.realigned_positions(train, prior, NAMES, strength=0.5)
+    scale = 0.075 / 0.3            # mean |learned| over g and i, over mean |prior| on the same cells
+    assert pos.at["goldilocks", "g"] == pytest.approx((2 * 0.2 + 0.5 * 0.6 * scale) / 2.5)
+    assert pos.at["hard_landing", "g"] == pytest.approx((1 * -0.1 + 0.5 * -0.6 * scale) / 1.5)
+    # Baseline has no label: the average month, as one episode.
+    assert pos.at["baseline", "g"] == pytest.approx((0.1 + 0) / 1.5)
+    assert pos.at["baseline", "i"] == pytest.approx((0 + 0.5 * 0.3 * scale) / 1.5)
+    # No weight on the prior: the run-up positions themselves.
+    raw = ol.realigned_positions(train, prior, NAMES, strength=0.0)
+    assert raw.at["goldilocks", "g"] == pytest.approx(0.2)
+
+
+def test_realigned_positions_fall_back_to_the_prior_for_an_unseen_regime():
+    train = frame(["goldilocks"] * 12, g=[0.3] * 12)
+    prior = pd.DataFrame({"g": [0.6, -0.6], "i": [0.0, 0.0]},
+                         index=["goldilocks", "stagflation"])
+    pos = ol.realigned_positions(train, prior, NAMES)
+    scale = 0.15 / 0.3
+    assert pos.at["stagflation", "g"] == pytest.approx(-0.6 * scale)

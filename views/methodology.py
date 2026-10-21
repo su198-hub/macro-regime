@@ -101,7 +101,7 @@ def series_link(sid: str) -> str:
         return (f'<a href="https://fred.stlouisfed.org/series/{ui.esc(sid)}" target="_blank" '
                 f'rel="noopener">{ui.esc(sid)}</a>')
     label = {"macrobond": "Macrobond", "bloomberg": "Bloomberg terminal",
-             "ciq": "Capital IQ", "derived": "built here"}.get(vendor, vendor)
+             "ciq": "Capital IQ", "quantgov": "QuantGov", "derived": "built here"}.get(vendor, vendor)
     return (f'{ui.esc(sid)}<span style="color:{ui.INK_2};font-size:0.8rem"> '
             f'&middot; {ui.esc(label)}</span>')
 
@@ -169,8 +169,9 @@ prose(
     f'<li><b>Read the newest month early.</b> The call is confirmed only once a month\'s core '
     f'data, including consumer spending, is out. Until then the month gets a provisional '
     f'reading from faster indicators, labeled as such (section {num("m-provisional")}).</li></ol>'
-    '<div class="m-callout"><p><b>What it is not.</b> The monitor describes current '
-    'conditions; it is not a forecast, and it makes no subjective adjustments. '
+    '<div class="m-callout"><p><b>What it is not.</b> '
+    + ui.esc(META.get("call_note") or 'The monitor describes current conditions; it is not a '
+             'forecast, and it makes no subjective adjustments.') + ' '
     + ui.esc(META.get("summary_note") or
              'The regime archetypes are judgments, and the labeled history shows several placed '
              'further out than the data, with monetary and fiscal reversed for stagflation and '
@@ -440,7 +441,8 @@ prose(f'<p>where <i>A<sub>t</sub></i> is the set of indicators available in mont
       'v2: a block for the next three years (growth\'s cycle, inflation\'s pressure) and a '
       'long-run block (potential growth; anchoring of expectations). Monetary policy splits '
       'into stance and credibility at equal weight; fiscal policy into impulse, debt dynamics '
-      'and composition. Within a '
+      'and composition; reforms into regulation, policy uncertainty, trade policy and public '
+      'research, a quarter each. Within a '
       'block, weights are rescaled over the indicators present, as above. Across blocks, each '
       'block with any reading keeps its full share, so a block whose indicators start late does '
       'not dilute the other. Before any potential-growth indicator exists, growth is the cycle '
@@ -455,8 +457,9 @@ st.html(ui.table(["Driver", f"Score, {latest:%B %Y}", "Coverage"],
 
 section("m-regimes", 7, "From drivers to a regime call")
 prose('<h3 class="m-h3">Archetypes</h3>'
-      f'<p>Each regime is a point in the {len(driver_names)}-driver space: where that regime expects each '
-      'driver to be. Salience sets how much a driver counts when measuring distance.</p>')
+      f'<p>Each regime is a point in the {len(driver_names)}-driver space: '
+      + ui.esc(META.get("positions_method") or 'where that regime expects each driver to be.')
+      + ' Salience sets how much a driver counts when measuring distance.</p>')
 st.html(ui.table(
     ["Regime"] + [dlabel[n] for n in driver_names],
     [[rlabel[r]] + [signed(reg["regimes"][r]["archetype"][n]) for n in driver_names]
@@ -648,6 +651,28 @@ section("m-versions", 11, "Versions and reproducibility")
 # table wants to know what the model is, not what it was.
 prose(
     '<h3 class="m-h3">What changed</h3>'
+    '<p><b>October 2026 — the regime call reads the next three years (v2).</b> Each '
+    'scenario’s position is now where the signposts sat in the run-up to that regime, '
+    '1983 to 2023, shrunk toward a judgment of where the scenario sits, scaled to the '
+    'run-ups’ spread and counted as half an episode. Baseline has no label in the answer key '
+    'and takes the average month. The positions sit near the middle, so the temperature is '
+    '0.20, the confidence floor 25%, and the fit gate is off. Graded on the three years that '
+    'followed, 1993 to 2023, the average hit rate across the regimes is 57% held out and 43% '
+    'in real time, against 37% for assuming the current regime continues and 33% for the mix '
+    'of regimes seen so far. Before, the same positions as judgments scored 8%: they describe '
+    'a regime while it happens, not what comes before it.</p>'
+    '<p><b>October 2026 — reforms in four blocks (v2).</b> Reforms now reads whether the policy '
+    'environment is turning more or less friendly to long-run growth, rather than how private '
+    'investment responds. <b>Regulation</b>: the five-year growth of restrictions in the Code '
+    'of Federal Regulations (QuantGov RegData) and the five-year change in the Fraser '
+    'Institute’s business regulation score. <b>Policy uncertainty</b>: the Baker, Bloom and '
+    'Davis index. <b>Trade policy</b>: the three-year change in the effective tariff rate '
+    '(customs duties over goods imports) and trade policy uncertainty. <b>Public research</b>: '
+    'the five-year change in federal non-defense R&amp;D as a share of GDP. A quarter each. The '
+    'investment measures it replaces mostly tracked the business cycle: an investment share '
+    'above its norm came before hard landings. The new signpost goes with faster productivity '
+    'over the following decade (+0.47, trend removed). For the next three years it runs the '
+    'wrong way, so it takes half weight in the regime call.</p>'
     '<p><b>October 2026 — fiscal policy in three blocks (v2).</b> Fiscal policy now reads how '
     'supportive the budget is, rather than the sustainability of the debt path. <b>Impulse</b>, '
     '37.5%: the three-year change in the OECD’s cyclically adjusted primary balance and in the '

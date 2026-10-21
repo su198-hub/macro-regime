@@ -1,23 +1,23 @@
 # The v2 scenarios, placed on the v2 signposts (config/indicators_v2.yml).
 #
-# Each signpost has two poles and five positions between them; the poles are
-# -1 and +1 and the positions -0.67, -0.33, 0, +0.33 and +0.67, left to right.
-# Where two scenarios share a position (HL / STF, Baseline / HGHI), both take
-# it.
-#
 # Scores run from the left pole to the right: weak to strong growth,
 # inflation de-anchored lower to higher, dovish to hawkish, fiscal
 # restrictive to supportive, reforms reactive to proactive.
 #
-# These are judgments, not estimates. Against the labeled history
-# on the Regime history page only the four growth-inflation regimes can be
-# checked: Baseline has no counterpart there.
+# The regime call describes the next three years. Each scenario's position
+# (archetype) is where the signposts sat in the run-up to that regime, learned
+# from 1983-2023 and shrunk toward the prior: the judgment of where each
+# scenario sits, on the -1 to +1 scale, translated to what each signpost now
+# reads (see rationale.prior). Positions are written by
+#     python scripts/realign_positions.py --write
+# which also grades the call; do not edit them by hand. Baseline has no label
+# in the answer key, so its position is the average month, shrunk the same way.
 
 settings:
-  temperature: 0.30
+  temperature: 0.20
   persistence_months: 3
-  min_confidence: 0.35
-  fit_gate: closer_than_neutral
+  min_confidence: 0.25
+  fit_gate: none
   fit_tolerance: 1.25
 
 driver_salience:
@@ -25,7 +25,7 @@ driver_salience:
   inflation: 1.0
   monetary: 1.0
   fiscal: 0.5
-  reforms: 1.0
+  reforms: 0.5
 
 rationale:
   driver_salience:
@@ -46,22 +46,40 @@ rationale:
       (51% to 43% of regimes right on average, held out); at half weight it
       kept 51% and improved the probabilities.
     reforms: >-
-      Full weight. Read through private investment, so it measures the
-      response to policy rather than the policy itself.
+      Half weight. Reforms is there for the long run: the signpost goes with
+      faster productivity over the following decade (+0.47, trend removed),
+      but with the next three years' growth gap it runs the wrong way (-0.43:
+      policy uncertainty spikes in recessions, and recoveries follow). Graded
+      on the next three years, 1993-2023, held out, the call is about the same
+      at a quarter or half weight and loses about eight points at full weight.
   settings:
     temperature: >-
-      0.30, as in v1: the nearest scenario leads clearly without hiding the
-      runner-up.
+      0.20. Run-up positions sit close together, so the probabilities are
+      modest at any temperature; 0.15 to 0.20 gave the lowest held-out log
+      loss (1.37 to 1.38 against 1.43 at 0.30).
     persistence_months: >-
-      Three months, as in v1.
+      Three months, as in v1. One, two and six months each did slightly
+      worse held out (56%, 56% and 54% against 57%).
     min_confidence: >-
-      0.35. With five scenarios an even split is 20% each, so 35% still means
-      one stands out.
+      0.25. With five scenarios an even split is 20% each. At 0.35 a third
+      of months came out transitional and the call lost 14 points held out.
     fit_gate: >-
-      On, as in v1. Baseline sits nearer the middle than any v1 regime, so
-      fewer months should fail it.
+      Off. The gate asks whether a month is closer to its scenario than a
+      neutral economy would be. Run-up positions sit near neutral, so it
+      left half of all months unclassified.
     fit_tolerance: >-
-      1.25, as in v1, not yet re-tuned for five scenarios.
+      1.25, as in v1; unused while the gate is off.
+  prior: >-
+    The judgment of where each scenario sits, before the data. Growth,
+    inflation and reforms keep their direction. Monetary policy now reads
+    hawkish rather than credible; a credible central bank leans hawkish, so
+    the numbers carry over. Fiscal policy now reads supportive rather than
+    sustainable, so it is placed from each scenario's story: public
+    investment crowding in private investment (high growth, high inflation)
+    is the most supportive, then goldilocks and stagflation, where deficits
+    persist; baseline and hard landing sit at neutral. The prior counts as
+    half an episode; at one episode or more it pulled the positions outward
+    and the call fell from 57% to 40% or less, held out.
 
 regimes:
 
@@ -70,12 +88,18 @@ regimes:
     short: BSL
     color: "#4a5a7a"
     description: Growth constrained by supply-side bottlenecks; sticky prices strain inflation anchors.
-    archetype:
+    prior:
       growth: 0.00
       inflation: 0.33
       monetary: 0.67
-      fiscal: 0.33
+      fiscal: 0.00
       reforms: 0.00
+    archetype:
+      growth: 0.05
+      inflation: 0.17
+      monetary: -0.03
+      fiscal: -0.03
+      reforms: -0.05
     tell: Growth near trend, inflation a little above target, a credible central bank.
 
   goldilocks:
@@ -83,12 +107,18 @@ regimes:
     short: GLD
     color: "#008300"
     description: A virtuous cycle of investment and returns raises labor productivity; expectations stay anchored.
-    archetype:
+    prior:
       growth: 0.67
       inflation: 0.00
       monetary: 0.67
-      fiscal: 0.67
+      fiscal: 0.33
       reforms: 0.67
+    archetype:
+      growth: 0.18
+      inflation: 0.08
+      monetary: -0.20
+      fiscal: -0.02
+      reforms: -0.08
     tell: Productivity and capex plans rising together with expectations at target.
 
   high_growth_high_inflation:
@@ -96,12 +126,18 @@ regimes:
     short: HGHI
     color: "#2a78d6"
     description: Public investment crowds in private; policymakers allow "good" inflation and expectations drift higher.
-    archetype:
+    prior:
       growth: 0.33
       inflation: 0.33
       monetary: 0.33
-      fiscal: 0.33
+      fiscal: 0.67
       reforms: 0.33
+    archetype:
+      growth: 0.09
+      inflation: 0.36
+      monetary: -0.09
+      fiscal: 0.20
+      reforms: -0.12
     tell: Investment strong and inflation above target, with credibility stretched.
 
   stagflation:
@@ -109,12 +145,18 @@ regimes:
     short: STF
     color: "#e34948"
     description: Growth strongly constrained by supply shocks; high realizations unanchor expectations.
-    archetype:
+    prior:
       growth: -0.67
       inflation: 0.67
       monetary: -0.67
-      fiscal: -0.67
+      fiscal: 0.33
       reforms: -0.67
+    archetype:
+      growth: -0.29
+      inflation: 0.33
+      monetary: -0.22
+      fiscal: -0.08
+      reforms: -0.09
     tell: Expectations rising while credibility and the debt trajectory both weaken.
 
   hard_landing:
@@ -122,10 +164,16 @@ regimes:
     short: HL
     color: "#eda100"
     description: Strong investment not matched by strong returns; deflationary pressure de-anchors expectations lower.
-    archetype:
+    prior:
       growth: -0.67
       inflation: -0.67
       monetary: -0.33
       fiscal: 0.00
       reforms: -0.67
+    archetype:
+      growth: -0.13
+      inflation: 0.17
+      monetary: 0.10
+      fiscal: -0.11
+      reforms: 0.10
     tell: Expectations falling below target while growth prospects weaken.
