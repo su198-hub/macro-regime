@@ -19,6 +19,8 @@ settings:
   min_confidence: 0.25
   fit_gate: none
   fit_tolerance: 1.25
+  # The signpost chart places scenarios in order, evenly spaced (src/ui.py, ordinal_slots).
+  signpost_layout: ordinal
 
 driver_salience:
   growth: 1.0

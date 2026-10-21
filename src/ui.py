@@ -11,6 +11,7 @@ import html
 import re
 
 import altair as alt
+import numpy as np
 import pandas as pd
 
 HEADING_FONT = ("'Sabon Next LT', 'Sabon LT Pro', 'Sabon LT Std', Sabon, "
@@ -59,6 +60,43 @@ def track_position(value: float, reverse: bool = False) -> float:
     if reverse:
         v = -v
     return TRACK_PAD + (v + 1.0) / 2.0 * (100.0 - 2.0 * TRACK_PAD)
+
+
+SLOT_TIE = 0.03    # driver-score units; scenarios this close share an ordinal slot
+
+
+def ordinal_slots(positions: dict[str, float], reverse: bool = False):
+    """Scenarios in order along one row, in evenly spaced slots, and a map from
+    any score to a place on the track.
+
+    Slots show order, not distance: run-up positions sit close together, and a
+    linear axis piles them into the middle. A score is placed by straight-line
+    interpolation between the scenario values either side of it, so it sits
+    between the two scenarios it falls between; beyond the outermost scenario
+    it runs on toward the pole at +/-1. Scenarios within SLOT_TIE share a slot.
+
+    Returns ([(slot position %, [keys left to right])], position(score) -> %).
+    """
+    items = sorted(positions.items(), key=lambda kv: (-kv[1] if reverse else kv[1]))
+    groups: list[list[tuple[str, float]]] = []
+    for key, v in items:
+        if groups and abs(v - groups[-1][-1][1]) <= SLOT_TIE:
+            groups[-1].append((key, v))
+        else:
+            groups.append([(key, v)])
+    n = len(groups)
+    lo, hi = TRACK_PAD, 100.0 - TRACK_PAD
+    slots = [(lo + (i + 1) / (n + 1) * (hi - lo), [k for k, _ in g]) for i, g in enumerate(groups)]
+    # Knots: the poles, then each slot at its group's mean value, in track order.
+    xs = [(-1.0 if not reverse else 1.0)] + [float(np.mean([v for _, v in g])) for g in groups]         + [(1.0 if not reverse else -1.0)]
+    ys = [lo] + [s[0] for s in slots] + [hi]
+    if reverse:
+        xs, ys = xs[::-1], ys[::-1]
+
+    def place(value: float) -> float:
+        v = max(-1.0, min(1.0, float(value)))
+        return float(np.interp(v, xs, ys))
+    return slots, place
 
 
 def cluster(points: list[tuple[float, str]], gap: float = CLUSTER_GAP):
@@ -510,6 +548,7 @@ def signpost_html(drivers: pd.DataFrame, ind_cfg: dict, reg_cfg: dict,
     # A scenario can stay in the call but off this chart (v2's Baseline: the
     # average month, which sits in the middle of every row).
     regimes = {k: v for k, v in reg_cfg["regimes"].items() if v.get("on_signpost_chart", True)}
+    ordinal = str(reg_cfg.get("settings", {}).get("signpost_layout", "linear")) == "ordinal"
     then_label = f"{then:%B %Y}" if then is not None else ""
     legend = [
         f'<span><span style="color:{INK};font-size:1.15rem;line-height:1">&#9733;</span>'
@@ -544,26 +583,33 @@ def signpost_html(drivers: pd.DataFrame, ind_cfg: dict, reg_cfg: dict,
         now = drivers.at[as_of, name]
         prior = drivers.at[then, name] if then is not None else float("nan")
 
-        marks = ['<div class="sp-zero" title="Neutral"></div>']
+        here = {key: float(spec["archetype"][name]) for key, spec in regimes.items()
+                if name in spec.get("archetype", {})}
+        if ordinal and here:
+            slots, place = ordinal_slots(here, reverse)
+        else:
+            place = lambda v: track_position(v, reverse)  # noqa: E731
+            slots = cluster([(place(v), k) for k, v in here.items()])
+
+        marks = [f'<div class="sp-zero" style="left:{place(0.0):.2f}%" title="Neutral"></div>'
+                 if ordinal else '<div class="sp-zero" title="Neutral"></div>']
         if not pd.isna(prior):
-            marks.append(f'<div class="sp-then" style="left:{track_position(prior, reverse):.2f}%" '
+            marks.append(f'<div class="sp-then" style="left:{place(prior):.2f}%" '
                          f'title="{esc(then_label)}: {signed(prior)}"></div>')
         if not pd.isna(now):
-            marks.append(f'<div class="sp-star" style="left:{track_position(now, reverse):.2f}%" '
+            marks.append(f'<div class="sp-star" style="left:{place(now):.2f}%" '
                          f'title="{as_of:%B %Y}, confirmed: {signed(now)}">&#9733;</div>')
         prov = prov_scores.get(name, float("nan")) if prov_scores is not None else float("nan")
         if not pd.isna(prov):
             marks.append(f'<div class="sp-star sp-star-prov" '
-                         f'style="left:{track_position(prov, reverse):.2f}%" '
+                         f'style="left:{place(prov):.2f}%" '
                          f'title="{provisional["month"]:%B %Y}, provisional: {signed(prov)}">&#9734;</div>')
 
-        points = [(track_position(spec["archetype"][name], reverse), key)
-                  for key, spec in regimes.items() if name in spec.get("archetype", {})]
-        for pos, keys in cluster(points):
+        for pos, keys in slots:
             chips = "".join(
                 f'<span class="sp-chip" style="background:{regimes[k]["color"]};'
                 f'color:{text_on(regimes[k]["color"])}" '
-                f'title="{esc(regimes[k]["label"])} archetype: '
+                f'title="{esc(regimes[k]["label"])} position: '
                 f'{signed(regimes[k]["archetype"][name])}">'
                 f'{esc(regimes[k].get("short", k))}</span>'
                 for k in keys)
@@ -594,6 +640,10 @@ def signpost_html(drivers: pd.DataFrame, ind_cfg: dict, reg_cfg: dict,
     reversed_names = [d.get("label", n) for n, d in ind_cfg["drivers"].items()
                       if (d.get("signpost") or {}).get("reverse")]
     note = ""
+    if ordinal:
+        note += ('<div class="sp-note">Scenarios are placed in order along each row, evenly '
+                 'spaced; the gaps between them do not show distance. Each star sits between '
+                 'the two scenarios its reading falls between. Hover for exact values.</div>')
     if reversed_names:
         names = join_words([reversed_names[0]] + [n.lower() for n in reversed_names[1:]])
         note = (f'<div class="sp-note">{esc(names)} '

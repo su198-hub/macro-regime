@@ -177,3 +177,18 @@ def test_a_scenario_can_be_left_off_the_signpost_chart():
     idx = pd.to_datetime(["2026-07-31"])
     html = ui.signpost_html(pd.DataFrame({"d": [0.2]}, index=idx), cfg, reg, idx[0], None)
     assert "UPX" in html and "MIDX" not in html
+
+
+def test_ordinal_slots_space_scenarios_evenly_and_place_a_score_between_them():
+    from src import ui
+    slots, place = ui.ordinal_slots({"hl": -0.13, "stf": -0.29, "gld": 0.18, "hghi": 0.09})
+    keys = [k[0] for _, k in slots]
+    assert keys == ["stf", "hl", "hghi", "gld"]
+    gaps = [b[0] - a[0] for a, b in zip(slots, slots[1:])]
+    assert max(gaps) - min(gaps) < 1e-9                       # evenly spaced
+    assert place(0.09) == slots[2][0]                          # on a scenario: at its slot
+    assert slots[2][0] < place(0.12) < slots[3][0]            # between two: between their slots
+    assert place(-1.0) == ui.TRACK_PAD and place(1.0) == 100 - ui.TRACK_PAD
+    # Reversed rows mirror the order; ties share a slot.
+    slots_r, _ = ui.ordinal_slots({"a": 0.10, "b": 0.11, "c": -0.4}, reverse=True)
+    assert [k for _, k in slots_r] == [["b", "a"], ["c"]] or [k for _, k in slots_r] == [["a", "b"], ["c"]]
