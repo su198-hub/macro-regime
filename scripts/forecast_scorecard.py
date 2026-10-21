@@ -94,11 +94,14 @@ def scorecard() -> tuple[pd.DataFrame, pd.DataFrame, dict]:
     for fw, f in fws.items():
         tr = trains[fw]
         add(f"{fw} positions (config)", probs=R.probabilities(f["scores"].loc[window], f["reg"]), train=tr)
+        # The same signpost weights the dashboard's regime call uses.
+        wts = f["reg"].get("driver_salience") or {}
         judgment = pd.DataFrame({r: f["reg"]["regimes"][r]["archetype"] for r in REGIMES}).T[f["names"]]
         fitted = ol.positions(tr, f["names"]).reindex(REGIMES).fillna(judgment)
-        add(f"{fw} run-up, fitted", probs=ol.probabilities(tr[f["names"]], fitted), train=tr)
-        add(f"{fw} run-up, held out", probs=ol.held_out(tr, judgment, f["names"]), train=tr)
-        add(f"{fw} run-up, real time", probs=ol.real_time(tr, judgment, f["names"], first=FIRST), train=tr)
+        add(f"{fw} run-up, fitted", probs=ol.probabilities(tr[f["names"]], fitted, weights=wts), train=tr)
+        add(f"{fw} run-up, held out", probs=ol.held_out(tr, judgment, f["names"], weights=wts), train=tr)
+        add(f"{fw} run-up, real time", probs=ol.real_time(tr, judgment, f["names"], first=FIRST, weights=wts),
+            train=tr)
         notes[fw] = {"fitted_positions": fitted.round(2), "support": ol.support(tr)}
 
     table = pd.DataFrame(rows).set_index("method")

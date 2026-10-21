@@ -6,9 +6,8 @@
 # it.
 #
 # Scores run from the left pole to the right: weak to strong growth,
-# inflation de-anchored lower to higher, credibility lost to kept, fiscal
-# unsustainable to sustainable, reforms reactive to
-# proactive.
+# inflation de-anchored lower to higher, dovish to hawkish, fiscal
+# restrictive to supportive, reforms reactive to proactive.
 #
 # These are judgments, not estimates. Against the labeled history
 # on the Regime history page only the four growth-inflation regimes can be
@@ -25,7 +24,7 @@ driver_salience:
   growth: 1.0
   inflation: 1.0
   monetary: 1.0
-  fiscal: 1.0
+  fiscal: 0.5
   reforms: 1.0
 
 rationale:
@@ -40,7 +39,12 @@ rationale:
       Full weight. Credibility is what decides whether an inflation shock
       becomes stagflation.
     fiscal: >-
-      Full weight, read as the sustainability of the debt path.
+      Half weight. Its growth signal overlaps the growth signpost's slack:
+      deficits widen in downturns and recoveries follow. Its own contribution
+      is inflation. Graded on the next three years, 1993-2023, at full weight
+      it lowered the call on top of growth, inflation and monetary policy
+      (51% to 43% of regimes right on average, held out); at half weight it
+      kept 51% and improved the probabilities.
     reforms: >-
       Full weight. Read through private investment, so it measures the
       response to policy rather than the policy itself.

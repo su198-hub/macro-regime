@@ -15,13 +15,15 @@
 #                          curve, the hiking pace, the real rate against
 #                          neutral, 50%) and credibility (the record against
 #                          2% and the Taylor gap, 50%)
-#   fiscal                 whether the debt trajectory is sustainable
+#   fiscal                 how supportive fiscal policy is: impulse (37.5%),
+#                          debt dynamics, r - g (37.5%), and the investment
+#                          share of spending (25%); half weight in the call
 #   reforms                how far reforms and industrial policy draw in
 #                          private investment, read through the investment
 #
 # Every score runs from its left pole (-1) to its right pole (+1):
 # weak to strong, de-anchored lower to higher, dovish to hawkish,
-# unsustainable to sustainable, reactive to proactive.
+# restrictive to supportive, reactive to proactive.
 # That differs from v1, where +1 meant hot, tight or restrictive.
 #
 # Indicators follow the agreed list, except B-Ready and Global Trade Alert,
@@ -40,15 +42,16 @@ meta:
   # describes itself rather than borrowing v1's words.
   sign: >-
     positive means stronger growth, inflation de-anchored higher, a more
-    hawkish central bank (tighter and more credible), a more sustainable debt
-    path and more proactive reform
+    hawkish central bank (tighter and more credible), more supportive fiscal
+    policy and more proactive reform
   framework_note: >-
     Five signposts. Growth and inflation each have two blocks: one reads the
     next three years (growth against potential, inflation against expected
     inflation), the other the long run (potential growth itself, and whether
     inflation expectations are drifting from 2%). Monetary policy reads how
     hawkish the Fed is, from its stance and its credibility. Fiscal policy
-    reads the sustainability of the debt path.
+    reads how supportive the budget is, mainly a signal for inflation, and
+    takes half weight in the regime call.
   summary_note: >-
     The scenario positions are judgments, not estimates. Against the labeled
     history they fit poorly: goldilocks is never the leading scenario after
@@ -100,11 +103,16 @@ meta:
         The miss rate, volatility and trajectory look back. Since 2021 they
         read as losing credibility while long-run breakevens held near 2.3%; a
         market anchor is not in the signpost.
-    - title: Sustainability leaves out the size of the deficit
+    - title: Fiscal policy reads change, not the size of the deficit
       text: >-
-        r minus g and receipts against outlays read 2022 to 2024 as strongly
-        sustainable, on the nominal GDP boom and the post-Covid rebound in
-        receipts, while the primary deficit ran at 3.3 to 4.5% of GDP.
+        The impulse block reads whether the deficit is widening or narrowing,
+        not how large it is: a 3% primary deficit that is shrinking reads as
+        restrictive. The level of the deficit and of the debt were tested and
+        left out; on their own their signs flip between periods. What the
+        multiplier depends on in the data is debt: below 60% of GDP, fiscal
+        loosening went with stronger growth; above it, mostly with higher
+        inflation. That rests largely on 2020-21. Weighting spending and taxes
+        by CBO's multipliers predicted no better than the plain total.
     - title: Proposed, thin or contaminated inputs
       text: >-
         The potential-growth block starts in 1993: the forecasters'
@@ -143,7 +151,8 @@ meta:
       - capex_revision
       - forecaster_disagreement
       - inflation_trajectory
-      - revenue_vs_spending
+      - outlays_vs_receipts
+      - primary_balance_3y
     long:
       - cbo_potential_growth_revision
       - spf_productivity_revision
@@ -156,6 +165,7 @@ meta:
       - inflation_volatility
       - r_minus_g
       - capb_3y_change
+      - federal_investment_share
       - investment_share_vs_norm
       - equity_risk_premium
 
@@ -623,14 +633,91 @@ drivers:
 
   fiscal:
     label: Fiscal policy
-    description: Whether the federal debt trajectory is sustainable.
+    description: >-
+      How supportive fiscal policy is: whether it is adding to demand, whether
+      the debt is being eroded by growth and inflation, and how much of the
+      budget goes to investment.
     signpost:
-      low: {label: Unsustainable, tone: risk, phrase: the debt trajectory is unsustainable}
-      high: {label: Sustainable, tone: good, phrase: the debt trajectory is sustainable}
-      mid: {phrase: the debt trajectory is borderline}
+      low: {label: Restrictive, tone: neutral, phrase: fiscal policy is restrictive}
+      high: {label: Supportive, tone: neutral, phrase: fiscal policy is supportive}
+      mid: {phrase: fiscal policy is roughly neutral}
+    # Three blocks. Fiscal policy's distinct signal is inflation: its growth
+    # signal overlaps the growth signpost's slack, so it takes half weight in
+    # the regime call (config/regimes_v2.yml).
+    groups:
+      impulse:
+        label: Impulse
+        description: Whether fiscal policy is adding to demand, read three ways.
+      debt:
+        label: Debt dynamics
+        description: Whether the interest rate on the debt runs below the economy's nominal growth.
+      composition:
+        label: Composition
+        description: How much of federal spending goes to investment rather than consumption and transfers.
     indicators:
+      - id: capb_3y_change
+        group: impulse
+        label: Cyclically adjusted primary balance, three-year change (loosening +)
+        source: {series: OECD_CAPB}
+        transform: diff_36m_ann
+        normalize: {method: gap, center: 0.0, scale: 0.80}
+        direction: -1
+        weight: 0.125
+        carry_forward_periods: 2
+        why: >-
+          **Fiscal impulse, adjusted for the cycle.** The primary balance is
+          revenue less non-interest spending; the OECD strips out what the
+          business cycle does to it on its own (tax receipts falling and
+          benefits rising in a downturn), leaving the part set by policy. A
+          falling balance means policy is adding to demand. Read as the change
+          over three years, per year.
+
+      - id: primary_balance_3y
+        group: impulse
+        label: Federal primary balance, % of GDP, three-year change (loosening +)
+        source:
+          expr: "(balance_12m + interest_12m) / GDPNOM * 100"
+          series: [MTSBAL, MTSNETINT, GDPNOM]
+          derived:
+            balance_12m: {series: MTSBAL, transform: sum_12m}
+            interest_12m: {series: MTSNETINT, transform: sum_12m}
+        transform: diff_36m_ann
+        normalize: {method: gap, center: 0.0, scale: 1.08}
+        direction: -1
+        weight: 0.125
+        release: Monthly Treasury Statement
+        why: >-
+          **Fiscal impulse, monthly.** The same balance from the Treasury's
+          monthly accounts: the deficit summed over 12 months, with interest
+          added back, against GDP. Not adjusted for the cycle, so it also picks
+          up recessions, but it is current to the month.
+
+      - id: outlays_vs_receipts
+        group: impulse
+        label: Federal outlays growth less receipts growth, three years
+        source:
+          expr: "outlays_growth - receipts_growth"
+          series: [MTSRECEIPTS, MTSOUTLAYS]
+          derived:
+            receipts_12m: {series: MTSRECEIPTS, transform: sum_12m}
+            outlays_12m: {series: MTSOUTLAYS, transform: sum_12m}
+            receipts_growth: {series: receipts_12m, transform: pct_change_3y_ann}
+            outlays_growth: {series: outlays_12m, transform: pct_change_3y_ann}
+        transform: level
+        normalize: {method: gap, center: 0.0, scale: 4.98}
+        direction: 1
+        weight: 0.125
+        release: Monthly Treasury Statement
+        why: >-
+          **Revenue against expenditure trajectory.** Annualized growth of
+          federal spending over three years less that of revenue. Spending
+          outrunning revenue widens the deficit and adds to demand; revenue
+          outrunning spending, as with higher tariffs or tax receipts, takes
+          demand out.
+
       - id: r_minus_g
-        label: Interest rate on the debt less nominal GDP growth
+        group: debt
+        label: Interest rate on the debt less nominal GDP growth (low +)
         source:
           expr: "eff_rate - ngdp_growth"
           series: [MTSNETINT, DEBTPUB, GDPNOM]
@@ -642,43 +729,36 @@ drivers:
         normalize: {method: gap, center: 0.0, scale: 1.42}
         direction: -1
         absolute_level: true
-        weight: 0.35
-        why: >-
-          **Trajectory of the debt stock (r − g)**: the rate the debt actually
-          pays against the economy's three-year growth. Above zero, debt grows faster than the economy
-          before any new deficit.
-
-      - id: revenue_vs_spending
-        label: Federal receipts against outlays, three-year growth
-        source:
-          expr: "receipts_growth - outlays_growth"
-          series: [MTSRECEIPTS, MTSOUTLAYS]
-          derived:
-            receipts_12m: {series: MTSRECEIPTS, transform: sum_12m}
-            outlays_12m: {series: MTSOUTLAYS, transform: sum_12m}
-            receipts_growth: {series: receipts_12m, transform: pct_change_3y_ann}
-            outlays_growth: {series: outlays_12m, transform: pct_change_3y_ann}
-        transform: level
-        normalize: {method: gap, center: 0.0, scale: 4.98}
-        direction: 1
-        weight: 0.35
+        weight: 0.375
         release: Monthly Treasury Statement
         why: >-
-          **Revenue against expenditure trajectory**: receipts growing faster
-          than outlays over three years closes the gap.
+          **Trajectory of the debt stock (r − g).** The average rate the
+          government pays on its debt (12 months of net interest over debt
+          held by the public) less nominal GDP growth over three years. Below
+          zero, the debt ratio shrinks without being repaid, because the
+          economy's nominal size outgrows the interest bill; historically that
+          has come before higher inflation, as debt is eroded by inflation
+          rather than paid down.
 
-      - id: capb_3y_change
-        label: Cyclically adjusted primary balance, three-year change
-        source: {series: OECD_CAPB}
-        transform: diff_36m_ann
-        normalize: {method: gap, center: 0.0, scale: 0.80}
+      - id: federal_investment_share
+        group: composition
+        label: Federal investment, % of non-interest spending
+        source:
+          expr: "FEDGROSSINV / (FED_CONSUMPTION + FEDGROSSINV + FED_BENEFITS + FED_GRANTS + FED_SUBSIDIES) * 100"
+          series: [FEDGROSSINV, FED_CONSUMPTION, FED_BENEFITS, FED_GRANTS, FED_SUBSIDIES]
+        transform: level
+        normalize: {method: gap, center: 13.36, scale: 4.93}
         direction: 1
-        weight: 0.30
+        absolute_level: true
+        weight: 0.25
         carry_forward_periods: 2
         why: >-
-          **Cyclically adjusted primary balance, 3-year change**:
-          consolidation or impulse, with the cycle taken out. OECD estimates,
-          annual and general government; the latest year is a projection.
+          **What the money is spent on.** Investment (infrastructure, R&D,
+          equipment) adds to the economy's capacity; consumption and transfers
+          support demand now. A budget tilted toward investment should lift
+          long-run growth. The share fell from about 20% in the 1960s to under
+          7%; against the next decade's growth it holds up even with that
+          trend removed, though only modestly.
 
   reforms:
     label: Reforms and industrial policy

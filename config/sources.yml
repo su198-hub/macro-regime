@@ -394,6 +394,20 @@ series:
   FEDTRANSFERS:
     macrobond: usgpfi0237
     note: Federal government current transfer payments, quarterly, SAAR, USD (BEA).
+  # The rest of federal non-interest spending, so the investment share is
+  # measured against what the government spends on everything but interest.
+  FED_CONSUMPTION:
+    macrobond: bea025_87a957rc_q
+    note: Federal government consumption expenditures, quarterly, SAAR, USD (BEA).
+  FED_BENEFITS:
+    macrobond: bea028_87b087rc_q
+    note: Federal government social benefits to persons, quarterly, SAAR, USD (BEA).
+  FED_GRANTS:
+    macrobond: bea031_87b089rc_q
+    note: Federal grants-in-aid to state and local governments, quarterly, SAAR, USD (BEA).
+  FED_SUBSIDIES:
+    macrobond: bea036_87b096rc_q
+    note: Federal government subsidies, quarterly, SAAR, USD (BEA).
   NONRESSHARE:
     macrobond: usnaac0569
     note: Private nonresidential fixed investment, % of GDP, quarterly (BEA).

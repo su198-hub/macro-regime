@@ -77,3 +77,16 @@ def test_grade_counts_a_hard_landing_runup_as_caught_at_half_its_months():
     g = ol.grade(calls, tr["label"], tr)
     assert (g["hard_landing_runups"], g["hard_landing_caught"]) == (2, 1)
     assert g["months"] == pytest.approx(19 / 30)
+
+
+def test_a_signpost_weight_scales_its_squared_distance():
+    # Half weight on i: a point 2 away on i counts as sqrt(0.5 * 4) away.
+    idx = pd.period_range("2000-01", periods=1, freq="M")
+    scores = pd.DataFrame({"g": [0.0], "i": [2.0]}, index=idx)
+    pos = pd.DataFrame({"g": [0.0, 1.0], "i": [0.0, 2.0]}, index=["a", "b"])
+    even = ol.probabilities(scores, pos, 1.0)
+    half = ol.probabilities(scores, pos, 1.0, weights={"i": 0.5})
+    da, db = np.sqrt(0.5 * 4), 1.0
+    want = np.exp(-da) / (np.exp(-da) + np.exp(-db))
+    assert half.iloc[0]["a"] == pytest.approx(want)
+    assert half.iloc[0]["a"] > even.iloc[0]["a"]

@@ -89,11 +89,14 @@ def support(train: pd.DataFrame) -> pd.DataFrame:
 
 
 def probabilities(scores: pd.DataFrame, pos: pd.DataFrame,
-                  temperature: float = TEMPERATURE) -> pd.DataFrame:
-    """Softmax of minus the distance to each position, every signpost weighted equally."""
+                  temperature: float = TEMPERATURE, weights: dict | None = None) -> pd.DataFrame:
+    """Softmax of minus the distance to each position. Signposts count equally
+    unless `weights` gives some a different weight on their squared distance,
+    as the regime settings' salience does on the dashboard."""
     X = scores[pos.columns].to_numpy(dtype=float)
     P = pos.to_numpy(dtype=float)
-    dist = np.sqrt(((X[:, None, :] - P[None, :, :]) ** 2).sum(axis=2))
+    w = np.array([float((weights or {}).get(c, 1.0)) for c in pos.columns])
+    dist = np.sqrt((((X[:, None, :] - P[None, :, :]) ** 2) * w).sum(axis=2))
     z = -dist / temperature
     z -= z.max(axis=1, keepdims=True)
     e = np.exp(z)
@@ -111,7 +114,7 @@ def purged(index: pd.PeriodIndex, start: pd.Period, end: pd.Period) -> np.ndarra
 
 
 def held_out(train: pd.DataFrame, judgment: pd.DataFrame, names: list[str],
-             temperature: float = TEMPERATURE) -> pd.DataFrame:
+             temperature: float = TEMPERATURE, weights: dict | None = None) -> pd.DataFrame:
     """Probabilities for every training month from positions learned without
     its episode or anything sharing its outcomes. Columns follow `judgment`."""
     regimes = list(judgment.index)
@@ -121,7 +124,7 @@ def held_out(train: pd.DataFrame, judgment: pd.DataFrame, names: list[str],
         rest = train[~purged(train.index, sp.start, sp.end)]
         pos = positions(rest, names).reindex(regimes)
         pos = pos.fillna(judgment[names])
-        out.append(probabilities(test, pos, temperature))
+        out.append(probabilities(test, pos, temperature, weights))
     return pd.concat(out).sort_index()[regimes]
 
 
@@ -147,7 +150,8 @@ def score(calls: pd.Series, truth: pd.Series) -> dict:
 
 
 def real_time(train: pd.DataFrame, judgment: pd.DataFrame, names: list[str],
-              temperature: float = TEMPERATURE, first: str = "1990-01") -> pd.DataFrame:
+              temperature: float = TEMPERATURE, first: str = "1990-01",
+              weights: dict | None = None) -> pd.DataFrame:
     """Probabilities each month from positions learned only from labels already
     known then. Month s's label describes s to s+35, so it is known from s+36:
     in month t the model learns from months up to t - HORIZON. A regime not yet
@@ -159,7 +163,7 @@ def real_time(train: pd.DataFrame, judgment: pd.DataFrame, names: list[str],
         if known.empty:
             continue
         pos = positions(known, names).reindex(regimes).fillna(judgment[names])
-        rows[t] = probabilities(train.loc[[t], names], pos, temperature).iloc[0]
+        rows[t] = probabilities(train.loc[[t], names], pos, temperature, weights).iloc[0]
     return pd.DataFrame(rows).T[regimes] if rows else pd.DataFrame(columns=regimes)
 
 
