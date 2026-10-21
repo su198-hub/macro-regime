@@ -164,3 +164,16 @@ def test_breakdown_table_heads_each_block_with_its_share_and_part():
     assert (out.index("Cycle") < out.index("Indicator a") < out.index("Potential growth")
             < out.index("Indicator c"))
     assert "<b>75%</b>" in out and "<b>25%</b>" in out
+
+
+def test_a_scenario_can_be_left_off_the_signpost_chart():
+    import pandas as pd
+    from src import ui
+    reg = {"regimes": {
+        "up": {"label": "Up", "short": "UPX", "color": "#008300", "archetype": {"d": 0.5}},
+        "mid": {"label": "Middle", "short": "MIDX", "color": "#4a5a7a", "archetype": {"d": 0.0},
+                "on_signpost_chart": False}}}
+    cfg = {"drivers": {"d": {"label": "D", "indicators": []}}}
+    idx = pd.to_datetime(["2026-07-31"])
+    html = ui.signpost_html(pd.DataFrame({"d": [0.2]}, index=idx), cfg, reg, idx[0], None)
+    assert "UPX" in html and "MIDX" not in html

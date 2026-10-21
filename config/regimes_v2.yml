@@ -87,6 +87,9 @@ regimes:
     label: Baseline
     short: BSL
     color: "#4a5a7a"
+    # The average month: it sits mid-row on every signpost, so the chart
+    # leaves it out. It stays in the call and the probabilities.
+    on_signpost_chart: false
     description: Growth constrained by supply-side bottlenecks; sticky prices strain inflation anchors.
     prior:
       growth: 0.00

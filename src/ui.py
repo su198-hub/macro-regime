@@ -507,7 +507,9 @@ def signpost_html(drivers: pd.DataFrame, ind_cfg: dict, reg_cfg: dict,
                   provisional: dict | None = None, blocks: dict | None = None) -> str:
     """The driver chart. `blocks` maps a driver scored in blocks to each
     block's label and score this month, shown under the driver's reading."""
-    regimes = reg_cfg["regimes"]
+    # A scenario can stay in the call but off this chart (v2's Baseline: the
+    # average month, which sits in the middle of every row).
+    regimes = {k: v for k, v in reg_cfg["regimes"].items() if v.get("on_signpost_chart", True)}
     then_label = f"{then:%B %Y}" if then is not None else ""
     legend = [
         f'<span><span style="color:{INK};font-size:1.15rem;line-height:1">&#9733;</span>'
