@@ -284,6 +284,19 @@ series:
     use: bloomberg
     bloomberg: "S5CONS Index"
     note: S&P 500 consumer staples sector, daily from September 1989.
+  AVGMAT_PRIV:
+    macrobond: usgpfi0147
+    note: >-
+      Average length of marketable interest-bearing debt held by private
+      investors, months, monthly from 1957 (Treasury Bulletin). The debt that
+      actually reprices in the market; the Fed's holdings are excluded.
+  SPFCPI10_LONG:
+    macrobond: usfcst0062
+    note: >-
+      Survey of Professional Forecasters median CPI inflation over ten years,
+      from 1979; before 1991 the Philadelphia Fed fills it from Blue Chip and
+      Livingston. The same series the regime labels use for expected
+      inflation.
   AVGMAT:
     use: macrobond
     macrobond: usgpfi0465

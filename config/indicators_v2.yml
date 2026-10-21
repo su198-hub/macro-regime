@@ -16,7 +16,8 @@
 #                          neutral, 50%) and credibility (the record against
 #                          2% and the Taylor gap, 50%)
 #   fiscal                 how supportive fiscal policy is: impulse (37.5%),
-#                          debt dynamics, r - g (37.5%), and the investment
+#                          debt dynamics (forward r - g and repricing,
+#                          37.5%), and the investment
 #                          share of spending (25%); half weight in the call
 #   reforms                how far reforms and industrial policy draw in
 #                          private investment, read through the investment
@@ -90,6 +91,13 @@ meta:
       text: >-
         Inflation is read against 2%. Before the late 1990s expectations ran at
         4 to 5%, so those years all read as de-anchored higher.
+    - title: Scenario positions predate the reworked signposts
+      text: >-
+        The scenario positions were set when growth read potential growth,
+        monetary policy credibility and fiscal policy sustainability. Each now
+        reads something else, so a month can sit far from every scenario and
+        go unclassified even when one leads clearly. The positions are to be
+        relearned from the data once every signpost is final.
     - title: Hawkish is not the same as good
       text: >-
         Monetary reads tight and credible policy as hawkish. Both point the
@@ -152,6 +160,7 @@ meta:
       - forecaster_disagreement
       - inflation_trajectory
       - outlays_vs_receipts
+      - repricing_drift
       - primary_balance_3y
     long:
       - cbo_potential_growth_revision
@@ -163,7 +172,7 @@ meta:
       - inflation_risk_premium
       - target_miss_rate
       - inflation_volatility
-      - r_minus_g
+      - forward_r_minus_g
       - capb_3y_change
       - federal_investment_share
       - investment_share_vs_norm
@@ -650,7 +659,9 @@ drivers:
         description: Whether fiscal policy is adding to demand, read three ways.
       debt:
         label: Debt dynamics
-        description: Whether the interest rate on the debt runs below the economy's nominal growth.
+        description: >-
+          Whether the cost of borrowing runs below the growth the economy can
+          be expected to deliver, and how fast old cheap debt is repricing.
       composition:
         label: Composition
         description: How much of federal spending goes to investment rather than consumption and transfers.
@@ -715,30 +726,54 @@ drivers:
           outrunning spending, as with higher tariffs or tax receipts, takes
           demand out.
 
-      - id: r_minus_g
+      - id: forward_r_minus_g
         group: debt
-        label: Interest rate on the debt less nominal GDP growth (low +)
+        label: 10-year yield less expected nominal growth (low +)
         source:
-          expr: "eff_rate - ngdp_growth"
-          series: [MTSNETINT, DEBTPUB, GDPNOM]
+          expr: "DGS10 - expected_growth"
+          series: [DGS10, HLW_TREND_G, SPFCPI10_LONG]
+          derived:
+            expected_growth: {expr: "HLW_TREND_G + SPFCPI10_LONG - 0.3"}
+        transform: level
+        normalize: {method: gap, center: 0.0, scale: 1.59}
+        direction: -1
+        absolute_level: true
+        weight: 0.1875
+        carry_forward_periods: 2
+        why: >-
+          **Trajectory of the debt stock (r − g), looking forward.** What new
+          borrowing costs (the 10-year yield) against the nominal growth the
+          economy can be expected to deliver: the New York Fed's trend growth
+          plus forecasters' ten-year CPI, less 0.3 for CPI running above the
+          GDP price index. Below zero the debt ratio can fall without being
+          repaid; above it, it rises unless the budget is in primary surplus.
+          Forward-looking on both sides, so neither old cheap debt nor a burst
+          of inflation flatters it.
+
+      - id: repricing_drift
+        group: debt
+        label: Rise in the interest bill as the debt rolls over, % of GDP a year (low +)
+        source:
+          expr: "rolls_per_year * repricing_gap * debt_share"
+          series: [AVGMAT_PRIV, DGS5, MTSNETINT, DEBTPUB, GDPNOM]
           derived:
             interest_12m: {series: MTSNETINT, transform: sum_12m}
             eff_rate: {expr: "interest_12m / DEBTPUB * 100"}
-            ngdp_growth: {series: GDPNOM, transform: pct_change_3y_ann}
+            rolls_per_year: {expr: "12 / AVGMAT_PRIV"}
+            repricing_gap: {expr: "DGS5 - eff_rate"}
+            debt_share: {expr: "DEBTPUB / GDPNOM"}
         transform: level
-        normalize: {method: gap, center: 0.0, scale: 1.42}
+        normalize: {method: gap, center: 0.0, scale: 0.12}
         direction: -1
-        absolute_level: true
-        weight: 0.375
+        weight: 0.1875
         release: Monthly Treasury Statement
         why: >-
-          **Trajectory of the debt stock (r − g).** The average rate the
-          government pays on its debt (12 months of net interest over debt
-          held by the public) less nominal GDP growth over three years. Below
-          zero, the debt ratio shrinks without being repaid, because the
-          economy's nominal size outgrows the interest bill; historically that
-          has come before higher inflation, as debt is eroded by inflation
-          rather than paid down.
+          **Debt repricing.** The government pays an average of past coupons
+          on its debt, not today's yields. Each year about 12 / (average
+          maturity in months) of it rolls over at market rates, so the interest
+          bill drifts toward the 5-year yield. This is how much that drift adds
+          to interest a year, as a share of GDP. A bill set to rise squeezes the
+          budget and has come before weaker growth.
 
       - id: federal_investment_share
         group: composition
