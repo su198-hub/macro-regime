@@ -15,12 +15,12 @@ import pandas as pd
 import streamlit as st
 
 from src import ui
-from src.drivers import (DRIVER_SCALE, config_hash, driver_groups, indicator_group,
+from src.drivers import (DRIVER_SCALE, config_hash, driver_groups, group_scores, indicator_group,
                          indicator_inputs, required_series)
 from src.regimes import contributions
 from src.transform import CLIP
 from views.common import (INDICATORS, REGIMES, REPO_URL, country, country_picker,
-                          get_results, get_store, is_demo, settings_banner,
+                          data_version, get_results, get_store, is_demo, settings_banner,
                           model_vendors, source_sentence)
 
 store = get_store()
@@ -262,57 +262,62 @@ meta_cfg = cfg.get("meta") or {}
 carry = int(meta_cfg.get("carry_forward_periods", 0))
 reported = float(meta_cfg.get("min_reported_share", 0))
 vendors = model_vendors(store, required_series(cfg))
-prose(
-    '<p><b>Source.</b> ' + source_sentence(vendors) + '</p>'
-    '<p><b>Point in time.</b> Every observation is stored with its <i>vintage</i>: the date '
-    'that value was published. To view the monitor as of a date, each observation takes '
-    'the latest vintage published on or before that date. Later revisions are invisible, '
-    'so rewinding the dashboard shows the call that was actually available at the time.</p>'
-    + ('<p><b>Before revisions were recorded.</b> Each series has a date from which its '
-       'vendor recorded every revision. The history as it stood before that date is treated '
-       'as published on that date, not earlier. A rewind to before it therefore sees none of '
-       'that series, rather than a revised version presented as if it had been known. '
-       'Rewinding far enough back leaves drivers without inputs, and then no regime is '
-       'called.</p>' if vendors - {"demo"} else '')
-    + '<p><b>Projections.</b> Values dated after the vintage that published them, such as '
-    'CBO and OMB projections, are forecasts rather than observations and are not used.</p>'
-    f'<p><b>Frequency.</b> Everything is converted to month-end. Daily and weekly series '
-    f'take the last value in the month. Quarterly and annual series hold their last value '
-    f'until the next release, for at most {carry} of their own periods, which is how an '
-    f'analyst would read them; they still move in steps. Beyond that limit a series counts '
-    f'as missing, so a discontinued input drops out rather than freezing a driver.</p>'
-    f'<p><b>The latest month.</b> Series are released on different days, so the newest '
-    f'month is always incomplete. A driver is scored in a month only when at least '
-    f'{reported:.0%} of the weight of its indicators that already existed has reported. '
-    f'Indicators that had not started yet do not count against a month, so early history '
-    f'is kept.</p>'
-    '<p><b>Revision history.</b> Market series such as breakevens are rarely revised and '
-    'legitimately have few vintages. For revised series, a single vintage means the history '
-    'is as revised, not as first published, and a backtest on it overstates what was '
-    'knowable.</p>')
-cov = store.coverage()
-meta = store.con.execute(
-    "SELECT series_id, source, source_code, title, frequency FROM series_meta").df()
-cov = cov.merge(meta, on="series_id", how="left").fillna(
-    {"title": "", "frequency": "", "source": "", "source_code": ""})
-# Only what the current configuration asks for. The store keeps series from
-# indicators that have since been dropped, and listing them here implies they
-# are behind the call.
-cov = cov[cov["series_id"].isin(required_series(cfg))]
+prose('<p>Every series is stored with the date each value was published, so the monitor can be '
+      'rewound to what was known on any date. Sources, the rules for frequency and the latest '
+      'month, and every series with its revision history are in the drop-down.</p>')
+_data_details = st.expander("Data sources, point-in-time vintages and every series")
+with _data_details:
+    prose(
+        '<p><b>Source.</b> ' + source_sentence(vendors) + '</p>'
+        '<p><b>Point in time.</b> Every observation is stored with its <i>vintage</i>: the date '
+        'that value was published. To view the monitor as of a date, each observation takes '
+        'the latest vintage published on or before that date. Later revisions are invisible, '
+        'so rewinding the dashboard shows the call that was actually available at the time.</p>'
+        + ('<p><b>Before revisions were recorded.</b> Each series has a date from which its '
+           'vendor recorded every revision. The history as it stood before that date is treated '
+           'as published on that date, not earlier. A rewind to before it therefore sees none of '
+           'that series, rather than a revised version presented as if it had been known. '
+           'Rewinding far enough back leaves drivers without inputs, and then no regime is '
+           'called.</p>' if vendors - {"demo"} else '')
+        + '<p><b>Projections.</b> Values dated after the vintage that published them, such as '
+        'CBO and OMB projections, are forecasts rather than observations and are not used.</p>'
+        f'<p><b>Frequency.</b> Everything is converted to month-end. Daily and weekly series '
+        f'take the last value in the month. Quarterly and annual series hold their last value '
+        f'until the next release, for at most {carry} of their own periods, which is how an '
+        f'analyst would read them; they still move in steps. Beyond that limit a series counts '
+        f'as missing, so a discontinued input drops out rather than freezing a driver.</p>'
+        f'<p><b>The latest month.</b> Series are released on different days, so the newest '
+        f'month is always incomplete. A driver is scored in a month only when at least '
+        f'{reported:.0%} of the weight of its indicators that already existed has reported. '
+        f'Indicators that had not started yet do not count against a month, so early history '
+        f'is kept.</p>'
+        '<p><b>Revision history.</b> Market series such as breakevens are rarely revised and '
+        'legitimately have few vintages. For revised series, a single vintage means the history '
+        'is as revised, not as first published, and a backtest on it overstates what was '
+        'knowable.</p>')
+    cov = store.coverage()
+    meta = store.con.execute(
+        "SELECT series_id, source, source_code, title, frequency FROM series_meta").df()
+    cov = cov.merge(meta, on="series_id", how="left").fillna(
+        {"title": "", "frequency": "", "source": "", "source_code": ""})
+    # Only what the current configuration asks for. The store keeps series from
+    # indicators that have since been dropped, and listing them here implies they
+    # are behind the call.
+    cov = cov[cov["series_id"].isin(required_series(cfg))]
 
 
-def code_cell(r) -> ui.Raw:
-    if r.source == "fred":
-        return ui.Raw(series_link(r.source_code or r.series_id))
-    return ui.Raw(f'{ui.esc(r.source_code or r.series_id)}<br><span style="color:{ui.INK_2};'
-                  f'font-size:0.8rem">{ui.esc(r.source.capitalize())}</span>')
+    def code_cell(r) -> ui.Raw:
+        if r.source == "fred":
+            return ui.Raw(series_link(r.source_code or r.series_id))
+        return ui.Raw(f'{ui.esc(r.source_code or r.series_id)}<br><span style="color:{ui.INK_2};'
+                      f'font-size:0.8rem">{ui.esc(r.source.capitalize())}</span>')
 
 
-st.html(ui.table(
-    ["Series", "Vendor code", "Title", "Frequency", "Vintages", "First", "Last"],
-    [[r.series_id, code_cell(r), r.title, r.frequency, f"{r.vintages:,}",
-      f"{r.first_obs:%b %Y}", f"{r.last_obs:%b %Y}"] for r in cov.itertuples()],
-    numeric={4}))
+    st.html(ui.table(
+        ["Series", "Vendor code", "Title", "Frequency", "Vintages", "First", "Last"],
+        [[r.series_id, code_cell(r), r.title, r.frequency, f"{r.vintages:,}",
+          f"{r.first_obs:%b %Y}", f"{r.last_obs:%b %Y}"] for r in cov.itertuples()],
+        numeric={4}))
 
 # ---------- 5. indicators ----------
 
@@ -369,70 +374,135 @@ if taylor:
         'alongside at a lower weight.</p>')
 
 prose('<h3 class="m-h3">Indicator set</h3>'
-      '<p>Ordered within each driver by weight, heaviest first. Weight is shown as a share of '
-      'its driver, which is all that matters: a driver divides by the weight of whatever has '
-      'reported that month, so only the ratios do any work.</p>')
+      '<p>One table per driver, its indicators grouped by block, heaviest first. Weight is a '
+      'share of the driver. The two correlation columns show how each signed score lined up '
+      'with what followed: the average growth gap and inflation gap over the next three years, '
+      'from 1971 or the indicator\'s first month to the last month with three full years after '
+      'it. Today is the latest confirmed score. Each indicator\'s reason and source are in the '
+      'drop-down under its table.</p>')
 
-rows = []
+
+@st.cache_data(ttl=3600, show_spinner="Lining each indicator up against what followed…")
+def forward_links(version: str, framework_hash: str, scores: pd.DataFrame,
+                  driver_frame: pd.DataFrame, blocks: dict) -> dict:
+    """Correlation of every indicator, block and driver score with the next
+    three years' growth and inflation gaps, from 1971."""
+    from src import truth
+    wide = get_store().latest(list(truth.STORE_IDS.values()))
+    if wide.empty or not set(truth.STORE_IDS.values()) <= set(wide.columns):
+        return {}
+    fwd = truth.build(truth.from_store(wide), **truth.METHODS["next3"])[["growth", "inflation"]]
+
+    def link(series: pd.Series) -> tuple[float, float]:
+        x = series.copy()
+        x.index = pd.DatetimeIndex(x.index).to_period("M")
+        e = pd.concat([x.rename("x"), fwd], axis=1).dropna()
+        e = e[e.index >= pd.Period("1971-01", "M")]
+        if len(e) < 60:
+            return (float("nan"), float("nan"))
+        return (float(e["x"].corr(e["growth"])), float(e["x"].corr(e["inflation"])))
+
+    out = {col: link(scores[col]) for col in scores.columns}
+    out.update({key: link(s_) for key, s_ in blocks.items()})
+    out.update({f"driver::{col}": link(driver_frame[col]) for col in driver_frame.columns})
+    return out
+
+
+_scores = results["indicators"]
+_blocks = {}
+for n in driver_names:
+    if len(driver_groups(cfg, n)) > 1:
+        _gs = group_scores(cfg, n, _scores)
+        for g in _gs.columns:
+            _blocks[f"block::{n}::{g}"] = _gs[g]
+LINKS = forward_links(data_version(), chash, _scores,
+                      drivers[[c for c in driver_names if c in drivers.columns]], _blocks)
+
+
+def corr_cell(pair, k: int, bold: bool = False):
+    v = pair[k] if pair else float("nan")
+    text = "–" if pd.isna(v) else signed(v)
+    return ui.Raw(f"<b>{text}</b>") if bold else text
+
+
+def measured_as(i: dict) -> str:
+    norm = i["normalize"]
+    text = TRANSFORM_TEXT.get(i.get("transform", "level"), i.get("transform", ""))
+    if norm.get("method") == "gap":
+        center = f'{float(norm["center"]):g}'.replace("-", "−")
+        text += f"; center {center}, scale {float(norm['scale']):g}"
+    else:
+        text += f"; z-score, {int(norm.get('window', 240))}-month window"
+    if int(i["direction"]) < 0:
+        text += "; sign flipped"
+    return text
+
+
+def block_total(n: str, g: str, blocks: dict, total: float) -> list:
+    bl = LINKS.get(f"block::{n}::{g}")
+    return [ui.Raw(f"<b>{ui.esc(blocks[g].get('label') or g)} block</b>"), "",
+            ui.Raw(f"<b>{blocks[g]['weight'] / total:.0%}</b>"),
+            corr_cell(bl, 0, True), corr_cell(bl, 1, True), ""]
+
+
 horizon_of = ui.horizons(cfg)
+_idx = pd.DatetimeIndex(_scores.index)
+_today = _scores.index[(_idx.to_period("M") <= pd.Period(latest, "M"))][-1]
 for n in driver_names:
     inds = cfg["drivers"][n]["indicators"]
     total = sum(float(i["weight"]) for i in inds)
-    # The driver's horizon mix sits on its heading row, so the shape of each
-    # block is visible above the indicators that make it up.
-    rows.append(ui.Raw(
-        f'{ui.esc(dlabel[n])} <span style="font-weight:400;margin-left:0.5rem">'
-        f'{ui.horizon_bar(cfg, n, width=90)}</span>'
-        f'<span style="font-weight:400;color:{ui.INK_2};font-size:0.82rem;margin-left:0.4rem">'
-        f'{ui.esc(ui.horizon_text(cfg, n))}</span>'))
-    # Heaviest first, so the table reads as what each driver leans on rather
-    # than the order the indicators happen to sit in the config file. A driver
-    # scored in blocks lists each block under its own heading.
+    dl = LINKS.get(f"driver::{n}")
+    dl_text = ("" if not dl or pd.isna(dl[0]) else
+               f" Against the next three years: {signed(dl[0])} with the growth gap, "
+               f"{signed(dl[1])} with the inflation gap.")
+    st.html(f'<h3 class="m-h3">{ui.esc(dlabel[n])}</h3>'
+            f'<p style="margin-top:0">{ui.esc(cfg["drivers"][n].get("description", ""))}'
+            f'{ui.esc(dl_text)} <span style="color:{ui.INK_2};font-size:0.85rem">'
+            f'{ui.esc(ui.horizon_text(cfg, n))}</span></p>')
     blocks = driver_groups(cfg, n)
     block_order = {g: k for k, g in enumerate(blocks)}
-    current = None
+    rows, reasons, current = [], [], None
     for i in sorted(inds, key=lambda x: (block_order[indicator_group(x)], -float(x["weight"]))):
-        if len(blocks) > 1 and indicator_group(i) != current:
-            current = indicator_group(i)
-            b = blocks[current]
+        g = indicator_group(i)
+        if len(blocks) > 1 and g != current:
+            if current is not None:
+                rows.append(block_total(n, current, blocks, total))
+            current = g
             rows.append(ui.Raw(
-                f'<span style="font-weight:600;color:{ui.INK_2}">{ui.esc(b.get("label") or current)}, '
-                f'{b["weight"] / total:.0%} of {ui.esc(dlabel[n].lower())}</span>'
+                f'<span style="font-weight:600;color:{ui.INK_2}">{ui.esc(blocks[g].get("label") or g)}</span>'
                 + (f'<span style="font-weight:400;color:{ui.INK_2};font-size:0.82rem;margin-left:0.4rem">'
-                   f'{ui.esc(b["description"])}</span>' if b.get("description") else "")))
+                   f'{ui.esc(blocks[g]["description"])}</span>' if blocks[g].get("description") else "")))
+        key = f"{n}::{i['id']}"
+        now_score = _scores.at[_today, key] if key in _scores.columns else float("nan")
+        rows.append([ui.Raw(ui.esc(i.get("label") or i["id"].replace("_", " ").capitalize())
+                            + (f'<br><span style="color:{ui.INK_2};font-size:0.8rem">Anchor: needed to '
+                               f'confirm a month</span>' if i.get("anchor") else "")),
+                     measured_as(i), f'{float(i["weight"]) / total:.0%}',
+                     corr_cell(LINKS.get(key), 0), corr_cell(LINKS.get(key), 1),
+                     "–" if pd.isna(now_score) else signed(now_score)])
         src = i["source"]
         if src.get("expr"):
-            # The expression, with its series linked. Intermediate aliases used
-            # to be spelled out here and swamped the row; the Taylor rule, the
-            # only one complicated enough to need it, is written out in prose
-            # above, and the rest are in the config file this page links to.
-            # One pass over whole words. Replacing series one at a time breaks
-            # when one name contains another: linking DGS10 first, then DGS1,
-            # rewrote the markup of the link just inserted.
-            links = {s: series_link(s) for s in src.get("series", [])}
-            source = re.sub(r"[A-Za-z_][A-Za-z0-9_]*",
-                            lambda m: links.get(m.group(0), m.group(0)),
+            # One pass over whole words, so a series whose name contains another's
+            # (DGS10 and DGS1) is linked once.
+            links = {s_: series_link(s_) for s_ in src.get("series", [])}
+            source = re.sub(r"[A-Za-z_][A-Za-z0-9_]*", lambda m: links.get(m.group(0), m.group(0)),
                             ui.esc(src["expr"]))
         else:
             source = series_link(src["series"])
-        norm = i["normalize"]
-        if norm.get("method") == "gap":
-            center = f'{float(norm["center"]):g}'.replace("-", "−")
-            norm_text = f'Gap from {center}, scale {float(norm["scale"]):g}'
-        else:
-            norm_text = f'Z-score, {int(norm.get("window", 240))}-month window'
-        rows.append([
-            ui.Raw(ui.esc(i.get("label") or i["id"].replace("_", " ").capitalize())
-                   + (f'<br><span style="color:{ui.INK_2};font-size:0.8rem">Anchor: needed to '
-                      f'confirm a month</span>' if i.get("anchor") else "")),
-            ui.Raw(source),
-            TRANSFORM_TEXT.get(i.get("transform", "level"), i.get("transform", "")),
-            norm_text, "+1" if int(i["direction"]) > 0 else "−1",
-            ui.Raw(ui.horizon_chip(horizon_of.get(i["id"], "medium"))),
-            f'{float(i["weight"]) / total:.0%}',
-            ui.Raw(ui.rich(i.get("why", "")))])
-st.html(ui.table(["Indicator", "Source", "Transform", "Normalization", "Direction",
-                  "Horizon", "Weight", "Why it is included"], rows, numeric={4, 5, 6}))
+        reasons.append(f'<li><b>{ui.esc(i.get("label") or i["id"])}</b> '
+                       f'{ui.horizon_chip(horizon_of.get(i["id"], "medium"))}<br>'
+                       f'{ui.rich(i.get("why", ""))}<br>'
+                       f'<span style="color:{ui.INK_2};font-size:0.82rem">Source: {source}</span></li>')
+    if len(blocks) > 1 and current is not None:
+        rows.append(block_total(n, current, blocks, total))
+    today_driver = drivers.at[_today, n] if _today in drivers.index and n in drivers.columns else float("nan")
+    rows.append([ui.Raw(f"<b>{ui.esc(dlabel[n])}</b>"), "", "",
+                 corr_cell(dl, 0, True), corr_cell(dl, 1, True),
+                 ui.Raw("<b>–</b>" if pd.isna(today_driver) else f"<b>{signed(today_driver)}</b>")])
+    st.html(ui.table(["Indicator", "Measured as", "Weight", "Next 3y growth", "Next 3y inflation",
+                      f"Today ({pd.Period(latest, 'M').to_timestamp():%b %Y})"], rows, numeric={2, 3, 4, 5}))
+    with st.expander(f"Why each {dlabel[n].lower()} indicator is included, and its source"):
+        st.html('<div class="m-body"><ul>' + "".join(reasons) + "</ul></div>")
 
 # ---------- 6. drivers ----------
 
