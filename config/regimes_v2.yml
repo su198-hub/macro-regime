@@ -103,8 +103,8 @@ regimes:
       reforms: 0.67
     archetype:
       growth: 0.19
-      inflation: 0.03
-      monetary: -0.20
+      inflation: 0.07
+      monetary: -0.19
       fiscal: -0.02
       reforms: -0.08
     tell: Productivity and capex plans rising together with expectations at target.
@@ -122,7 +122,7 @@ regimes:
       reforms: 0.33
     archetype:
       growth: 0.17
-      inflation: 0.66
+      inflation: 0.69
       monetary: -0.24
       fiscal: 0.03
       reforms: -0.35
@@ -141,7 +141,7 @@ regimes:
       reforms: -0.67
     archetype:
       growth: -0.25
-      inflation: 0.73
+      inflation: 0.79
       monetary: -0.30
       fiscal: -0.03
       reforms: -0.15
@@ -160,7 +160,7 @@ regimes:
       reforms: -0.67
     archetype:
       growth: -0.14
-      inflation: 0.16
+      inflation: 0.12
       monetary: 0.09
       fiscal: -0.11
       reforms: 0.09

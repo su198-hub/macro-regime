@@ -65,7 +65,7 @@ meta:
   positions_note: >-
     Each regime's position is learned from the run-ups to past regimes,
     1968-2023; graded on the three years that followed, 1976-2023, the call
-    got 63% of each regime's months right on average held out, 55% in real
+    got 65% of each regime's months right on average held out, 56% in real
     time.
   positions_method: >-
     where the drivers sat in the run-up to that regime, 1968 to 2023, shrunk
@@ -81,8 +81,8 @@ meta:
         goldilocks, four high growth, high inflation, four stagflation and
         three hard landings. Before 1979 the inflation anchor is the Fed's
         FRB/US estimate of long-run expectations, not a survey. Graded on the
-        three years that followed, 1976-2023, the call got 63% of each
-        regime's months right on average held out and 55% in real time,
+        three years that followed, 1976-2023, the call got 65% of each
+        regime's months right on average held out and 56% in real time,
         against 34% for assuming the current regime continues; in 60 runs with
         the readings slid out of line with what followed, none matched it. It caught all three hard-landing run-ups held out,
         two in real time. In real time, a regime not yet seen falls back to its
@@ -93,7 +93,7 @@ meta:
       text: >-
         Run-ups average many months, so the learned positions sit near the
         middle and near each other, and the probabilities are modest: since
-        1968 the leading scenario has had a median of 60%, and more than 80%
+        1968 the leading scenario has had a median of 62%, and more than 79%
         in only one month in ten. The judgment positions are scaled
         to the same spread before the data are weighed against them; unscaled,
         they pulled every position outward and the call fell below 40% held
@@ -133,10 +133,10 @@ meta:
         -0.46 to +0.30 with the next three years' inflation gap, and the
         breakeven and Cleveland measures have the wrong sign. They are kept, at
         25% of inflation, to hold the long-run view. The pressure block does
-        the forecasting: +0.52 with the next three years' gap, 1985-2023, and
+        the forecasting: +0.64 with the next three years' gap, 1971-2023, and
         the right sign in both halves. Before 1978 it is money and core
         inflation against the Fed's FRB/US long-run expectations; house prices
-        join in 1978, the trimmed mean in 1978 and the survey in 1979.
+        join in 1978 and the survey in 1979.
     - title: A 2% anchor before there was a target
       text: >-
         Inflation is read against 2%. Before the late 1990s expectations ran at
@@ -452,34 +452,34 @@ drivers:
 
       - id: underlying_inflation_gap
         group: pressure
-        label: Trimmed-mean PCE inflation less forecasters' 10-year CPI
+        label: Core PCE inflation less forecasters' 10-year CPI
         source:
-          expr: "underlying - expected"
-          series: [PCETRIM12M159SFRBDAL, PCEPILFE, SPFCPI10, SPFCPI10_LONG, FRBUS_PTR]
+          expr: "core_yoy - expected"
+          series: [PCEPILFE, SPFCPI10, SPFCPI10_LONG, FRBUS_PTR]
           derived:
-            # Before the trimmed mean starts (1978), core PCE; before the
-            # survey (1979), the Fed's FRB/US long-run expectations, put on the
-            # survey's basis (+0.09, their gap over 1979Q4-1984Q4).
+            # Before the survey (1979), the Fed's FRB/US long-run expectations,
+            # put on the survey's basis (+0.09, their gap over 1979Q4-1984Q4).
             core_yoy: {series: PCEPILFE, transform: yoy_pct}
-            underlying: {first_of: [PCETRIM12M159SFRBDAL, core_yoy]}
             ptr_survey: {expr: "FRBUS_PTR + 0.09"}
             expected: {first_of: [SPFCPI10, SPFCPI10_LONG, ptr_survey]}
         transform: level
-        normalize: {method: gap, center: -0.58, scale: 0.39}
+        normalize: {method: gap, center: -0.76, scale: 0.37}
         direction: 1
         weight: 0.25
         anchor: true
         carry_forward_periods: 2
         release: PCE report
         why: >-
-          **Underlying inflation against expectations.** The trimmed mean drops
-          each month's most extreme price changes and averages the rest, so it
-          shows the broad pace of inflation rather than a few volatile items,
-          and it gauges the trend better than core. Against long-run
-          expectations it shows where inflation starts relative to the anchor.
-          The most short-term of the three: such gaps tend to close within a
-          couple of years. The anchor: a month is confirmed once the PCE report
-          is out.
+          **Underlying inflation against expectations.** Core PCE, excluding
+          food and energy, against long-run expectations: where inflation
+          starts relative to the anchor. Core rather than the trimmed mean,
+          which drops each month's largest price moves and so would strip out
+          a shock such as tariffs; core keeps them in, which matters when the
+          question is whether such a shock spreads. On its own the trimmed mean
+          predicted the next three years slightly better (+0.53 against +0.49,
+          1971-2023); the model as a whole did slightly better on core. The most short-term of the three: such gaps tend to close
+          within a couple of years. The anchor: a month is confirmed once the
+          PCE report is out.
 
       - id: spf_cpi_revision
         group: anchoring

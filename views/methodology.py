@@ -664,6 +664,13 @@ section("m-versions", 11, "Versions and reproducibility")
 # table wants to know what the model is, not what it was.
 prose(
     '<h3 class="m-h3">What changed</h3>'
+    '<p><b>October 2026 — core PCE replaces the trimmed mean (v2).</b> Underlying inflation in '
+    'the inflation signpost is now core PCE against the forecasters’ ten-year CPI, not the '
+    'Dallas Fed trimmed mean. The trimmed mean drops each month’s largest price moves, which '
+    'strips out a shock such as tariffs; core keeps them in, which matters when the question '
+    'is whether such a shock spreads. On its own the trimmed mean predicted the next three '
+    'years slightly better; the model as a whole did slightly better on core: 65% held out '
+    'and 56% in real time, 1976 to 2023, against 63% and 55%.</p>'
     '<p><b>October 2026 — four scenarios, and a three-year outlook page (v2).</b> Baseline '
     'leaves the call: it could not be graded against the record, sat in the middle of every '
     'signpost and took about a quarter of the odds. Graded on the three years that followed, '

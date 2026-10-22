@@ -264,7 +264,7 @@ if st.button("Show the track record", key="prop_track"):
                      + ["Hard-landing run-ups caught"], rows, numeric=set(range(1, 7))))
     st.caption("Placebo, run 22 October 2026: with the signpost readings slid out of line with what "
                "followed, none of 40 held-out and none of 20 real-time runs matched these scores "
-               "(medians 23% and 22%).")
+               "(medians 29% and 30%).")
     band = pd.DataFrame({"Real-time call": T["Real time"]["calls"],
                          "What the next 3 years were": T["labels"]})
     long = band.reset_index(names="month").melt("month", var_name="row", value_name="regime").dropna()
