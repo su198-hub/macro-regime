@@ -1,4 +1,4 @@
-duckdb>=1.0,<2  # 2.0 (Oct 2026) refuses a new query while a result is unfinished; the snapshot loader trips it
+duckdb>=1.0,<2  # the store also runs on 2.0 (tests and every page, 22 Oct 2026); pinned until 2.0 has settled
 pandas>=2.0
 numpy>=1.24
 pyyaml>=6.0

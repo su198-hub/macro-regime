@@ -75,16 +75,21 @@ class Store:
         missing = expected - set(df.columns)
         if missing:
             raise ValueError(f"missing columns: {sorted(missing)}")
-        self.con.register("incoming", df[list(expected)])
-        self.con.execute(
-            """
-            INSERT INTO observations
-            SELECT series_id, observation_date, vintage_date, value FROM incoming
-            ON CONFLICT (series_id, observation_date, vintage_date)
-            DO UPDATE SET value = excluded.value
-            """
-        )
-        self.con.unregister("incoming")
+        # A cursor of its own: DuckDB 2.0 refuses register() on a connection
+        # holding a result that has not been read to the end.
+        cur = self.con.cursor()
+        try:
+            cur.register("incoming", df[list(expected)])
+            cur.execute(
+                """
+                INSERT INTO observations
+                SELECT series_id, observation_date, vintage_date, value FROM incoming
+                ON CONFLICT (series_id, observation_date, vintage_date)
+                DO UPDATE SET value = excluded.value
+                """
+            )
+        finally:
+            cur.close()
         return len(df)
 
     def record_meta(self, series_id, source, title="", units="", frequency="",
@@ -132,7 +137,6 @@ class Store:
         For each observation date, takes the latest vintage at or before the
         given date. This is the only read path used by the transform layer.
         """
-        self.con.register("wanted", pd.DataFrame({"series_id": series_ids}))
         df = self.con.execute(
             """
             WITH ranked AS (
@@ -142,16 +146,15 @@ class Store:
                            ORDER BY o.vintage_date DESC
                        ) AS rn
                 FROM observations o
-                JOIN wanted w USING (series_id)
-                WHERE o.vintage_date <= ?
+                WHERE o.series_id IN (SELECT UNNEST(?::VARCHAR[]))
+                  AND o.vintage_date <= ?
             )
             SELECT series_id, observation_date, value
             FROM ranked WHERE rn = 1
             ORDER BY observation_date
             """,
-            [vintage],
+            [list(series_ids), vintage],
         ).df()
-        self.con.unregister("wanted")
         if df.empty:
             return pd.DataFrame()
         wide = df.pivot(index="observation_date", columns="series_id",
