@@ -65,7 +65,7 @@ meta:
   positions_note: >-
     Each regime's position is learned from the run-ups to past regimes,
     1968-2023; graded on the three years that followed, 1976-2023, the call
-    got 68% of each regime's months right on average held out, 64% in real
+    got 68% of each regime's months right on average held out, 66% in real
     time.
   positions_method: >-
     where the drivers sat in the run-up to that regime, 1968 to 2023, shrunk
@@ -82,7 +82,7 @@ meta:
         three hard landings. Before 1979 the inflation anchor is the Fed's
         FRB/US estimate of long-run expectations, not a survey. Graded on the
         three years that followed, 1976-2023, the call got 68% of each
-        regime's months right on average held out and 64% in real time,
+        regime's months right on average held out and 66% in real time,
         against 34% for assuming the current regime continues; in 60 runs with
         the readings slid out of line with what followed, none matched it. It
         caught all three hard-landing run-ups held out, two in real time. In
@@ -133,8 +133,8 @@ meta:
       text: >-
         The labeled regime reads inflation against expected inflation, so the
         anchoring measures are the bar itself: on their own they correlate
-        -0.46 to +0.30 with the next three years' inflation gap, and the
-        breakeven and Cleveland measures have the wrong sign. They are kept, at
+        -0.49 to -0.20 with the next three years' inflation gap, the wrong
+        sign, since a higher anchor raises the bar. They are kept, at
         25% of inflation, to hold the long-run view. The pressure block does
         the forecasting: +0.65 with the next three years' gap, 1971-2023, and
         the right sign in both halves. Before 1978 it is money, wages and core
@@ -215,7 +215,6 @@ meta:
       - cbo_labour_force_revision
       - breakeven_5y5y
       - cleveland_10y
-      - spf_cpi_revision
       - inflation_risk_premium
       - target_miss_rate
       - inflation_volatility
@@ -422,7 +421,7 @@ drivers:
         label: Anchoring
         description: >-
           Whether long-run inflation expectations are drifting from the 2%
-          anchor, read from forecasters, markets and a model.
+          anchor, read from markets and models.
     indicators:
       - id: m2_growth_3y
         group: pressure
@@ -511,21 +510,6 @@ drivers:
           within a couple of years. The anchor: a month is confirmed once the
           PCE report is out.
 
-      - id: spf_cpi_revision
-        group: anchoring
-        label: Revision to forecasters' 10-year CPI
-        source: {series: SPFCPI10}
-        transform: diff_12m
-        normalize: {method: gap, center: 0.0, scale: 0.14}
-        direction: 1
-        weight: 0.0625
-        carry_forward_periods: 2
-        release: Survey of Professional Forecasters
-        why: >-
-          **Revisions to forecasters' 10-year CPI.** Forecasters move their
-          long-run view when inflation is already building, so a revision up is
-          an early sign the anchor is being tested.
-
       - id: breakeven_5y5y
         group: anchoring
         label: 5-year inflation expectations, 5 years ahead
@@ -534,7 +518,7 @@ drivers:
         normalize: {method: gap, center: 2.3, scale: 0.35}
         direction: 1
         absolute_level: true
-        weight: 0.0625
+        weight: 0.0833333
         why: >-
           **5Y5Y inflation expectations.** The market's view of inflation five
           to ten years out, past any cycle: where a de-anchoring would show
@@ -548,7 +532,7 @@ drivers:
         normalize: {method: gap, center: 2.0, scale: 0.4}
         direction: 1
         absolute_level: true
-        weight: 0.0625
+        weight: 0.0833333
         why: >-
           **10-year expected inflation.** A model blending Treasury yields,
           inflation swaps and surveys, against the 2% target.
@@ -561,7 +545,7 @@ drivers:
         normalize: {method: gap, center: 0.41, scale: 0.07}
         direction: 1
         absolute_level: true
-        weight: 0.0625
+        weight: 0.0833333
         why: >-
           **Inflation risk premium.** What investors pay to insure against
           inflation surprises: it rises when they are less sure the anchor will

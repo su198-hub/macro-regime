@@ -752,6 +752,13 @@ section("m-versions", 11, "Versions and reproducibility")
 # table wants to know what the model is, not what it was.
 prose(
     '<h3 class="m-h3">What changed</h3>'
+    '<p><b>October 2026 — one fewer anchoring indicator (v2).</b> The yearly revision to '
+    'forecasters’ ten-year CPI is dropped: the same survey already sets the bar in the core PCE '
+    'gap, it starts only in 1992, and it had the weakest link to what followed. The three left '
+    '(5-year breakeven five years ahead, the Cleveland Fed’s ten-year expectations and the '
+    'inflation risk premium) take a third of the block each. 32 indicators; graded on the three '
+    'years that followed, 1976 to 2023, 68% held out and 66% in real time, against 68% and '
+    '64%.</p>'
     '<p><b>October 2026 — reforms in three blocks (v2).</b> <b>Regulation</b> (RegData and the '
     'Fraser score) and <b>policy uncertainty</b> a quarter each; <b>industrial policy</b> half: '
     'the change in the effective tariff rate and in federal non-defense R&amp;D, a quarter each. '

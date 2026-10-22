@@ -109,7 +109,7 @@ regimes:
       reforms: 0.67
     archetype:
       growth: 0.19
-      inflation: 0.06
+      inflation: 0.09
       monetary: -0.24
       fiscal: 0.00
       reforms: -0.08
@@ -166,7 +166,7 @@ regimes:
       reforms: -0.67
     archetype:
       growth: -0.14
-      inflation: 0.14
+      inflation: 0.16
       monetary: 0.09
       fiscal: -0.07
       reforms: 0.12
