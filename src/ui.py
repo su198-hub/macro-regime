@@ -342,7 +342,7 @@ def table(header: list[str], rows: list[list], numeric: set[int] = frozenset()) 
     def cell(v):
         return v.html if isinstance(v, Raw) else esc(v)
 
-    head = "".join(f'<th class="num">{esc(h)}</th>' if i in numeric else f"<th>{esc(h)}</th>"
+    head = "".join(f'<th class="num">{cell(h)}</th>' if i in numeric else f"<th>{cell(h)}</th>"
                    for i, h in enumerate(header))
     body = []
     for r in rows:
