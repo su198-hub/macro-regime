@@ -6,7 +6,7 @@
 v2's regime call describes the next three years. Each scenario's position is
 where the signposts sat in the run-up to that regime, shrunk toward the prior
 in config/regimes_v2.yml (src/outlook.py, realigned_positions). Learned from
-1983 to the last month with three full years after it.
+1968 to the last month with three full years after it.
 
 Graded through the dashboard's own engine, salience, temperature, persistence,
 confidence floor and fit gate as configured, against the three-year forward
@@ -41,7 +41,7 @@ from src import truth  # noqa: E402
 from src.store import Store  # noqa: E402
 
 INDICATORS, REGIMES_CFG = "config/indicators_v2.yml", "config/regimes_v2.yml"
-FIRST = "1993-01"
+FIRST = os.environ.get("REALIGN_FIRST", "1976-01")
 
 
 def priors(reg: dict, names: list[str]) -> pd.DataFrame:

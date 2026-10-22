@@ -454,6 +454,14 @@ series:
       five years 1970-2000, annual since; published about two years late.
       Partly built from executive surveys since 2001, when the score fell from
       9.1 to 6.3 on the new method alone.
+  FRBUS_PTR:
+    use: frbus
+    frbus: PTR
+    note: >-
+      Expected PCE inflation over the next ten years, quarterly from 1968, from
+      the Federal Reserve Board's FRB/US model data: surveys from 1979, the
+      Kozicki-Tinsley estimate before. Extends the forecasters' ten-year
+      expectations back into the 1970s (src/sources/frbus.py).
   REGDATA:
     use: quantgov
     quantgov: "https://quantgov-bulk-downloads.s3.amazonaws.com/RegData-US_6-0.zip|RegData-US_6-0/usregdata6.csv"

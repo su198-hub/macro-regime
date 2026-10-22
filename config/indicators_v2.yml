@@ -64,33 +64,36 @@ meta:
     adjustments.
   positions_note: >-
     Each regime's position is learned from the run-ups to past regimes,
-    1983-2023; graded on the three years that followed, 1993-2023, the call
-    got 57% of each regime's months right on average held out, 43% in real
-    time.
+    1968-2023; graded on the three years that followed, 1976-2023, the call
+    got 59% of each regime's months right on average held out, 41% in real
+    time (53% with Baseline calls set aside).
   positions_method: >-
-    where the drivers sat in the run-up to that regime, 1983 to 2023, shrunk
+    where the drivers sat in the run-up to that regime, 1968 to 2023, shrunk
     toward a judgment of where the regime sits, so the call reads the next
     three years.
   summary_note: >-
-    The scenario positions are learned from only nine run-ups since 1983,
-    one each for stagflation and for high growth, high inflation, so they
-    are estimates with wide error.
+    The scenario positions are learned from fifteen run-ups since 1968, three
+    or four per regime, so they are estimates with wide error.
   limitations:
     - title: Few episodes behind the positions
       text: >-
-        The positions are learned from nine run-ups since 1983: four
-        goldilocks, three hard landings, and one each of stagflation
-        (1988-90) and high growth, high inflation (2018-23). Graded on the
-        three years that followed, 1993-2023, the call got 57% of each
-        regime's months right on average held out and 43% in real time,
-        against 37% for assuming the current regime continues. It caught two
-        of three hard-landing run-ups held out, one in real time. In real
-        time, a regime not yet seen falls back to its judgment position.
+        The positions are learned from fifteen run-ups since 1968: four
+        goldilocks, four high growth, high inflation, four stagflation and
+        three hard landings. Before 1979 the inflation anchor is the Fed's
+        FRB/US estimate of long-run expectations, not a survey. Graded on the
+        three years that followed, 1976-2023, the call got 59% of each
+        regime's months right on average held out and 41% in real time (53%
+        with Baseline calls set aside), against 34% for assuming the current
+        regime continues. It caught all three hard-landing run-ups held out,
+        two in real time. In real time, a regime not yet seen falls back to its
+        judgment position. The settings (temperature, confidence floor,
+        persistence, the prior's weight) were chosen on 1993-2023, before the
+        history was extended.
     - title: The scenarios sit close together
       text: >-
         Run-ups average many months, so the learned positions sit near the
         middle and near each other, and the probabilities are modest: since
-        1983 the leading scenario has had a median of 38%, and more than 53%
+        1968 the leading scenario has had a median of 49%, and more than 70%
         in only one month in ten. The judgment positions are scaled
         to the same spread before the data are weighed against them; unscaled,
         they pulled every position outward and the call fell below 40% held
@@ -128,8 +131,9 @@ meta:
         breakeven and Cleveland measures have the wrong sign. They are kept, at
         25% of inflation, to hold the long-run view. The pressure block does
         the forecasting: +0.52 with the next three years' gap, 1985-2023, and
-        the right sign in both halves. Before 1991 it is money and house
-        prices alone; underlying inflation starts with the forecasters' survey.
+        the right sign in both halves. Before 1978 it is money and core
+        inflation against the Fed's FRB/US long-run expectations; house prices
+        join in 1978, the trimmed mean in 1978 and the survey in 1979.
     - title: A 2% anchor before there was a target
       text: >-
         Inflation is read against 2%. Before the late 1990s expectations ran at
@@ -447,8 +451,16 @@ drivers:
         group: pressure
         label: Trimmed-mean PCE inflation less forecasters' 10-year CPI
         source:
-          expr: "PCETRIM12M159SFRBDAL - SPFCPI10"
-          series: [PCETRIM12M159SFRBDAL, SPFCPI10]
+          expr: "underlying - expected"
+          series: [PCETRIM12M159SFRBDAL, PCEPILFE, SPFCPI10, SPFCPI10_LONG, FRBUS_PTR]
+          derived:
+            # Before the trimmed mean starts (1978), core PCE; before the
+            # survey (1979), the Fed's FRB/US long-run expectations, put on the
+            # survey's basis (+0.09, their gap over 1979Q4-1984Q4).
+            core_yoy: {series: PCEPILFE, transform: yoy_pct}
+            underlying: {first_of: [PCETRIM12M159SFRBDAL, core_yoy]}
+            ptr_survey: {expr: "FRBUS_PTR + 0.09"}
+            expected: {first_of: [SPFCPI10, SPFCPI10_LONG, ptr_survey]}
         transform: level
         normalize: {method: gap, center: -0.58, scale: 0.39}
         direction: 1
@@ -765,9 +777,11 @@ drivers:
         label: 10-year yield less expected nominal growth (low +)
         source:
           expr: "DGS10 - expected_growth"
-          series: [DGS10, HLW_TREND_G, SPFCPI10_LONG]
+          series: [DGS10, HLW_TREND_G, SPFCPI10_LONG, FRBUS_PTR]
           derived:
-            expected_growth: {expr: "HLW_TREND_G + SPFCPI10_LONG - 0.3"}
+            ptr_survey: {expr: "FRBUS_PTR + 0.09"}
+            expected_inflation: {first_of: [SPFCPI10_LONG, ptr_survey]}
+            expected_growth: {expr: "HLW_TREND_G + expected_inflation - 0.3"}
         transform: level
         normalize: {method: gap, center: 0.0, scale: 1.59}
         direction: -1

@@ -625,7 +625,7 @@ prose(
     '<ul>' + (_own_limits or
     '<li><b>Archetypes do not match the labeled history.</b> Where each regime sits in driver '
     'space is a judgment, informed but not estimated. Against the labeled history on the Regime '
-    'history page (1983 onward, on revised data), the months in each regime sit closer to '
+    'history page (1968 onward, on revised data), the months in each regime sit closer to '
     'neutral than the archetypes, and for stagflation and hard landing the monetary and fiscal '
     'positions point the other way: by the time those regimes arrive the Fed has usually eased '
     'and the deficit widened, where the archetypes place tight money and a fiscal pullback. '
@@ -664,6 +664,16 @@ section("m-versions", 11, "Versions and reproducibility")
 # table wants to know what the model is, not what it was.
 prose(
     '<h3 class="m-h3">What changed</h3>'
+    '<p><b>October 2026 — history back to 1968.</b> The labeled history and the signposts now '
+    'start in 1968, not 1980. Before the forecasters’ ten-year survey begins in October 1979, '
+    'the inflation anchor is the Federal Reserve Board’s FRB/US measure of long-run expected '
+    'inflation (PTR, the Kozicki-Tinsley estimate before 1979), joined to the survey on its '
+    'basis. Underlying inflation falls back to core PCE before the trimmed mean starts. The '
+    'record now holds fifteen run-ups to a regime instead of nine, with three or four of each, '
+    'so stagflation can be graded for the first time. The v2 positions were relearned on it. '
+    'Graded on the three years that followed, 1976 to 2023, the average hit rate across the '
+    'regimes is 59% held out and 41% in real time, or 53% in real time with Baseline calls set '
+    'aside.</p>'
     '<p><b>October 2026 — the regime call reads the next three years (v2).</b> Each '
     'scenario’s position is now where the signposts sat in the run-up to that regime, '
     '1983 to 2023, shrunk toward a judgment of where the scenario sits, scaled to the '

@@ -178,3 +178,22 @@ def test_minimum_regime_length_absorbs_short_spells():
     six = truth.primary(ax, 0.5, 0.5, 6)["label"].tolist()
     assert three[6:10] == ["hard_landing"] * 4
     assert six == ["goldilocks"] * 16
+
+
+def test_ptr_carries_the_inflation_anchor_back_before_the_survey():
+    """Before the survey starts, expected inflation is PTR on the survey's basis
+    (+PTR_TO_SPF), less the same CPI-PCE wedge; from the survey on, the survey."""
+    import numpy as np
+    import pandas as pd
+    from src import truth
+    idx = pd.period_range("1960-01", "2000-12", freq="M")
+    n = len(idx)
+    level = pd.Series(np.exp(np.arange(n) * 0.002), index=idx)
+    m = pd.DataFrame({"gdp": level, "potential": level, "core_pce": level, "pce": level, "cpi": level,
+                      "spf_cpi10": np.nan, "ptr": 3.0}, index=idx)
+    m.loc[m.index >= pd.Period("1979-10", "M"), "spf_cpi10"] = 5.0
+    ax = truth.axes(m)
+    assert ax.loc[pd.Period("1975-06", "M"), "spf_cpi10"] == 3.0 + truth.PTR_TO_SPF
+    assert ax.loc[pd.Period("1990-06", "M"), "spf_cpi10"] == 5.0
+    no_ptr = truth.axes(m.drop(columns="ptr"))
+    assert no_ptr["spf_cpi10"].first_valid_index() >= pd.Period("1979-10", "M")

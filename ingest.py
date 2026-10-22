@@ -170,6 +170,9 @@ def open_vendor(vendor: str):
     if vendor == "quantgov":
         from src.sources.quantgov import QuantgovSource
         return QuantgovSource()
+    if vendor == "frbus":
+        from src.sources.frbus import FrbusSource
+        return FrbusSource()
     from src.sources.fred import FredSource
     return FredSource()
 
@@ -441,7 +444,7 @@ This branch is replaced on every publish, so it never accumulates history.
 
 
 def cmd_truth(args):
-    """Label every month since 1980 with the regime it turned out to be in.
+    """Label every month since 1968 with the regime it turned out to be in.
 
     Reads Macrobond directly (the inputs are not dashboard indicators), stores
     the inputs as TR_ series so a publish carries them to the hosted app's
@@ -645,7 +648,7 @@ def main():
     ).set_defaults(func=cmd_energy)
     tr = sub.add_parser(
         "truth",
-        help="Label each month since 1980 with its realised growth x inflation regime "
+        help="Label each month since 1968 with its realised growth x inflation regime "
              "(GDP vs potential, core PCE vs expectations), from Macrobond.")
     tr.add_argument("--out", default=None,
                     help="CSV path (default %%LOCALAPPDATA%%\\macro-regime\\truth_labels.csv).")

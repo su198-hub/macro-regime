@@ -1,4 +1,4 @@
-"""The /history page: which regime the US was actually in, month by month since 1980.
+"""The /history page: which regime the US was actually in, month by month since 1968.
 
 Built from the TR_ series `ingest.py truth` stores; src/truth.py holds the
 method. The page opens on the record itself, with a picker to zoom into any
@@ -36,7 +36,7 @@ def inputs(version: str) -> pd.DataFrame | None:
     return truth.from_store(wide)
 
 
-@st.cache_data(ttl=900, show_spinner="Labeling every month since 1980…")
+@st.cache_data(ttl=900, show_spinner="Labeling every month since 1968…")
 def labels(version: str, years: float, align: str, measure: str = "endpoints",
            min_months: int = truth.MIN_MONTHS) -> pd.DataFrame | None:
     m = inputs(version)
@@ -55,7 +55,7 @@ NAME = {k: v["label"] for k, v in reg.items() if k in truth.QUADRANT.values()}
 COLOR = {k: reg[k]["color"] for k in NAME}
 
 st.html('<h1 class="mr-title">Regime history</h1>'
-        '<p class="mr-sub">Which growth and inflation regime the US was in, month by month since 1980, '
+        '<p class="mr-sub">Which growth and inflation regime the US was in, month by month since 1968, '
         "judged with hindsight. This is the yardstick the model's calls are scored against, not the "
         "model's call.</p>")
 st.html('<hr class="mr-rule">')
@@ -309,7 +309,7 @@ shows = [
      f"<b>Recessions:</b> {down[rec].mean():.0%} of NBER recession months fall in a growth-down regime. "
      "By recession: " + "; ".join(
         f"{pk[:4]}{'–' + tr[2:4] if tr[:4] != pk[:4] else ''} {NAME[w.value_counts().idxmax()].lower()}"
-        for pk, tr in truth.NBER if pk >= "1980"
+        for pk, tr in truth.NBER if pk >= "1968"
         for w in [lab.loc[pd.Period(pk, "M"):pd.Period(tr, "M"), "label"]] if len(w)) + "."),
 ]
 st.html(ui.section_head("Reading the record"))
@@ -433,7 +433,7 @@ st.html(
     "<li><b>Recessions</b> are not forced into any regime. They appear as growth down because GDP fell "
     "below potential; whether that is stagflation or hard landing depends on inflation.</li>"
     "<li><b>Updates and provisional months.</b> Each data refresh pulls the latest GDP, potential, "
-    "core PCE and survey readings and relabels every month from 1980, so revisions flow through. At "
+    "core PCE and survey readings and relabels every month from 1968, so revisions flow through. At "
     "the end of the sample the latest months' windows are not complete: they run to the latest print "
     "instead, and those months are marked provisional. A provisional month cannot start a new regime; "
     "it keeps the last confirmed one until its window fills. Labels run to the last month GDP "

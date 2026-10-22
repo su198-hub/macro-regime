@@ -44,7 +44,7 @@ import pandas as pd
 from . import truth
 
 HORIZON = 36            # months a forward label describes
-START = "1983-01"       # first month with every signpost at least partly measured
+START = "1968-01"       # first month with every signpost at least partly measured, and with an answer key
 MIN_COVERAGE = 0.4      # share of a signpost's indicator weight that must be present
 TEMPERATURE = 0.75
 

@@ -6,7 +6,7 @@
 #
 # The regime call describes the next three years. Each scenario's position
 # (archetype) is where the signposts sat in the run-up to that regime, learned
-# from 1983-2023 and shrunk toward the prior: the judgment of where each
+# from 1968-2023 and shrunk toward the prior: the judgment of where each
 # scenario sits, on the -1 to +1 scale, translated to what each signpost now
 # reads (see rationale.prior). Positions are written by
 #     python scripts/realign_positions.py --write
@@ -100,11 +100,11 @@ regimes:
       fiscal: 0.00
       reforms: 0.00
     archetype:
-      growth: 0.05
-      inflation: 0.17
-      monetary: -0.03
+      growth: 0.03
+      inflation: 0.29
+      monetary: -0.04
       fiscal: -0.03
-      reforms: -0.05
+      reforms: -0.10
     tell: Growth near trend, inflation a little above target, a credible central bank.
 
   goldilocks:
@@ -119,8 +119,8 @@ regimes:
       fiscal: 0.33
       reforms: 0.67
     archetype:
-      growth: 0.18
-      inflation: 0.08
+      growth: 0.19
+      inflation: 0.03
       monetary: -0.20
       fiscal: -0.02
       reforms: -0.08
@@ -138,11 +138,11 @@ regimes:
       fiscal: 0.67
       reforms: 0.33
     archetype:
-      growth: 0.09
-      inflation: 0.36
-      monetary: -0.09
-      fiscal: 0.20
-      reforms: -0.12
+      growth: 0.17
+      inflation: 0.66
+      monetary: -0.24
+      fiscal: 0.03
+      reforms: -0.35
     tell: Investment strong and inflation above target, with credibility stretched.
 
   stagflation:
@@ -157,11 +157,11 @@ regimes:
       fiscal: 0.33
       reforms: -0.67
     archetype:
-      growth: -0.29
-      inflation: 0.33
-      monetary: -0.22
-      fiscal: -0.08
-      reforms: -0.09
+      growth: -0.25
+      inflation: 0.73
+      monetary: -0.30
+      fiscal: -0.03
+      reforms: -0.15
     tell: Expectations rising while credibility and the debt trajectory both weaken.
 
   hard_landing:
@@ -176,9 +176,9 @@ regimes:
       fiscal: 0.00
       reforms: -0.67
     archetype:
-      growth: -0.13
-      inflation: 0.17
-      monetary: 0.10
+      growth: -0.14
+      inflation: 0.16
+      monetary: 0.09
       fiscal: -0.11
-      reforms: 0.10
+      reforms: 0.09
     tell: Expectations falling below target while growth prospects weaken.

@@ -1,4 +1,4 @@
-"""The regime each month was actually in since 1980, judged with hindsight.
+"""The regime each month was actually in since 1968, judged with hindsight.
 
 Two numbers per month, both in percentage points:
 
@@ -8,7 +8,9 @@ Two numbers per month, both in percentage points:
   inflation   core PCE inflation over the twelve months centred on the month,
               less expected inflation: the SPF ten-year CPI median, less the
               usual gap between CPI and PCE inflation. Before 1991 the Philly
-              Fed fills that survey series from Blue Chip and Livingston.
+              Fed fills that survey series from Blue Chip and Livingston, and
+              before October 1979 it is carried back by the Fed's FRB/US
+              measure (PTR, the Kozicki-Tinsley estimate before 1979).
 
 Each axis flips only when it clears its band on the other side of zero, so a
 wobble around zero keeps the last call and is marked weak. A quadrant must last
@@ -17,7 +19,7 @@ three months; shorter spells take the label before them.
 Quadrants use the model's names: up and low is goldilocks, up and high is
 high_growth_high_inflation, down and high is stagflation, down and low is
 hard_landing. Unlike backtest.realised, a recession is not forced to
-hard_landing: 1980 and 1990 count as stagflation because inflation ran hot.
+hard_landing: 1970, 1974, 1980 and 1990 count as stagflation because inflation ran hot.
 
 Everything is on today's revised data, which is the point: this is what
 happened, not what anyone could see at the time. At the end of the sample the
@@ -39,7 +41,15 @@ CODES = {
     "pce": "uspric0001",            # PCE, total
     "cpi": "uspric2156",            # CPI all items, SA
     "spf_cpi10": "usfcst0062",      # SPF median CPI over ten years, from 1979
+    "ptr": "frbus:PTR",             # FRB/US expected PCE inflation, ten years, from 1968
 }
+
+# PTR, the Fed's FRB/US measure of long-run expected inflation, carries the
+# survey back before October 1979: surveys from 1979, the Kozicki-Tinsley
+# estimate before. Over their first five overlapping years (1979Q4-1984Q4) it
+# ran 0.09 points below the survey series, so it is put on the survey's basis
+# by adding that back, then treated exactly as the survey is.
+PTR_TO_SPF = 0.09
 
 # Names the inputs are stored under, so the hosted app can rebuild the labels
 # from the published snapshot. Prefixed so they never collide with indicators.
@@ -52,6 +62,7 @@ TITLES = {
     "pce": ("PCE price index", "index", "Monthly"),
     "cpi": ("Consumer price index, all items", "index", "Monthly"),
     "spf_cpi10": ("SPF median expected CPI inflation, next 10 years", "%", "Quarterly"),
+    "ptr": ("FRB/US expected PCE inflation, next 10 years (PTR)", "%", "Quarterly"),
 }
 
 QUADRANT = {(True, False): "goldilocks", (True, True): "high_growth_high_inflation",
@@ -71,6 +82,8 @@ MIN_MONTHS = 3
 # What the record says each stretch was, to check the labels against. The
 # expected label is the textbook reading; the check reports the share agreeing.
 EPISODES = [
+    ("1969-70 recession", "1969-12", "1970-11", "stagflation"),
+    ("Oil shock recession", "1973-11", "1975-03", "stagflation"),
     ("Volcker recessions", "1980-01", "1982-11", "stagflation"),
     ("Recovery and disinflation", "1983-06", "1986-12", "goldilocks"),
     ("Late-80s boom", "1988-01", "1989-06", "high_growth_high_inflation"),
@@ -90,6 +103,14 @@ def fetch(api) -> pd.DataFrame:
     the first month of their quarter."""
     out = {}
     for name, code in CODES.items():
+        if code.startswith("frbus:"):
+            from .sources.frbus import FrbusSource
+            src = FrbusSource()
+            try:
+                out[name] = src.series(code.split(":", 1)[1])
+            finally:
+                src.close()
+            continue
         s = api.get_one_series(code)
         idx = pd.to_datetime(pd.Series(s.dates)).dt.tz_localize(None).dt.to_period("M")
         out[name] = pd.Series(pd.to_numeric(pd.Series(s.values), errors="coerce").values, index=idx)
@@ -280,7 +301,11 @@ def axes(m: pd.DataFrame, years: float = 1, align: str = "centered",
     # CPI runs above PCE; take the gap over the ten years around each month.
     wedge = (m["cpi"].pct_change(12, fill_method=None) - m["pce"].pct_change(12, fill_method=None)) * 100
     wedge = wedge.rolling(120, center=True, min_periods=60).mean().ffill().bfill()
-    spf = m["spf_cpi10"].interpolate(limit_area="inside").ffill()
+    spf = m["spf_cpi10"]
+    if "ptr" in m and m["ptr"].notna().any() and spf.notna().any():
+        early = (m["ptr"] + PTR_TO_SPF).dropna()
+        spf = spf.combine_first(early[early.index < spf.first_valid_index()])
+    spf = spf.interpolate(limit_area="inside").ffill()
     expected = spf - wedge
     n = window_months(years, align, measure)
     after = months_after(years, align, measure)
@@ -338,7 +363,7 @@ def primary(ax: pd.DataFrame, growth_band: float = GROWTH_BAND,
     })
 
 
-def build(m: pd.DataFrame, start: str = "1980-01", years: float = 1, align: str = "centered",
+def build(m: pd.DataFrame, start: str = "1968-01", years: float = 1, align: str = "centered",
           measure: str = "endpoints", min_months: int = MIN_MONTHS) -> pd.DataFrame:
     """One row per month from `start`: the inputs, both gaps and the label."""
     ax = axes(m, years, align, measure)
