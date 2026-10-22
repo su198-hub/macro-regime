@@ -752,6 +752,12 @@ section("m-versions", 11, "Versions and reproducibility")
 # table wants to know what the model is, not what it was.
 prose(
     '<h3 class="m-h3">What changed</h3>'
+    '<p><b>October 2026 — reforms in three blocks (v2).</b> <b>Regulation</b> (RegData and the '
+    'Fraser score) and <b>policy uncertainty</b> a quarter each; <b>industrial policy</b> half: '
+    'the change in the effective tariff rate and in federal non-defense R&amp;D, a quarter each. '
+    'Trade policy uncertainty is dropped: policy uncertainty already rose with each trade war, '
+    'and the tariff rate reads what was done. Graded on the three years that followed, 1976 to '
+    '2023, 68% held out and 64% in real time, against 69% and 64%.</p>'
     '<p><b>October 2026 — the investment share read against its own recent past (v2).</b> '
     'Federal investment as a share of non-interest spending has fallen from about 20% in the '
     '1960s to under 7%, so against a fixed 1985–2019 norm it scored below −1 in every month since '

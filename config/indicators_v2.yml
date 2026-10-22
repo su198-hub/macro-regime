@@ -65,7 +65,7 @@ meta:
   positions_note: >-
     Each regime's position is learned from the run-ups to past regimes,
     1968-2023; graded on the three years that followed, 1976-2023, the call
-    got 69% of each regime's months right on average held out, 64% in real
+    got 68% of each regime's months right on average held out, 64% in real
     time.
   positions_method: >-
     where the drivers sat in the run-up to that regime, 1968 to 2023, shrunk
@@ -81,7 +81,7 @@ meta:
         goldilocks, four high growth, high inflation, four stagflation and
         three hard landings. Before 1979 the inflation anchor is the Fed's
         FRB/US estimate of long-run expectations, not a survey. Graded on the
-        three years that followed, 1976-2023, the call got 69% of each
+        three years that followed, 1976-2023, the call got 68% of each
         regime's months right on average held out and 64% in real time,
         against 34% for assuming the current regime continues; in 60 runs with
         the readings slid out of line with what followed, none matched it. It
@@ -111,15 +111,14 @@ meta:
         as close odds between regimes rather than as a fifth call.
     - title: Reforms is at its floor
       text: >-
-        Policy uncertainty, trade policy uncertainty and the change in the
-        effective tariff rate all sit at the -3 cap in 2026, and the reforms
-        signpost at -1. It was last that low in 1971, the year of price
+        Policy uncertainty and the change in the effective tariff rate both
+        sit at the -3 cap in 2026, and the reforms driver at -1. It was last that low in 1971, the year of price
         controls and a 10% import surcharge, and in 1975 and 1983. Run-ups to
         high growth, high inflation since 1968 came with low reforms, so today
         it tilts the outlook toward higher inflation, at half weight. Reforms
         is there for the long run: it goes with faster productivity over the
-        following decade (+0.47, trend removed), but runs the wrong way for
-        the next three years' growth (-0.43 with the growth gap), because
+        following decade (+0.45, trend removed), but runs the wrong way for
+        the next three years' growth (-0.34 with the growth gap), because
         policy uncertainty spikes in recessions and recoveries follow.
     - title: Potential growth is there by design, not for the forecast
       text: >-
@@ -225,7 +224,6 @@ meta:
       - regulation_growth
       - regulation_score
       - policy_uncertainty
-      - trade_policy_uncertainty
       - public_rnd_change
 
 drivers:
@@ -856,16 +854,21 @@ drivers:
     label: Reforms and industrial policy
     description: >-
       Whether the policy environment is turning more or less friendly to
-      long-run growth: regulation, how predictable policy is, trade policy and
-      public research.
+      long-run growth: regulation, how predictable policy is, and industrial
+      policy (tariffs and public research).
     signpost:
       low: {label: Reactive / limited, tone: risk, phrase: the policy environment is turning against long-run growth}
       high: {label: Proactive / extensive, tone: good, phrase: the policy environment is turning toward long-run growth}
       mid: {phrase: the policy environment is roughly unchanged}
-    # Four blocks at a quarter each. The long-run part of the model, kept by
-    # design: together they go with faster productivity over the following
-    # decade, and are close to neutral for the three-year call, so the
-    # signpost takes half weight there (config/regimes_v2.yml).
+    # Three blocks: regulation and policy uncertainty a quarter each,
+    # industrial policy half (tariffs and public research, a quarter each).
+    # The long-run part of the model, kept by design: together they go with
+    # faster productivity over the following decade, and run the wrong way for
+    # the three-year call, so the driver takes half weight there
+    # (config/regimes_v2.yml). Trade policy uncertainty was dropped in October
+    # 2026: policy uncertainty already rose with each trade war (2018-19,
+    # 2025), and the tariff rate reads what was done; the grade held (69% to 68% held out,
+    # 64% in real time).
     groups:
       regulation:
         label: Regulation
@@ -873,12 +876,9 @@ drivers:
       uncertainty:
         label: Policy uncertainty
         description: How unpredictable economic policy is.
-      trade:
-        label: Trade policy
-        description: Whether tariffs are rising, and how uncertain trade policy is.
-      research:
-        label: Public research
-        description: Whether federal non-defense R&D is growing as a share of the economy.
+      industrial:
+        label: Industrial policy
+        description: Whether tariffs are rising, and whether federal non-defense R&D is growing as a share of the economy.
     indicators:
       - id: regulation_growth
         group: regulation
@@ -937,7 +937,7 @@ drivers:
           investment back, not whether it is rising.
 
       - id: tariff_rate_change
-        group: trade
+        group: industrial
         label: Effective tariff rate, change over three years (falling +)
         source:
           expr: "CUSTOMS / (GOODS_IMPORTS_SHARE / 100 * GDPNOM) * 100"
@@ -945,33 +945,17 @@ drivers:
         transform: diff_36m_ann
         normalize: {method: gap, center: 0.0, scale: 0.148}
         direction: -1
-        weight: 0.125
+        weight: 0.25
         carry_forward_periods: 2
         why: >-
-          **Trade policy: tariffs.** Customs duties as a share of goods imports,
+          **Trade policy.** Customs duties as a share of goods imports,
           the tariff actually paid. Tariffs pass through to US prices, raise
           input costs and shield weak firms (Amiti, Redding and Weinstein).
           Over the next three years a rising rate has gone with higher
           inflation; the long-run case rests on the economics.
 
-      - id: trade_policy_uncertainty
-        group: trade
-        label: Trade policy uncertainty, 12-month average (low +)
-        source: {series: TPU}
-        transform: mean_12m
-        normalize: {method: gap, center: 41.62, scale: 27.48}
-        direction: -1
-        weight: 0.125
-        absolute_level: true
-        why: >-
-          **Trade policy: uncertainty.** How much newspapers discuss trade
-          policy together with uncertainty. Uncertainty about future tariffs
-          freezes supply-chain investment (Caldara, Iacoviello and others).
-          Read as a level against its 1985-2019 average, like policy
-          uncertainty.
-
       - id: public_rnd_change
-        group: research
+        group: industrial
         label: Federal non-defense R&D, % of GDP, change over five years
         source:
           expr: "FED_RND / GDPNOM * 100"
