@@ -197,3 +197,16 @@ def test_ordinal_slots_keep_neutral_central_and_order_each_side_evenly():
     # Reversed rows mirror: the higher score on the left, neutral still central.
     slots_r, place_r = ui.ordinal_slots({"a": 0.10, "b": 0.30, "c": -0.4}, reverse=True)
     assert [k for _, k in slots_r] == [["b"], ["a"], ["c"]] and place_r(0.0) == 50.0
+
+
+def test_why_called_can_say_the_signposts_lean_toward_a_challenger():
+    from src import ui
+    import pandas as pd
+    reg = {"regimes": {"hot": {"label": "Hot", "archetype": {"d": 0.6}},
+                       "cold": {"label": "Cold", "archetype": {"d": -0.6}}}}
+    cfg = {"drivers": {"d": {"label": "Demand", "indicators": [],
+                             "signpost": {"low": {"phrase": "demand is weak"},
+                                          "high": {"phrase": "demand is strong"}}}}}
+    row = pd.Series({"d": 0.55})
+    assert ui.why_called(row, cfg, reg, "hot", leaning=True).startswith("Leaning toward hot")
+    assert ui.why_called(row, cfg, reg, "hot").startswith("Hot")

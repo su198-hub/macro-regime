@@ -104,7 +104,7 @@ regimes:
     archetype:
       growth: 0.19
       inflation: 0.07
-      monetary: -0.19
+      monetary: -0.24
       fiscal: -0.02
       reforms: -0.08
     tell: Productivity and capex plans rising together with expectations at target.
@@ -123,7 +123,7 @@ regimes:
     archetype:
       growth: 0.17
       inflation: 0.69
-      monetary: -0.24
+      monetary: -0.29
       fiscal: 0.03
       reforms: -0.35
     tell: Investment strong and inflation above target, with credibility stretched.
@@ -140,9 +140,9 @@ regimes:
       fiscal: 0.33
       reforms: -0.67
     archetype:
-      growth: -0.25
+      growth: -0.26
       inflation: 0.79
-      monetary: -0.30
+      monetary: -0.34
       fiscal: -0.03
       reforms: -0.15
     tell: Expectations rising while credibility and the debt trajectory both weaken.

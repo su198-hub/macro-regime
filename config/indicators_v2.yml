@@ -65,7 +65,7 @@ meta:
   positions_note: >-
     Each regime's position is learned from the run-ups to past regimes,
     1968-2023; graded on the three years that followed, 1976-2023, the call
-    got 65% of each regime's months right on average held out, 56% in real
+    got 68% of each regime's months right on average held out, 57% in real
     time.
   positions_method: >-
     where the drivers sat in the run-up to that regime, 1968 to 2023, shrunk
@@ -81,8 +81,8 @@ meta:
         goldilocks, four high growth, high inflation, four stagflation and
         three hard landings. Before 1979 the inflation anchor is the Fed's
         FRB/US estimate of long-run expectations, not a survey. Graded on the
-        three years that followed, 1976-2023, the call got 65% of each
-        regime's months right on average held out and 56% in real time,
+        three years that followed, 1976-2023, the call got 68% of each
+        regime's months right on average held out and 57% in real time,
         against 34% for assuming the current regime continues; in 60 runs with
         the readings slid out of line with what followed, none matched it. It caught all three hard-landing run-ups held out,
         two in real time. In real time, a regime not yet seen falls back to its
@@ -93,7 +93,7 @@ meta:
       text: >-
         Run-ups average many months, so the learned positions sit near the
         middle and near each other, and the probabilities are modest: since
-        1968 the leading scenario has had a median of 62%, and more than 79%
+        1968 the leading scenario has had a median of 63%, and more than 80%
         in only one month in ten. The judgment positions are scaled
         to the same spread before the data are weighed against them; unscaled,
         they pulled every position outward and the call fell below 40% held
@@ -150,7 +150,7 @@ meta:
         hawkish side, the other regimes on the dovish side.
     - title: Credibility is a track record only
       text: >-
-        The miss rate, volatility and trajectory look back. Since 2021 they
+        The miss rate and volatility look back. Since 2021 they
         read as losing credibility while long-run breakevens held near 2.3%; a
         market anchor is not in the signpost.
     - title: Fiscal policy reads change, not the size of the deficit
@@ -195,11 +195,9 @@ meta:
       - real_rate_gap
       - taylor_gap
       - forecaster_disagreement
-      - inflation_trajectory
       - outlays_vs_receipts
       - repricing_drift
       - capb_3y_change
-      - primary_balance_3y
     long:
       - cbo_potential_growth_revision
       - spf_productivity_revision
@@ -634,7 +632,7 @@ drivers:
         transform: level
         normalize: {method: gap, center: 0.0, scale: 0.98}
         direction: 1
-        weight: 0.10
+        weight: 0.125
         release: PCE report
         carry_forward_periods: 6
         why: >-
@@ -650,7 +648,7 @@ drivers:
         transform: off_target_share_36m
         normalize: {method: gap, center: 42.8, scale: 30.7}
         direction: -1
-        weight: 0.10
+        weight: 0.125
         why: >-
           **Inflation against target, hit rate**, as its complement: the share
           of months missed. With a good record a slowdown pulls inflation down
@@ -663,20 +661,8 @@ drivers:
         transform: vol_36m
         normalize: {method: gap, center: 0.29, scale: 0.12}
         direction: -1
-        weight: 0.10
+        weight: 0.125
         why: "**Inflation volatility**: steady inflation, even off target, is easier to believe than violent swings."
-
-      - id: inflation_trajectory
-        group: credibility
-        label: Change in core inflation's distance from 2%, over a year
-        source: {series: PCEPILFE}
-        transform: target_distance_change_12m
-        normalize: {method: gap, center: 0.0, scale: 0.42}
-        direction: -1
-        weight: 0.10
-        why: >-
-          **Inflation trajectory**: whether inflation is closing on target
-          or drifting away from it.
 
       - id: forecaster_disagreement
         group: credibility
@@ -685,7 +671,7 @@ drivers:
         transform: level
         normalize: {method: gap, center: 0.68, scale: 0.21}
         direction: -1
-        weight: 0.10
+        weight: 0.125
         carry_forward_periods: 2
         why: "**Forecaster disagreement on inflation**: when the anchor holds, forecasters agree on where inflation is going."
 
@@ -722,7 +708,7 @@ drivers:
         transform: diff_36m_ann
         normalize: {method: gap, center: 0.0, scale: 0.80}
         direction: -1
-        weight: 0.125
+        weight: 0.1875
         carry_forward_periods: 2
         why: >-
           **Fiscal impulse, adjusted for the cycle.** The primary balance is
@@ -731,26 +717,6 @@ drivers:
           benefits rising in a downturn), leaving the part set by policy. A
           falling balance means policy is adding to demand. Read as the change
           over three years, per year.
-
-      - id: primary_balance_3y
-        group: impulse
-        label: Federal primary balance, % of GDP, three-year change (loosening +)
-        source:
-          expr: "(balance_12m + interest_12m) / GDPNOM * 100"
-          series: [MTSBAL, MTSNETINT, GDPNOM]
-          derived:
-            balance_12m: {series: MTSBAL, transform: sum_12m}
-            interest_12m: {series: MTSNETINT, transform: sum_12m}
-        transform: diff_36m_ann
-        normalize: {method: gap, center: 0.0, scale: 1.08}
-        direction: -1
-        weight: 0.125
-        release: Monthly Treasury Statement
-        why: >-
-          **Fiscal impulse, monthly.** The same balance from the Treasury's
-          monthly accounts: the deficit summed over 12 months, with interest
-          added back, against GDP. Not adjusted for the cycle, so it also picks
-          up recessions, but it is current to the month.
 
       - id: outlays_vs_receipts
         group: impulse
@@ -766,7 +732,7 @@ drivers:
         transform: level
         normalize: {method: gap, center: 0.0, scale: 4.98}
         direction: 1
-        weight: 0.125
+        weight: 0.1875
         release: Monthly Treasury Statement
         why: >-
           **Revenue against expenditure trajectory.** Annualized growth of

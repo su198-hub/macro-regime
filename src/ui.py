@@ -857,7 +857,7 @@ def _gaps(row: pd.Series, reg_cfg: dict, regime: str) -> pd.Series:
 
 
 def why_called(row: pd.Series, ind_cfg: dict, reg_cfg: dict, regime: str,
-               weak: bool = False, evidence: dict | None = None) -> str:
+               weak: bool = False, evidence: dict | None = None, leaning: bool = False) -> str:
     """Why this month looks like this regime, in two or three sentences.
 
     Opens with what the regime needs and the month has, backed by the reading
@@ -866,6 +866,9 @@ def why_called(row: pd.Series, ind_cfg: dict, reg_cfg: dict, regime: str,
     sees where inflation and policy sit rather than one flattering fact. The
     driver arguing hardest against is left to objection(), which the page puts
     last. Distances stay in the drill-down and the methodology.
+
+    `leaning`: the regime leads but has not yet held long enough to be called,
+    so the sentence says the signposts lean toward it rather than naming it.
     """
     if regime not in reg_cfg["regimes"] or row is None:
         return ""
@@ -889,13 +892,15 @@ def why_called(row: pd.Series, ind_cfg: dict, reg_cfg: dict, regime: str,
     # Plain text, not HTML; the caller escapes it.
     evidence = evidence or {}
     said = set()
+    name = f"Leaning toward {label.lower()}" if leaning else label
     if support:
-        first = f"{label} because {driver_phrase(support[0], row[support[0]], ind_cfg)}"
+        first = f"{name} because {driver_phrase(support[0], row[support[0]], ind_cfg)}"
         if evidence.get(support[0]):
             first += f", with {evidence[support[0]]}"
         said.add(support[0])
     else:
-        first = f"Nearest to {label}, though no driver is close to what it expects"
+        first = (f"{name}, though no driver is close to what it expects" if leaning else
+                 f"Nearest to {label}, though no driver is close to what it expects")
     sentences = [f"{first}."]
 
     # Then the rest of the picture, loudest first, so inflation and policy get

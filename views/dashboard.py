@@ -159,19 +159,29 @@ elif called == "unclassified":
 else:
     # Why this regime, in plain terms. The distances behind it are in the
     # drill-down and the methodology, where someone is asking for them.
-    focus_regime_name = called if called in reg["regimes"] else leading
+    # The reasons describe whichever regime the signposts sit nearest this
+    # month; when a new leader has not yet held long enough to take the call,
+    # that is the leader, and the standing line says the call is held.
+    challenger = leading in reg["regimes"] and called in reg["regimes"] and leading != called
+    focus_regime_name = leading if challenger or called not in reg["regimes"] else called
     lede = ui.why_called(row, cfg, reg, focus_regime_name, weak=(grade == "weak"),
-                         evidence=evidence)
+                         evidence=evidence, leaning=challenger)
     objection = ui.objection(row, cfg, reg, focus_regime_name, evidence=evidence)
     if objection:
         lede += f" {objection}"
-    standing = f"Called since {since:%B %Y}"
-    if runner_up is not None:
-        gap = (ranked.iloc[0] - ranked.iloc[1]) * 100
-        standing += (f", at {ranked.iloc[0]:.0%} probability, {gap:.0f} points ahead of "
-                     f"{regime_label[runner_up].lower()}.")
+    if challenger:
+        gap = (ranked[leading] - ranked[called]) * 100
+        standing = (f"{regime_label[called]} called since {since:%B %Y}. "
+                    f"{regime_label[leading]} now leads, at {ranked[leading]:.0%}, "
+                    f"{gap:.0f} points ahead.")
     else:
-        standing += "."
+        standing = f"Called since {since:%B %Y}"
+        if runner_up is not None:
+            gap = (ranked.iloc[0] - ranked.iloc[1]) * 100
+            standing += (f", at {ranked.iloc[0]:.0%} probability, {gap:.0f} points ahead of "
+                         f"{regime_label[runner_up].lower()}.")
+        else:
+            standing += "."
 
 if called != "transitional" and state != called and pd.notna(state):
     streak = ui.run_length(calls.loc[:latest, "state"])

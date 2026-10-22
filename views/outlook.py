@@ -83,6 +83,12 @@ land_now = landing(p_now, outcomes)
 land_then = landing(p_then, outcomes) if p_then is not None else None
 ranked = p_now.sort_values(ascending=False)
 lead, second = ranked.index[0], ranked.index[1]
+# The call, as the dashboard makes it: a new leader takes over only after
+# leading for the persistence rule's run of months.
+_calls = R.call_regime(probabilities(scores), REG)
+called = _calls.at[latest, "called"]
+_lead_run = int((_calls["leading"][::-1] == lead).cummin().sum())
+_need = int(REG["settings"]["persistence_months"])
 
 
 def direction(g: float, i: float) -> str:
@@ -96,16 +102,22 @@ def direction(g: float, i: float) -> str:
 
 when = latest.to_timestamp(how="end")
 call_col, prob_col = st.columns([1.15, 1], gap="large")
+if called == lead:
+    _lede = (f'{LABEL[lead]} is the most likely regime for the next three years, at '
+             f'{p_now[lead]:.0%}; {LABEL[second].lower()} is next at {p_now[second]:.0%}. ')
+else:
+    _lede = (f'{LABEL[lead]} now leads, at {p_now[lead]:.0%} against {p_now[called]:.0%} for '
+             f'{LABEL[called].lower()}, but has led for {_lead_run} of the {_need} months needed to '
+             f'change the call, so the call stays {LABEL[called].lower()} for now. ')
 call_col.html(
     f'<p class="mr-eyebrow">Next three years, read in {when:%B %Y}</p>'
-    f'<div class="mr-call"><span class="mr-call-swatch" style="background:{COLOR[lead]}"></span>'
-    f'{ui.esc(LABEL[lead])}</div>'
-    f'<p class="mr-lede">{ui.esc(LABEL[lead])} is the most likely regime for the next three '
-    f'years, at {p_now[lead]:.0%}; {ui.esc(LABEL[second].lower())} is next at {p_now[second]:.0%}. '
+    f'<div class="mr-call"><span class="mr-call-swatch" style="background:{COLOR[called]}"></span>'
+    f'{ui.esc(LABEL[called])}</div>'
+    f'<p class="mr-lede">{ui.esc(_lede)}'
     f'Weighing all four by their odds, the signposts point to {direction(*land_now)}.</p>'
     + (f'<p class="mr-lede-muted">A year ago the same reading pointed to '
        f'{direction(*land_then)}.</p>' if land_then is not None else ""))
-prob_col.html(ui.probability_panel(p_now, REG, lead, f"{when:%b}"))
+prob_col.html(ui.probability_panel(p_now, REG, called, f"{when:%b}"))
 
 # ---------- 2. where growth and inflation are heading ----------
 
@@ -264,7 +276,7 @@ if st.button("Show the track record", key="prop_track"):
                      + ["Hard-landing run-ups caught"], rows, numeric=set(range(1, 7))))
     st.caption("Placebo, run 22 October 2026: with the signpost readings slid out of line with what "
                "followed, none of 40 held-out and none of 20 real-time runs matched these scores "
-               "(medians 29% and 30%).")
+               "(medians 28% and 29%).")
     band = pd.DataFrame({"Real-time call": T["Real time"]["calls"],
                          "What the next 3 years were": T["labels"]})
     long = band.reset_index(names="month").melt("month", var_name="row", value_name="regime").dropna()

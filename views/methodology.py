@@ -734,6 +734,12 @@ section("m-versions", 11, "Versions and reproducibility")
 # table wants to know what the model is, not what it was.
 prose(
     '<h3 class="m-h3">What changed</h3>'
+    '<p><b>October 2026 — two indicators out (v2).</b> The change in core inflation’s distance '
+    'from 2% leaves credibility: its information overlaps the miss rate and the Taylor gap, and '
+    'the call did slightly better without it. The Treasury’s primary balance leaves the fiscal '
+    'impulse: it overlaps the OECD’s cyclically adjusted balance. Each block keeps its share. '
+    '33 indicators; graded on the three years that followed, 1976 to 2023, 68% held out and '
+    '57% in real time, against 65% and 56%.</p>'
     '<p><b>October 2026 — core PCE replaces the trimmed mean (v2).</b> Underlying inflation in '
     'the inflation signpost is now core PCE against the forecasters’ ten-year CPI, not the '
     'Dallas Fed trimmed mean. The trimmed mean drops each month’s largest price moves, which '
