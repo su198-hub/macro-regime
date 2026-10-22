@@ -745,6 +745,14 @@ section("m-versions", 11, "Versions and reproducibility")
 # table wants to know what the model is, not what it was.
 prose(
     '<h3 class="m-h3">What changed</h3>'
+    '<p><b>October 2026 — wage growth joins inflation pressure (v2).</b> The pressure block is '
+    'now weighted as inflation forecasters weight it: where inflation starts (core PCE against '
+    'expectations) most, then labor costs, then money and housing. Core PCE gap 31.25%, '
+    'average hourly earnings growth over three years 18.75%, M2 and house prices 12.5% each; '
+    'house prices had been 25%, about one and a half times shelter’s share of core PCE. Wage '
+    'growth was chosen over the unemployment gap, whose link to later inflation disappears '
+    'after 1995. Graded on the three years that followed, 1976 to 2023, 71% held out and 64% '
+    'in real time, against 68% and 60%.</p>'
     '<p><b>October 2026 — corrections from a code review (v2).</b> The Fed’s FRB/US long-run '
     'expectations, which carry the inflation anchor back before 1979, ran 0.09 points above the '
     'survey where they overlap, not below: they are now lowered by 0.09, not raised. They are '

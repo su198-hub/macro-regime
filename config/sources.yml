@@ -454,6 +454,11 @@ series:
       five years 1970-2000, annual since; published about two years late.
       Partly built from executive surveys since 2001, when the score fell from
       9.1 to 6.3 on the new method alone.
+  AHE_PROD:
+    macrobond: uslama0218
+    note: >-
+      Average hourly earnings of production and nonsupervisory employees,
+      total private, monthly, SA, USD (BLS), from 1964.
   FRBUS_PTR:
     use: frbus
     frbus: PTR

@@ -65,7 +65,7 @@ meta:
   positions_note: >-
     Each regime's position is learned from the run-ups to past regimes,
     1968-2023; graded on the three years that followed, 1976-2023, the call
-    got 68% of each regime's months right on average held out, 60% in real
+    got 71% of each regime's months right on average held out, 64% in real
     time.
   positions_method: >-
     where the drivers sat in the run-up to that regime, 1968 to 2023, shrunk
@@ -81,8 +81,8 @@ meta:
         goldilocks, four high growth, high inflation, four stagflation and
         three hard landings. Before 1979 the inflation anchor is the Fed's
         FRB/US estimate of long-run expectations, not a survey. Graded on the
-        three years that followed, 1976-2023, the call got 68% of each
-        regime's months right on average held out and 60% in real time,
+        three years that followed, 1976-2023, the call got 71% of each
+        regime's months right on average held out and 64% in real time,
         against 34% for assuming the current regime continues; in 60 runs with
         the readings slid out of line with what followed, none matched it. It
         caught all three hard-landing run-ups held out, two in real time. In
@@ -97,8 +97,8 @@ meta:
       text: >-
         Run-ups average many months, so the learned positions sit near the
         middle and near each other, and the probabilities are modest: since
-        1968 the leading scenario has had a median of 63%, and more than 80%
-        in only one month in ten. The judgment positions are scaled
+        1968 the leading scenario has had a median of 65%, and more than 80%
+        in about one month in eight. The judgment positions are scaled
         to the same spread before the data are weighed against them; unscaled,
         they pulled every position outward and the call fell below 40% held
         out.
@@ -137,8 +137,8 @@ meta:
         -0.46 to +0.30 with the next three years' inflation gap, and the
         breakeven and Cleveland measures have the wrong sign. They are kept, at
         25% of inflation, to hold the long-run view. The pressure block does
-        the forecasting: +0.64 with the next three years' gap, 1971-2023, and
-        the right sign in both halves. Before 1978 it is money and core
+        the forecasting: +0.65 with the next three years' gap, 1971-2023, and
+        the right sign in both halves. Before 1978 it is money, wages and core
         inflation against the Fed's FRB/US long-run expectations; house prices
         join in 1978 and the survey in 1979.
     - title: A 2% anchor before there was a target
@@ -191,6 +191,7 @@ meta:
       - company_credit_real_3y
       - household_credit_real_3y
       - m2_growth_3y
+      - wage_growth_3y
       - house_prices_3y
       - underlying_inflation_gap
       - tariff_rate_change
@@ -426,7 +427,7 @@ drivers:
         transform: pct_change_3y_ann
         normalize: {method: gap, center: 5.43, scale: 1.73}
         direction: 1
-        weight: 0.25
+        weight: 0.125
         release: Fed H.6
         why: >-
           **Money growth.** Prices rise when spending outgrows what the economy
@@ -444,13 +445,34 @@ drivers:
         normalize: {method: gap, center: 3.65, scale: 4.8}
         direction: 1
         release: Case-Shiller
-        weight: 0.25
+        weight: 0.125
         why: >-
           **House prices.** Shelter is the largest slow-moving part of core
           inflation. Rents and owners' equivalent rent follow house prices with
           a lag of a year or more as leases reset, and rising home values feed
           spending through household wealth. Misleads when a boom ends in a
           bust, as in 2006.
+
+      - id: wage_growth_3y
+        group: pressure
+        label: Average hourly earnings, three-year annualized growth
+        source: {series: AHE_PROD}
+        transform: pct_change_3y_ann
+        normalize: {method: gap, center: 2.97, scale: 0.64}
+        direction: 1
+        weight: 0.1875
+        release: Employment report
+        why: >-
+          **Wage pressure.** Tight labor reaches prices through labor costs:
+          when pay grows faster than productivity plus the inflation target,
+          firms pass it on. Read over three years, like money and house
+          prices, so it describes the trend rather than a single year, and so
+          composition swings such as spring 2020 (when low-paid jobs vanished
+          and the average jumped) count for less. Wages also follow past
+          inflation, so part of the signal is persistence. Chosen over the
+          unemployment gap, whose link to later inflation disappears after
+          1995, and over job openings per unemployed worker, which start only
+          in 2000.
 
       - id: underlying_inflation_gap
         group: pressure
@@ -469,7 +491,7 @@ drivers:
         transform: level
         normalize: {method: gap, center: -0.76, scale: 0.37}
         direction: 1
-        weight: 0.25
+        weight: 0.3125
         anchor: true
         carry_forward_periods: 2
         release: PCE report
