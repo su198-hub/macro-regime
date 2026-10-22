@@ -35,6 +35,9 @@ st.navigation(
      # question from every other page: not what regime this month is, but what
      # is already determined about the next three years.
      st.Page("views/forecast.py", title="Forecast", url_path="forecast",
+             visibility="hidden"),
+     # Hidden: how the v2 three-year call would be presented, while it is weighed.
+     st.Page("views/proposal.py", title="Three-year outlook", url_path="proposal",
              visibility="hidden")],
     position="top",
 ).run()

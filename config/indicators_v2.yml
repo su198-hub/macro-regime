@@ -103,17 +103,18 @@ meta:
         The answer key has only the four growth-inflation regimes. Baseline's
         position is the average month, and a month called Baseline counts as
         a miss in every grade above.
-    - title: Reforms reads beyond its history
+    - title: Reforms is at its floor
       text: >-
         Policy uncertainty, trade policy uncertainty and the change in the
         effective tariff rate all sit at the -3 cap in 2026, and the reforms
-        signpost at -1, further out than in any month the positions were
-        learned from. It counts at half weight and adds about the same
-        distance to every scenario, so it moves the call little. Reforms is
-        there for the long run: it goes with faster productivity over the
+        signpost at -1. It was last that low in 1971, the year of price
+        controls and a 10% import surcharge, and in 1975 and 1983. Run-ups to
+        high growth, high inflation since 1968 came with low reforms, so today
+        it tilts the outlook toward higher inflation, at half weight. Reforms
+        is there for the long run: it goes with faster productivity over the
         following decade (+0.47, trend removed), but runs the wrong way for
-        the next three years (-0.43 with the growth gap), because policy
-        uncertainty spikes in recessions and recoveries follow.
+        the next three years' growth (-0.43 with the growth gap), because
+        policy uncertainty spikes in recessions and recoveries follow.
     - title: Potential growth is there by design, not for the forecast
       text: >-
         The labeled regime reads growth against potential, so revisions to
