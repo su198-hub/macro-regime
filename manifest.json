@@ -1,0 +1,23 @@
+{
+  "published_at": "2026-10-22T09:14:55+00:00",
+  "rows": 1164181,
+  "series": 133,
+  "sources": [
+    "bloomberg",
+    "energy-census",
+    "energy-composite",
+    "energy-eia",
+    "energy-epoch",
+    "energy-fred",
+    "energy-gpr",
+    "energy-pjm",
+    "frbus",
+    "macrobond",
+    "quantgov"
+  ],
+  "latest_vintage": "2026-10-22",
+  "licensed_vendors": [
+    "bloomberg"
+  ],
+  "licensed_note": "Published with --allow-licensed on the stated authority of the vendor. Contains data from: bloomberg"
+}
