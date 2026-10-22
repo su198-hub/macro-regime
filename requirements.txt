@@ -1,4 +1,4 @@
-duckdb>=1.0
+duckdb>=1.0,<2  # 2.0 (Oct 2026) refuses a new query while a result is unfinished; the snapshot loader trips it
 pandas>=2.0
 numpy>=1.24
 pyyaml>=6.0
