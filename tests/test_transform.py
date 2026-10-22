@@ -40,3 +40,10 @@ def test_diff_5y_matches_by_date_across_a_gap():
     out = TRANSFORMS["diff_5y"](s).dropna()
     assert out.eq(60.0).all()
     assert pd.Timestamp("2007-01-31") not in out.index      # 2002-01 is in the hole
+
+
+def test_diff_5y_finds_feb_28_five_years_after_feb_29():
+    idx = pd.date_range("2016-01-31", "2021-03-31", freq="ME")
+    s = pd.Series(np.arange(len(idx), dtype=float), index=idx)
+    out = TRANSFORMS["diff_5y"](s)
+    assert out.loc["2021-02-28"] == pytest.approx(60.0)

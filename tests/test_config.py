@@ -18,7 +18,7 @@ DRIVERS = CFG["drivers"]
 ALL_IDS = [i["id"] for d in DRIVERS.values() for i in d["indicators"]]
 
 # Every indicator file the app can be switched to, and how many indicators a
-# signpost may carry in each. v2 follows the October 2026 slide's list in full
+# signpost may carry in each. v2 follows the October 2026 agreed list in full
 # while it is on trial, so its growth signpost carries eight and its multiplier
 # axis two; trim it once the trial says which earn their place.
 CONFIGS = {"config/indicators.yml": (3, 6), "config/indicators_v2.yml": (2, 8)}

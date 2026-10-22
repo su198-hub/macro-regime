@@ -218,9 +218,9 @@ prose(f'<p>The horizon mix is the share of each driver\'s weight looking out ove
       f'bias by accident.</p>')
 
 prose((f'<p>{n_regimes.capitalize()} regimes are each placed where the drivers sat in the run-up '
-       f'to that regime. Every month is called the nearest one, unless none reaches the '
-       f'{settings["min_confidence"]:.0%} confidence floor, when the call is transitional '
-       f'(section {num("m-regimes")}).</p>') if not GATE_ON and HORIZON else
+       f'to that regime. Every month is called the nearest one, once it has led for '
+       f'{settings["persistence_months"]} months in a row (section {num("m-regimes")}).</p>')
+      if not GATE_ON and HORIZON else
       (f'<p>{n_regimes.capitalize()} regimes are defined by where each expects the drivers to '
        'sit. A month is called a regime only when it is genuinely close to one; otherwise the call '
        f'is <b>no clear regime</b> (section {num("m-regimes")}). Middling months are common, and '
@@ -241,19 +241,26 @@ prose(
     '<ul>'
     '<li><b>Each row is one driver</b>, drawn from one extreme to the other. Red end boxes '
     'mark outcomes that are a risk; green marks outcomes that are good for growth.</li>'
-    + ('<li><b>Regime codes</b> sit where the driver stood in the run-up to that regime, taken from '
-       if HORIZON else '<li><b>Regime codes</b> sit where that regime expects the driver to be, taken from ')
-    +
-    f'the archetype table in section {num("m-regimes")}. Codes close together share a slot.</li>'
-    '<li><b>The solid star</b> is the latest confirmed month\'s score; <b>the outlined star</b>, '
+    + (('<li><b>Regime codes</b> sit in order along each row, at where the driver stood in the '
+        'run-up to that regime (the table in section ' + str(num("m-regimes")) + '). The slots are '
+        'evenly spaced either side of neutral, so the gaps show order, not distance; regimes '
+        'within 0.03 of each other share a slot.</li>')
+       if str(settings.get("signpost_layout", "linear")) == "ordinal" else
+       ('<li><b>Regime codes</b> sit where that regime expects the driver to be, taken from the '
+        'archetype table in section ' + str(num("m-regimes")) + '. Codes close together share a '
+        'slot.</li>'))
+    + '<li><b>The solid star</b> is the latest confirmed month\'s score; <b>the outlined star</b>, '
     'when shown, is the provisional month. <b>The hollow circle</b> is the score twelve months '
     'earlier, as the data is known today.</li>'
     '<li><b>The thin center line</b> is zero, the neutral reading.</li>'
     + (f'<li><b>{ui.esc(ui.join_words([reversed_[0]] + [n.lower() for n in reversed_[1:]]))}</b> '
        f'{"is" if len(reversed_) == 1 else "are"} drawn with the tighter end on the left. '
        f'Scores still count restrictive as positive.</li>' if reversed_ else '')
-    + '<li>A star sitting near a regime\'s code on most rows is what a high probability '
-    'for that regime looks like.</li></ul>')
+    + ('<li>A star sitting between the same two codes on most rows is what a close call '
+       'between those regimes looks like; the probabilities use the actual distances.</li></ul>'
+       if str(settings.get("signpost_layout", "linear")) == "ordinal" else
+       '<li>A star sitting near a regime\'s code on most rows is what a high probability '
+       'for that regime looks like.</li></ul>'))
 
 # ---------- 4. data ----------
 
@@ -562,8 +569,12 @@ prose(f'<p>A month with any driver missing gets no probabilities rather than a g
       f'<li><b>Persistence.</b> The leading regime becomes the call only after leading for '
       f'{settings["persistence_months"]} consecutive months. This stops the call flipping '
       f'on noise.</li>'
-      f'<li><b>Confidence floor.</b> If no regime reaches {settings["min_confidence"]:.0%}, '
-      f'the call is reported as transitional.</li></ul>')
+      + (f'<li><b>Confidence floor.</b> If no regime reaches {settings["min_confidence"]:.0%}, '
+         f'the call is reported as transitional.</li></ul>'
+         if float(settings["min_confidence"]) > 1 / len(regime_names) else
+         f'<li><b>Confidence floor.</b> {settings["min_confidence"]:.0%}, which with '
+         f'{len(regime_names)} regimes never binds: the leader always has at least '
+         f'{1 / len(regime_names):.0%}.</li></ul>'))
 if str(settings.get("fit_gate", "none")) == "closer_than_neutral":
     tolerance = float(settings.get("fit_tolerance", 1.0))
     # Measured, not remembered: this number moves whenever the indicator set or
@@ -734,6 +745,14 @@ section("m-versions", 11, "Versions and reproducibility")
 # table wants to know what the model is, not what it was.
 prose(
     '<h3 class="m-h3">What changed</h3>'
+    '<p><b>October 2026 — corrections from a code review (v2).</b> The Fed’s FRB/US long-run '
+    'expectations, which carry the inflation anchor back before 1979, ran 0.09 points above the '
+    'survey where they overlap, not below: they are now lowered by 0.09, not raised. They are '
+    'also dated as published a month after each quarter, so rewinding the dashboard no longer '
+    'drops the indicators that use them. In real time, outcomes now count as known 40 months '
+    'later, once the last GDP quarter is published, not 36. Positions relearned: 68% held out '
+    'and 60% in real time, 1976 to 2023. The July 2026 call becomes high growth, high inflation: '
+    'May now tips that way, so it has led for the three months the rule needs.</p>'
     '<p><b>October 2026 — two indicators out (v2).</b> The change in core inflation’s distance '
     'from 2% leaves credibility: its information overlaps the miss rate and the Taylor gap, and '
     'the call did slightly better without it. The Treasury’s primary balance leaves the fiscal '

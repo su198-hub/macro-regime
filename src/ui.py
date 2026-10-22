@@ -82,7 +82,7 @@ def ordinal_slots(positions: dict[str, float], reverse: bool = False):
     items = sorted(positions.items(), key=lambda kv: kv[1])
     groups: list[list[tuple[str, float]]] = []
     for key, v in items:
-        if groups and abs(v - groups[-1][-1][1]) <= SLOT_TIE and (v < 0) == (groups[-1][-1][1] < 0):
+        if groups and abs(v - groups[-1][0][1]) <= SLOT_TIE and (v < 0) == (groups[-1][0][1] < 0):
             groups[-1].append((key, v))
         else:
             groups.append([(key, v)])
@@ -658,7 +658,7 @@ def signpost_html(drivers: pd.DataFrame, ind_cfg: dict, reg_cfg: dict,
                  'the two scenarios its reading falls between. Hover for exact values.</div>')
     if reversed_names:
         names = join_words([reversed_names[0]] + [n.lower() for n in reversed_names[1:]])
-        note = (f'<div class="sp-note">{esc(names)} '
+        note += (f'<div class="sp-note">{esc(names)} '
                 f'{"is" if len(reversed_names) == 1 else "are"} drawn with the '
                 f'tighter end on the left. Scores still count restrictive as positive.</div>')
     return (f'<div class="sp"><div class="sp-legend">{"".join(legend)}</div>'

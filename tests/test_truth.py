@@ -193,7 +193,7 @@ def test_ptr_carries_the_inflation_anchor_back_before_the_survey():
                       "spf_cpi10": np.nan, "ptr": 3.0}, index=idx)
     m.loc[m.index >= pd.Period("1979-10", "M"), "spf_cpi10"] = 5.0
     ax = truth.axes(m)
-    assert ax.loc[pd.Period("1975-06", "M"), "spf_cpi10"] == 3.0 + truth.PTR_TO_SPF
+    assert ax.loc[pd.Period("1975-06", "M"), "spf_cpi10"] == pytest.approx(3.0 + truth.PTR_TO_SPF)
     assert ax.loc[pd.Period("1990-06", "M"), "spf_cpi10"] == 5.0
     no_ptr = truth.axes(m.drop(columns="ptr"))
     assert no_ptr["spf_cpi10"].first_valid_index() >= pd.Period("1979-10", "M")

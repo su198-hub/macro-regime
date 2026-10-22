@@ -44,6 +44,9 @@ import pandas as pd
 from . import truth
 
 HORIZON = 36            # months a forward label describes
+# A forward label is known only once the last GDP quarter in its window is
+# published: about four months after the window ends.
+LABEL_LAG = 4
 START = "1968-01"       # first month with every signpost at least partly measured, and with an answer key
 MIN_COVERAGE = 0.4      # share of a signpost's indicator weight that must be present
 TEMPERATURE = 0.75
@@ -199,12 +202,12 @@ def real_time(train: pd.DataFrame, judgment: pd.DataFrame, names: list[str],
               weights: dict | None = None) -> pd.DataFrame:
     """Probabilities each month from positions learned only from labels already
     known then. Month s's label describes s to s+35, so it is known from s+36:
-    in month t the model learns from months up to t - HORIZON. A regime not yet
+    in month t the model learns from months up to t - HORIZON - LABEL_LAG. A regime not yet
     seen falls back to its judgment position, as in held_out."""
     regimes = list(judgment.index)
     rows = {}
     for t in train.index[train.index >= pd.Period(first, "M")]:
-        known = train[train.index <= t - HORIZON]
+        known = train[train.index <= t - HORIZON - LABEL_LAG]
         if known.empty:
             continue
         pos = positions(known, names).reindex(regimes).fillna(judgment[names])
@@ -215,10 +218,10 @@ def real_time(train: pd.DataFrame, judgment: pd.DataFrame, names: list[str],
 def base_rate(train: pd.DataFrame, regimes: list[str], first: str = "1990-01") -> pd.DataFrame:
     """The benchmark that knows nothing about the signposts: each month, the mix
     of regimes among labels already known, with one pseudo-month for each so no
-    regime gets zero. No hindsight: month t sees labels up to t - HORIZON."""
+    regime gets zero. No hindsight: month t sees labels up to t - HORIZON - LABEL_LAG."""
     rows = {}
     for t in train.index[train.index >= pd.Period(first, "M")]:
-        known = train.loc[train.index <= t - HORIZON, "label"]
+        known = train.loc[train.index <= t - HORIZON - LABEL_LAG, "label"]
         counts = known.value_counts().reindex(regimes, fill_value=0) + 1.0
         rows[t] = counts / counts.sum()
     return pd.DataFrame(rows).T[regimes] if rows else pd.DataFrame(columns=regimes)

@@ -10,6 +10,8 @@ asks why a driver moved, you need the answer in one click, not a rerun.
 
 from __future__ import annotations
 
+import re
+
 import datetime as dt
 import hashlib
 from pathlib import Path
@@ -98,8 +100,16 @@ def _build_input(ind: dict, wide: pd.DataFrame, carry: int = 0) -> pd.Series | N
 
     env: dict[str, pd.Series] = {}
     native: dict[str, pd.Series] = {}
+    # `optional` series are fallbacks: when one is absent (not yet published at
+    # the chosen vintage) every derived step built on it is skipped, and a
+    # first_of chain uses what remains, rather than the indicator vanishing.
+    optional = set(src.get("optional") or [])
+    absent: set[str] = set()
     for col in src.get("series", []):
         if col not in wide.columns:
+            if col in optional:
+                absent.add(col)
+                continue
             return None
         native[col] = wide[col].dropna()
         env[col] = native[col] if native_first else to_monthly(native[col], end, carry)
@@ -114,14 +124,20 @@ def _build_input(ind: dict, wide: pd.DataFrame, carry: int = 0) -> pd.Series | N
     #   {first_of: [a, b]}           a where available, otherwise b
     for alias, spec in (src.get("derived") or {}).items():
         if "first_of" in spec:
-            parts = [env.get(name) for name in spec["first_of"]]
-            if any(p is None for p in parts):
+            if any(name not in env and name not in absent for name in spec["first_of"]):
                 return None
+            parts = [env[name] for name in spec["first_of"] if name in env]
+            if not parts:
+                absent.add(alias)
+                continue
             combined = parts[0]
             for p in parts[1:]:
                 combined = combined.combine_first(p)
             env[alias] = combined
         elif "expr" in spec:
+            if absent & set(re.findall(r"[A-Za-z_][A-Za-z0-9_]*", spec["expr"])):
+                absent.add(alias)
+                continue
             frame = pd.DataFrame(env)
             try:
                 value = frame.eval(spec["expr"])
@@ -132,6 +148,9 @@ def _build_input(ind: dict, wide: pd.DataFrame, carry: int = 0) -> pd.Series | N
                                     float(spec["floor"]))
             env[alias] = value
         else:
+            if spec["series"] in absent:
+                absent.add(alias)
+                continue
             base = env.get(spec["series"])
             if base is None:
                 return None

@@ -173,7 +173,7 @@ else:
         gap = (ranked[leading] - ranked[called]) * 100
         standing = (f"{regime_label[called]} called since {since:%B %Y}. "
                     f"{regime_label[leading]} now leads, at {ranked[leading]:.0%}, "
-                    f"{gap:.0f} points ahead.")
+                    f"{gap:.0f} points ahead of {regime_label[called].lower()}.")
     else:
         standing = f"Called since {since:%B %Y}"
         if runner_up is not None:
@@ -215,8 +215,12 @@ sp_meta = f"Monthly · {latest:%b %Y} confirmed" + (
     f" · {prov['month']:%b %Y} provisional" if prov is not None else "")
 st.html(ui.section_head(
     "Scenario drivers and signposts", sp_meta,
-    "Each driver runs from one extreme to the other. Regime codes sit where that regime expects "
-    "the driver to be; the solid star is the confirmed month"
+    "Each driver runs from one extreme to the other. "
+    + ("Regime codes sit in order along each row, at where the driver stood in the run-up to that "
+       "regime; the gaps between them show order, not distance. The solid star is the confirmed month"
+       if str(settings.get("signpost_layout", "linear")) == "ordinal" else
+       "Regime codes sit where that regime expects the driver to be; the solid star is the "
+       "confirmed month")
     + (", the outlined star the provisional one" if prov is not None else "")
     + ". Hover any mark for the exact score."))
 # A driver scored in blocks shows what each block says on its own.

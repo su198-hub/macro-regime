@@ -467,7 +467,8 @@ def cmd_truth(args):
     store.upsert_observations(truth.to_observations(m, dt.date.today()))
     for name, sid in truth.STORE_IDS.items():
         title, units, freq = truth.TITLES[name]
-        store.record_meta(sid, "macrobond", title=title, units=units, frequency=freq,
+        vendor = truth.CODES[name].split(":", 1)[0] if ":" in truth.CODES[name] else "macrobond"
+        store.record_meta(sid, vendor, title=title, units=units, frequency=freq,
                           has_vintages=False, source_code=truth.CODES[name])
     store.close()
     lab = truth.build(m, **truth.DEFAULT)

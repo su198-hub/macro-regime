@@ -14,7 +14,7 @@ label (src/truth.py), January 1993 onward:
   held out    each episode called from positions learned without it or any
               month sharing its outcome window
   real time   each month called from positions learned only from labels
-              known by then, 36 months after the month they describe
+              known by then, 36 months after the month they describe, plus about four for the last GDP quarter
 Baseline, unclassified and transitional calls count as misses: the answer key
 has only the four growth-inflation regimes. Benchmarks: the latest confirmed
 regime continues, and the mix of regimes known so far.
@@ -71,7 +71,7 @@ def held_out(train, prior, reg, names):
 def real_time(train, prior, reg, names):
     probs, fits = {}, {}
     for t in train.index[train.index >= pd.Period(FIRST, "M")]:
-        known = train[train.index <= t - ol.HORIZON]
+        known = train[train.index <= t - ol.HORIZON - ol.LABEL_LAG]
         c = with_positions(reg, ol.realigned_positions(known, prior, names))
         x = train.loc[[t], names]
         probs[t] = R.probabilities(x, c).iloc[0]

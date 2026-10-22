@@ -1,15 +1,15 @@
 """The three-year outlook (/outlook): v2's call, read for where growth and
 inflation are heading.
 
-It reads the same v2 signposts and scenario positions as the dashboard, over
+It reads the same v2 drivers and scenario positions as the dashboard, over
 the four regimes the answer key can grade, whichever framework the reader has
 picked elsewhere.
 
   1. The call: the most likely regime for the next three years, and the odds.
   2. Where growth and inflation are heading: each regime's typical outcome on
      a growth x inflation map, and the probability-weighted landing point.
-  3. What is pushing it: each signpost's pull on that landing point.
-  4. The signposts, as on the dashboard.
+  3. What is pushing it: each driver's pull on that landing point.
+  4. The drivers, as on the dashboard.
   5. A policy what-if: move monetary or fiscal policy, watch the call move.
   6. The track record, graded as the call would have been made at the time.
 """
@@ -29,12 +29,12 @@ from src import outlook as ol
 from src import regimes as R
 from src import truth
 from src import ui
-from src.drivers import compute, driver_groups, group_scores, load_config
+from src.drivers import compute, config_hash, driver_groups, group_scores, load_config
 from views.common import data_version, get_store, registry
 
 st.html('<h1 class="mr-title">Three-year outlook</h1>'
         '<p class="mr-sub">The most likely regime for the next three years, where growth and '
-        'inflation are heading, and why. Read from the v2 signposts.</p>')
+        'inflation are heading, and why. Read from the v2 drivers.</p>')
 
 base = ctry.resolve(registry(), "US", framework="v2")
 CFG = load_config(base["indicators"])
@@ -48,12 +48,21 @@ COLOR = {k: v["color"] for k, v in REG["regimes"].items()}
 DLABEL = {k: v.get("label", k) for k, v in CFG["drivers"].items()}
 
 
-@st.cache_data(ttl=900, show_spinner="Scoring the signposts…")
-def model(version: str) -> dict:
+# Cached on the data and on both configs: caches outlive a deploy, and a
+# config-only change must not leave old results beside new text.
+CONFIG_KEY = config_hash(CFG) + str(hash(repr(REG)))
+
+
+@st.cache_data(ttl=900, show_spinner="Scoring the drivers…")
+def model(version: str, config_key: str) -> dict | None:
     store = get_store()
     res = compute(store, CFG, dt.date.today())
+    if res["drivers"].empty or not set(NAMES) <= set(res["drivers"].columns):
+        return None
     scores = ol.monthly_drivers(res["drivers"], NAMES)
     wide = store.latest(list(truth.STORE_IDS.values()))
+    if scores.empty or wide.empty or not set(truth.STORE_IDS.values()) <= set(wide.columns):
+        return None
     fwd = truth.build(truth.from_store(wide), **truth.METHODS["next3"])
     train = ol.training_frame(scores, fwd)
     # Each regime's typical next three years: the average growth and
@@ -72,7 +81,11 @@ def landing(p: pd.Series, outcomes: pd.DataFrame) -> pd.Series:
     return (outcomes.T * p.reindex(outcomes.index)).T.sum()
 
 
-M = model(data_version())
+M = model(data_version(), CONFIG_KEY)
+if M is None:
+    st.info("The outlook needs the driver scores and the history behind the regime labels, "
+            "and one of them has not loaded. Refresh in a few minutes.")
+    st.stop()
 scores, outcomes = M["scores"], M["outcomes"]
 latest = scores.index[-1]
 now = scores.loc[[latest]]
@@ -114,7 +127,7 @@ call_col.html(
     f'<div class="mr-call"><span class="mr-call-swatch" style="background:{COLOR[called]}"></span>'
     f'{ui.esc(LABEL[called])}</div>'
     f'<p class="mr-lede">{ui.esc(_lede)}'
-    f'Weighing all four by their odds, the signposts point to {direction(*land_now)}.</p>'
+    f'Weighing all four by their odds, the drivers point to {direction(*land_now)}.</p>'
     + (f'<p class="mr-lede-muted">A year ago the same reading pointed to '
        f'{direction(*land_then)}.</p>' if land_then is not None else ""))
 prob_col.html(ui.probability_panel(p_now, REG, called, f"{when:%b}"))
@@ -175,8 +188,8 @@ st.altair_chart(ui.style((bg + rules + arrow + dots + names + land_marks + land_
 
 st.html(ui.section_head(
     "What is pushing it", "",
-    "How far each signpost moves the landing point: the point with the signpost as it reads "
-    "today, less the point with that signpost set to neutral. Positive pushes growth or "
+    "How far each driver moves the landing point: the point with the driver as it reads "
+    "today, less the point with that driver set to neutral. Positive pushes growth or "
     "inflation up."))
 rows = []
 for n in NAMES:
@@ -185,15 +198,15 @@ for n in NAMES:
     moved = land_now - landing(probabilities(alt_x).iloc[0], outcomes)
     rows.append([DLABEL[n], ui.signed(float(now[n].iloc[0])),
                  ui.signed(float(moved["growth"])), ui.signed(float(moved["inflation"]))])
-st.html(ui.table(["Signpost", f"Reading, {when:%b %Y}", "Pushes growth", "Pushes inflation"],
+st.html(ui.table(["Driver", f"Reading, {when:%b %Y}", "Pushes growth", "Pushes inflation"],
                  rows, numeric={1, 2, 3}))
 
-# ---------- 4. the signposts ----------
+# ---------- 4. the drivers ----------
 
 st.html(ui.section_head(
-    "The signposts", f"Monthly · {when:%b %Y}",
+    "The drivers", f"Monthly · {when:%b %Y}",
     "Each row runs from one extreme to the other. The codes are the four regimes, in order, at "
-    "where the signposts sat in their run-ups; the star is this month, the circle a year ago."))
+    "where the drivers sat in their run-ups; the star is this month, the circle a year ago."))
 drivers = M["drivers"]
 latest_ts, then_ts = when.normalize() + pd.offsets.MonthEnd(0), None
 idx = pd.DatetimeIndex(drivers.index)
@@ -243,8 +256,8 @@ st.html(ui.section_head(
     "Share of each regime's months called right, averaged over the four regimes."))
 
 
-@st.cache_data(ttl=6 * 3600, show_spinner="Grading every month since 1976 (about a minute)…")
-def track(version: str) -> dict:
+@st.cache_data(ttl=6 * 3600, show_spinner="Grading every month since 1976…")
+def track(version: str, config_key: str) -> dict:
     from scripts.realign_positions import grade, held_out, priors, real_time
     train, fwd = M["train"], M["fwd"]
     window = train.index[train.index >= pd.Period("1976-01", "M")]
@@ -264,8 +277,8 @@ def track(version: str) -> dict:
     return out
 
 
-if st.button("Show the track record", key="prop_track"):
-    T = track(data_version())
+if st.toggle("Show the track record", key="prop_track"):
+    T = track(data_version(), CONFIG_KEY)
     rows = []
     for name in ("Held out", "Real time", "Regime continues"):
         g = T[name]["g"]
@@ -274,9 +287,9 @@ if st.button("Show the track record", key="prop_track"):
                      f"{g['hard_landing_caught']} of {g['hard_landing_runups']}"])
     st.html(ui.table(["", "Regimes right, average"] + [LABEL[r] for r in REG["regimes"]]
                      + ["Hard-landing run-ups caught"], rows, numeric=set(range(1, 7))))
-    st.caption("Placebo, run 22 October 2026: with the signpost readings slid out of line with what "
-               "followed, none of 40 held-out and none of 20 real-time runs matched these scores "
-               "(medians 28% and 29%).")
+    st.caption("Placebo, run 22 October 2026: with the driver readings slid out of line with what "
+               "followed, none of 40 held-out and none of 20 real-time runs matched the scores "
+               "then, 68% and 60% (medians 28% and 29%).")
     band = pd.DataFrame({"Real-time call": T["Real time"]["calls"],
                          "What the next 3 years were": T["labels"]})
     long = band.reset_index(names="month").melt("month", var_name="row", value_name="regime").dropna()
@@ -296,14 +309,14 @@ if st.button("Show the track record", key="prop_track"):
 st.html(ui.section_head("How it works"))
 st.html(
     '<div class="m-body"><ul>'
-    '<li><b>Five signposts, read monthly:</b> growth, inflation, monetary policy, fiscal policy, '
+    '<li><b>Five drivers, read monthly:</b> growth, inflation, monetary policy, fiscal policy, '
     'reforms. Each is a weighted average of indicators chosen for their economic link and '
     'checked against history.</li>'
-    '<li><b>Each regime has a fingerprint:</b> where the five signposts sat in the three years '
+    '<li><b>Each regime has a position:</b> where the five drivers sat in the three years '
     'before it, learned from fifteen run-ups since 1968 (three or four per regime) and nudged '
-    'toward a judgment of where the regime sits. Policy is part of the fingerprint: hard '
+    'toward a judgment of where the regime sits. Policy is part of the position: hard '
     'landings came after tight money, high inflation after loose money.</li>'
-    '<li><b>The call</b> compares this month\'s signposts with each fingerprint; the closer, the '
+    '<li><b>The call</b> compares this month\'s drivers with each position; the closer, the '
     'likelier. Fiscal policy and reforms count at half weight. The call is held for three '
     'months before it changes.</li>'
     '<li><b>Where growth and inflation are heading</b> weighs what followed each regime\'s '

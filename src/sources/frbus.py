@@ -9,7 +9,10 @@ answer key and the inflation signposts reach back into the 1970s.
 
 A code in config/sources.yml is a column of HISTDATA.TXT, e.g. "PTR". Public
 data, free to use. Each release restates the whole history, with no record of
-earlier releases, so it is stored as one vintage.
+earlier releases. Stored dated today, a rewind to any earlier date would see
+none of it, so each quarter is instead treated as published on the first day of
+the month after the quarter ends, when the survey behind it was out. Values
+are as the latest release states them, not as first published.
 """
 
 from __future__ import annotations
@@ -50,10 +53,13 @@ class FrbusSource:
 
     def fetch_current(self, series_id) -> pd.DataFrame:
         s = pd.to_numeric(self._history()[series_id], errors="coerce").dropna()
+        today = dt.date.today()
         return pd.DataFrame({
             # First day of the quarter, as the other quarterly series are stored.
             "observation_date": [p.start_time.date() for p in s.index],
-            "vintage_date": dt.date.today(),
+            # Known from the month after the quarter ends, and never after today.
+            "vintage_date": [min((p + 1).start_time.date() + dt.timedelta(days=31), today)
+                             for p in s.index],
             "value": s.to_numpy(),
         })
 

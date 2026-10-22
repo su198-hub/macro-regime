@@ -203,3 +203,21 @@ def test_source_start_drops_observations_before_a_break():
     assert s.min() < -2.0                      # the break reads as a collapse
     assert t.index.min().year == 2006          # five years after the first kept point
     assert t.iloc[-1] == pytest.approx(0.5)    # 6.9 - 6.4: the real five-year change
+
+
+def test_an_optional_fallback_series_absent_at_a_vintage_does_not_drop_the_indicator():
+    cfg = {"drivers": {"inflation": {"indicators": [{
+        "id": "gap", "transform": "level", "direction": 1, "weight": 1.0,
+        "normalize": {"method": "gap", "center": 0.0, "scale": 1.0},
+        "source": {"expr": "core - expected", "series": ["CORE", "SURVEY", "PTR"],
+                   "optional": ["PTR"],
+                   "derived": {"ptr_adj": {"expr": "PTR - 0.09"},
+                               "expected": {"first_of": ["SURVEY", "ptr_adj"]},
+                               "core": {"series": "CORE", "transform": "level"}}}}]}}}
+    idx = pd.date_range("2024-01-31", periods=3, freq="ME")
+    without = pd.DataFrame({"CORE": [3.0, 3.0, 3.0], "SURVEY": [2.0, 2.0, 2.0]}, index=idx)
+    inputs, _ = indicator_frames(cfg, without)
+    assert inputs["inflation::gap"].iloc[-1] == pytest.approx(1.0)
+    with_ptr = without.assign(PTR=[2.5, 2.5, 2.5], SURVEY=[float("nan"), 2.0, 2.0])
+    inputs, _ = indicator_frames(cfg, with_ptr)
+    assert inputs["inflation::gap"].iloc[0] == pytest.approx(3.0 - 2.41)

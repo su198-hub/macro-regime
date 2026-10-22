@@ -65,7 +65,7 @@ meta:
   positions_note: >-
     Each regime's position is learned from the run-ups to past regimes,
     1968-2023; graded on the three years that followed, 1976-2023, the call
-    got 68% of each regime's months right on average held out, 57% in real
+    got 68% of each regime's months right on average held out, 60% in real
     time.
   positions_method: >-
     where the drivers sat in the run-up to that regime, 1968 to 2023, shrunk
@@ -82,13 +82,17 @@ meta:
         three hard landings. Before 1979 the inflation anchor is the Fed's
         FRB/US estimate of long-run expectations, not a survey. Graded on the
         three years that followed, 1976-2023, the call got 68% of each
-        regime's months right on average held out and 57% in real time,
+        regime's months right on average held out and 60% in real time,
         against 34% for assuming the current regime continues; in 60 runs with
-        the readings slid out of line with what followed, none matched it. It caught all three hard-landing run-ups held out,
-        two in real time. In real time, a regime not yet seen falls back to its
-        judgment position. The settings (temperature, confidence floor,
-        persistence, the prior's weight) were chosen on 1993-2023, before the
-        history was extended.
+        the readings slid out of line with what followed, none matched it. It
+        caught all three hard-landing run-ups held out, two in real time. In
+        real time a month learns only from outcomes published by then, 40
+        months later (three years plus the last GDP quarter), and a regime not
+        yet seen falls back to its judgment position. These scores are not
+        fully out of sample: the indicators were chosen, and several changed
+        (core PCE, two dropped), with this grade in view; centers and scales
+        come from 1985-2019 or 1990-2019, inside it; and the settings were
+        chosen on 1993-2023.
     - title: The scenarios sit close together
       text: >-
         Run-ups average many months, so the learned positions sit near the
@@ -454,11 +458,13 @@ drivers:
         source:
           expr: "core_yoy - expected"
           series: [PCEPILFE, SPFCPI10, SPFCPI10_LONG, FRBUS_PTR]
+          # A fallback only: absent at a vintage, the indicator uses the survey alone.
+          optional: [FRBUS_PTR]
           derived:
             # Before the survey (1979), the Fed's FRB/US long-run expectations,
-            # put on the survey's basis (+0.09, their gap over 1979Q4-1984Q4).
+            # put on the survey's basis (-0.09, their gap over 1979Q4-1984Q4).
             core_yoy: {series: PCEPILFE, transform: yoy_pct}
-            ptr_survey: {expr: "FRBUS_PTR + 0.09"}
+            ptr_survey: {expr: "FRBUS_PTR - 0.09"}
             expected: {first_of: [SPFCPI10, SPFCPI10_LONG, ptr_survey]}
         transform: level
         normalize: {method: gap, center: -0.76, scale: 0.37}
@@ -691,7 +697,7 @@ drivers:
     groups:
       impulse:
         label: Impulse
-        description: Whether fiscal policy is adding to demand, read three ways.
+        description: Whether fiscal policy is adding to demand, read two ways.
       debt:
         label: Debt dynamics
         description: >-
@@ -747,8 +753,9 @@ drivers:
         source:
           expr: "DGS10 - expected_growth"
           series: [DGS10, HLW_TREND_G, SPFCPI10_LONG, FRBUS_PTR]
+          optional: [FRBUS_PTR]
           derived:
-            ptr_survey: {expr: "FRBUS_PTR + 0.09"}
+            ptr_survey: {expr: "FRBUS_PTR - 0.09"}
             expected_inflation: {first_of: [SPFCPI10_LONG, ptr_survey]}
             expected_growth: {expr: "HLW_TREND_G + expected_inflation - 0.3"}
         transform: level

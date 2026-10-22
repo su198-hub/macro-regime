@@ -47,9 +47,10 @@ CODES = {
 # PTR, the Fed's FRB/US measure of long-run expected inflation, carries the
 # survey back before October 1979: surveys from 1979, the Kozicki-Tinsley
 # estimate before. Over their first five overlapping years (1979Q4-1984Q4) it
-# ran 0.09 points below the survey series, so it is put on the survey's basis
-# by adding that back, then treated exactly as the survey is.
-PTR_TO_SPF = 0.09
+# ran 0.09 points above the survey series, so it is put on the survey's basis
+# by taking that off, then treated exactly as the survey is. The gap is small
+# and noisy (quarters range from -1.05 to +1.20).
+PTR_TO_SPF = -0.09
 
 # Names the inputs are stored under, so the hosted app can rebuild the labels
 # from the published snapshot. Prefixed so they never collide with indicators.

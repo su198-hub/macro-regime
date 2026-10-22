@@ -42,22 +42,23 @@ def test_held_out_never_learns_from_the_episode_it_grades():
 
 
 def test_real_time_uses_only_labels_known_at_the_time():
-    # "down" first appears at month 60, so it is not known before month 96.
+    # "down" first appears at month 60, so it is not known before month 100:
+    # 36 months of window plus LABEL_LAG for the last GDP quarter to publish.
     tr = frame(["up"] * 60 + ["down"] * 100, g=[1.0] * 60 + [-1.0] * 100)
     p = ol.real_time(tr, JUDGMENT, NAMES, temperature=1.0, first="2000-01")
-    early = tr.index[95]           # down not yet known: its judgment position stands
-    later = tr.index[96]           # month 60's label known now
+    early = tr.index[59 + ol.HORIZON + ol.LABEL_LAG]   # down not yet known: judgment stands
+    later = tr.index[60 + ol.HORIZON + ol.LABEL_LAG]   # month 60's label known now
     pos_early = pd.DataFrame({"g": [1.0, -9.0], "i": [0.0, 0.0]}, index=["up", "down"])
     want = ol.probabilities(tr.loc[[early], NAMES], pos_early, 1.0).iloc[0]
     assert p.loc[early].to_numpy() == pytest.approx(want[["up", "down"]].to_numpy())
     assert p.loc[later, "down"] > p.loc[early, "down"]
-    assert tr.index[35] not in p.index        # nothing known yet: no call
+    assert tr.index[ol.HORIZON + ol.LABEL_LAG - 1] not in p.index   # nothing known yet: no call
 
 
 def test_base_rate_counts_only_known_labels():
     tr = frame(["up"] * 40 + ["down"] * 40)
     b = ol.base_rate(tr, ["up", "down"], first="2000-01")
-    t = tr.index[40]               # labels for months 0-4 known: all "up"
+    t = tr.index[4 + ol.HORIZON + ol.LABEL_LAG]   # labels for months 0-4 known: all "up"
     assert b.loc[t, "up"] == pytest.approx((5 + 1) / (5 + 2))
 
 

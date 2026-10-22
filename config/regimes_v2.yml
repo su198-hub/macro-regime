@@ -14,9 +14,9 @@
 #
 # Four scenarios, the four the answer key can grade. Baseline, the average
 # month, was a fifth until October 2026: it could not be graded, sat in the
-# middle of every signpost, and took about a quarter of the odds; without it
-# the call got 63% held out and 55% in real time, 1976-2023, against 59% and
-# 41% with it.
+# middle of every signpost, and took about a quarter of the odds; at the time,
+# dropping it raised the call from 59% to 63% held out and from 41% to 55% in
+# real time, 1976-2023.
 
 settings:
   temperature: 0.20
@@ -71,8 +71,10 @@ rationale:
       changes the call about 0.4 times a year in real time, against 0.7 at one
       month.
     min_confidence: >-
-      0.25. With five scenarios an even split is 20% each. At 0.35 a third
-      of months came out transitional and the call lost 14 points held out.
+      0.25. With four scenarios the leader always has at least 25%, so the
+      floor never binds; it is kept so a reader can raise it in the control
+      room. Set when there were five scenarios: at 0.35 a third of months came
+      out transitional and the call lost 14 points held out.
     fit_gate: >-
       Off. The gate asks whether a month is closer to its scenario than a
       neutral economy would be. Run-up positions sit near neutral, so it
@@ -127,7 +129,7 @@ regimes:
       growth: 0.17
       inflation: 0.69
       monetary: -0.29
-      fiscal: 0.03
+      fiscal: 0.02
       reforms: -0.35
     tell: Investment strong and inflation above target, with credibility stretched.
 
@@ -144,9 +146,9 @@ regimes:
       reforms: -0.67
     archetype:
       growth: -0.26
-      inflation: 0.79
+      inflation: 0.80
       monetary: -0.34
-      fiscal: -0.03
+      fiscal: -0.04
       reforms: -0.15
     tell: Expectations rising while credibility and the debt trajectory both weaken.
 

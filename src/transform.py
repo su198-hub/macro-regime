@@ -169,8 +169,9 @@ def diff_5y(s: pd.Series) -> pd.Series:
         s = s.reindex(range(s.index.min(), s.index.max() + 1)).interpolate(limit_area="inside")
         s.index = pd.to_datetime([f"{y}-12-31" for y in s.index])
         return s - s.shift(5)
-    back = s.reindex(s.index - pd.DateOffset(years=5))
-    return s - pd.Series(back.to_numpy(), index=s.index)
+    months = pd.Series(s.to_numpy(), index=pd.DatetimeIndex(s.index).to_period("M"))
+    back = months.reindex(months.index - 60)
+    return s - back.to_numpy()
 
 
 def target_distance_change_12m(s: pd.Series) -> pd.Series:
