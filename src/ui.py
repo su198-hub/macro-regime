@@ -70,33 +70,46 @@ def ordinal_slots(positions: dict[str, float], reverse: bool = False):
     any score to a place on the track.
 
     Slots show order, not distance: run-up positions sit close together, and a
-    linear axis piles them into the middle. A score is placed by straight-line
-    interpolation between the scenario values either side of it, so it sits
-    between the two scenarios it falls between; beyond the outermost scenario
-    it runs on toward the pole at +/-1. Scenarios within SLOT_TIE share a slot.
+    linear axis piles them into the middle. Neutral stays at the centre:
+    scenarios below zero take the left half and those above it the right, each
+    half spaced evenly, so left of centre always means below neutral. A score
+    is placed by straight-line interpolation between the scenario values
+    either side of it (and zero, and the poles at +/-1), so it sits between
+    the two scenarios it falls between. Scenarios within SLOT_TIE share a slot.
 
     Returns ([(slot position %, [keys left to right])], position(score) -> %).
     """
-    items = sorted(positions.items(), key=lambda kv: (-kv[1] if reverse else kv[1]))
+    items = sorted(positions.items(), key=lambda kv: kv[1])
     groups: list[list[tuple[str, float]]] = []
     for key, v in items:
-        if groups and abs(v - groups[-1][-1][1]) <= SLOT_TIE:
+        if groups and abs(v - groups[-1][-1][1]) <= SLOT_TIE and (v < 0) == (groups[-1][-1][1] < 0):
             groups[-1].append((key, v))
         else:
             groups.append([(key, v)])
-    n = len(groups)
-    lo, hi = TRACK_PAD, 100.0 - TRACK_PAD
-    slots = [(lo + (i + 1) / (n + 1) * (hi - lo), [k for k, _ in g]) for i, g in enumerate(groups)]
-    # Knots: the poles, then each slot at its group's mean value, in track order.
-    xs = [(-1.0 if not reverse else 1.0)] + [float(np.mean([v for _, v in g])) for g in groups]         + [(1.0 if not reverse else -1.0)]
-    ys = [lo] + [s[0] for s in slots] + [hi]
-    if reverse:
-        xs, ys = xs[::-1], ys[::-1]
+    lo, hi, mid = TRACK_PAD, 100.0 - TRACK_PAD, 50.0
+    below = [g for g in groups if np.mean([v for _, v in g]) < 0]
+    above = [g for g in groups if np.mean([v for _, v in g]) >= 0]
+    placed = ([(lo + (i + 1) / (len(below) + 1) * (mid - lo), g) for i, g in enumerate(below)]
+              + [(mid + (i + 1) / (len(above) + 1) * (hi - mid), g) for i, g in enumerate(above)])
+    xs = [-1.0] + [float(np.mean([v for _, v in g])) for _, g in placed] + [1.0]
+    ys = [lo] + [pos for pos, _ in placed] + [hi]
+    # Zero sits at the centre, between the last scenario below it and the first above.
+    k = len(below) + 1
+    if not (below and abs(xs[k - 1]) < 1e-12):
+        xs.insert(k, 0.0)
+        ys.insert(k, mid)
+    # Equal values (a scenario exactly at zero) would make the knots non-increasing.
+    for j in range(1, len(xs)):
+        if xs[j] <= xs[j - 1]:
+            xs[j] = xs[j - 1] + 1e-9
 
-    def place(value: float) -> float:
-        v = max(-1.0, min(1.0, float(value)))
-        return float(np.interp(v, xs, ys))
-    return slots, place
+    def unreversed(value: float) -> float:
+        return float(np.interp(max(-1.0, min(1.0, float(value))), xs, ys))
+
+    if reverse:
+        slots = [(100.0 - pos, [k_ for k_, _ in g][::-1]) for pos, g in reversed(placed)]
+        return slots, (lambda value: 100.0 - unreversed(value))
+    return [(pos, [k_ for k_, _ in g]) for pos, g in placed], unreversed
 
 
 def cluster(points: list[tuple[float, str]], gap: float = CLUSTER_GAP):
@@ -621,17 +634,16 @@ def signpost_html(drivers: pd.DataFrame, ind_cfg: dict, reg_cfg: dict,
             return (f'<div class="sp-end {side}" style="background:{fill};color:{fg}">'
                     f'{esc(spec["label"])}</div>')
 
-        read = "No reading" if pd.isna(now) else f"{as_of:%b} {signed(now)}"
-        if not pd.isna(prov):
-            read += f" · {provisional['month']:%b}* {signed(prov)}"
+        # One short line under the label: the reading and a year earlier. The
+        # provisional month is on the track; each block's score is in the hover.
+        read = "No reading" if pd.isna(now) else f"{signed(now)}"
         if not pd.isna(prior):
-            read += f" · 12m ago {signed(prior)}"
-        parts = [f"{esc(label)} {signed(v)}" for label, v in ((blocks or {}).get(name) or {}).items()
+            read += f" · a year ago {signed(prior)}"
+        parts = [f"{label} {signed(v)}" for label, v in ((blocks or {}).get(name) or {}).items()
                  if not pd.isna(v)]
-        if parts:
-            read += "<br>" + " · ".join(parts)
+        hover = f' title="{esc(" · ".join(parts))}"' if parts else ""
         rows.append(
-            f'<div class="sp-row"><div><div class="sp-pill">{esc(driver.get("label", name))}</div>'
+            f'<div class="sp-row"><div><div class="sp-pill"{hover}>{esc(driver.get("label", name))}</div>'
             f'<div class="sp-read">{read}</div></div>'
             f'<div class="sp-scale">{end(left, "left")}'
             f'<div class="sp-track">{"".join(marks)}</div>{end(right, "right")}</div></div>'

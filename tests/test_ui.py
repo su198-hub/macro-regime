@@ -179,16 +179,21 @@ def test_a_scenario_can_be_left_off_the_signpost_chart():
     assert "UPX" in html and "MIDX" not in html
 
 
-def test_ordinal_slots_space_scenarios_evenly_and_place_a_score_between_them():
+def test_ordinal_slots_keep_neutral_central_and_order_each_side_evenly():
     from src import ui
     slots, place = ui.ordinal_slots({"hl": -0.13, "stf": -0.29, "gld": 0.18, "hghi": 0.09})
-    keys = [k[0] for _, k in slots]
-    assert keys == ["stf", "hl", "hghi", "gld"]
-    gaps = [b[0] - a[0] for a, b in zip(slots, slots[1:])]
-    assert max(gaps) - min(gaps) < 1e-9                       # evenly spaced
-    assert place(0.09) == slots[2][0]                          # on a scenario: at its slot
-    assert slots[2][0] < place(0.12) < slots[3][0]            # between two: between their slots
+    assert [k[0] for _, k in slots] == ["stf", "hl", "hghi", "gld"]
+    assert place(0.0) == 50.0                                   # neutral in the middle
+    assert all(p < 50 for p, k in slots[:2]) and all(p > 50 for p, k in slots[2:])
+    left = [p for p, _ in slots[:2]]; right = [p for p, _ in slots[2:]]
+    assert abs((left[1] - left[0]) - (50 - left[1])) < 1e-9    # evenly spaced within a side
+    assert abs((right[1] - right[0]) - (right[0] - 50)) < 1e-9
+    assert place(0.09) == slots[2][0]                           # on a scenario: at its slot
+    assert slots[2][0] < place(0.12) < slots[3][0]             # between two: between their slots
     assert place(-1.0) == ui.TRACK_PAD and place(1.0) == 100 - ui.TRACK_PAD
-    # Reversed rows mirror the order; ties share a slot.
-    slots_r, _ = ui.ordinal_slots({"a": 0.10, "b": 0.11, "c": -0.4}, reverse=True)
-    assert [k for _, k in slots_r] == [["b", "a"], ["c"]] or [k for _, k in slots_r] == [["a", "b"], ["c"]]
+    # A row with every scenario below zero still has neutral in the middle.
+    slots_n, place_n = ui.ordinal_slots({"a": -0.4, "b": -0.2})
+    assert place_n(0.0) == 50.0 and all(p < 50 for p, _ in slots_n)
+    # Reversed rows mirror: the higher score on the left, neutral still central.
+    slots_r, place_r = ui.ordinal_slots({"a": 0.10, "b": 0.30, "c": -0.4}, reverse=True)
+    assert [k for _, k in slots_r] == [["b"], ["a"], ["c"]] and place_r(0.0) == 50.0
