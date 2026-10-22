@@ -1,10 +1,9 @@
-"""Proposal: how v2's three-year call would be presented.
+"""The three-year outlook (/outlook): v2's call, read for where growth and
+inflation are heading.
 
-A hidden page, reachable at /proposal and never in the nav, so the presented
-dashboard is untouched while the design is weighed. It reads the same v2
-signposts and scenario positions as the dashboard, with one change under
-review: Baseline is left out of the call, since the answer key has only the
-four growth-inflation regimes.
+It reads the same v2 signposts and scenario positions as the dashboard, over
+the four regimes the answer key can grade, whichever framework the reader has
+picked elsewhere.
 
   1. The call: the most likely regime for the next three years, and the odds.
   2. Where growth and inflation are heading: each regime's typical outcome on
@@ -34,9 +33,8 @@ from src.drivers import compute, driver_groups, group_scores, load_config
 from views.common import data_version, get_store, registry
 
 st.html('<h1 class="mr-title">Three-year outlook</h1>'
-        '<p class="mr-sub">A proposal for how the v2 call would read: the most likely regime '
-        'for the next three years, where growth and inflation are heading, and why. Not part '
-        'of the published dashboard.</p>')
+        '<p class="mr-sub">The most likely regime for the next three years, where growth and '
+        'inflation are heading, and why. Read from the v2 signposts.</p>')
 
 base = ctry.resolve(registry(), "US", framework="v2")
 CFG = load_config(base["indicators"])

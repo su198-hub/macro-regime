@@ -664,6 +664,12 @@ section("m-versions", 11, "Versions and reproducibility")
 # table wants to know what the model is, not what it was.
 prose(
     '<h3 class="m-h3">What changed</h3>'
+    '<p><b>October 2026 — four scenarios, and a three-year outlook page (v2).</b> Baseline '
+    'leaves the call: it could not be graded against the record, sat in the middle of every '
+    'signpost and took about a quarter of the odds. Graded on the three years that followed, '
+    '1976 to 2023, the average hit rate across the regimes rose from 59% to 63% held out and '
+    'from 41% to 55% in real time. The new Three-year outlook page shows where growth and '
+    'inflation are heading, what is pushing them, a policy what-if and the track record.</p>'
     '<p><b>October 2026 — history back to 1968.</b> The labeled history and the signposts now '
     'start in 1968, not 1980. Before the forecasters’ ten-year survey begins in October 1979, '
     'the inflation anchor is the Federal Reserve Board’s FRB/US measure of long-run expected '

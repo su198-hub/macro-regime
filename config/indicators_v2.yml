@@ -65,8 +65,8 @@ meta:
   positions_note: >-
     Each regime's position is learned from the run-ups to past regimes,
     1968-2023; graded on the three years that followed, 1976-2023, the call
-    got 59% of each regime's months right on average held out, 41% in real
-    time (53% with Baseline calls set aside).
+    got 63% of each regime's months right on average held out, 55% in real
+    time.
   positions_method: >-
     where the drivers sat in the run-up to that regime, 1968 to 2023, shrunk
     toward a judgment of where the regime sits, so the call reads the next
@@ -81,10 +81,10 @@ meta:
         goldilocks, four high growth, high inflation, four stagflation and
         three hard landings. Before 1979 the inflation anchor is the Fed's
         FRB/US estimate of long-run expectations, not a survey. Graded on the
-        three years that followed, 1976-2023, the call got 59% of each
-        regime's months right on average held out and 41% in real time (53%
-        with Baseline calls set aside), against 34% for assuming the current
-        regime continues. It caught all three hard-landing run-ups held out,
+        three years that followed, 1976-2023, the call got 63% of each
+        regime's months right on average held out and 55% in real time,
+        against 34% for assuming the current regime continues; in 60 runs with
+        the readings slid out of line with what followed, none matched it. It caught all three hard-landing run-ups held out,
         two in real time. In real time, a regime not yet seen falls back to its
         judgment position. The settings (temperature, confidence floor,
         persistence, the prior's weight) were chosen on 1993-2023, before the
@@ -93,16 +93,18 @@ meta:
       text: >-
         Run-ups average many months, so the learned positions sit near the
         middle and near each other, and the probabilities are modest: since
-        1968 the leading scenario has had a median of 49%, and more than 70%
+        1968 the leading scenario has had a median of 60%, and more than 80%
         in only one month in ten. The judgment positions are scaled
         to the same spread before the data are weighed against them; unscaled,
         they pulled every position outward and the call fell below 40% held
         out.
-    - title: Baseline cannot be graded
+    - title: No Baseline scenario
       text: >-
-        The answer key has only the four growth-inflation regimes. Baseline's
-        position is the average month, and a month called Baseline counts as
-        a miss in every grade above.
+        The call covers the four growth-inflation regimes the answer key can
+        grade. A Baseline scenario, the average month, was dropped in October
+        2026: it could not be graded, sat in the middle of every signpost and
+        took about a quarter of the odds. A month near the middle now shows
+        as close odds between regimes rather than as a fifth call.
     - title: Reforms is at its floor
       text: >-
         Policy uncertainty, trade policy uncertainty and the change in the

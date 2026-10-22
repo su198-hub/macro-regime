@@ -36,8 +36,7 @@ st.navigation(
      # is already determined about the next three years.
      st.Page("views/forecast.py", title="Forecast", url_path="forecast",
              visibility="hidden"),
-     # Hidden: how the v2 three-year call would be presented, while it is weighed.
-     st.Page("views/proposal.py", title="Three-year outlook", url_path="proposal",
-             visibility="hidden")],
+     # The v2 three-year call: where growth and inflation are heading, and why.
+     st.Page("views/outlook.py", title="Three-year outlook", url_path="outlook")],
     position="top",
 ).run()
