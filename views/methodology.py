@@ -752,6 +752,12 @@ section("m-versions", 11, "Versions and reproducibility")
 # table wants to know what the model is, not what it was.
 prose(
     '<h3 class="m-h3">What changed</h3>'
+    '<p><b>October 2026 — the investment share read against its own recent past (v2).</b> '
+    'Federal investment as a share of non-interest spending has fallen from about 20% in the '
+    '1960s to under 7%, so against a fixed 1985–2019 norm it scored below −1 in every month since '
+    '2010, whatever policy did. It is now read against its own ten-year average, which today is '
+    'about neutral; fiscal policy reads −0.22 rather than −0.38. Graded on the three years that '
+    'followed, 1976 to 2023, 69% held out and 64% in real time, against 71% and 64%.</p>'
     '<p><b>October 2026 — wage growth joins inflation pressure (v2).</b> The pressure block is '
     'now weighted as inflation forecasters weight it: where inflation starts (core PCE against '
     'expectations) most, then labor costs, then money and housing. Core PCE gap 31.25%, '

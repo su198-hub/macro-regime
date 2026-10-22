@@ -65,7 +65,7 @@ meta:
   positions_note: >-
     Each regime's position is learned from the run-ups to past regimes,
     1968-2023; graded on the three years that followed, 1976-2023, the call
-    got 71% of each regime's months right on average held out, 64% in real
+    got 69% of each regime's months right on average held out, 64% in real
     time.
   positions_method: >-
     where the drivers sat in the run-up to that regime, 1968 to 2023, shrunk
@@ -81,7 +81,7 @@ meta:
         goldilocks, four high growth, high inflation, four stagflation and
         three hard landings. Before 1979 the inflation anchor is the Fed's
         FRB/US estimate of long-run expectations, not a survey. Graded on the
-        three years that followed, 1976-2023, the call got 71% of each
+        three years that followed, 1976-2023, the call got 69% of each
         regime's months right on average held out and 64% in real time,
         against 34% for assuming the current regime continues; in 60 runs with
         the readings slid out of line with what followed, none matched it. It
@@ -166,7 +166,13 @@ meta:
         multiplier depends on in the data is debt: below 60% of GDP, fiscal
         loosening went with stronger growth; above it, mostly with higher
         inflation. That rests largely on 2020-21. Weighting spending and taxes
-        by CBO's multipliers predicted no better than the plain total.
+        by CBO's multipliers predicted no better than the plain total. The
+        forecasting comes from impulse and debt dynamics: impulse correlates
+        +0.28 with the next three years' growth gap, and the two together
+        +0.25 with the inflation gap (about +0.5 in each half, 1971-95 and
+        1996-2023). Composition is there for the long run and runs the other
+        way on three-year inflation (-0.30), so the whole driver shows only
+        +0.06.
     - title: Proposed, thin or contaminated inputs
       text: >-
         The potential-growth block starts in 1993: the forecasters'
@@ -826,23 +832,25 @@ drivers:
 
       - id: federal_investment_share
         group: composition
-        label: Federal investment, % of non-interest spending
+        label: Federal investment, % of non-interest spending, against its 10-year average
         source:
           expr: "FEDGROSSINV / (FED_CONSUMPTION + FEDGROSSINV + FED_BENEFITS + FED_GRANTS + FED_SUBSIDIES) * 100"
           series: [FEDGROSSINV, FED_CONSUMPTION, FED_BENEFITS, FED_GRANTS, FED_SUBSIDIES]
-        transform: level
-        normalize: {method: gap, center: 13.36, scale: 4.93}
+        transform: dev_10y
+        normalize: {method: gap, center: 0.0, scale: 1.55}
         direction: 1
-        absolute_level: true
         weight: 0.25
         carry_forward_periods: 2
         why: >-
           **What the money is spent on.** Investment (infrastructure, R&D,
-          equipment) adds to the economy's capacity; consumption and transfers
-          support demand now. A budget tilted toward investment should lift
-          long-run growth. The share fell from about 20% in the 1960s to under
-          7%; against the next decade's growth it holds up even with that
-          trend removed, though only modestly.
+          equipment) adds to the economy's capacity, and tends to carry a
+          higher multiplier than consumption and transfers. A budget tilting
+          toward investment should lift long-run growth. Read against its own
+          ten-year average: the share has fallen from about 20% in the 1960s to
+          under 7%, so against a fixed norm it would read low every year
+          whatever policy did. Above its recent average, the following
+          decade's productivity growth has tended to run above trend too
+          (+0.17), a modest link.
 
   reforms:
     label: Reforms and industrial policy

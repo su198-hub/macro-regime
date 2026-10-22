@@ -46,9 +46,10 @@ rationale:
       Full weight. Credibility is what decides whether an inflation shock
       becomes stagflation.
     fiscal: >-
-      Half weight. Its growth signal overlaps the growth signpost's slack:
-      deficits widen in downturns and recoveries follow. Its own contribution
-      is inflation. Graded on the next three years, 1993-2023, at full weight
+      Half weight. Its growth signal overlaps the growth driver's slack:
+      deficits widen in downturns and recoveries follow. Impulse and debt
+      dynamics together correlate +0.25 with the next three years' inflation
+      gap, about +0.5 in each half of 1971-2023. Graded on the next three years, 1993-2023, at full weight
       it lowered the call on top of growth, inflation and monetary policy
       (51% to 43% of regimes right on average, held out); at half weight it
       kept 51% and improved the probabilities.
@@ -110,7 +111,7 @@ regimes:
       growth: 0.19
       inflation: 0.06
       monetary: -0.24
-      fiscal: -0.02
+      fiscal: 0.00
       reforms: -0.08
     tell: Productivity and capex plans rising together with expectations at target.
 
@@ -126,10 +127,10 @@ regimes:
       fiscal: 0.67
       reforms: 0.33
     archetype:
-      growth: 0.17
+      growth: 0.18
       inflation: 0.72
       monetary: -0.29
-      fiscal: 0.02
+      fiscal: -0.03
       reforms: -0.35
     tell: Investment strong and inflation above target, with credibility stretched.
 
@@ -148,7 +149,7 @@ regimes:
       growth: -0.26
       inflation: 0.81
       monetary: -0.34
-      fiscal: -0.04
+      fiscal: -0.16
       reforms: -0.15
     tell: Expectations rising while credibility and the debt trajectory both weaken.
 
@@ -165,8 +166,8 @@ regimes:
       reforms: -0.67
     archetype:
       growth: -0.14
-      inflation: 0.14
+      inflation: 0.13
       monetary: 0.09
-      fiscal: -0.11
+      fiscal: -0.07
       reforms: 0.09
     tell: Expectations falling below target while growth prospects weaken.
