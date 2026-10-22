@@ -506,8 +506,10 @@ for n in driver_names:
     rows.append([ui.Raw(f"<b>{ui.esc(dlabel[n])}</b>"), "", "",
                  corr_cell(dl, 0, True), corr_cell(dl, 1, True),
                  ui.Raw("<b>–</b>" if pd.isna(today_driver) else f"<b>{signed(today_driver)}</b>")])
-    st.html(ui.table(["Indicator", "Measured as", "Weight", "Next 3y growth", "Next 3y inflation",
-                      f"Today ({pd.Period(latest, 'M').to_timestamp():%b %Y})"], rows, numeric={2, 3, 4, 5}))
+    st.html(ui.table(["Indicator", "Measured as", "Weight",
+                      "Correlation with growth, next 3 years",
+                      "Correlation with inflation, next 3 years",
+                      f"Score, {pd.Period(latest, 'M').to_timestamp():%b %Y}"], rows, numeric={2, 3, 4, 5}))
     with st.expander(f"Why each {dlabel[n].lower()} indicator is included, and its source"):
         st.html('<div class="m-body"><ul>' + "".join(reasons) + "</ul></div>")
 
