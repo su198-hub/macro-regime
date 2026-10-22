@@ -382,11 +382,16 @@ if taylor:
 
 prose('<h3 class="m-h3">Indicator set</h3>'
       '<p>One table per driver, its indicators grouped by block, heaviest first. Weight is a '
-      'share of the driver. The two correlation columns show how each signed score lined up '
-      'with what followed: the average growth gap and inflation gap over the next three years, '
-      'from 1971 or the indicator\'s first month to the last month with three full years after '
-      'it. Today is the latest confirmed score. Each indicator\'s reason and source are in the '
-      'drop-down under its table.</p>')
+      'share of the driver.</p><ul>'
+      '<li><b>Correlation with growth, next 3 years:</b> of each month\'s score with real GDP '
+      'growth less potential growth over the following three years.</li>'
+      '<li><b>Correlation with inflation, next 3 years:</b> of each month\'s score with core PCE '
+      'inflation less expected inflation over the following three years.</li>'
+      '<li>Both run from 1971, or the indicator\'s first month, to the last month with three full '
+      'years after it. Scores are signed so positive points to the driver\'s right-hand pole.</li>'
+      '<li><b>Score:</b> the latest confirmed month, in standard deviations from the indicator\'s '
+      'norm (capped at ±3); on the driver row, the driver\'s −1 to +1 reading.</li></ul>'
+      '<p>Each indicator\'s reason and source are in the drop-down under its table.</p>')
 
 
 @st.cache_data(ttl=3600, show_spinner="Lining each indicator up against what followed…")
