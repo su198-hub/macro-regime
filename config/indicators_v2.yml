@@ -65,7 +65,7 @@ meta:
   positions_note: >-
     Each regime's position is learned from the run-ups to past regimes,
     1968-2023; graded on the three years that followed, 1976-2023, the call
-    got 68% of each regime's months right on average held out, 66% in real
+    got 67% of each regime's months right on average held out, 66% in real
     time.
   positions_method: >-
     where the drivers sat in the run-up to that regime, 1968 to 2023, shrunk
@@ -81,7 +81,7 @@ meta:
         goldilocks, four high growth, high inflation, four stagflation and
         three hard landings. Before 1979 the inflation anchor is the Fed's
         FRB/US estimate of long-run expectations, not a survey. Graded on the
-        three years that followed, 1976-2023, the call got 68% of each
+        three years that followed, 1976-2023, the call got 67% of each
         regime's months right on average held out and 66% in real time,
         against 34% for assuming the current regime continues; in 60 runs with
         the readings slid out of line with what followed, none matched it. It
@@ -819,7 +819,11 @@ drivers:
           expr: "FEDGROSSINV / (FED_CONSUMPTION + FEDGROSSINV + FED_BENEFITS + FED_GRANTS + FED_SUBSIDIES) * 100"
           series: [FEDGROSSINV, FED_CONSUMPTION, FED_BENEFITS, FED_GRANTS, FED_SUBSIDIES]
         transform: dev_10y
-        normalize: {method: gap, center: 0.0, scale: 1.55}
+        # Centered on the gap's own 1985-2019 average, like every other
+        # indicator: the share falls over time, so it sat below its trailing
+        # ten-year average in 82% of those months, and a center of 0 scored
+        # it about -0.5 on average whatever policy did.
+        normalize: {method: gap, center: -0.76, scale: 1.35}
         direction: 1
         weight: 0.25
         carry_forward_periods: 2
@@ -830,7 +834,9 @@ drivers:
           toward investment should lift long-run growth. Read against its own
           ten-year average: the share has fallen from about 20% in the 1960s to
           under 7%, so against a fixed norm it would read low every year
-          whatever policy did. Above its recent average, the following
+          whatever policy did. As it trends down it usually sits about 0.8
+          points below that average, so that is the norm. Above its recent
+          average, the following
           decade's productivity growth has tended to run above trend too
           (+0.17), a modest link.
 

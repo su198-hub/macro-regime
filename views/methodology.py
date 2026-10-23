@@ -752,6 +752,13 @@ section("m-versions", 11, "Versions and reproducibility")
 # table wants to know what the model is, not what it was.
 prose(
     '<h3 class="m-h3">What changed</h3>'
+    '<p><b>October 2026 — the investment share centered on its own norm (v2).</b> Read against '
+    'its ten-year average, the share still sat below it in 82% of months from 1985 to 2019, '
+    'because it keeps falling; with the norm set at zero it scored about −0.5 on average '
+    'whatever policy did. Its norm is now that gap’s 1985–2019 average, about 0.8 points '
+    'below, as for every other indicator. Fiscal policy reads −0.15 for July 2026 rather than '
+    '−0.22. Graded on the three years that followed, 1976 to 2023, 67% held out and 66% in real '
+    'time, against 68% and 66%.</p>'
     '<p><b>October 2026 — one fewer anchoring indicator (v2).</b> The yearly revision to '
     'forecasters’ ten-year CPI is dropped: the same survey already sets the bar in the core PCE '
     'gap, it starts only in 1992, and it had the weakest link to what followed. The three left '

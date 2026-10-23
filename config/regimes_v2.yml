@@ -82,6 +82,13 @@ rationale:
       left half of all months unclassified.
     fit_tolerance: >-
       1.25, as in v1; unused while the gate is off.
+  theory: >-
+    Each scenario as the judgment draws it, slot for slot (-0.67, -0.33,
+    0, +0.33, +0.67), on the judgment's own axes: monetary policy as
+    credibility, fiscal policy as sustainability (its multiplier line
+    averaged in, which moves only hard landing, to -0.33). Shown on the
+    outlook page against the credibility and debt-dynamics blocks, which
+    read the same things; not used by the call, which uses prior.
   prior: >-
     The judgment of where each scenario sits, before the data. Growth,
     inflation and reforms keep their direction. Monetary policy now reads
@@ -107,11 +114,17 @@ regimes:
       monetary: 0.67
       fiscal: 0.33
       reforms: 0.67
+    theory:
+      growth: 0.67
+      inflation: 0.00
+      monetary: 0.67
+      fiscal: 0.67
+      reforms: 0.67
     archetype:
       growth: 0.19
       inflation: 0.09
       monetary: -0.24
-      fiscal: 0.00
+      fiscal: 0.05
       reforms: -0.08
     tell: Productivity and capex plans rising together with expectations at target.
 
@@ -126,11 +139,17 @@ regimes:
       monetary: 0.33
       fiscal: 0.67
       reforms: 0.33
+    theory:
+      growth: 0.33
+      inflation: 0.33
+      monetary: 0.33
+      fiscal: 0.33
+      reforms: 0.33
     archetype:
       growth: 0.17
-      inflation: 0.72
+      inflation: 0.71
       monetary: -0.29
-      fiscal: -0.03
+      fiscal: 0.01
       reforms: -0.30
     tell: Investment strong and inflation above target, with credibility stretched.
 
@@ -145,11 +164,17 @@ regimes:
       monetary: -0.67
       fiscal: 0.33
       reforms: -0.67
+    theory:
+      growth: -0.67
+      inflation: 0.67
+      monetary: -0.67
+      fiscal: -0.67
+      reforms: -0.67
     archetype:
       growth: -0.26
       inflation: 0.81
       monetary: -0.34
-      fiscal: -0.16
+      fiscal: -0.12
       reforms: -0.05
     tell: Expectations rising while credibility and the debt trajectory both weaken.
 
@@ -164,10 +189,16 @@ regimes:
       monetary: -0.33
       fiscal: 0.00
       reforms: -0.67
+    theory:
+      growth: -0.67
+      inflation: -0.67
+      monetary: -0.33
+      fiscal: -0.33
+      reforms: -0.67
     archetype:
       growth: -0.14
       inflation: 0.16
       monetary: 0.09
-      fiscal: -0.07
+      fiscal: -0.01
       reforms: 0.12
     tell: Expectations falling below target while growth prospects weaken.
