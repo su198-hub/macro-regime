@@ -5,13 +5,14 @@ It reads the same v2 drivers and scenario positions as the dashboard, over
 the four regimes the answer key can grade, whichever framework the reader has
 picked elsewhere.
 
+  0. Regime shapes, first: where the drivers sat going into each regime and
+     during it, against theory, one radar per regime beside today's.
+
   1. The call: the most likely regime for the next three years, and the odds.
   2. Where growth and inflation are heading: each regime's typical outcome on
      a growth x inflation map, and the probability-weighted landing point.
   3. What is pushing it: each driver's pull on that landing point.
   4. The drivers, as on the dashboard.
-  4b. Regime shapes: where the drivers sat going into each regime and during
-     it, one radar per regime beside today's.
   5. A policy what-if: move monetary or fiscal policy, watch the call move.
   6. The track record, graded as the call would have been made at the time.
 """
@@ -119,9 +120,89 @@ def direction(g: float, i: float) -> str:
             f"{abs(i):.1f} points {iw} expectations")
 
 
+when = latest.to_timestamp(how="end")
+
+# ---------- 0. regime shapes ----------
+
+st.html(ui.section_head(
+    "Regime shapes", f"Since 1968 · {when:%b %Y}",
+    "Where the five drivers sat in the three years going into each regime (its run-ups, which "
+    "the call learns from) and during it (months whose past year and a half of growth and "
+    "inflation fit the regime), and theory: where the regime should sit by its definition, a "
+    "judgment set before looking at the data, meant as a direction rather than a reading. "
+    "The centre is −1, the middle ring neutral and the outer ring +1, toward the end named "
+    "under each driver. An average of all months sits closer to neutral than theory; the "
+    "strongest quarter keeps only the months deepest in each regime, with growth and inflation "
+    "furthest into its corner. The drivers look ahead, so during a regime they already lean "
+    "toward what comes next: in hard landings, money has eased and fiscal policy turned "
+    "supportive. Hover a chart for its scores."))
+PAIRS = {"Going in vs theory": ("going", "theory"), "Going in vs during": ("going", "during"),
+         "During vs theory": ("during", "theory")}
+c_pair, c_months = st.columns([1.4, 1])
+pair_label = c_pair.segmented_control("Compare", list(PAIRS), default="Going in vs theory",
+                                      key="shape_pair") or "Going in vs theory"
+months = c_months.segmented_control("Months", ["All", "Strongest quarter"], default="All",
+                                    key="shape_months") or "All"
+strong = months == "Strongest quarter"
+shape = {
+    "going": M["core_in"] if strong else ol.positions(M["train"], NAMES),
+    "during": M["core_during"] if strong else ol.positions(M["during"], NAMES),
+    "theory": pd.DataFrame({r: v["theory"] for r, v in REG["regimes"].items()
+                            if v.get("theory")}).T.reindex(columns=NAMES),
+}
+NAME = {"going": "Going in", "during": "During", "theory": "Theory"}
+KEY_NAME = {"going": "Going in: the three years before", "during": "During", "theory": "Theory"}
+shape_a, shape_b = PAIRS[pair_label]
+# The first shape of the pair is filled, the second dashed; theory is always
+# a thin grey dotted line, so data and judgment never look alike.
+LOOK = {shape_a: ({"fill": 0.18}, "solid"), shape_b: ({"fill": 0, "dash": True}, "dashed")}
+LOOK["theory"] = ({"fill": 0, "dash": "1.5 2.5", "width": 1.4, "grey": True}, "dotted")
+# Each spoke names its driver and what its outer end means, kept short so
+# five fit round a small chart.
+POLE = {"inflation": "Above anchor"}
+SHORT = {d: (DLABEL[d].split(" and ")[0],
+             POLE.get(d, CFG["drivers"][d]["signpost"]["high"]["label"].split(" / ")[0]))
+         for d in NAMES}
+panels = [ui.radar_svg(NAMES, SHORT, [{"name": f"{when:%b %Y}", "values": now.iloc[0].to_dict(),
+                                         "color": ui.INK, "fill": 0.10}],
+                       title=f"Today ({when:%b %Y})")]
+for r in REG["regimes"]:
+    series = []
+    for kind in (shape_b, shape_a) if shape_b == "theory" else (shape_a, shape_b):
+        if r in shape[kind].index:
+            look = dict(LOOK[kind][0])
+            color = ui.INK_2 if look.pop("grey", False) else COLOR[r]
+            series.append({"name": NAME[kind], "values": shape[kind].loc[r].to_dict(),
+                           "color": color, **look})
+    panels.append(ui.radar_svg(NAMES, SHORT, series, title=LABEL[r], title_color=COLOR[r]))
+# The biggest differences between the two shapes shown, two per regime.
+_diff = (shape[shape_b] - shape[shape_a]).reindex(list(REG["regimes"])).dropna(how="all")
+notes = []
+for r, row in _diff.iterrows():
+    top = row.abs().sort_values(ascending=False).index[:2]
+    notes.append(f'<p><b style="color:{COLOR[r]}">{ui.esc(LABEL[r])}:</b> ' + "; ".join(
+        f'{ui.esc(SHORT[d][0].lower())} {ui.signed(shape[shape_a].at[r, d])} → '
+        f'{ui.signed(shape[shape_b].at[r, d])}' for d in top) + "</p>")
+panels.append(f'<div class="rd-note"><p><b>Biggest differences, {NAME[shape_a].lower()} → '
+              f'{NAME[shape_b].lower()}</b></p>' + "".join(notes) + "</div>")
+st.html(ui.radar_grid(panels, [(KEY_NAME[k], ui.INK_2, LOOK[k][1]) for k in (shape_a, shape_b)]))
+_runs = ol.spells(M["train"]["label"])["label"].value_counts()
+_spells = ol.spells(M["during"]["label"])["label"].value_counts()
+_count = {"going": lambda r: f"{int(_runs.get(r, 0))} run-ups",
+          "during": lambda r: f"{int(_spells.get(r, 0))} spells", "theory": lambda r: ""}
+rows = []
+for r in REG["regimes"]:
+    rows.append(ui.Raw(f'<b style="color:{COLOR[r]}">{ui.esc(LABEL[r])}</b>'))
+    for kind in ("theory", "going", "during"):
+        if r in shape[kind].index:
+            rows.append([NAME[kind]] + [ui.signed(shape[kind].at[r, d]) for d in NAMES]
+                        + [_count[kind](r)])
+st.html(ui.table(["Strongest quarter of months" if strong else "All months"]
+                 + [SHORT[d][0] for d in NAMES] + ["Episodes"],
+                 rows, numeric=set(range(1, len(NAMES) + 2))))
+
 # ---------- 1. the call ----------
 
-when = latest.to_timestamp(how="end")
 call_col, prob_col = st.columns([1.15, 1], gap="large")
 if called == lead:
     _lede = (f'{LABEL[lead]} is the most likely regime for the next three years, at '
@@ -229,85 +310,6 @@ for d in NAMES:
         if latest_ts in gs.index:
             blocks[d] = {groups[g].get("label") or g: gs.at[latest_ts, g] for g in gs.columns}
 st.html(ui.signpost_html(drivers, CFG, REG, latest_ts, then_ts, None, blocks=blocks))
-
-# ---------- 4b. regime shapes ----------
-
-st.html(ui.section_head(
-    "Regime shapes", f"Since 1968 · {when:%b %Y}",
-    "Where the five drivers sat in the three years going into each regime (its run-ups, which "
-    "the call learns from) and during it (months whose past year and a half of growth and "
-    "inflation fit the regime), and theory: where the regime should sit by its definition, a "
-    "judgment set before looking at the data, meant as a direction rather than a reading. "
-    "The centre is −1, the middle ring neutral and the outer ring +1, toward the end named "
-    "under each driver. An average of all months sits closer to neutral than theory; the "
-    "strongest quarter keeps only the months deepest in each regime, with growth and inflation "
-    "furthest into its corner. The drivers look ahead, so during a regime they already lean "
-    "toward what comes next: in hard landings, money has eased and fiscal policy turned "
-    "supportive. Hover a chart for its scores."))
-PAIRS = {"Going in vs during": ("going", "during"), "During vs theory": ("during", "theory"),
-         "Going in vs theory": ("going", "theory")}
-c_pair, c_months = st.columns([1.4, 1])
-pair_label = c_pair.segmented_control("Compare", list(PAIRS), default="Going in vs during",
-                                      key="shape_pair") or "Going in vs during"
-months = c_months.segmented_control("Months", ["All", "Strongest quarter"], default="All",
-                                    key="shape_months") or "All"
-strong = months == "Strongest quarter"
-shape = {
-    "going": M["core_in"] if strong else ol.positions(M["train"], NAMES),
-    "during": M["core_during"] if strong else ol.positions(M["during"], NAMES),
-    "theory": pd.DataFrame({r: v["theory"] for r, v in REG["regimes"].items()
-                            if v.get("theory")}).T.reindex(columns=NAMES),
-}
-NAME = {"going": "Going in", "during": "During", "theory": "Theory"}
-KEY_NAME = {"going": "Going in: the three years before", "during": "During", "theory": "Theory"}
-first, second = PAIRS[pair_label]
-# The first shape of the pair is filled, the second dashed; theory is always
-# a thin grey dotted line, so data and judgment never look alike.
-LOOK = {first: ({"fill": 0.18}, "solid"), second: ({"fill": 0, "dash": True}, "dashed")}
-LOOK["theory"] = ({"fill": 0, "dash": "1.5 2.5", "width": 1.4, "grey": True}, "dotted")
-# Each spoke names its driver and what its outer end means, kept short so
-# five fit round a small chart.
-POLE = {"inflation": "Above anchor"}
-SHORT = {d: (DLABEL[d].split(" and ")[0],
-             POLE.get(d, CFG["drivers"][d]["signpost"]["high"]["label"].split(" / ")[0]))
-         for d in NAMES}
-panels = [ui.radar_svg(NAMES, SHORT, [{"name": f"{when:%b %Y}", "values": now.iloc[0].to_dict(),
-                                         "color": ui.INK, "fill": 0.10}],
-                       title=f"Today ({when:%b %Y})")]
-for r in REG["regimes"]:
-    series = []
-    for kind in (second, first) if second == "theory" else (first, second):
-        if r in shape[kind].index:
-            look = dict(LOOK[kind][0])
-            color = ui.INK_2 if look.pop("grey", False) else COLOR[r]
-            series.append({"name": NAME[kind], "values": shape[kind].loc[r].to_dict(),
-                           "color": color, **look})
-    panels.append(ui.radar_svg(NAMES, SHORT, series, title=LABEL[r], title_color=COLOR[r]))
-# The biggest differences between the two shapes shown, two per regime.
-_diff = (shape[second] - shape[first]).reindex(list(REG["regimes"])).dropna(how="all")
-notes = []
-for r, row in _diff.iterrows():
-    top = row.abs().sort_values(ascending=False).index[:2]
-    notes.append(f'<p><b style="color:{COLOR[r]}">{ui.esc(LABEL[r])}:</b> ' + "; ".join(
-        f'{ui.esc(SHORT[d][0].lower())} {ui.signed(shape[first].at[r, d])} → '
-        f'{ui.signed(shape[second].at[r, d])}' for d in top) + "</p>")
-panels.append(f'<div class="rd-note"><p><b>Biggest differences, {NAME[first].lower()} → '
-              f'{NAME[second].lower()}</b></p>' + "".join(notes) + "</div>")
-st.html(ui.radar_grid(panels, [(KEY_NAME[k], ui.INK_2, LOOK[k][1]) for k in (first, second)]))
-_runs = ol.spells(M["train"]["label"])["label"].value_counts()
-_spells = ol.spells(M["during"]["label"])["label"].value_counts()
-_count = {"going": lambda r: f"{int(_runs.get(r, 0))} run-ups",
-          "during": lambda r: f"{int(_spells.get(r, 0))} spells", "theory": lambda r: ""}
-rows = []
-for r in REG["regimes"]:
-    rows.append(ui.Raw(f'<b style="color:{COLOR[r]}">{ui.esc(LABEL[r])}</b>'))
-    for kind in ("theory", "going", "during"):
-        if r in shape[kind].index:
-            rows.append([NAME[kind]] + [ui.signed(shape[kind].at[r, d]) for d in NAMES]
-                        + [_count[kind](r)])
-st.html(ui.table(["Strongest quarter of months" if strong else "All months"]
-                 + [SHORT[d][0] for d in NAMES] + ["Episodes"],
-                 rows, numeric=set(range(1, len(NAMES) + 2))))
 
 # ---------- 5. policy what-if ----------
 
