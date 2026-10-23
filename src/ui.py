@@ -252,6 +252,28 @@ CSS = f"""
   text-align: center; margin-bottom: -0.2rem; }}
 .rd-img {{ width: 100%; height: auto; display: block; }}
 .rd-key {{ display: inline-block; width: 24px; height: 0; }}
+.rd-note ul {{ margin: 0; padding-left: 1.1rem; }}
+.rd-note li {{ margin: 0 0 0.35rem; }}
+.gp {{ font-family: {BODY_FONT}; margin-top: 1.2rem; }}
+.gp-head {{ font-size: 0.86rem; color: {INK_2}; margin-bottom: 0.6rem; }}
+.gp-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+  gap: 1rem 2rem; }}
+.gp-card {{ border-top: 1px solid {GRID}; padding-top: 0.6rem; min-width: 0; }}
+.gp-title {{ font-family: {HEADING_FONT}; font-weight: 700; font-size: 1.05rem; }}
+.gp-note {{ font-size: 0.88rem; color: {INK_2}; line-height: 1.45; margin: 0.2rem 0 0.55rem; }}
+.gp-row {{ display: grid; grid-template-columns: 7.5rem 1fr 7rem; align-items: center;
+  gap: 0.6rem; margin: 0.3rem 0; font-size: 0.86rem; }}
+.gp-label {{ color: {INK}; }}
+.gp-vals {{ text-align: right; font-variant-numeric: tabular-nums; color: {INK_2}; white-space: nowrap; }}
+.gp-arrow {{ color: {MUTED}; }}
+.gp-track {{ position: relative; height: 14px; }}
+.gp-track::before {{ content: ""; position: absolute; left: 0; right: 0; top: 6px;
+  border-top: 1px solid {GRID}; }}
+.gp-mid {{ position: absolute; left: 50%; top: 1px; height: 12px; border-left: 1px solid {AXIS}; }}
+.gp-bar {{ position: absolute; top: 5px; height: 3px; opacity: 0.35; }}
+.gp-dot, .gp-ring {{ position: absolute; top: 1px; width: 12px; height: 12px; margin-left: -6px;
+  border-radius: 50%; box-sizing: border-box; }}
+.gp-ring {{ background: #ffffff; }}
 .sp {{ font-family: {BODY_FONT}; }}
 .sp-legend {{ display: flex; flex-wrap: wrap; gap: 0.45rem 1.1rem; align-items: center;
   font-size: 0.82rem; color: {INK_2}; margin: 0 0 0.8rem; }}
@@ -757,6 +779,36 @@ def radar_grid(panels: list[str], legend: list[tuple[str, str, str]]) -> str:
         for label, c, line in legend)
     return (f'<div class="rd"><div class="rd-legend">{keys}</div>'
             f'<div class="rd-grid">{"".join(panels)}</div></div>')
+
+
+def gap_track(a: float, b: float, color: str, b_ring: str, a_name: str, b_name: str) -> str:
+    """One driver's two readings on a -1 to +1 track: a filled dot for `a`, a
+    hollow ring for `b`, joined by a bar so the gap reads at a glance."""
+    pos = [track_position(v) for v in (a, b)]
+    lo, hi = min(pos), max(pos)
+    return (f'<div class="gp-track" title="{esc(a_name)} {signed(a)} · {esc(b_name)} {signed(b)}">'
+            f'<span class="gp-mid"></span>'
+            f'<span class="gp-bar" style="left:{lo:.1f}%;width:{hi - lo:.1f}%;background:{color}"></span>'
+            f'<span class="gp-ring" style="left:{pos[1]:.1f}%;border:2px {b_ring}"></span>'
+            f'<span class="gp-dot" style="left:{pos[0]:.1f}%;background:{color}"></span></div>')
+
+
+def gap_cards(cards: list[dict], a_name: str, b_name: str) -> str:
+    """Where two readings of each regime part ways: a card per regime with a
+    note and its biggest gaps. Each card is {"title", "color", "note",
+    "ring" (CSS border style and color for b's marker), "rows": [(label, a, b)]}."""
+    out = []
+    for c in cards:
+        rows = "".join(
+            f'<div class="gp-row"><span class="gp-label">{esc(label)}</span>'
+            f'{gap_track(a, b, c["color"], c["ring"], a_name, b_name)}'
+            f'<span class="gp-vals">{signed(a)} <span class="gp-arrow">→</span> {signed(b)}</span></div>'
+            for label, a, b in c["rows"])
+        out.append(f'<div class="gp-card"><div class="gp-title" style="color:{c["color"]}">'
+                   f'{esc(c["title"])}</div><p class="gp-note">{esc(c["note"])}</p>{rows}</div>')
+    return (f'<div class="gp"><div class="gp-head">{esc(a_name)} (dot) against {esc(b_name.lower())} '
+            f'(ring): the two biggest gaps in each regime, on the −1 to +1 scale</div>'
+            f'<div class="gp-grid">{"".join(out)}</div></div>')
 
 
 # ---------- charts ----------

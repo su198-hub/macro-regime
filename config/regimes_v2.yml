@@ -114,6 +114,14 @@ regimes:
       monetary: 0.67
       fiscal: 0.33
       reforms: 0.67
+    notes:
+      theory: >-
+        Growth leads with inflation near the anchor, as theory has it. The Fed
+        ran looser than theory but kept its credibility: dovish enough to
+        support growth, as in the 1990s and after the GFC. Fiscal and reforms
+        did little on average.
+      during: >-
+        Little changes. Easing fades as the expansion matures.
     theory:
       growth: 0.67
       inflation: 0.00
@@ -139,6 +147,13 @@ regimes:
       monetary: 0.33
       fiscal: 0.67
       reforms: 0.33
+    notes:
+      theory: >-
+        Growth and inflation as theory has it, but the engine was easy money
+        rather than fiscal: a stretched Fed in the 1970s, and the Fed at zero
+        into 2021. Only 2021-22 was fiscal-led.
+      during: >-
+        Stays loose: the Fed falls further behind as inflation persists.
     theory:
       growth: 0.33
       inflation: 0.33
@@ -164,6 +179,13 @@ regimes:
       monetary: -0.67
       fiscal: 0.33
       reforms: -0.67
+    notes:
+      theory: >-
+        The closest fit. Supply shocks (1973, 1979, 1990, 2022) met a loose
+        Fed losing credibility, with growth weak going in.
+      during: >-
+        The growth outlook turns up as recovery gets priced in, as when
+        Volcker's squeeze gave way to the 1982 easing.
     theory:
       growth: -0.67
       inflation: 0.67
@@ -189,6 +211,15 @@ regimes:
       monetary: -0.33
       fiscal: 0.00
       reforms: -0.67
+    notes:
+      theory: >-
+        Demand busts after tightening (the Fed at 6.5% in 2000, 5.25% in
+        2006), with inflation a little hot going in rather than deflation. It
+        fell below the anchor only at the bottom of the GFC. 2020 was Covid,
+        which nothing foresaw.
+      during: >-
+        The policy response: rates cut and deficits widened, as in 2001, 2009
+        and 2020.
     theory:
       growth: -0.67
       inflation: -0.67

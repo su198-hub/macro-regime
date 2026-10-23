@@ -126,16 +126,8 @@ when = latest.to_timestamp(how="end")
 
 st.html(ui.section_head(
     "Regime shapes", f"Since 1968 · {when:%b %Y}",
-    "Where the five drivers sat in the three years going into each regime (its run-ups, which "
-    "the call learns from) and during it (months whose past year and a half of growth and "
-    "inflation fit the regime), and theory: where the regime should sit by its definition, a "
-    "judgment set before looking at the data, meant as a direction rather than a reading. "
-    "The centre is −1, the middle ring neutral and the outer ring +1, toward the end named "
-    "under each driver. An average of all months sits closer to neutral than theory; the "
-    "strongest quarter keeps only the months deepest in each regime, with growth and inflation "
-    "furthest into its corner. The drivers look ahead, so during a regime they already lean "
-    "toward what comes next: in hard landings, money has eased and fiscal policy turned "
-    "supportive. Hover a chart for its scores."))
+    "How the five drivers looked going into each regime and during it, set against theory: "
+    "where each regime should sit by its definition. Theory is a direction, not a reading."))
 PAIRS = {"Going in vs theory": ("going", "theory"), "Going in vs during": ("going", "during"),
          "During vs theory": ("during", "theory")}
 c_pair, c_months = st.columns([1.4, 1])
@@ -175,17 +167,36 @@ for r in REG["regimes"]:
             series.append({"name": NAME[kind], "values": shape[kind].loc[r].to_dict(),
                            "color": color, **look})
     panels.append(ui.radar_svg(NAMES, SHORT, series, title=LABEL[r], title_color=COLOR[r]))
-# The biggest differences between the two shapes shown, two per regime.
-_diff = (shape[shape_b] - shape[shape_a]).reindex(list(REG["regimes"])).dropna(how="all")
-notes = []
-for r, row in _diff.iterrows():
-    top = row.abs().sort_values(ascending=False).index[:2]
-    notes.append(f'<p><b style="color:{COLOR[r]}">{ui.esc(LABEL[r])}:</b> ' + "; ".join(
-        f'{ui.esc(SHORT[d][0].lower())} {ui.signed(shape[shape_a].at[r, d])} → '
-        f'{ui.signed(shape[shape_b].at[r, d])}' for d in top) + "</p>")
-panels.append(f'<div class="rd-note"><p><b>Biggest differences, {NAME[shape_a].lower()} → '
-              f'{NAME[shape_b].lower()}</b></p>' + "".join(notes) + "</div>")
+# The sixth slot explains the charts, so the caption above can stay short.
+panels.append(
+    '<div class="rd-note"><p><b>Reading the charts</b></p><ul>'
+    '<li>The centre is −1, the middle ring neutral and the outer ring +1, toward the end named '
+    'under each driver.</li>'
+    '<li><b>Going in</b>: the three years before each regime, its run-ups, which the call '
+    'learns from. <b>During</b>: months whose past year and a half of growth and inflation fit '
+    'the regime.</li>'
+    '<li>Drivers look ahead, so during a regime they already read the policy response and the '
+    'next phase.</li>'
+    '<li>An average of many months sits closer to neutral than theory; read direction more than '
+    'size. <b>Strongest quarter</b> keeps only each regime’s deepest months.</li>'
+    '<li>Hover a chart for its scores.</li></ul></div>')
 st.html(ui.radar_grid(panels, [(KEY_NAME[k], ui.INK_2, LOOK[k][1]) for k in (shape_a, shape_b)]))
+# Where the two shapes part ways: a card per regime with its two biggest
+# gaps and a note, the theory note whenever theory is one of the pair.
+_diff = (shape[shape_b] - shape[shape_a]).reindex(list(REG["regimes"]))
+_note = "theory" if "theory" in (shape_a, shape_b) else "during"
+_ring = "dotted " + ui.INK_2 if shape_b == "theory" else "dashed "
+cards = []
+for r in REG["regimes"]:
+    if r not in _diff.index or _diff.loc[r].isna().all():
+        continue
+    top = _diff.loc[r].abs().sort_values(ascending=False).index[:2]
+    cards.append({"title": LABEL[r], "color": COLOR[r],
+                  "note": (REG["regimes"][r].get("notes") or {}).get(_note, ""),
+                  "ring": _ring if shape_b == "theory" else _ring + COLOR[r],
+                  "rows": [(SHORT[d][0], float(shape[shape_a].at[r, d]),
+                            float(shape[shape_b].at[r, d])) for d in top]})
+st.html(ui.gap_cards(cards, NAME[shape_a], NAME[shape_b]))
 _runs = ol.spells(M["train"]["label"])["label"].value_counts()
 _spells = ol.spells(M["during"]["label"])["label"].value_counts()
 _count = {"going": lambda r: f"{int(_runs.get(r, 0))} run-ups",
@@ -197,9 +208,10 @@ for r in REG["regimes"]:
         if r in shape[kind].index:
             rows.append([NAME[kind]] + [ui.signed(shape[kind].at[r, d]) for d in NAMES]
                         + [_count[kind](r)])
-st.html(ui.table(["Strongest quarter of months" if strong else "All months"]
-                 + [SHORT[d][0] for d in NAMES] + ["Episodes"],
-                 rows, numeric=set(range(1, len(NAMES) + 2))))
+with st.expander("All the numbers"):
+    st.html(ui.table(["Strongest quarter of months" if strong else "All months"]
+                     + [SHORT[d][0] for d in NAMES] + ["Episodes"],
+                     rows, numeric=set(range(1, len(NAMES) + 2))))
 
 # ---------- 1. the call ----------
 
