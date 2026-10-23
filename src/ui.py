@@ -711,10 +711,8 @@ def radar_svg(drivers: list[str], labels: dict[str, tuple[str, str]], series: li
     for v in RADAR_RINGS:
         pts = " ".join(f"{x:.1f},{y:.1f}" for x, y in
                        (radar_point(v, k, n, cx, cy) for k in range(n)))
-        neutral = v == 0.0
-        ring = (f'stroke="{AXIS}" stroke-width="1.4"' if neutral
-                else f'stroke="{GRID}" stroke-width="1" stroke-dasharray="2 3"')
-        out.append(f'<polygon points="{pts}" fill="none" {ring}/>')
+        out.append(f'<polygon points="{pts}" fill="none" stroke="{GRID}" stroke-width="1" '
+                   f'stroke-dasharray="2 3"/>')
     for k, d in enumerate(drivers):
         x, y = radar_point(1.0, k, n, cx, cy)
         out.append(f'<line x1="{cx}" y1="{cy}" x2="{x:.1f}" y2="{y:.1f}" stroke="{GRID}"/>')

@@ -73,9 +73,12 @@ def model(version: str, config_key: str) -> dict | None:
                 .groupby("label").mean().reindex(list(REG["regimes"])))
     # During a regime: months whose past year and a half of growth and
     # inflation fit it, the answer key's own reading of the present.
-    during = ol.training_frame(scores, truth.build(truth.from_store(wide), **truth.METHODS["now"]))
+    nowcast = truth.build(truth.from_store(wide), **truth.METHODS["now"])
+    during = ol.training_frame(scores, nowcast)
     return {"drivers": res["drivers"], "indicators": res["indicators"], "scores": scores,
-            "train": train, "fwd": fwd, "outcomes": outcomes, "during": during}
+            "train": train, "fwd": fwd, "outcomes": outcomes, "during": during,
+            "core_in": ol.core_positions(train, fwd, NAMES),
+            "core_during": ol.core_positions(during, nowcast, NAMES)}
 
 
 def probabilities(x: pd.DataFrame) -> pd.DataFrame:
@@ -231,17 +234,37 @@ st.html(ui.signpost_html(drivers, CFG, REG, latest_ts, then_ts, None, blocks=blo
 
 st.html(ui.section_head(
     "Regime shapes", f"Since 1968 · {when:%b %Y}",
-    "Where the five drivers sat, on average, in the three years going into each regime (its "
-    "run-ups, which the call learns from) and during it (months whose past year and a half of "
-    "growth and inflation fit the regime), against theory: where the regime should sit by its "
-    "definition, a judgment set before looking at the data, which the call's positions lean "
-    "toward slightly. The solid middle ring is neutral; outward is the end named under each "
-    "driver. Averages of many months sit closer to neutral than theory, so compare directions "
-    "more than sizes. The drivers look ahead, so during a regime they already lean toward what "
-    "comes next: in hard landings, money has eased and fiscal policy turned supportive. Hover "
-    "a chart for its scores."))
-going_in = ol.positions(M["train"], NAMES)
-during_pos = ol.positions(M["during"], NAMES)
+    "Where the five drivers sat in the three years going into each regime (its run-ups, which "
+    "the call learns from) and during it (months whose past year and a half of growth and "
+    "inflation fit the regime), and theory: where the regime should sit by its definition, a "
+    "judgment set before looking at the data, which the call's positions lean toward slightly. "
+    "The centre is −1, the middle ring neutral and the outer ring +1, toward the end named "
+    "under each driver. An average of all months sits closer to neutral than theory; the "
+    "strongest quarter keeps only the months deepest in each regime, with growth and inflation "
+    "furthest into its corner. The drivers look ahead, so during a regime they already lean "
+    "toward what comes next: in hard landings, money has eased and fiscal policy turned "
+    "supportive. Hover a chart for its scores."))
+PAIRS = {"Going in vs during": ("going", "during"), "During vs theory": ("during", "theory"),
+         "Going in vs theory": ("going", "theory")}
+c_pair, c_months = st.columns([1.4, 1])
+pair_label = c_pair.segmented_control("Compare", list(PAIRS), default="Going in vs during",
+                                      key="shape_pair") or "Going in vs during"
+months = c_months.segmented_control("Months", ["All", "Strongest quarter"], default="All",
+                                    key="shape_months") or "All"
+strong = months == "Strongest quarter"
+shape = {
+    "going": M["core_in"] if strong else ol.positions(M["train"], NAMES),
+    "during": M["core_during"] if strong else ol.positions(M["during"], NAMES),
+    "theory": pd.DataFrame({r: v["prior"] for r, v in REG["regimes"].items()
+                            if v.get("prior")}).T.reindex(columns=NAMES),
+}
+NAME = {"going": "Going in", "during": "During", "theory": "Theory"}
+KEY_NAME = {"going": "Going in: the three years before", "during": "During", "theory": "Theory"}
+first, second = PAIRS[pair_label]
+# The first shape of the pair is filled, the second dashed; theory is always
+# a thin grey dotted line, so data and judgment never look alike.
+LOOK = {first: ({"fill": 0.18}, "solid"), second: ({"fill": 0, "dash": True}, "dashed")}
+LOOK["theory"] = ({"fill": 0, "dash": "1.5 2.5", "width": 1.4, "grey": True}, "dotted")
 # Each spoke names its driver and what its outer end means, kept short so
 # five fit round a small chart.
 POLE = {"inflation": "Above anchor"}
@@ -251,46 +274,39 @@ SHORT = {d: (DLABEL[d].split(" and ")[0],
 panels = [ui.radar_svg(NAMES, SHORT, [{"name": f"{when:%b %Y}", "values": now.iloc[0].to_dict(),
                                          "color": ui.INK, "fill": 0.10}],
                        title=f"Today ({when:%b %Y})")]
-theory = {r: v.get("prior") or {} for r, v in REG["regimes"].items()}
 for r in REG["regimes"]:
     series = []
-    if theory[r]:
-        series.append({"name": "Theory", "values": theory[r], "color": ui.INK_2, "fill": 0,
-                       "dash": "1.5 2.5", "width": 1.4})
-    if r in going_in.index:
-        series.append({"name": "Going in", "values": going_in.loc[r].to_dict(),
-                       "color": COLOR[r], "fill": 0.18})
-    if r in during_pos.index:
-        series.append({"name": "During", "values": during_pos.loc[r].to_dict(),
-                       "color": COLOR[r], "fill": 0, "dash": True})
+    for kind in (second, first) if second == "theory" else (first, second):
+        if r in shape[kind].index:
+            look = dict(LOOK[kind][0])
+            color = ui.INK_2 if look.pop("grey", False) else COLOR[r]
+            series.append({"name": NAME[kind], "values": shape[kind].loc[r].to_dict(),
+                           "color": color, **look})
     panels.append(ui.radar_svg(NAMES, SHORT, series, title=LABEL[r], title_color=COLOR[r]))
-# The biggest moves from going in to during, two per regime.
-_shift = (during_pos - going_in).reindex(list(REG["regimes"])).dropna(how="all")
+# The biggest differences between the two shapes shown, two per regime.
+_diff = (shape[second] - shape[first]).reindex(list(REG["regimes"])).dropna(how="all")
 notes = []
-for r, row in _shift.iterrows():
+for r, row in _diff.iterrows():
     top = row.abs().sort_values(ascending=False).index[:2]
     notes.append(f'<p><b style="color:{COLOR[r]}">{ui.esc(LABEL[r])}:</b> ' + "; ".join(
-        f'{ui.esc(SHORT[d][0].lower())} {ui.signed(going_in.at[r, d])} → '
-        f'{ui.signed(during_pos.at[r, d])}' for d in top) + "</p>")
-panels.append('<div class="rd-note"><p><b>Biggest shifts, going in → during</b></p>'
-              + "".join(notes) + "</div>")
-st.html(ui.radar_grid(panels, [("Going in: the three years before", ui.INK_2, "solid"),
-                               ("During", ui.INK_2, "dashed"),
-                               ("Theory", ui.INK_2, "dotted")]))
+        f'{ui.esc(SHORT[d][0].lower())} {ui.signed(shape[first].at[r, d])} → '
+        f'{ui.signed(shape[second].at[r, d])}' for d in top) + "</p>")
+panels.append(f'<div class="rd-note"><p><b>Biggest differences, {NAME[first].lower()} → '
+              f'{NAME[second].lower()}</b></p>' + "".join(notes) + "</div>")
+st.html(ui.radar_grid(panels, [(KEY_NAME[k], ui.INK_2, LOOK[k][1]) for k in (first, second)]))
 _runs = ol.spells(M["train"]["label"])["label"].value_counts()
 _spells = ol.spells(M["during"]["label"])["label"].value_counts()
+_count = {"going": lambda r: f"{int(_runs.get(r, 0))} run-ups",
+          "during": lambda r: f"{int(_spells.get(r, 0))} spells", "theory": lambda r: ""}
 rows = []
 for r in REG["regimes"]:
     rows.append(ui.Raw(f'<b style="color:{COLOR[r]}">{ui.esc(LABEL[r])}</b>'))
-    if theory[r]:
-        rows.append(["Theory"] + [ui.signed(theory[r][d]) for d in NAMES] + [""])
-    if r in going_in.index:
-        rows.append(["Going in"] + [ui.signed(going_in.at[r, d]) for d in NAMES]
-                    + [f"{int(_runs.get(r, 0))} run-ups"])
-    if r in during_pos.index:
-        rows.append(["During"] + [ui.signed(during_pos.at[r, d]) for d in NAMES]
-                    + [f"{int(_spells.get(r, 0))} spells"])
-st.html(ui.table([""] + [SHORT[d][0] for d in NAMES] + ["Episodes"],
+    for kind in ("theory", "going", "during"):
+        if r in shape[kind].index:
+            rows.append([NAME[kind]] + [ui.signed(shape[kind].at[r, d]) for d in NAMES]
+                        + [_count[kind](r)])
+st.html(ui.table(["Strongest quarter of months" if strong else "All months"]
+                 + [SHORT[d][0] for d in NAMES] + ["Episodes"],
                  rows, numeric=set(range(1, len(NAMES) + 2))))
 
 # ---------- 5. policy what-if ----------

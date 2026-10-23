@@ -132,3 +132,19 @@ def test_a_purged_hole_keeps_episodes_either_side_apart():
     rest = train[~ol.purged(train.index, train.index[100], train.index[139])]
     sp = ol.spells(rest["label"])
     assert list(sp["label"]) == ["goldilocks", "goldilocks"]
+
+
+def test_core_positions_keeps_each_regimes_strongest_months():
+    """Strength is the smaller distance into the regime's quadrant, so a month
+    deep on growth but borderline on inflation does not count as strong."""
+    idx = pd.period_range("2000-01", periods=8, freq="M")
+    frame = pd.DataFrame({"growth": [1.0, 2.0, 3.0, 4.0, -1.0, -2.0, -3.0, -4.0],
+                          "label": ["high_growth_high_inflation"] * 4 + ["hard_landing"] * 4},
+                         index=idx)
+    # HGHI months: depth min(g, i) = 0.1, 0.5, 1.5, 0.2; the strongest is the third.
+    # Hard landing months: min(-g, -i) = 2, 0.1, 0.3, 1; the strongest is the fifth.
+    outcome = pd.DataFrame({"growth": [5.0, 0.5, 2.0, 3.0, -2.0, -3.0, -0.3, -1.0],
+                            "inflation": [0.1, 2.0, 1.5, 0.2, -2.5, -0.1, -3.0, -4.0]}, index=idx)
+    out = ol.core_positions(frame, outcome, ["growth"], share=0.25)
+    assert out.at["high_growth_high_inflation", "growth"] == pytest.approx(3.0)
+    assert out.at["hard_landing", "growth"] == pytest.approx(-1.0)

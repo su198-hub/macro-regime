@@ -88,6 +88,32 @@ def positions(train: pd.DataFrame, names: list[str]) -> pd.DataFrame:
     return train.groupby("label")[names].mean()
 
 
+CORE_SHARE = 0.25       # the strongest quarter of each regime's months; see core_positions
+
+
+def core_positions(frame: pd.DataFrame, outcome: pd.DataFrame, names: list[str],
+                   share: float = CORE_SHARE) -> pd.DataFrame:
+    """Each regime's average driver scores over its strongest months only.
+
+    A month's strength is how far its growth and inflation gaps (`outcome`)
+    sat inside its regime's quadrant: the smaller of the two distances past
+    zero, so a month deep on one axis but borderline on the other does not
+    count as strong. Keeps the top `share` of each regime's months. An
+    average over all months sits near neutral; this is the regime at its
+    most pronounced, closer in spirit to a judgment of the regime itself.
+    """
+    sign = {r: (1.0 if up_g else -1.0, 1.0 if up_i else -1.0)
+            for (up_g, up_i), r in truth.QUADRANT.items()}
+    gaps = outcome[["growth", "inflation"]].rename(columns={"growth": "_g", "inflation": "_i"})
+    j = frame[[*names, "label"]].join(gaps, how="inner")
+    j = j[j["label"].isin(sign)]
+    sg = j["label"].map(lambda r: sign[r][0])
+    si = j["label"].map(lambda r: sign[r][1])
+    depth = np.minimum(j["_g"] * sg, j["_i"] * si)
+    cut = depth.groupby(j["label"]).transform(lambda d: d.quantile(1 - share))
+    return j[depth >= cut].groupby("label")[names].mean()
+
+
 PRIOR_STRENGTH = 0.5    # episodes' worth of weight on the prior; see realigned_positions
 
 
