@@ -17,6 +17,9 @@ PROSE_REG = {"driver_salience": {"demand": 1.0, "investment": 1.0},
                                   "archetype": {"demand": 0.6, "investment": 0.6}}}}
 import pytest
 
+import base64
+import html
+
 from src import ui
 
 from src.ui import (cluster, driver_phrase, month_mid, month_start, regime_runs, run_length,
@@ -232,6 +235,9 @@ def test_radar_skips_a_series_with_a_missing_driver():
     labels = {"a": ("A", "High"), "b": ("B", "High"), "c": ("C", "High")}
     full = {"name": "Full", "values": {"a": 0.1, "b": -0.2, "c": 0.3}, "color": "#123456"}
     gap = {"name": "Gap", "values": {"a": 0.1, "b": float("nan"), "c": 0.3}, "color": "#654321"}
-    svg = ui.radar_svg(["a", "b", "c"], labels, [full, gap], title="T")
+    panel = ui.radar_svg(["a", "b", "c"], labels, [full, gap], title="T")
+    svg = base64.b64decode(panel.split("base64,")[1].split('"')[0]).decode()
     assert "#123456" in svg and "#654321" not in svg
-    assert "Full · B: −0.20" in svg
+    # st.html strips inline SVG, so the drawing must go in as an image.
+    assert "<svg" not in panel and "<img" in panel
+    assert "Full: a +0.10, b −0.20, c +0.30" in html.unescape(panel)

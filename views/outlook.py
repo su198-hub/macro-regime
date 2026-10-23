@@ -236,7 +236,7 @@ st.html(ui.section_head(
     "growth and inflation fit the regime). The solid middle ring is neutral; outward is the "
     "end named under each driver. The drivers look ahead, so during a regime they already "
     "lean toward what comes next: in hard landings, money has eased and fiscal policy turned "
-    "supportive. Hover a corner for the score."))
+    "supportive. Hover a chart for its scores."))
 going_in = ol.positions(M["train"], NAMES)
 during_pos = ol.positions(M["during"], NAMES)
 # Each spoke names its driver and what its outer end means, kept short so

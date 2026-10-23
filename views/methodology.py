@@ -388,7 +388,7 @@ prose('<h3 class="m-h3">Indicator set</h3>'
       '<li><b>Correlation with inflation, next 3 years:</b> of each month\'s score with core PCE '
       'inflation less expected inflation over the following three years.</li>'
       '<li>Both run from 1971, or the indicator\'s first month, to the last month with three full '
-      'years after it. Scores are signed so positive points to the driver\'s right-hand pole.</li>'
+      'years after it. Scores are signed so positive points to the driver\'s +1 end, as named on the chart.</li>'
       '<li><b>Score:</b> the latest confirmed month, in standard deviations from the indicator\'s '
       'norm (capped at ±3); on the driver row, the driver\'s −1 to +1 reading.</li></ul>'
       '<p>Each indicator\'s reason and source are in the drop-down under its table.</p>')
