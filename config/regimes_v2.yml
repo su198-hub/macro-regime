@@ -66,11 +66,11 @@ rationale:
       modest at any temperature; 0.15 to 0.20 gave the lowest held-out log
       loss (1.37 to 1.38 against 1.43 at 0.30).
     persistence_months: >-
-      Three months, as in v1. Retested on 1976-2023 with 33 indicators: one,
-      two, three, four and six months all score 68-71% held out and 56-60% in
-      real time, so the rule is about steadiness, not accuracy. Three months
-      changes the call about 0.4 times a year in real time, against 0.7 at one
-      month.
+      Three months, as in v1. Retested on 1976-2023 with the 32 indicators:
+      one, two, three, four and six months all score 68-70% held out and
+      65-69% in real time, so the rule is about steadiness, not accuracy. In
+      the earlier test, three months changed the call about 0.4 times a year
+      in real time, against 0.7 at one month.
     min_confidence: >-
       0.25. With four scenarios the leader always has at least 25%, so the
       floor never binds; it is kept so a reader can raise it in the control
