@@ -75,24 +75,10 @@ def model(version: str, config_key: str) -> dict | None:
     # inflation fit it, the answer key's own reading of the present.
     nowcast = truth.build(truth.from_store(wide), **truth.METHODS["now"])
     during = ol.training_frame(scores, nowcast)
-    # Theory places monetary policy by credibility and fiscal policy by
-    # sustainability, so beside it those two spokes read the blocks that
-    # measure the same: credibility, and debt dynamics (r - g, repricing).
-    on_theory = scores.copy()
-    for d, g in (("monetary", "credibility"), ("fiscal", "debt")):
-        b = group_scores(CFG, d, res["indicators"])[g]
-        b.index = pd.DatetimeIndex(b.index).to_period("M")
-        on_theory[d] = b.reindex(on_theory.index)
-    t_train, t_during = ol.training_frame(on_theory, fwd), ol.training_frame(on_theory, nowcast)
     return {"drivers": res["drivers"], "indicators": res["indicators"], "scores": scores,
             "train": train, "fwd": fwd, "outcomes": outcomes, "during": during,
             "core_in": ol.core_positions(train, fwd, NAMES),
-            "core_during": ol.core_positions(during, nowcast, NAMES),
-            "theory_axes": {"today": on_theory.iloc[-1],
-                            "going": ol.positions(t_train, NAMES),
-                            "during": ol.positions(t_during, NAMES),
-                            "core_in": ol.core_positions(t_train, fwd, NAMES),
-                            "core_during": ol.core_positions(t_during, nowcast, NAMES)}}
+            "core_during": ol.core_positions(during, nowcast, NAMES)}
 
 
 def probabilities(x: pd.DataFrame) -> pd.DataFrame:
@@ -251,9 +237,7 @@ st.html(ui.section_head(
     "Where the five drivers sat in the three years going into each regime (its run-ups, which "
     "the call learns from) and during it (months whose past year and a half of growth and "
     "inflation fit the regime), and theory: where the regime should sit by its definition, a "
-    "judgment set before looking at the data. Theory reads monetary policy as credibility and "
-    "fiscal policy as sustainability, so beside it those spokes show the credibility block and "
-    "the debt-dynamics block (r − g and repricing) instead of the whole driver. "
+    "judgment set before looking at the data, meant as a direction rather than a reading. "
     "The centre is −1, the middle ring neutral and the outer ring +1, toward the end named "
     "under each driver. An average of all months sits closer to neutral than theory; the "
     "strongest quarter keeps only the months deepest in each regime, with growth and inflation "
@@ -268,17 +252,12 @@ pair_label = c_pair.segmented_control("Compare", list(PAIRS), default="Going in 
 months = c_months.segmented_control("Months", ["All", "Strongest quarter"], default="All",
                                     key="shape_months") or "All"
 strong = months == "Strongest quarter"
-vs_theory = "theory" in PAIRS[pair_label]
-TA = M["theory_axes"]
 shape = {
-    "going": (TA["core_in"] if strong else TA["going"]) if vs_theory
-    else (M["core_in"] if strong else ol.positions(M["train"], NAMES)),
-    "during": (TA["core_during"] if strong else TA["during"]) if vs_theory
-    else (M["core_during"] if strong else ol.positions(M["during"], NAMES)),
+    "going": M["core_in"] if strong else ol.positions(M["train"], NAMES),
+    "during": M["core_during"] if strong else ol.positions(M["during"], NAMES),
     "theory": pd.DataFrame({r: v["theory"] for r, v in REG["regimes"].items()
                             if v.get("theory")}).T.reindex(columns=NAMES),
 }
-today_vals = TA["today"].to_dict() if vs_theory else now.iloc[0].to_dict()
 NAME = {"going": "Going in", "during": "During", "theory": "Theory"}
 KEY_NAME = {"going": "Going in: the three years before", "during": "During", "theory": "Theory"}
 first, second = PAIRS[pair_label]
@@ -292,9 +271,7 @@ POLE = {"inflation": "Above anchor"}
 SHORT = {d: (DLABEL[d].split(" and ")[0],
              POLE.get(d, CFG["drivers"][d]["signpost"]["high"]["label"].split(" / ")[0]))
          for d in NAMES}
-if vs_theory:
-    SHORT = {**SHORT, "monetary": ("Credibility", "Credible"), "fiscal": ("Sustainability", "Sustainable")}
-panels = [ui.radar_svg(NAMES, SHORT, [{"name": f"{when:%b %Y}", "values": today_vals,
+panels = [ui.radar_svg(NAMES, SHORT, [{"name": f"{when:%b %Y}", "values": now.iloc[0].to_dict(),
                                          "color": ui.INK, "fill": 0.10}],
                        title=f"Today ({when:%b %Y})")]
 for r in REG["regimes"]:

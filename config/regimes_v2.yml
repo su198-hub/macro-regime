@@ -86,9 +86,9 @@ rationale:
     Each scenario as the judgment draws it, slot for slot (-0.67, -0.33,
     0, +0.33, +0.67), on the judgment's own axes: monetary policy as
     credibility, fiscal policy as sustainability (its multiplier line
-    averaged in, which moves only hard landing, to -0.33). Shown on the
-    outlook page against the credibility and debt-dynamics blocks, which
-    read the same things; not used by the call, which uses prior.
+    averaged in, which moves only hard landing, to -0.33). A direction, not
+    a reading: shown on the outlook page against the full drivers. Not used
+    by the call, which uses prior.
   prior: >-
     The judgment of where each scenario sits, before the data. Growth,
     inflation and reforms keep their direction. Monetary policy now reads
