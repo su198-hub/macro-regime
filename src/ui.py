@@ -701,7 +701,7 @@ def radar_svg(drivers: list[str], labels: dict[str, tuple[str, str]], series: li
 
     `labels` maps a driver to (name, what its outer end means). Each series is
     {"name", "values" (driver -> score), "color", "fill" (opacity, 0 for
-    none), "dash" (bool)}. The drawing goes in as an image, since st.html
+    none), "dash" (True for dashed, or an SVG dash pattern), "width"}. The drawing goes in as an image, since st.html
     strips inline SVG; hovering it lists every series' scores.
     """
     n, cx, cy = len(drivers), 150.0, 126.0
@@ -733,10 +733,13 @@ def radar_svg(drivers: list[str], labels: dict[str, tuple[str, str]], series: li
             continue
         xy = [radar_point(vals[d], k, n, cx, cy) for k, d in enumerate(drivers)]
         pts = " ".join(f"{x:.1f},{y:.1f}" for x, y in xy)
-        dash = ' stroke-dasharray="5 3"' if s_.get("dash") else ""
+        pattern = "5 3" if s_.get("dash") is True else s_.get("dash")
+        dash = f' stroke-dasharray="{pattern}"' if pattern else ""
+        width = s_.get("width", 2)
         out.append(f'<polygon points="{pts}" fill="{s_["color"]}" fill-opacity="{s_.get("fill", 0)}" '
-                   f'stroke="{s_["color"]}" stroke-width="2"{dash} stroke-linejoin="round"/>')
-        out.extend(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="2" fill="{s_["color"]}"/>' for x, y in xy)
+                   f'stroke="{s_["color"]}" stroke-width="{width}"{dash} stroke-linejoin="round"/>')
+        if width >= 2:
+            out.extend(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="2" fill="{s_["color"]}"/>' for x, y in xy)
         hover.append(f'{s_["name"]}: ' + ", ".join(f"{labels[d][0].lower()} {signed(vals[d])}"
                                                    for d in drivers))
     out.append("</svg>")
@@ -747,12 +750,13 @@ def radar_svg(drivers: list[str], labels: dict[str, tuple[str, str]], series: li
             f'alt="{esc(title)}" title="{esc(chr(10).join(hover))}"/></div>')
 
 
-def radar_grid(panels: list[str], legend: list[tuple[str, str, bool]]) -> str:
+def radar_grid(panels: list[str], legend: list[tuple[str, str, str]]) -> str:
     """Radar panels in a grid that wraps to fewer columns on a narrow screen,
-    under a key of (label, color, dashed) entries. A panel may be any HTML."""
+    under a key of (label, color, CSS line style) entries. A panel may be any
+    HTML."""
     keys = "".join(
-        f'<span><span class="rd-key" style="border-top:2.5px {"dashed" if dashed else "solid"} '
-        f'{c}"></span>{esc(label)}</span>' for label, c, dashed in legend)
+        f'<span><span class="rd-key" style="border-top:2.5px {line} {c}"></span>{esc(label)}</span>'
+        for label, c, line in legend)
     return (f'<div class="rd"><div class="rd-legend">{keys}</div>'
             f'<div class="rd-grid">{"".join(panels)}</div></div>')
 

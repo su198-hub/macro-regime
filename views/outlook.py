@@ -233,10 +233,13 @@ st.html(ui.section_head(
     "Regime shapes", f"Since 1968 · {when:%b %Y}",
     "Where the five drivers sat, on average, in the three years going into each regime (its "
     "run-ups, which the call learns from) and during it (months whose past year and a half of "
-    "growth and inflation fit the regime). The solid middle ring is neutral; outward is the "
-    "end named under each driver. The drivers look ahead, so during a regime they already "
-    "lean toward what comes next: in hard landings, money has eased and fiscal policy turned "
-    "supportive. Hover a chart for its scores."))
+    "growth and inflation fit the regime), against theory: where the regime should sit by its "
+    "definition, a judgment set before looking at the data, which the call's positions lean "
+    "toward slightly. The solid middle ring is neutral; outward is the end named under each "
+    "driver. Averages of many months sit closer to neutral than theory, so compare directions "
+    "more than sizes. The drivers look ahead, so during a regime they already lean toward what "
+    "comes next: in hard landings, money has eased and fiscal policy turned supportive. Hover "
+    "a chart for its scores."))
 going_in = ol.positions(M["train"], NAMES)
 during_pos = ol.positions(M["during"], NAMES)
 # Each spoke names its driver and what its outer end means, kept short so
@@ -248,8 +251,12 @@ SHORT = {d: (DLABEL[d].split(" and ")[0],
 panels = [ui.radar_svg(NAMES, SHORT, [{"name": f"{when:%b %Y}", "values": now.iloc[0].to_dict(),
                                          "color": ui.INK, "fill": 0.10}],
                        title=f"Today ({when:%b %Y})")]
+theory = {r: v.get("prior") or {} for r, v in REG["regimes"].items()}
 for r in REG["regimes"]:
     series = []
+    if theory[r]:
+        series.append({"name": "Theory", "values": theory[r], "color": ui.INK_2, "fill": 0,
+                       "dash": "1.5 2.5", "width": 1.4})
     if r in going_in.index:
         series.append({"name": "Going in", "values": going_in.loc[r].to_dict(),
                        "color": COLOR[r], "fill": 0.18})
@@ -267,18 +274,23 @@ for r, row in _shift.iterrows():
         f'{ui.signed(during_pos.at[r, d])}' for d in top) + "</p>")
 panels.append('<div class="rd-note"><p><b>Biggest shifts, going in → during</b></p>'
               + "".join(notes) + "</div>")
-st.html(ui.radar_grid(panels, [("Going in: the three years before", ui.INK_2, False),
-                               ("During", ui.INK_2, True)]))
+st.html(ui.radar_grid(panels, [("Going in: the three years before", ui.INK_2, "solid"),
+                               ("During", ui.INK_2, "dashed"),
+                               ("Theory", ui.INK_2, "dotted")]))
 _runs = ol.spells(M["train"]["label"])["label"].value_counts()
 _spells = ol.spells(M["during"]["label"])["label"].value_counts()
 rows = []
 for r in REG["regimes"]:
-    if r not in going_in.index or r not in during_pos.index:
-        continue
-    rows.append([LABEL[r]] + [f"{ui.signed(going_in.at[r, d])} → {ui.signed(during_pos.at[r, d])}"
-                              for d in NAMES]
-                + [f"{int(_runs.get(r, 0))} / {int(_spells.get(r, 0))}"])
-st.html(ui.table(["Going in → during"] + [SHORT[d][0] for d in NAMES] + ["Run-ups / spells"],
+    rows.append(ui.Raw(f'<b style="color:{COLOR[r]}">{ui.esc(LABEL[r])}</b>'))
+    if theory[r]:
+        rows.append(["Theory"] + [ui.signed(theory[r][d]) for d in NAMES] + [""])
+    if r in going_in.index:
+        rows.append(["Going in"] + [ui.signed(going_in.at[r, d]) for d in NAMES]
+                    + [f"{int(_runs.get(r, 0))} run-ups"])
+    if r in during_pos.index:
+        rows.append(["During"] + [ui.signed(during_pos.at[r, d]) for d in NAMES]
+                    + [f"{int(_spells.get(r, 0))} spells"])
+st.html(ui.table([""] + [SHORT[d][0] for d in NAMES] + ["Episodes"],
                  rows, numeric=set(range(1, len(NAMES) + 2))))
 
 # ---------- 5. policy what-if ----------
