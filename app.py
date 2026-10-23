@@ -9,9 +9,39 @@ thing. Move it back a year and the dashboard shows what you would have seen
 then, not what you know now.
 """
 
+import hashlib
+import pathlib
+import sys
+
 import streamlit as st
 
-from src import ui
+# A deploy pulls new code into the running process. Streamlit re-runs the page
+# files, but can keep the modules they import and every cache from before: a
+# page then calls a function its old module lacks, or reads a cached result
+# missing a field it now needs. So on the first run after the code changes,
+# drop the project's modules and all caches, and rebuild from the new code.
+_ROOT = pathlib.Path(__file__).resolve().parent
+
+
+def _code_stamp() -> str:
+    h = hashlib.sha1()
+    for p in sorted([*(_ROOT / "src").rglob("*.py"), *(_ROOT / "views").glob("*.py"),
+                     *(_ROOT / "scripts").glob("*.py"), *(_ROOT / "config").glob("*.yml")]):
+        s = p.stat()
+        h.update(f"{p.relative_to(_ROOT)}:{s.st_mtime_ns}:{s.st_size}".encode())
+    return h.hexdigest()
+
+
+_stamp = _code_stamp()
+if getattr(sys, "_macro_regime_code", _stamp) != _stamp:
+    for _name in [m for m in sys.modules
+                  if m.split(".")[0] in ("src", "views", "scripts")]:
+        del sys.modules[_name]
+    st.cache_data.clear()
+    st.cache_resource.clear()
+sys._macro_regime_code = _stamp
+
+from src import ui  # noqa: E402  (after the purge, so it is the new code)
 
 st.set_page_config(page_title="Macro Regime Monitor", layout="wide",
                    initial_sidebar_state="collapsed")
