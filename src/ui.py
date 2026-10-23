@@ -248,6 +248,19 @@ CSS = f"""
 .rd-note b {{ color: {INK}; }}
 .rd-note p {{ margin: 0 0 0.5rem; }}
 .rd-panel {{ min-width: 0; }}
+.rd-explain {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 0.5rem 1.4rem; font-size: 0.85rem; color: {INK_2}; line-height: 1.45;
+  border-top: 1px solid {GRID}; border-bottom: 1px solid {GRID}; padding: 0.6rem 0; margin: 0.4rem 0 0.8rem; }}
+.rd-explain b {{ color: {INK}; display: block; }}
+.rd-grid.with-lead {{ grid-template-columns: repeat(3, minmax(0, 1fr)); }}
+.rd-lead {{ grid-row: span 2; align-self: center; border: 1px solid {AXIS}; padding: 0.6rem 0.4rem; }}
+@media (max-width: 900px) {{
+  .rd-grid.with-lead {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
+  .rd-lead {{ grid-row: auto; grid-column: 1 / -1; max-width: 420px; justify-self: center; width: 100%; }}
+}}
+@media (max-width: 600px) {{
+  .rd-grid.with-lead {{ grid-template-columns: minmax(0, 1fr); }}
+}}
 .rd-title {{ font-family: {HEADING_FONT}; font-weight: 700; font-size: 1.05rem;
   text-align: center; margin-bottom: -0.2rem; }}
 .rd-img {{ width: 100%; height: auto; display: block; }}
@@ -770,15 +783,21 @@ def radar_svg(drivers: list[str], labels: dict[str, tuple[str, str]], series: li
             f'alt="{esc(title)}" title="{esc(chr(10).join(hover))}"/></div>')
 
 
-def radar_grid(panels: list[str], legend: list[tuple[str, str, str]]) -> str:
-    """Radar panels in a grid that wraps to fewer columns on a narrow screen,
-    under a key of (label, color, CSS line style) entries. A panel may be any
-    HTML."""
+def radar_grid(panels: list[str], legend: list[tuple[str, str, str]],
+               lead: str = "", key: list[tuple[str, str]] = ()) -> str:
+    """Radar panels in a grid that stacks on a narrow screen, under a key of
+    (label, color, CSS line style) entries. `lead` is a framed panel (today)
+    that spans two rows beside the rest, as a 2x2 for four panels; `key` is a
+    row of (term, explanation) pairs above the charts."""
     keys = "".join(
         f'<span><span class="rd-key" style="border-top:2.5px {line} {c}"></span>{esc(label)}</span>'
         for label, c, line in legend)
-    return (f'<div class="rd"><div class="rd-legend">{keys}</div>'
-            f'<div class="rd-grid">{"".join(panels)}</div></div>')
+    explain = ("<div class=\"rd-explain\">" + "".join(
+        f'<div><b>{esc(term)}</b> {esc(text)}</div>' for term, text in key) + "</div>") if key else ""
+    lead_html = f'<div class="rd-lead">{lead}</div>' if lead else ""
+    grid = "rd-grid with-lead" if lead else "rd-grid"
+    return (f'<div class="rd">{explain}<div class="rd-legend">{keys}</div>'
+            f'<div class="{grid}">{lead_html}{"".join(panels)}</div></div>')
 
 
 def gap_track(a: float, b: float, color: str, b_ring: str, a_name: str, b_name: str) -> str:

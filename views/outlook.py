@@ -155,9 +155,10 @@ POLE = {"inflation": "Above anchor"}
 SHORT = {d: (DLABEL[d].split(" and ")[0],
              POLE.get(d, CFG["drivers"][d]["signpost"]["high"]["label"].split(" / ")[0]))
          for d in NAMES}
-panels = [ui.radar_svg(NAMES, SHORT, [{"name": f"{when:%b %Y}", "values": now.iloc[0].to_dict(),
-                                         "color": ui.INK, "fill": 0.10}],
-                       title=f"Today ({when:%b %Y})")]
+today_panel = ui.radar_svg(NAMES, SHORT, [{"name": f"{when:%b %Y}", "values": now.iloc[0].to_dict(),
+                                            "color": ui.INK, "fill": 0.10}],
+                          title=f"Today ({when:%b %Y})")
+panels = []
 for r in REG["regimes"]:
     series = []
     for kind in (shape_b, shape_a) if shape_b == "theory" else (shape_a, shape_b):
@@ -167,20 +168,17 @@ for r in REG["regimes"]:
             series.append({"name": NAME[kind], "values": shape[kind].loc[r].to_dict(),
                            "color": color, **look})
     panels.append(ui.radar_svg(NAMES, SHORT, series, title=LABEL[r], title_color=COLOR[r]))
-# The sixth slot explains the charts, so the caption above can stay short.
-panels.append(
-    '<div class="rd-note"><p><b>Reading the charts</b></p><ul>'
-    '<li>The centre is −1, the middle ring neutral and the outer ring +1, toward the end named '
-    'under each driver.</li>'
-    '<li><b>Going in</b>: the three years before each regime, its run-ups, which the call '
-    'learns from. <b>During</b>: months whose past year and a half of growth and inflation fit '
-    'the regime.</li>'
-    '<li>Drivers look ahead, so during a regime they already read the policy response and the '
-    'next phase.</li>'
-    '<li>An average of many months sits closer to neutral than theory; read direction more than '
-    'size. <b>Strongest quarter</b> keeps only each regime’s deepest months.</li>'
-    '<li>Hover a chart for its scores.</li></ul></div>')
-st.html(ui.radar_grid(panels, [(KEY_NAME[k], ui.INK_2, LOOK[k][1]) for k in (shape_a, shape_b)]))
+st.html(ui.radar_grid(
+    panels, [(KEY_NAME[k], ui.INK_2, LOOK[k][1]) for k in (shape_a, shape_b)], lead=today_panel,
+    key=[("Scale", "The centre is −1, the middle ring neutral and the outer ring +1, toward the "
+                   "end named under each driver. Hover a chart for its scores."),
+         ("Going in and during", "Going in is the three years before each regime, its run-ups, "
+                                 "which the call learns from. During is the months whose past "
+                                 "year and a half of growth and inflation fit the regime."),
+         ("Drivers look ahead", "So going in is what compares with theory; during a regime they "
+                                "already read the policy response and the next phase."),
+         ("Direction over size", "An average of many months sits closer to neutral than theory. "
+                                 "Strongest quarter keeps only each regime’s deepest months.")]))
 # Where the two shapes part ways: a card per regime with its two biggest
 # gaps and a note, the theory note whenever theory is one of the pair.
 _diff = (shape[shape_b] - shape[shape_a]).reindex(list(REG["regimes"]))
