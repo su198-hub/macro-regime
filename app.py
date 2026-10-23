@@ -33,7 +33,9 @@ def _code_stamp() -> str:
 
 
 _stamp = _code_stamp()
-if getattr(sys, "_macro_regime_code", _stamp) != _stamp:
+# A process that has not recorded a stamp may be one this guard is new to, so
+# purge then too: in a fresh process there is nothing to drop.
+if getattr(sys, "_macro_regime_code", None) != _stamp:
     for _name in [m for m in sys.modules
                   if m.split(".")[0] in ("src", "views", "scripts")]:
         del sys.modules[_name]
