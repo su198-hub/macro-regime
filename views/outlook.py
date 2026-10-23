@@ -10,6 +10,8 @@ picked elsewhere.
      a growth x inflation map, and the probability-weighted landing point.
   3. What is pushing it: each driver's pull on that landing point.
   4. The drivers, as on the dashboard.
+  4b. Regime shapes: where the drivers sat going into each regime and during
+     it, one radar per regime beside today's.
   5. A policy what-if: move monetary or fiscal policy, watch the call move.
   6. The track record, graded as the call would have been made at the time.
 """
@@ -69,8 +71,11 @@ def model(version: str, config_key: str) -> dict | None:
     # inflation gaps that followed the months in its run-up.
     outcomes = (fwd.loc[train.index, ["growth", "inflation"]].join(train["label"])
                 .groupby("label").mean().reindex(list(REG["regimes"])))
+    # During a regime: months whose past year and a half of growth and
+    # inflation fit it, the answer key's own reading of the present.
+    during = ol.training_frame(scores, truth.build(truth.from_store(wide), **truth.METHODS["now"]))
     return {"drivers": res["drivers"], "indicators": res["indicators"], "scores": scores,
-            "train": train, "fwd": fwd, "outcomes": outcomes}
+            "train": train, "fwd": fwd, "outcomes": outcomes, "during": during}
 
 
 def probabilities(x: pd.DataFrame) -> pd.DataFrame:
@@ -221,6 +226,60 @@ for d in NAMES:
         if latest_ts in gs.index:
             blocks[d] = {groups[g].get("label") or g: gs.at[latest_ts, g] for g in gs.columns}
 st.html(ui.signpost_html(drivers, CFG, REG, latest_ts, then_ts, None, blocks=blocks))
+
+# ---------- 4b. regime shapes ----------
+
+st.html(ui.section_head(
+    "Regime shapes", f"Since 1968 · {when:%b %Y}",
+    "Where the five drivers sat, on average, in the three years going into each regime (its "
+    "run-ups, which the call learns from) and during it (months whose past year and a half of "
+    "growth and inflation fit the regime). The solid middle ring is neutral; outward is the "
+    "end named under each driver. The drivers look ahead, so during a regime they already "
+    "lean toward what comes next: in hard landings, money has eased and fiscal policy turned "
+    "supportive. Hover a corner for the score."))
+going_in = ol.positions(M["train"], NAMES)
+during_pos = ol.positions(M["during"], NAMES)
+# Each spoke names its driver and what its outer end means, kept short so
+# five fit round a small chart.
+POLE = {"inflation": "Above anchor"}
+SHORT = {d: (DLABEL[d].split(" and ")[0],
+             POLE.get(d, CFG["drivers"][d]["signpost"]["high"]["label"].split(" / ")[0]))
+         for d in NAMES}
+panels = [ui.radar_svg(NAMES, SHORT, [{"name": f"{when:%b %Y}", "values": now.iloc[0].to_dict(),
+                                         "color": ui.INK, "fill": 0.10}],
+                       title=f"Today ({when:%b %Y})")]
+for r in REG["regimes"]:
+    series = []
+    if r in going_in.index:
+        series.append({"name": "Going in", "values": going_in.loc[r].to_dict(),
+                       "color": COLOR[r], "fill": 0.18})
+    if r in during_pos.index:
+        series.append({"name": "During", "values": during_pos.loc[r].to_dict(),
+                       "color": COLOR[r], "fill": 0, "dash": True})
+    panels.append(ui.radar_svg(NAMES, SHORT, series, title=LABEL[r], title_color=COLOR[r]))
+# The biggest moves from going in to during, two per regime.
+_shift = (during_pos - going_in).reindex(list(REG["regimes"])).dropna(how="all")
+notes = []
+for r, row in _shift.iterrows():
+    top = row.abs().sort_values(ascending=False).index[:2]
+    notes.append(f'<p><b style="color:{COLOR[r]}">{ui.esc(LABEL[r])}:</b> ' + "; ".join(
+        f'{ui.esc(SHORT[d][0].lower())} {ui.signed(going_in.at[r, d])} → '
+        f'{ui.signed(during_pos.at[r, d])}' for d in top) + "</p>")
+panels.append('<div class="rd-note"><p><b>Biggest shifts, going in → during</b></p>'
+              + "".join(notes) + "</div>")
+st.html(ui.radar_grid(panels, [("Going in: the three years before", ui.INK_2, False),
+                               ("During", ui.INK_2, True)]))
+_runs = ol.spells(M["train"]["label"])["label"].value_counts()
+_spells = ol.spells(M["during"]["label"])["label"].value_counts()
+rows = []
+for r in REG["regimes"]:
+    if r not in going_in.index or r not in during_pos.index:
+        continue
+    rows.append([LABEL[r]] + [f"{ui.signed(going_in.at[r, d])} → {ui.signed(during_pos.at[r, d])}"
+                              for d in NAMES]
+                + [f"{int(_runs.get(r, 0))} / {int(_spells.get(r, 0))}"])
+st.html(ui.table(["Going in → during"] + [SHORT[d][0] for d in NAMES] + ["Run-ups / spells"],
+                 rows, numeric=set(range(1, len(NAMES) + 2))))
 
 # ---------- 5. policy what-if ----------
 

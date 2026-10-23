@@ -237,6 +237,21 @@ CSS = f"""
 .mr-cal td.drv {{ color: {INK_2}; white-space: nowrap; }}
 .mr-cal .conf {{ font-size: 0.76rem; color: {INK_2}; }}
 
+.rd {{ font-family: {BODY_FONT}; }}
+.rd-legend {{ display: flex; flex-wrap: wrap; gap: 0.45rem 1.2rem; font-size: 0.86rem;
+  color: {INK_2}; margin: 0.2rem 0 0.6rem; }}
+.rd-legend span {{ display: inline-flex; align-items: center; gap: 0.4rem; }}
+.rd-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+  gap: 0.6rem 1.4rem; }}
+.rd-note {{ align-self: center; font-size: 0.86rem; color: {INK_2}; line-height: 1.45; }}
+.rd-note b {{ color: {INK}; }}
+.rd-note p {{ margin: 0 0 0.5rem; }}
+.rd-panel {{ min-width: 0; }}
+.rd-title {{ font-family: {HEADING_FONT}; font-weight: 700; font-size: 1.05rem;
+  text-align: center; margin-bottom: -0.2rem; }}
+.rd-svg {{ width: 100%; height: auto; display: block; overflow: visible; }}
+.rd-axis {{ font-size: 10.5px; fill: {INK}; font-weight: 700; }}
+.rd-pole {{ font-weight: 400; fill: {MUTED}; }}
 .sp {{ font-family: {BODY_FONT}; }}
 .sp-legend {{ display: flex; flex-wrap: wrap; gap: 0.45rem 1.1rem; align-items: center;
   font-size: 0.82rem; color: {INK_2}; margin: 0 0 0.8rem; }}
@@ -664,6 +679,80 @@ def signpost_html(drivers: pd.DataFrame, ind_cfg: dict, reg_cfg: dict,
     return (f'<div class="sp"><div class="sp-legend">{"".join(legend)}</div>'
             f'<div class="sp-legend sp-legend-regimes">{"".join(regime_key)}</div>'
             + "".join(rows) + note + "</div>")
+
+
+# ---------- regime shapes ----------
+
+RADAR_R = 74          # radius of the +1 ring, in SVG units
+RADAR_RINGS = (-0.5, 0.0, 0.5, 1.0)
+
+
+def radar_point(value: float, k: int, n: int, cx: float, cy: float, r: float = RADAR_R):
+    """Where a score lands on spoke k of n: -1 at the centre, 0 on the middle
+    ring, +1 on the outer one; spoke 0 points straight up, the rest clockwise."""
+    frac = (min(max(float(value), -1.0), 1.0) + 1.0) / 2.0
+    ang = -np.pi / 2 + 2 * np.pi * k / n
+    return cx + r * frac * np.cos(ang), cy + r * frac * np.sin(ang)
+
+
+def radar_svg(drivers: list[str], labels: dict[str, tuple[str, str]], series: list[dict],
+              title: str = "", title_color: str = INK) -> str:
+    """One radar: a spoke per driver, each series drawn as a polygon.
+
+    `labels` maps a driver to (name, what its outer end means). Each series is
+    {"name", "values" (driver -> score), "color", "fill" (opacity, 0 for
+    none), "dash" (bool)}. Hovering a corner gives the series and the score.
+    """
+    n, cx, cy = len(drivers), 150.0, 126.0
+    out = [f'<svg viewBox="0 0 300 240" class="rd-svg" role="img" '
+           f'aria-label="{esc(title)}">']
+    for v in RADAR_RINGS:
+        pts = " ".join(f"{x:.1f},{y:.1f}" for x, y in
+                       (radar_point(v, k, n, cx, cy) for k in range(n)))
+        neutral = v == 0.0
+        ring = (f'stroke="{AXIS}" stroke-width="1.4"' if neutral
+                else f'stroke="{GRID}" stroke-width="1" stroke-dasharray="2 3"')
+        out.append(f'<polygon points="{pts}" fill="none" {ring}/>')
+    for k, d in enumerate(drivers):
+        x, y = radar_point(1.0, k, n, cx, cy)
+        out.append(f'<line x1="{cx}" y1="{cy}" x2="{x:.1f}" y2="{y:.1f}" stroke="{GRID}"/>')
+        lx, ly = radar_point(1.0, k, n, cx, cy, RADAR_R + 10)
+        anchor = "middle" if abs(lx - cx) < 8 else ("start" if lx > cx else "end")
+        ly = ly - 10 if k == 0 else (ly + 4 if ly > cy else ly)
+        name, pole = labels[d]
+        out.append(f'<text x="{lx:.1f}" y="{ly:.1f}" text-anchor="{anchor}" class="rd-axis">'
+                   f'{esc(name)}<tspan x="{lx:.1f}" dy="12" class="rd-pole">{esc(pole)}</tspan></text>')
+    for s in series:
+        vals = s["values"]
+        if not all(d in vals and pd.notna(vals[d]) for d in drivers):
+            continue
+        xy = [radar_point(vals[d], k, n, cx, cy) for k, d in enumerate(drivers)]
+        pts = " ".join(f"{x:.1f},{y:.1f}" for x, y in xy)
+        dash = ' stroke-dasharray="5 3"' if s.get("dash") else ""
+        out.append(f'<polygon points="{pts}" fill="{s["color"]}" fill-opacity="{s.get("fill", 0)}" '
+                   f'stroke="{s["color"]}" stroke-width="2"{dash} stroke-linejoin="round"/>')
+        for (x, y), d in zip(xy, drivers):
+            out.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="7" fill="transparent">'
+                       f'<title>{esc(s["name"])} · {esc(labels[d][0])}: {signed(vals[d])}</title>'
+                       f'</circle>'
+                       f'<circle cx="{x:.1f}" cy="{y:.1f}" r="2" fill="{s["color"]}" '
+                       f'pointer-events="none"/>')
+    out.append("</svg>")
+    head = (f'<div class="rd-title" style="color:{title_color}">{esc(title)}</div>'
+            if title else "")
+    return f'<div class="rd-panel">{head}{"".join(out)}</div>'
+
+
+def radar_grid(panels: list[str], legend: list[tuple[str, str, bool]]) -> str:
+    """Radar panels in a grid that wraps to fewer columns on a narrow screen,
+    under a key of (label, color, dashed) entries. A panel may be any HTML."""
+    dash = ' stroke-dasharray="5 3"'
+    keys = "".join(
+        f'<span><svg width="26" height="12" aria-hidden="true"><line x1="1" y1="6" x2="25" y2="6" '
+        f'stroke="{c}" stroke-width="2.4"{dash if dashed else ""}/></svg>'
+        f'{esc(label)}</span>' for label, c, dashed in legend)
+    return (f'<div class="rd"><div class="rd-legend">{keys}</div>'
+            f'<div class="rd-grid">{"".join(panels)}</div></div>')
 
 
 # ---------- charts ----------

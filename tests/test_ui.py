@@ -17,6 +17,8 @@ PROSE_REG = {"driver_salience": {"demand": 1.0, "investment": 1.0},
                                   "archetype": {"demand": 0.6, "investment": 0.6}}}}
 import pytest
 
+from src import ui
+
 from src.ui import (cluster, driver_phrase, month_mid, month_start, regime_runs, run_length,
                     objection, track_position, what_moved, why_called,
                     why_not_called)
@@ -210,3 +212,26 @@ def test_why_called_can_say_the_signposts_lean_toward_a_challenger():
     row = pd.Series({"d": 0.55})
     assert ui.why_called(row, cfg, reg, "hot", leaning=True).startswith("Leaning toward hot")
     assert ui.why_called(row, cfg, reg, "hot").startswith("Hot")
+
+
+def test_radar_point_runs_from_centre_to_outer_ring():
+    """-1 sits at the centre, 0 on the middle ring, +1 on the outer one, and
+    spoke 0 points straight up: a flipped sign would draw a regime inside out."""
+    cx, cy = 150.0, 126.0
+    assert ui.radar_point(-1.0, 0, 5, cx, cy) == pytest.approx((cx, cy))
+    x, y = ui.radar_point(0.0, 0, 5, cx, cy)
+    assert x == pytest.approx(cx) and y == pytest.approx(cy - ui.RADAR_R / 2)
+    x, y = ui.radar_point(1.0, 0, 5, cx, cy)
+    assert y == pytest.approx(cy - ui.RADAR_R)
+    # Scores past the cap stay on the outer ring; spoke 1 is to the right.
+    assert ui.radar_point(3.0, 1, 5, cx, cy) == pytest.approx(ui.radar_point(1.0, 1, 5, cx, cy))
+    assert ui.radar_point(1.0, 1, 5, cx, cy)[0] > cx
+
+
+def test_radar_skips_a_series_with_a_missing_driver():
+    labels = {"a": ("A", "High"), "b": ("B", "High"), "c": ("C", "High")}
+    full = {"name": "Full", "values": {"a": 0.1, "b": -0.2, "c": 0.3}, "color": "#123456"}
+    gap = {"name": "Gap", "values": {"a": 0.1, "b": float("nan"), "c": 0.3}, "color": "#654321"}
+    svg = ui.radar_svg(["a", "b", "c"], labels, [full, gap], title="T")
+    assert "#123456" in svg and "#654321" not in svg
+    assert "Full · B: −0.20" in svg
