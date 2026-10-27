@@ -51,6 +51,8 @@ REG = copy.deepcopy(REG_ALL)
 REG["regimes"] = {k: v for k, v in REG["regimes"].items() if k in truth.QUADRANT.values()}
 NAMES = list(CFG["drivers"])
 LABEL = {k: v["label"] for k, v in REG["regimes"].items()}
+# Headings use the short code where the full name runs long (HGHI).
+HEAD = {k: v["short"] if len(v["label"]) > 15 else v["label"] for k, v in REG["regimes"].items()}
 COLOR = {k: v["color"] for k, v in REG["regimes"].items()}
 DLABEL = {k: v.get("label", k) for k, v in CFG["drivers"].items()}
 
@@ -173,7 +175,7 @@ for r in REG["regimes"]:
             color = ui.INK_2 if look.pop("grey", False) else COLOR[r]
             series.append({"name": NAME[kind], "values": shape[kind].loc[r].to_dict(),
                            "color": color, **look})
-    panels.append(ui.radar_svg(NAMES, SHORT, series, title=LABEL[r], title_color=COLOR[r]))
+    panels.append(ui.radar_svg(NAMES, SHORT, series, title=HEAD[r], title_color=COLOR[r]))
 st.html(ui.radar_grid(
     panels, [(KEY_NAME[k], ui.INK_2, LOOK[k][1]) for k in (shape_a, shape_b)], lead=today_panel,
     key=[("Scale", "The centre is −1, the middle ring neutral and the outer ring +1, toward the "
@@ -196,7 +198,7 @@ for r in REG["regimes"]:
     if r not in _diff.index or _diff.loc[r].isna().all():
         continue
     top = _diff.loc[r].abs().sort_values(ascending=False).index[:2]
-    cards.append({"title": LABEL[r], "color": COLOR[r],
+    cards.append({"title": HEAD[r], "color": COLOR[r],
                   "note": (REG["regimes"][r].get("notes") or {}).get(_note, ""),
                   "ring": _ring if shape_b == "theory" else _ring + COLOR[r],
                   "rows": [(SHORT[d][0], float(shape[shape_a].at[r, d]),
@@ -208,7 +210,7 @@ _count = {"going": lambda r: f"{int(_runs.get(r, 0))} run-ups",
           "during": lambda r: f"{int(_spells.get(r, 0))} spells", "theory": lambda r: ""}
 rows = []
 for r in REG["regimes"]:
-    rows.append(ui.Raw(f'<b style="color:{COLOR[r]}">{ui.esc(LABEL[r])}</b>'))
+    rows.append(ui.Raw(f'<b style="color:{COLOR[r]}">{ui.esc(HEAD[r])}</b>'))
     for kind in ("theory", "going", "during"):
         if r in shape[kind].index:
             rows.append([NAME[kind]] + [ui.signed(shape[kind].at[r, d]) for d in NAMES]
@@ -339,9 +341,9 @@ if r_dur is not None and sp_dur is not None:
 c_text.html(f'<div class="hx">{"".join(lines)}</div>')
 c_text.html(ui.table(
     ["", HX_LABEL[hx],
-     ui.Raw(f"Going-in average,<br>{ui.esc(LABEL[r_in].lower())}") if r_in in going_avg.index
+     ui.Raw(f"Going-in average,<br>{ui.esc(HEAD[r_in])}") if r_in in going_avg.index
      else "Going-in average",
-     ui.Raw(f"During average,<br>{ui.esc(LABEL[r_dur].lower())}") if r_dur in during_avg.index
+     ui.Raw(f"During average,<br>{ui.esc(HEAD[r_dur])}") if r_dur in during_avg.index
      else "During average"],
     [[SHORT[d][0], ui.signed(here[d]),
       ui.signed(going_avg.at[r_in, d]) if r_in in going_avg.index else "–",
@@ -373,7 +375,7 @@ for d in NAMES:
     total = sum(float(i_["weight"]) for i_ in CFG["drivers"][d]["indicators"])
     for i_ in sorted(CFG["drivers"][d]["indicators"], key=lambda x: -float(x["weight"])):
         col, tr = f"{d}::{i_['id']}", i_.get("transform", "level")
-        read = lambda v, tr=tr: ui.format_reading(v, tr)
+        read = lambda v, tr=tr, un=i_.get("unit"): ui.format_reading(v, tr, un)
         rows_ind.append([
             ui.Raw(f'{ui.esc(i_["label"])}<br><span style="color:{ui.MUTED};font-size:0.8rem">'
                    f'{ui.esc(ui.TRANSFORM_TEXT.get(tr, tr))}</span>'),
@@ -385,7 +387,7 @@ with hx_box.expander("The indicators behind each driver"):
             'standard deviations from its norm, capped at ±3, signed so positive points to the '
             'driver\u2019s +1 end. Weight is its share of the driver. A dash is an indicator not '
             'yet measured that month.</p>')
-    _reg = ui.esc(LABEL[r_in].lower()) if r_in in going_avg.index else ""
+    _reg = ui.esc(HEAD[r_in]) if r_in in going_avg.index else ""
     st.html(ui.table(
         ["Indicator", "Weight", ui.Raw(f"Reading,<br>{HX_LABEL[hx]}"), ui.Raw(f"Score,<br>{HX_LABEL[hx]}"),
          ui.Raw(f"Going-in reading,<br>{_reg}") if _reg else "Going-in reading",

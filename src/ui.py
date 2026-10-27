@@ -1013,7 +1013,7 @@ def indicator_evidence(parts: pd.DataFrame, indicators: list[dict]) -> str:
         return f"{base} running at {format_reading(value, transform)} annualized"
     if transform == "diff_12m":
         return f"{base} {format_reading(value, transform)} over the past year"
-    return f"{base} at {format_reading(value, transform)}"
+    return f"{base} at {format_reading(value, transform, spec.get('unit'))}"
 
 
 def _gaps(row: pd.Series, reg_cfg: dict, regime: str) -> pd.Series:
@@ -1307,9 +1307,16 @@ TRANSFORM_TEXT = {
 UP, DOWN = "#e34948", "#2a78d6"   # diverging poles: pushes the driver up / down
 
 
-def format_reading(value: float, transform: str) -> str:
+def format_reading(value: float, transform: str, unit: str | None = None) -> str:
+    """A reading in its own units: % (a rate or share), pp (a gap or change
+    in percentage points), pts (a score), or an index level."""
     if pd.isna(value):
         return "–"
+    if unit:
+        value = 0.0 if abs(value) < 0.005 else value   # no "−0.00"
+        num = f"{value:,.0f}" if abs(value) >= 20 else f"{value:.2f}"
+        num = num.replace("-", "−")
+        return {"%": f"{num}%", "pp": f"{num}pp", "pts": f"{num} pts"}.get(unit, num)
     if transform in ("yoy_pct", "pct_change_3m_ann"):
         return f"{value:.1f}%".replace("-", "−")
     if transform == "diff_12m":
@@ -1407,7 +1414,7 @@ def breakdown_table(parts: pd.DataFrame, indicators: list[dict], clipped_to: flo
         center = (f'{float(norm["center"]):g}'.replace("-", "−")
                   if norm.get("method") == "gap"
                   else f'Own {int(norm.get("window", 240)) / 12:g}-year history')
-        reading = (f'{format_reading(r.value, transform)}<br><span style="color:{INK_2};'
+        reading = (f'{format_reading(r.value, transform, ind.get("unit"))}<br><span style="color:{INK_2};'
                    f'font-size:0.8rem">{esc(TRANSFORM_TEXT.get(transform, transform))}</span>')
         if pd.isna(r.contribution):
             bar, contrib = "", "No data"

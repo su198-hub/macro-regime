@@ -259,6 +259,7 @@ drivers:
           expr: "UNRATE - NROU"
           series: [UNRATE, NROU]
         transform: level
+        unit: "pp"
         normalize: {method: gap, center: 0.0, scale: 1.46}
         direction: 1
         weight: 0.1875
@@ -279,6 +280,7 @@ drivers:
         label: Capacity utilization less its 10-year average
         source: {series: TCU}
         transform: dev_10y
+        unit: "pp"
         normalize: {method: gap, center: 0.0, scale: 3.07}
         direction: -1
         weight: 0.1875
@@ -302,6 +304,7 @@ drivers:
             credit_growth: {series: BIS_NFC_CREDIT, transform: pct_change_3y_ann}
             price_growth: {series: PCEPILFE, transform: pct_change_3y_ann}
         transform: level
+        unit: "%"
         normalize: {method: gap, center: 3.9, scale: 3.4}
         direction: -1
         weight: 0.1875
@@ -327,6 +330,7 @@ drivers:
             credit_growth: {series: BIS_HH_CREDIT, transform: pct_change_3y_ann}
             price_growth: {series: PCEPILFE, transform: pct_change_3y_ann}
         transform: level
+        unit: "%"
         normalize: {method: gap, center: 4.27, scale: 3.84}
         direction: -1
         weight: 0.1875
@@ -345,6 +349,7 @@ drivers:
         label: Revision to CBO potential growth, next five years
         source: {series: CBO_POTGROWTH_REV}
         transform: level
+        unit: "pp"
         normalize: {method: gap, center: 0.0, scale: 0.16}
         direction: 1
         weight: 0.0625
@@ -360,6 +365,7 @@ drivers:
         label: Revision to forecasters' 10-year productivity growth
         source: {series: SPF10PROD}
         transform: diff_12m
+        unit: "pp"
         normalize: {method: gap, center: 0.0, scale: 0.20}
         direction: 1
         weight: 0.0625
@@ -376,6 +382,7 @@ drivers:
         label: Revision to the S&P 500's three-year capex consensus
         source: {series: SPX_CAPEX_3FY}
         transform: yoy_pct
+        unit: "%"
         normalize: {method: gap, center: 3.1, scale: 8.8}
         direction: 1
         weight: 0.0625
@@ -391,6 +398,7 @@ drivers:
         label: Revision to CBO potential labor force
         source: {series: CBO_LABFORCE_REV}
         transform: level
+        unit: "%"
         normalize: {method: gap, center: 0.0, scale: 0.54}
         direction: 1
         weight: 0.0625
@@ -428,6 +436,7 @@ drivers:
         label: M2 money supply, three-year annualized growth
         source: {series: M2SL}
         transform: pct_change_3y_ann
+        unit: "%"
         normalize: {method: gap, center: 5.43, scale: 1.73}
         direction: 1
         weight: 0.125
@@ -445,6 +454,7 @@ drivers:
         label: House prices (Case-Shiller national), three-year annualized growth
         source: {series: CSUSHPISA}
         transform: pct_change_3y_ann
+        unit: "%"
         normalize: {method: gap, center: 3.65, scale: 4.8}
         direction: 1
         release: Case-Shiller
@@ -461,6 +471,7 @@ drivers:
         label: Average hourly earnings, three-year annualized growth
         source: {series: AHE_PROD}
         transform: pct_change_3y_ann
+        unit: "%"
         normalize: {method: gap, center: 2.97, scale: 0.64}
         direction: 1
         weight: 0.1875
@@ -492,6 +503,7 @@ drivers:
             ptr_survey: {expr: "FRBUS_PTR - 0.09"}
             expected: {first_of: [SPFCPI10, SPFCPI10_LONG, ptr_survey]}
         transform: level
+        unit: "pp"
         normalize: {method: gap, center: -0.76, scale: 0.37}
         direction: 1
         weight: 0.3125
@@ -515,6 +527,7 @@ drivers:
         label: 5-year inflation expectations, 5 years ahead
         source: {series: T5YIFR}
         transform: level
+        unit: "%"
         normalize: {method: gap, center: 2.3, scale: 0.35}
         direction: 1
         absolute_level: true
@@ -529,6 +542,7 @@ drivers:
         label: Cleveland Fed 10-year expected inflation
         source: {series: EXPINF10YR}
         transform: level
+        unit: "%"
         normalize: {method: gap, center: 2.0, scale: 0.4}
         direction: 1
         absolute_level: true
@@ -542,6 +556,7 @@ drivers:
         label: Inflation risk premium, 10 year
         source: {series: INFRISKPREM}
         transform: level
+        unit: "pp"
         normalize: {method: gap, center: 0.41, scale: 0.07}
         direction: 1
         absolute_level: true
@@ -582,6 +597,7 @@ drivers:
           expr: "DGS10 - FEDFUNDS"
           series: [DGS10, FEDFUNDS]
         transform: level
+        unit: "pp"
         normalize: {method: gap, center: 1.6, scale: 1.24}
         direction: -1
         weight: 0.1667
@@ -598,6 +614,7 @@ drivers:
         label: Change in fed funds over three years, per year
         source: {series: FEDFUNDS}
         transform: diff_36m_ann
+        unit: "pp"
         normalize: {method: gap, center: 0.0, scale: 0.9}
         direction: 1
         weight: 0.1667
@@ -619,6 +636,7 @@ drivers:
             neutral_sep: {expr: "SEPLR - 2"}
             neutral_rate: {first_of: [neutral_sep, HLWRSTAR]}
         transform: level
+        unit: "pp"
         normalize: {method: gap, center: 0.0, scale: 1.52}
         direction: 1
         weight: 0.1666
@@ -646,6 +664,7 @@ drivers:
               expr: "neutral_rate + core_pce_yoy + 0.5 * (core_pce_yoy - 2) + 0.5 * output_gap"
               floor: 0.125
         transform: level
+        unit: "pp"
         normalize: {method: gap, center: 0.0, scale: 0.98}
         direction: 1
         weight: 0.125
@@ -662,6 +681,7 @@ drivers:
         label: Share of the last 36 months off target
         source: {series: PCEPILFE}
         transform: off_target_share_36m
+        unit: "%"
         normalize: {method: gap, center: 42.8, scale: 30.7}
         direction: -1
         weight: 0.125
@@ -675,6 +695,7 @@ drivers:
         label: Inflation volatility, 36 months
         source: {series: PCEPILFE}
         transform: vol_36m
+        unit: "pp"
         normalize: {method: gap, center: 0.29, scale: 0.12}
         direction: -1
         weight: 0.125
@@ -685,6 +706,7 @@ drivers:
         label: Forecaster disagreement on inflation
         source: {series: SPFDISP}
         transform: level
+        unit: "pp"
         normalize: {method: gap, center: 0.68, scale: 0.21}
         direction: -1
         weight: 0.125
@@ -722,6 +744,7 @@ drivers:
         label: Cyclically adjusted primary balance, three-year change (loosening +)
         source: {series: OECD_CAPB}
         transform: diff_36m_ann
+        unit: "pp"
         normalize: {method: gap, center: 0.0, scale: 0.80}
         direction: -1
         weight: 0.1875
@@ -746,6 +769,7 @@ drivers:
             receipts_growth: {series: receipts_12m, transform: pct_change_3y_ann}
             outlays_growth: {series: outlays_12m, transform: pct_change_3y_ann}
         transform: level
+        unit: "pp"
         normalize: {method: gap, center: 0.0, scale: 4.98}
         direction: 1
         weight: 0.1875
@@ -769,6 +793,7 @@ drivers:
             expected_inflation: {first_of: [SPFCPI10_LONG, ptr_survey]}
             expected_growth: {expr: "HLW_TREND_G + expected_inflation - 0.3"}
         transform: level
+        unit: "pp"
         normalize: {method: gap, center: 0.0, scale: 1.59}
         direction: -1
         absolute_level: true
@@ -800,6 +825,7 @@ drivers:
             repricing_gap: {expr: "DGS5 - eff_rate"}
             debt_share: {expr: "DEBTPUB / GDPNOM"}
         transform: level
+        unit: "pp"
         normalize: {method: gap, center: 0.0, scale: 0.12}
         direction: -1
         weight: 0.1875
@@ -819,6 +845,7 @@ drivers:
           expr: "FEDGROSSINV / (FED_CONSUMPTION + FEDGROSSINV + FED_BENEFITS + FED_GRANTS + FED_SUBSIDIES) * 100"
           series: [FEDGROSSINV, FED_CONSUMPTION, FED_BENEFITS, FED_GRANTS, FED_SUBSIDIES]
         transform: dev_10y
+        unit: "pp"
         # Centered on the gap's own 1985-2019 average, like every other
         # indicator: the share falls over time, so it sat below its trailing
         # ten-year average in 82% of those months, and a center of 0 scored
@@ -875,6 +902,7 @@ drivers:
         label: Restrictions in the Code of Federal Regulations, 5-year growth (slower +)
         source: {series: REGDATA}
         transform: pct_change_5y_ann
+        unit: "%"
         normalize: {method: gap, center: 1.39, scale: 0.76}
         direction: -1
         weight: 0.125
@@ -893,6 +921,7 @@ drivers:
         label: Fraser business regulation score, 5-year change (lighter +)
         source: {series: FRASER_BUSREG, start: "2001-01-01"}
         transform: diff_5y
+        unit: "pts"
         normalize: {method: gap, center: 0.0, scale: 0.378}
         direction: 1
         weight: 0.125
@@ -912,6 +941,7 @@ drivers:
         label: Economic policy uncertainty, 12-month average (low +)
         source: {series: EPU}
         transform: mean_12m
+        unit: "index"
         normalize: {method: gap, center: 108.68, scale: 25.89}
         direction: -1
         weight: 0.25
@@ -933,6 +963,7 @@ drivers:
           expr: "CUSTOMS / (GOODS_IMPORTS_SHARE / 100 * GDPNOM) * 100"
           series: [CUSTOMS, GOODS_IMPORTS_SHARE, GDPNOM]
         transform: diff_36m_ann
+        unit: "pp"
         normalize: {method: gap, center: 0.0, scale: 0.148}
         direction: -1
         weight: 0.25
@@ -951,6 +982,7 @@ drivers:
           expr: "FED_RND / GDPNOM * 100"
           series: [FED_RND, GDPNOM]
         transform: diff_5y
+        unit: "pp"
         normalize: {method: gap, center: 0.0, scale: 0.05}
         direction: 1
         weight: 0.25
