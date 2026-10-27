@@ -217,13 +217,10 @@ with st.expander("All the numbers"):
 
 # ---------- 0b. go back in time ----------
 
-st.html(ui.section_head(
-    "Go back in time", f"1968 to {when:%b %Y}",
-    "Pick an event or a month to see where the drivers stood then, what the next three years "
-    "turned out to be, and which run-up and spell that month is averaged into above. On the "
-    "timeline, the top band is what the next three years turned out to be (the run-ups) and the "
-    "bottom what the past year and a half had been (the spells); the boxes mark the chosen "
-    "month's."))
+st.html(ui.section_head("Go back in time", f"1968 to {when:%b %Y}"))
+# Folded by default: it is for checking a month or an episode when it
+# comes up, not for reading top to bottom.
+hx_box = st.expander("Pick a month or an event", expanded=False)
 EVENTS = yaml.safe_load(open(pathlib.Path(__file__).resolve().parents[1] / "config" / "history_events.yml",
                              encoding="utf-8"))["events"]
 HX_MONTHS = list(M["scores"].index)
@@ -241,7 +238,7 @@ def _hx_jump() -> None:
         st.session_state["hx_month"] = EV_OPTS[pick]
 
 
-c_ev, c_mo = st.columns([1, 1.6])
+c_ev, c_mo = hx_box.columns([1, 1.6])
 c_ev.selectbox("Jump to an event", ["Choose an event…"] + list(EV_OPTS), key="hx_event",
                on_change=_hx_jump)
 c_mo.select_slider("Or pick a month", options=[HX_LABEL[m_] for m_ in HX_MONTHS], key="hx_month")
@@ -302,7 +299,7 @@ layers.append(alt.Chart(ev_df).mark_point(shape="triangle-down", size=55, filled
                                           color=ui.MUTED).encode(
     x=alt.X("month:T", scale=xs_t), y=y_rows,
     tooltip=[alt.Tooltip("when:N", title=""), alt.Tooltip("title:N", title="Event")]))
-st.altair_chart(ui.style(alt.layer(*layers).properties(height=130)), use_container_width=True)
+hx_box.altair_chart(ui.style(alt.layer(*layers).properties(height=130)), use_container_width=True)
 
 # The chosen month beside the averages it feeds.
 going_avg, during_avg = ol.positions(M["train"], NAMES), ol.positions(M["during"], NAMES)
@@ -315,7 +312,7 @@ if r_in in going_avg.index:
                    "values": going_avg.loc[r_in].to_dict(), "color": COLOR[r_in], "fill": 0,
                    "dash": True})
     key_hx.append(("Going-in average of what came next", COLOR[r_in], "dashed"))
-c_chart, c_text = st.columns([1, 1.3], gap="large")
+c_chart, c_text = hx_box.columns([1, 1.3], gap="large")
 c_chart.html(ui.radar_grid([ui.radar_svg(NAMES, SHORT, series, title=HX_LABEL[hx])], key_hx))
 
 ev = EV_BY_MONTH.get(hx)
@@ -349,6 +346,31 @@ c_text.html(ui.table(
       ui.signed(going_avg.at[r_in, d]) if r_in in going_avg.index else "–",
       ui.signed(during_avg.at[r_dur, d]) if r_dur in during_avg.index else "–"] for d in NAMES],
     numeric={1, 2, 3}))
+
+# The indicators behind each driver that month, beside their going-in
+# average for the regime that followed.
+ind_p = M["indicators"].copy()
+ind_p.index = pd.DatetimeIndex(ind_p.index).to_period("M")
+ind_in = ind_p.join(going_lab, how="inner").groupby("label").mean()
+rows_ind = []
+for d in NAMES:
+    rows_ind.append(ui.Raw(f"<b>{ui.esc(DLABEL[d])}</b> · driver {ui.signed(here[d])}"))
+    total = sum(float(i_["weight"]) for i_ in CFG["drivers"][d]["indicators"])
+    for i_ in sorted(CFG["drivers"][d]["indicators"], key=lambda x: -float(x["weight"])):
+        col = f"{d}::{i_['id']}"
+        v = ind_p[col].get(hx) if col in ind_p else None
+        avg = ind_in.at[r_in, col] if r_in in ind_in.index and col in ind_in else None
+        rows_ind.append([i_["label"], f"{float(i_['weight']) / total:.0%}",
+                         "–" if v is None or pd.isna(v) else ui.signed(v),
+                         "–" if avg is None or pd.isna(avg) else ui.signed(avg)])
+hx_box.html('<p class="mr-caption">The indicators behind each driver, scored in standard deviations '
+            'from their norm (capped at ±3), with the share of the driver each carries. A dash is an '
+            'indicator not yet measured that month.</p>')
+hx_box.html(ui.table(
+    ["Indicator", "Weight", HX_LABEL[hx],
+     ui.Raw(f"Going-in average,<br>{ui.esc(LABEL[r_in].lower())}") if r_in in going_avg.index
+     else "Going-in average"],
+    rows_ind, numeric={1, 2, 3}))
 
 # ---------- 1. the call ----------
 

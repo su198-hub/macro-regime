@@ -1,36 +1,185 @@
 # Notable US macro events, for the history explorer on the outlook page.
-# Month is when the event happened (or peaked); the note is one line of
-# general history, kept short. Dates and figures are approximate.
+# Month is when the event happened (or peaked). Notes are general history:
+# what happened, how policy responded, what followed. Figures are approximate.
 
 events:
-  - {month: "1969-12", title: "Late-60s boom ends", note: "Recession begins as the long 1960s expansion ends, with inflation near 6%."}
-  - {month: "1971-08", title: "Nixon shock", note: "The gold window closes and a 90-day wage-price freeze begins."}
-  - {month: "1973-10", title: "OPEC oil embargo", note: "Oil prices roughly quadruple within months."}
-  - {month: "1974-12", title: "Oil-shock recession", note: "CPI inflation above 12% in the middle of a deep recession."}
-  - {month: "1975-05", title: "Recovery begins", note: "The recession ends with unemployment near 9%; the Fed has cut hard."}
-  - {month: "1979-01", title: "Iranian revolution", note: "The second oil shock begins."}
-  - {month: "1979-10", title: "Volcker's shift", note: "The Fed moves to targeting money growth and lets rates rise."}
-  - {month: "1980-03", title: "Inflation peaks", note: "CPI inflation near 15%."}
-  - {month: "1981-07", title: "Peak Volcker", note: "Fed funds near 19%; the 1981-82 recession begins."}
-  - {month: "1982-11", title: "Volcker recession ends", note: "Unemployment near 11%; inflation is on its way down to about 3%."}
-  - {month: "1985-09", title: "Plaza Accord", note: "The major economies agree to bring down the dollar."}
-  - {month: "1987-10", title: "Black Monday", note: "Stocks fall 22% in a day; the Fed eases quickly."}
-  - {month: "1990-08", title: "Gulf War oil shock", note: "Iraq invades Kuwait and oil more than doubles in three months."}
-  - {month: "1994-02", title: "Pre-emptive hikes", note: "The Fed starts the hikes that take rates from 3% to 6% within a year."}
-  - {month: "1998-09", title: "LTCM", note: "A hedge fund rescue; the Fed cuts three times."}
-  - {month: "2000-03", title: "Dot-com peak", note: "Stocks peak; the Fed's last hike, to 6.5%, follows in May."}
-  - {month: "2001-09", title: "9/11", note: "In the middle of the 2001 recession; the Fed keeps cutting."}
-  - {month: "2003-06", title: "Fed at 1%", note: "The low point of the post-dot-com easing."}
-  - {month: "2006-06", title: "Hikes end at 5.25%", note: "Two years of hikes from 1% end as housing turns."}
-  - {month: "2008-09", title: "Lehman", note: "Lehman fails and the GFC peaks."}
-  - {month: "2008-12", title: "Zero rates", note: "The Fed cuts to zero and starts buying bonds."}
-  - {month: "2009-06", title: "GFC recession ends", note: "Unemployment heads for 10%; the 2009 stimulus is under way."}
-  - {month: "2013-05", title: "Taper tantrum", note: "Bond yields jump on talk of slowing Fed bond purchases."}
-  - {month: "2015-12", title: "First hike since 2006", note: "The Fed leaves zero after seven years."}
-  - {month: "2018-12", title: "Hikes peak, trade war", note: "Rates top out at 2.25-2.5% as tariffs escalate."}
-  - {month: "2020-04", title: "Covid trough", note: "The shortest recession on record; the CARES Act is under way."}
-  - {month: "2021-03", title: "Reopening and stimulus", note: "The American Rescue Plan passes as the economy reopens."}
-  - {month: "2022-06", title: "Inflation peaks", note: "CPI inflation at 9.1%; the Fed is hiking at the fastest pace since the early 80s."}
-  - {month: "2023-07", title: "Last hike", note: "Rates reach 5.25-5.5%, with no recession."}
-  - {month: "2025-04", title: "Tariff shock", note: "Sweeping tariffs; policy uncertainty hits a record."}
-  - {month: "2026-02", title: "Tariffs struck down", note: "The Supreme Court rules the IEEPA tariffs unlawful; refunds follow."}
+  - month: "1969-12"
+    title: Late-60s boom ends
+    note: >-
+      The longest expansion to date, from 1961, ends. Vietnam and Great Society
+      spending had pushed demand past capacity and inflation had crept from
+      about 1% to near 6%; the Fed's 1969 tightening sets off a mild recession.
+  - month: "1971-08"
+    title: Nixon shock
+    note: >-
+      With inflation sticky and the dollar under pressure, Nixon closes the
+      gold window and imposes a 90-day wage-price freeze and a 10% import
+      surcharge. Controls hold prices down for a while, but the pressure comes
+      back as they lift in 1973-74; fixed exchange rates are gone by 1973.
+  - month: "1973-10"
+    title: OPEC oil embargo
+    note: >-
+      Arab producers cut supply after the Yom Kippur War and oil roughly
+      quadruples by early 1974. The shock lands on an economy already running
+      hot after the 1972 boom, just as price controls come off.
+  - month: "1974-12"
+    title: Oil-shock recession
+    note: >-
+      CPI inflation above 12% in the worst postwar recession to that point
+      (Nov 1973 to Mar 1975). Burns's Fed hikes, then cuts hard in 1975 with
+      inflation still high, leaving real rates negative.
+  - month: "1975-05"
+    title: Recovery begins
+    note: >-
+      Unemployment peaks near 9%. Easy money and tax rebates drive the
+      recovery, but inflation never gets back much below 5%, which sets up
+      the late-70s surge.
+  - month: "1979-01"
+    title: Iranian revolution
+    note: >-
+      Iran's oil output collapses and prices more than double over 1979-80.
+      Inflation, already near 9%, heads for double digits, and expectations
+      are by now unanchored.
+  - month: "1979-10"
+    title: Volcker's shift
+    note: >-
+      Two months into the job, Volcker switches the Fed to targeting money
+      growth and lets rates go wherever that takes them: the start of the
+      fight to win back credibility.
+  - month: "1980-03"
+    title: Inflation peaks
+    note: >-
+      CPI inflation near 15%. Carter's credit controls briefly crash spending
+      (a short recession, Jan to Jul 1980); once they lift, the Fed has to
+      tighten again.
+  - month: "1981-07"
+    title: Peak Volcker
+    note: >-
+      Fed funds near 19%, held there despite heavy political pressure. The
+      deeper second recession (Jul 1981 to Nov 1982) follows, and it is what
+      finally breaks inflation expectations.
+  - month: "1982-11"
+    title: Volcker recession ends
+    note: >-
+      Unemployment near 11%, a postwar high until 2020. Inflation is on its
+      way to about 3%; the Fed has eased since mid-1982, and Reagan's tax cuts
+      and defense spending power the recovery.
+  - month: "1985-09"
+    title: Plaza Accord
+    note: >-
+      High US real rates had pushed the dollar up by about half, hurting
+      manufacturers. The major economies agree to bring it down, and it falls
+      sharply over the next two years.
+  - month: "1987-10"
+    title: Black Monday
+    note: >-
+      Stocks fall 22% in a day. Greenspan, two months in, promises liquidity;
+      the economy barely notices and the late-80s boom carries on.
+  - month: "1990-08"
+    title: Gulf War oil shock
+    note: >-
+      Iraq invades Kuwait and oil more than doubles in three months. With the
+      savings-and-loan crisis already squeezing credit, a recession follows
+      (Jul 1990 to Mar 1991), but expectations hold and oil falls back after
+      the war.
+  - month: "1994-02"
+    title: Pre-emptive hikes
+    note: >-
+      With inflation still low, the Fed hikes ahead of it, doubling rates from
+      3% to 6% within a year. Bonds sell off hard, but growth slows without a
+      recession: the soft landing of 1995.
+  - month: "1998-09"
+    title: LTCM
+    note: >-
+      After Russia defaults, a large hedge fund nearly fails; the New York Fed
+      brokers a private rescue and the Fed cuts three times. The late-90s boom
+      carries on.
+  - month: "2000-03"
+    title: Dot-com peak
+    note: >-
+      Tech stocks peak after a speculative run, and the Fed's last hike, to
+      6.5%, follows in May. Business investment collapses as the bubble
+      deflates.
+  - month: "2001-09"
+    title: 9/11
+    note: >-
+      In the middle of a mild recession (Mar to Nov 2001). The Fed cuts fast,
+      to 1.75% by December, and the 2001 tax cuts are already flowing.
+  - month: "2003-06"
+    title: Fed at 1%
+    note: >-
+      The low point of the easing, amid worries about deflation; the 2003 tax
+      cuts and Iraq war spending add support. Cheap money feeds the housing
+      boom.
+  - month: "2006-06"
+    title: Hikes end at 5.25%
+    note: >-
+      Two years of hikes from 1%, at a "measured pace", end as house prices
+      peak. Subprime lending had boomed, and defaults start rising in 2007.
+  - month: "2008-09"
+    title: Lehman
+    note: >-
+      Lehman fails, AIG is rescued and credit markets freeze: the worst
+      financial crisis since the 1930s.
+  - month: "2008-12"
+    title: Zero rates
+    note: >-
+      The Fed cuts to zero and starts large-scale bond buying. Rates stay at
+      zero for seven years.
+  - month: "2009-06"
+    title: GFC recession ends
+    note: >-
+      The longest postwar recession to that point (Dec 2007 to Jun 2009) ends.
+      The $787bn stimulus is under way, but unemployment still climbs to 10%
+      by October.
+  - month: "2013-05"
+    title: Taper tantrum
+    note: >-
+      Bernanke hints at slowing bond purchases and 10-year yields jump about a
+      point over the summer: an early lesson in how markets read Fed guidance.
+  - month: "2015-12"
+    title: First hike since 2006
+    note: >-
+      Yellen's Fed leaves zero after seven years, with inflation still below
+      2%. Hikes stay slow and gradual.
+  - month: "2018-12"
+    title: Hikes peak, trade war
+    note: >-
+      Rates reach 2.25-2.5% with the balance sheet shrinking, as US-China
+      tariffs escalate and stocks slide. The Fed pauses, then cuts three times
+      in 2019.
+  - month: "2020-04"
+    title: Covid trough
+    note: >-
+      Lockdowns cause the sharpest, shortest recession on record (Feb to Apr
+      2020), with unemployment near 15%. The Fed returns to zero and bond
+      buying; the $2.2tn CARES Act passes in March.
+  - month: "2021-03"
+    title: Reopening and stimulus
+    note: >-
+      The $1.9tn American Rescue Plan passes as vaccines roll out. Demand
+      surges into snarled supply chains while the Fed holds at zero, calling
+      inflation transitory.
+  - month: "2022-06"
+    title: Inflation peaks
+    note: >-
+      CPI inflation at 9.1%, with Russia's invasion of Ukraine adding an energy
+      shock. The Fed hikes 0.75 points at a time, its fastest pace since the
+      early 80s.
+  - month: "2023-07"
+    title: Last hike
+    note: >-
+      Rates reach 5.25-5.5%. Inflation has fallen from 9% to about 3% without a
+      recession, a soft landing many had thought unlikely.
+  - month: "2025-04"
+    title: Tariff shock
+    note: >-
+      Sweeping tariffs are announced in early April; stocks sell off and policy
+      uncertainty hits a record. The effective tariff rate climbs to its
+      highest in decades.
+  - month: "2026-02"
+    title: Tariffs struck down
+    note: >-
+      The Supreme Court rules the IEEPA tariffs unlawful and refunds begin in
+      April. Tariffs under other laws remain, so the tariff rate stays well
+      above 2024's.
