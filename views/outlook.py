@@ -271,13 +271,6 @@ def _bands(labels: pd.Series, row: str) -> pd.DataFrame:
                                   for s_, e_ in zip(sp["start"], sp["end"])]})
 
 
-def _all_spells(labels: pd.Series, regime: str) -> str:
-    sp = ol.spells(labels)
-    sp = sp[sp["label"] == regime]
-    return "; ".join(f"{s_.strftime('%b %Y')} to {e_.strftime('%b %Y')}"
-                     for s_, e_ in zip(sp["start"], sp["end"]))
-
-
 bands = pd.concat([_bands(going_lab, ROW_IN), _bands(during_lab, ROW_DUR)], ignore_index=True)
 xs_t = alt.Scale(domain=[HX_MONTHS[0].to_timestamp(), (HX_MONTHS[-1] + 1).to_timestamp()])
 y_rows = alt.Y("row:N", sort=[ROW_EV, ROW_IN, ROW_DUR], title=None,
@@ -318,26 +311,92 @@ if r_in in going_avg.index:
 c_chart, c_text = hx_box.columns([1, 1.3], gap="large")
 c_chart.html(ui.radar_grid([ui.radar_svg(NAMES, SHORT, series, title=HX_LABEL[hx])], key_hx))
 
+def _per(df: pd.DataFrame) -> pd.DataFrame:
+    out = df.copy()
+    out.index = pd.DatetimeIndex(out.index).to_period("M")
+    return out
+
+
+ind_p, raw_p = _per(M["indicators"]), _per(M["inputs"])
+ind_in = ind_p.join(going_lab, how="inner").groupby("label").mean()
+raw_in = raw_p.join(going_lab, how="inner").groupby("label").mean()
+
+
+def _why(d: str, regime: str) -> str:
+    """The indicator doing most of the work in a driver's gap from the
+    regime's going-in average, as read then and as read typically."""
+    specs = CFG["drivers"][d]["indicators"]
+    total = sum(float(x["weight"]) for x in specs)
+    best, best_v = None, 0.0
+    for x in specs:
+        col = f"{d}::{x['id']}"
+        if col not in ind_p or regime not in ind_in.index:
+            continue
+        sc, av = ind_p[col].get(hx), ind_in.at[regime, col]
+        if pd.isna(sc) or pd.isna(av):
+            continue
+        v = float(x["weight"]) / total * (sc - av)
+        if abs(v) > abs(best_v):
+            best, best_v = x, v
+    if best is None:
+        return ""
+    col, tr, un = f"{d}::{best['id']}", best.get("transform", "level"), best.get("unit")
+    name = best["label"].split(" (")[0].split(", %")[0]
+    name = name[0].lower() + name[1:]
+    return (f"{ui.esc(name)} at {ui.format_reading(raw_p.at[hx, col], tr, un)}, against "
+            f"{ui.format_reading(raw_in.at[regime, col], tr, un)} typically")
+
+
+# In running text a regime is its code if it has one short enough to be a
+# heading (HGHI), otherwise its name in lower case.
+INTEXT = {k: HEAD[k] if HEAD[k].isupper() else LABEL[k].lower() for k in LABEL}
 ev = EV_BY_MONTH.get(hx)
 lines = []
 if ev:
     lines.append(f'<p class="hx-event"><b>{ui.esc(ev["title"])}.</b> {ui.esc(ev["note"])}</p>')
 sp_in, sp_dur = hx_spells[ROW_IN], hx_spells[ROW_DUR]
-if r_in is not None and sp_in is not None:
-    lines.append(
-        f'<p><b>Heading into <span style="color:{COLOR[r_in]}">{ui.esc(LABEL[r_in].lower())}</span>:</b> '
-        f'the next three years turned out that way. This month is one of {sp_in["months"]} in that '
-        f'run-up ({sp_in["start"].strftime("%b %Y")} to {sp_in["end"].strftime("%b %Y")}). All the '
-        f'run-ups in its going-in average: {ui.esc(_all_spells(going_lab, r_in))}.</p>')
+if r_in is not None and sp_in is not None and r_in in going_avg.index:
+    nm = f'<span style="color:{COLOR[r_in]}">{ui.esc(INTEXT[r_in])}</span>'
+    lines.append(f'<p><b>Heading into {nm}.</b> The next three years turned out that way; this month '
+                 f'is in the {sp_in["start"].strftime("%b %Y")} to {sp_in["end"].strftime("%b %Y")} '
+                 f'run-up.</p>')
+    # What stands out against a typical run-up into the same regime.
+    gap = (here - going_avg.loc[r_in]).reindex(NAMES)
+    top = [d for d in gap.abs().sort_values(ascending=False).index if abs(gap[d]) >= 0.2][:2]
+    if top:
+        parts = []
+        for d in top:
+            why = _why(d, r_in)
+            parts.append(f"{ui.esc(SHORT[d][0].lower())} {ui.signed(here[d])} against "
+                         f"{ui.signed(going_avg.at[r_in, d])}" + (f" ({why})" if why else ""))
+        lines.append(f'<p><b>What stands out against a typical {nm} run-up:</b> '
+                     + "; ".join(parts) + ".</p>")
+    else:
+        lines.append(f'<p><b>Close to a typical {nm} run-up</b> on all five drivers.</p>')
+    # This run-up against the other run-ups into the same regime.
+    runs = ol.spells(going_lab)
+    runs = runs[runs["label"] == r_in]
+    this = M["train"].loc[sp_in["start"]:sp_in["end"], NAMES].mean()
+    others = [M["train"].loc[a:b, NAMES].mean() for a, b in zip(runs["start"], runs["end"])
+              if a != sp_in["start"]]
+    if others:
+        rest = pd.concat(others, axis=1).mean(axis=1)
+        d = (this - rest).abs().idxmax()
+        lines.append(f'<p><b>Against the other {len(others)} {nm} run-ups:</b> '
+                     f'{ui.esc(SHORT[d][0].lower())} averaged {ui.signed(this[d])} in this one, '
+                     f'{ui.signed(rest[d])} in the others, its biggest difference.</p>')
 else:
     lines.append('<p><b>Heading into: not known yet.</b> The three years after this month have not '
                  f'fully happened; run-up labels end in {going_lab.index[-1].strftime("%b %Y")}.</p>')
 if r_dur is not None and sp_dur is not None:
     lines.append(
-        f'<p><b>In <span style="color:{COLOR[r_dur]}">{ui.esc(LABEL[r_dur].lower())}</span></b>, judged '
-        f'on growth and inflation over the 18 months around it (15 before, 3 after): one of {sp_dur["months"]} months in that spell '
-        f'({sp_dur["start"].strftime("%b %Y")} to {sp_dur["end"].strftime("%b %Y")}). All the spells in '
-        f'its during average: {ui.esc(_all_spells(during_lab, r_dur))}.</p>')
+        f'<p><b>Living through <span style="color:{COLOR[r_dur]}">{ui.esc(INTEXT[r_dur])}</span></b>, '
+        f'on growth and inflation over the 18 months around it: the '
+        f'{sp_dur["start"].strftime("%b %Y")} to {sp_dur["end"].strftime("%b %Y")} spell.</p>')
+_odds = R.probabilities(M["scores"].loc[[hx]], REG).iloc[0].sort_values(ascending=False)
+lines.append(f'<p><b>The model on this month</b>, with today\u2019s positions (learned with hindsight, '
+             f'so not what it would have said then): '
+             + ", ".join(f'{ui.esc(INTEXT[k])} {v:.0%}' for k, v in _odds.head(2).items()) + ".</p>")
 c_text.html(f'<div class="hx">{"".join(lines)}</div>')
 c_text.html(ui.table(
     ["", HX_LABEL[hx],
@@ -353,15 +412,6 @@ c_text.html(ui.table(
 # The indicators behind each driver that month, as read (in their own units)
 # and as scored, beside their going-in average for the regime that followed.
 # Folded: thirty-odd rows.
-def _per(df: pd.DataFrame) -> pd.DataFrame:
-    out = df.copy()
-    out.index = pd.DatetimeIndex(out.index).to_period("M")
-    return out
-
-
-ind_p, raw_p = _per(M["indicators"]), _per(M["inputs"])
-ind_in = ind_p.join(going_lab, how="inner").groupby("label").mean()
-raw_in = raw_p.join(going_lab, how="inner").groupby("label").mean()
 
 
 def _cell(frame: pd.DataFrame, row, col: str, fmt) -> str:
