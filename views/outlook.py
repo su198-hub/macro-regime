@@ -87,7 +87,7 @@ def model(version: str, config_key: str) -> dict | None:
             "train": train, "fwd": fwd, "outcomes": outcomes, "during": during,
             "core_in": ol.core_positions(train, fwd, NAMES),
             "core_during": ol.core_positions(during, nowcast, NAMES),
-            "inputs": res["inputs"]}
+            "inputs": res["inputs"], "nowcast": nowcast}
 
 
 def probabilities(x: pd.DataFrame) -> pd.DataFrame:
@@ -322,6 +322,17 @@ ind_in = ind_p.join(going_lab, how="inner").groupby("label").mean()
 raw_in = raw_p.join(going_lab, how="inner").groupby("label").mean()
 
 
+# Words for a driver reading more toward its +1 end, or its -1 end.
+LEAN = {"growth": ("stronger", "weaker"), "inflation": ("hotter", "cooler"),
+        "monetary": ("tighter", "looser"), "fiscal": ("more supportive", "less supportive"),
+        "reforms": ("more proactive", "less proactive")}
+
+
+def _lean(d: str, gap: float) -> str:
+    word = LEAN.get(d, ("higher", "lower"))[0 if gap > 0 else 1]
+    return ("much " if abs(gap) >= 0.5 else "") + word
+
+
 def _why(d: str, regime: str) -> str:
     """The indicator doing most of the work in a driver's gap from the
     regime's going-in average, as read then and as read typically."""
@@ -343,8 +354,43 @@ def _why(d: str, regime: str) -> str:
     col, tr, un = f"{d}::{best['id']}", best.get("transform", "level"), best.get("unit")
     name = best["label"].split(" (")[0].split(", %")[0]
     name = name[0].lower() + name[1:]
-    return (f"{ui.esc(name)} at {ui.format_reading(raw_p.at[hx, col], tr, un)}, against "
-            f"{ui.format_reading(raw_in.at[regime, col], tr, un)} typically")
+    # Say so when a lower reading is what pushes the driver up.
+    flip = (f", where lower counts as {LEAN.get(d, ('higher',))[0]}"
+            if int(best.get("direction", 1)) < 0 else "")
+    return (f"mostly {ui.esc(name)}: {ui.format_reading(raw_p.at[hx, col], tr, un)} against "
+            f"{ui.format_reading(raw_in.at[regime, col], tr, un)} typically{flip}")
+
+
+def _gaps(row: pd.Series, horizon: str) -> str:
+    """Growth and core inflation in plain numbers, against potential and expectations."""
+    g, i_ = row["growth"], row["inflation"]
+    pct = lambda v: f"{v:.1f}%".replace("-", "−")
+    return (f"growth {horizon} {pct(row['gdp_growth'])} a year, {abs(g):.1f} points "
+            f"{'above' if g >= 0 else 'below'} potential, and core PCE inflation "
+            f"{pct(row['core_pce'])}, {abs(i_):.1f} points {'above' if i_ >= 0 else 'below'} "
+            f"expectations")
+
+
+def _held(row, label: str) -> str:
+    """When the numbers on their own point elsewhere: the label holds until a
+    change is clear and has lasted a year."""
+    if row is None:
+        return ""
+    if row.get("raw") in INTEXT and row.get("raw") != label:
+        return (f" On these numbers alone it would be {ui.esc(INTEXT[row['raw']])}; the label holds "
+                f"until a change is clear and has lasted a year.")
+    # A gap on the other side of zero but inside the margin a label needs
+    # before it switches sides.
+    side = {r_: k_ for k_, r_ in truth.QUADRANT.items()}.get(label)
+    if side is None:
+        return ""
+    notes = []
+    for name, v, up in (("Growth", row["growth"], side[0]), ("Inflation", row["inflation"], side[1])):
+        if (v >= 0) != up:
+            notes.append(f"{name} is only {abs(v):.1f} points {'above' if v >= 0 else 'below'} "
+                         f"{'potential' if name == 'Growth' else 'expectations'}, too small a margin "
+                         f"to count as a change of side.")
+    return (" " + " ".join(notes)) if notes else ""
 
 
 # In running text a regime is its code if it has one short enough to be a
@@ -357,9 +403,11 @@ if ev:
 sp_in, sp_dur = hx_spells[ROW_IN], hx_spells[ROW_DUR]
 if r_in is not None and sp_in is not None and r_in in going_avg.index:
     nm = f'<span style="color:{COLOR[r_in]}">{ui.esc(INTEXT[r_in])}</span>'
-    lines.append(f'<p><b>Heading into {nm}.</b> The next three years turned out that way; this month '
-                 f'is in the {sp_in["start"].strftime("%b %Y")} to {sp_in["end"].strftime("%b %Y")} '
-                 f'run-up.</p>')
+    fw = M["fwd"].loc[hx] if hx in M["fwd"].index else None
+    told = f": over the next three years {_gaps(fw, 'averaged')}" if fw is not None else ""
+    lines.append(f'<p><b>Heading into {nm}</b>{told}. Part of the '
+                 f'{sp_in["start"].strftime("%b %Y")} to {sp_in["end"].strftime("%b %Y")} run-up.'
+                 f'{_held(fw, r_in)}</p>')
     # What stands out against a typical run-up into the same regime.
     gap = (here - going_avg.loc[r_in]).reindex(NAMES)
     top = [d for d in gap.abs().sort_values(ascending=False).index if abs(gap[d]) >= 0.2][:2]
@@ -367,32 +415,35 @@ if r_in is not None and sp_in is not None and r_in in going_avg.index:
         parts = []
         for d in top:
             why = _why(d, r_in)
-            parts.append(f"{ui.esc(SHORT[d][0].lower())} {ui.signed(here[d])} against "
-                         f"{ui.signed(going_avg.at[r_in, d])}" + (f" ({why})" if why else ""))
-        lines.append(f'<p><b>What stands out against a typical {nm} run-up:</b> '
-                     + "; ".join(parts) + ".</p>")
+            parts.append(f"{ui.esc(SHORT[d][0])} read {_lean(d, gap[d])} than usual "
+                         f"({ui.signed(here[d])} against {ui.signed(going_avg.at[r_in, d])})"
+                         + (f", {why}" if why else ""))
+        lines.append(f'<p><b>Against a typical {nm} run-up.</b> ' + ". ".join(parts) + ".</p>")
     else:
         lines.append(f'<p><b>Close to a typical {nm} run-up</b> on all five drivers.</p>')
     # This run-up against the other run-ups into the same regime.
     runs = ol.spells(going_lab)
     runs = runs[runs["label"] == r_in]
     this = M["train"].loc[sp_in["start"]:sp_in["end"], NAMES].mean()
-    others = [M["train"].loc[a:b, NAMES].mean() for a, b in zip(runs["start"], runs["end"])
-              if a != sp_in["start"]]
+    others = [M["train"].loc[a_:b_, NAMES].mean() for a_, b_ in zip(runs["start"], runs["end"])
+              if a_ != sp_in["start"]]
     if others:
         rest = pd.concat(others, axis=1).mean(axis=1)
         d = (this - rest).abs().idxmax()
-        lines.append(f'<p><b>Against the other {len(others)} {nm} run-ups:</b> '
-                     f'{ui.esc(SHORT[d][0].lower())} averaged {ui.signed(this[d])} in this one, '
-                     f'{ui.signed(rest[d])} in the others, its biggest difference.</p>')
+        lines.append(f'<p><b>Against the other {len(others)} {nm} run-ups.</b> This one stood out on '
+                     f'{ui.esc(SHORT[d][0].lower())}, which read {_lean(d, this[d] - rest[d])} '
+                     f'({ui.signed(this[d])} on average, against {ui.signed(rest[d])}).</p>')
 else:
     lines.append('<p><b>Heading into: not known yet.</b> The three years after this month have not '
                  f'fully happened; run-up labels end in {going_lab.index[-1].strftime("%b %Y")}.</p>')
 if r_dur is not None and sp_dur is not None:
-    lines.append(
-        f'<p><b>Living through <span style="color:{COLOR[r_dur]}">{ui.esc(INTEXT[r_dur])}</span></b>, '
-        f'on growth and inflation over the 18 months around it: the '
-        f'{sp_dur["start"].strftime("%b %Y")} to {sp_dur["end"].strftime("%b %Y")} spell.</p>')
+    nc = M["nowcast"].loc[hx] if hx in M["nowcast"].index else None
+    nm_d = f'<span style="color:{COLOR[r_dur]}">{ui.esc(INTEXT[r_dur])}</span>'
+    body = (f": over the 18 months around this month, {_gaps(nc, 'ran')}" if nc is not None else "")
+    held = _held(nc, r_dur)
+    lines.append(f'<p><b>Living through {nm_d}</b>{body}. Part of the '
+                 f'{sp_dur["start"].strftime("%b %Y")} to {sp_dur["end"].strftime("%b %Y")} spell.'
+                 f'{held}</p>')
 _odds = R.probabilities(M["scores"].loc[[hx]], REG).iloc[0].sort_values(ascending=False)
 lines.append(f'<p><b>The model on this month</b>, with today\u2019s positions (learned with hindsight, '
              f'so not what it would have said then): '
