@@ -76,8 +76,9 @@ def model(version: str, config_key: str) -> dict | None:
     # inflation gaps that followed the months in its run-up.
     outcomes = (fwd.loc[train.index, ["growth", "inflation"]].join(train["label"])
                 .groupby("label").mean().reindex(list(REG["regimes"])))
-    # During a regime: months whose past year and a half of growth and
-    # inflation fit it, the answer key's own reading of the present.
+    # During a regime: months whose growth and inflation over the 18 months
+    # around them (15 before, 3 after) fit it, the answer key's reading of
+    # the present.
     nowcast = truth.build(truth.from_store(wide), **truth.METHODS["now"])
     during = ol.training_frame(scores, nowcast)
     return {"drivers": res["drivers"], "indicators": res["indicators"], "scores": scores,
@@ -177,8 +178,9 @@ st.html(ui.radar_grid(
     key=[("Scale", "The centre is −1, the middle ring neutral and the outer ring +1, toward the "
                    "end named under each driver. Hover a chart for its scores."),
          ("Going in and during", "Going in is the three years before each regime, its run-ups, "
-                                 "which the call learns from. During is the months whose past "
-                                 "year and a half of growth and inflation fit the regime."),
+                                 "which the call learns from. During is the months whose growth "
+                                 "and inflation over the 18 months around them (15 before, 3 "
+                                 "after) fit the regime, so it trails events by about six months."),
          ("Drivers look ahead", "So going in is what compares with theory; during a regime they "
                                 "already read the policy response and the next phase."),
          ("Direction over size", "An average of many months sits closer to neutral than theory. "
@@ -248,7 +250,7 @@ hx = HX_BY_LABEL[st.session_state["hx_month"]]
 # run-up labels the call learns from) and what it was in (the past year and
 # a half). The boxes mark the run-up and the spell the chosen month counts in.
 going_lab, during_lab = M["train"]["label"], M["during"]["label"]
-ROW_EV, ROW_IN, ROW_DUR = "Events", "Next 3 years", "Past 18 months"
+ROW_EV, ROW_IN, ROW_DUR = "Events", "Next 3 years", "Living through"
 
 
 def _spell_of(labels: pd.Series, month: pd.Period):
@@ -332,7 +334,7 @@ else:
 if r_dur is not None and sp_dur is not None:
     lines.append(
         f'<p><b>In <span style="color:{COLOR[r_dur]}">{ui.esc(LABEL[r_dur].lower())}</span></b>, judged '
-        f'on the past year and a half: one of {sp_dur["months"]} months in that spell '
+        f'on growth and inflation over the 18 months around it (15 before, 3 after): one of {sp_dur["months"]} months in that spell '
         f'({sp_dur["start"].strftime("%b %Y")} to {sp_dur["end"].strftime("%b %Y")}). All the spells in '
         f'its during average: {ui.esc(_all_spells(during_lab, r_dur))}.</p>')
 c_text.html(f'<div class="hx">{"".join(lines)}</div>')
