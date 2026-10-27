@@ -248,6 +248,10 @@ CSS = f"""
 .rd-note b {{ color: {INK}; }}
 .rd-note p {{ margin: 0 0 0.5rem; }}
 .rd-panel {{ min-width: 0; }}
+.hx {{ font-family: {BODY_FONT}; font-size: 0.9rem; color: {INK_2}; line-height: 1.5; }}
+.hx p {{ margin: 0 0 0.6rem; }}
+.hx b {{ color: {INK}; }}
+.hx-event {{ font-size: 0.95rem; }}
 .rd-explain {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
   gap: 0.5rem 1.4rem; font-size: 0.85rem; color: {INK_2}; line-height: 1.45;
   border-top: 1px solid {GRID}; border-bottom: 1px solid {GRID}; padding: 0.6rem 0; margin: 0.4rem 0 0.8rem; }}

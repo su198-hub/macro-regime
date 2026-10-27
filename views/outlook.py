@@ -7,6 +7,8 @@ picked elsewhere.
 
   0. Regime shapes, first: where the drivers sat going into each regime and
      during it, against theory, one radar per regime beside today's.
+  0b. Go back in time: any month or notable event, its drivers, and which
+     run-up and spell it is averaged into.
 
   1. The call: the most likely regime for the next three years, and the odds.
   2. Where growth and inflation are heading: each regime's typical outcome on
@@ -21,11 +23,13 @@ from __future__ import annotations
 
 import copy
 import datetime as dt
+import pathlib
 
 import altair as alt
 import numpy as np
 import pandas as pd
 import streamlit as st
+import yaml
 
 from src import countries as ctry
 from src import outlook as ol
@@ -210,6 +214,141 @@ with st.expander("All the numbers"):
     st.html(ui.table(["Strongest quarter of months" if strong else "All months"]
                      + [SHORT[d][0] for d in NAMES] + ["Episodes"],
                      rows, numeric=set(range(1, len(NAMES) + 2))))
+
+# ---------- 0b. go back in time ----------
+
+st.html(ui.section_head(
+    "Go back in time", f"1968 to {when:%b %Y}",
+    "Pick an event or a month to see where the drivers stood then, what the next three years "
+    "turned out to be, and which run-up and spell that month is averaged into above. On the "
+    "timeline, the top band is what the next three years turned out to be (the run-ups) and the "
+    "bottom what the past year and a half had been (the spells); the boxes mark the chosen "
+    "month's."))
+EVENTS = yaml.safe_load(open(pathlib.Path(__file__).resolve().parents[1] / "config" / "history_events.yml",
+                             encoding="utf-8"))["events"]
+HX_MONTHS = list(M["scores"].index)
+HX_LABEL = {m_: m_.strftime("%b %Y") for m_ in HX_MONTHS}
+HX_BY_LABEL = {v: k for k, v in HX_LABEL.items()}
+EV_BY_MONTH = {pd.Period(e["month"], "M"): e for e in EVENTS if pd.Period(e["month"], "M") in HX_LABEL}
+EV_OPTS = {f'{HX_LABEL[m_]} · {e["title"]}': HX_LABEL[m_] for m_, e in EV_BY_MONTH.items()}
+if st.session_state.get("hx_month") not in HX_BY_LABEL:
+    st.session_state["hx_month"] = HX_LABEL.get(pd.Period("1981-07", "M"), HX_LABEL[HX_MONTHS[-1]])
+
+
+def _hx_jump() -> None:
+    pick = st.session_state.get("hx_event")
+    if pick in EV_OPTS:
+        st.session_state["hx_month"] = EV_OPTS[pick]
+
+
+c_ev, c_mo = st.columns([1, 1.6])
+c_ev.selectbox("Jump to an event", ["Choose an event…"] + list(EV_OPTS), key="hx_event",
+               on_change=_hx_jump)
+c_mo.select_slider("Or pick a month", options=[HX_LABEL[m_] for m_ in HX_MONTHS], key="hx_month")
+hx = HX_BY_LABEL[st.session_state["hx_month"]]
+
+# The timeline: what each month was heading into (the next three years, the
+# run-up labels the call learns from) and what it was in (the past year and
+# a half). The boxes mark the run-up and the spell the chosen month counts in.
+going_lab, during_lab = M["train"]["label"], M["during"]["label"]
+ROW_EV, ROW_IN, ROW_DUR = "Events", "Next 3 years", "Past 18 months"
+
+
+def _spell_of(labels: pd.Series, month: pd.Period):
+    for _, sp in ol.spells(labels).iterrows():
+        if sp["start"] <= month <= sp["end"]:
+            return sp
+    return None
+
+
+def _bands(labels: pd.Series, row: str) -> pd.DataFrame:
+    sp = ol.spells(labels)
+    return pd.DataFrame({"start": [s_.to_timestamp() for s_ in sp["start"]],
+                         "end": [(e_ + 1).to_timestamp() for e_ in sp["end"]],
+                         "regime": sp["label"].to_numpy(), "name": sp["label"].map(LABEL).to_numpy(),
+                         "row": row,
+                         "span": [f"{s_.strftime('%b %Y')} to {e_.strftime('%b %Y')}"
+                                  for s_, e_ in zip(sp["start"], sp["end"])]})
+
+
+def _all_spells(labels: pd.Series, regime: str) -> str:
+    sp = ol.spells(labels)
+    sp = sp[sp["label"] == regime]
+    return "; ".join(f"{s_.strftime('%b %Y')} to {e_.strftime('%b %Y')}"
+                     for s_, e_ in zip(sp["start"], sp["end"]))
+
+
+bands = pd.concat([_bands(going_lab, ROW_IN), _bands(during_lab, ROW_DUR)], ignore_index=True)
+xs_t = alt.Scale(domain=[HX_MONTHS[0].to_timestamp(), (HX_MONTHS[-1] + 1).to_timestamp()])
+y_rows = alt.Y("row:N", sort=[ROW_EV, ROW_IN, ROW_DUR], title=None,
+               scale=alt.Scale(domain=[ROW_EV, ROW_IN, ROW_DUR]), axis=alt.Axis(labelLimit=220))
+layers = [alt.Chart(bands).mark_rect().encode(
+    x=alt.X("start:T", scale=xs_t, title=None), x2="end:T", y=y_rows,
+    color=alt.Color("regime:N", scale=alt.Scale(domain=list(COLOR), range=list(COLOR.values())),
+                    legend=None),
+    tooltip=[alt.Tooltip("row:N", title=""), alt.Tooltip("name:N", title="Regime"),
+             alt.Tooltip("span:N", title="Months")])]
+hx_spells = {ROW_IN: _spell_of(going_lab, hx), ROW_DUR: _spell_of(during_lab, hx)}
+boxes = pd.DataFrame([{"start": sp["start"].to_timestamp(), "end": (sp["end"] + 1).to_timestamp(),
+                       "row": r_} for r_, sp in hx_spells.items() if sp is not None])
+if len(boxes):
+    layers.append(alt.Chart(boxes).mark_rect(fill=None, stroke=ui.INK, strokeWidth=2).encode(
+        x=alt.X("start:T", scale=xs_t), x2="end:T", y=y_rows))
+layers.append(alt.Chart(pd.DataFrame({"m": [hx.to_timestamp()]})).mark_rule(
+    color=ui.INK, strokeWidth=2).encode(x=alt.X("m:T", scale=xs_t)))
+ev_df = pd.DataFrame([{"month": m_.to_timestamp(), "title": e["title"], "when": HX_LABEL[m_],
+                       "row": ROW_EV} for m_, e in EV_BY_MONTH.items()])
+layers.append(alt.Chart(ev_df).mark_point(shape="triangle-down", size=55, filled=True,
+                                          color=ui.MUTED).encode(
+    x=alt.X("month:T", scale=xs_t), y=y_rows,
+    tooltip=[alt.Tooltip("when:N", title=""), alt.Tooltip("title:N", title="Event")]))
+st.altair_chart(ui.style(alt.layer(*layers).properties(height=130)), use_container_width=True)
+
+# The chosen month beside the averages it feeds.
+going_avg, during_avg = ol.positions(M["train"], NAMES), ol.positions(M["during"], NAMES)
+r_in, r_dur = going_lab.get(hx), during_lab.get(hx)
+here = M["scores"].loc[hx]
+series = [{"name": HX_LABEL[hx], "values": here.to_dict(), "color": ui.INK, "fill": 0.12}]
+key_hx = [(HX_LABEL[hx], ui.INK, "solid")]
+if r_in in going_avg.index:
+    series.append({"name": f"Going-in average, {LABEL[r_in].lower()}",
+                   "values": going_avg.loc[r_in].to_dict(), "color": COLOR[r_in], "fill": 0,
+                   "dash": True})
+    key_hx.append(("Going-in average of what came next", COLOR[r_in], "dashed"))
+c_chart, c_text = st.columns([1, 1.3], gap="large")
+c_chart.html(ui.radar_grid([ui.radar_svg(NAMES, SHORT, series, title=HX_LABEL[hx])], key_hx))
+
+ev = EV_BY_MONTH.get(hx)
+lines = []
+if ev:
+    lines.append(f'<p class="hx-event"><b>{ui.esc(ev["title"])}.</b> {ui.esc(ev["note"])}</p>')
+sp_in, sp_dur = hx_spells[ROW_IN], hx_spells[ROW_DUR]
+if r_in is not None and sp_in is not None:
+    lines.append(
+        f'<p><b>Heading into <span style="color:{COLOR[r_in]}">{ui.esc(LABEL[r_in].lower())}</span>:</b> '
+        f'the next three years turned out that way. This month is one of {sp_in["months"]} in that '
+        f'run-up ({sp_in["start"].strftime("%b %Y")} to {sp_in["end"].strftime("%b %Y")}). All the '
+        f'run-ups in its going-in average: {ui.esc(_all_spells(going_lab, r_in))}.</p>')
+else:
+    lines.append('<p><b>Heading into: not known yet.</b> The three years after this month have not '
+                 f'fully happened; run-up labels end in {going_lab.index[-1].strftime("%b %Y")}.</p>')
+if r_dur is not None and sp_dur is not None:
+    lines.append(
+        f'<p><b>In <span style="color:{COLOR[r_dur]}">{ui.esc(LABEL[r_dur].lower())}</span></b>, judged '
+        f'on the past year and a half: one of {sp_dur["months"]} months in that spell '
+        f'({sp_dur["start"].strftime("%b %Y")} to {sp_dur["end"].strftime("%b %Y")}). All the spells in '
+        f'its during average: {ui.esc(_all_spells(during_lab, r_dur))}.</p>')
+c_text.html(f'<div class="hx">{"".join(lines)}</div>')
+c_text.html(ui.table(
+    ["", HX_LABEL[hx],
+     ui.Raw(f"Going-in average,<br>{ui.esc(LABEL[r_in].lower())}") if r_in in going_avg.index
+     else "Going-in average",
+     ui.Raw(f"During average,<br>{ui.esc(LABEL[r_dur].lower())}") if r_dur in during_avg.index
+     else "During average"],
+    [[SHORT[d][0], ui.signed(here[d]),
+      ui.signed(going_avg.at[r_in, d]) if r_in in going_avg.index else "–",
+      ui.signed(during_avg.at[r_dur, d]) if r_dur in during_avg.index else "–"] for d in NAMES],
+    numeric={1, 2, 3}))
 
 # ---------- 1. the call ----------
 
