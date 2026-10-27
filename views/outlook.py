@@ -1,5 +1,6 @@
-"""The three-year outlook (/outlook): v2's call, read for where growth and
-inflation are heading.
+"""The regime explorer (/outlook, its address from when it was the three-year
+outlook): what each regime looked like, any month since 1968, and v2's call
+for where growth and inflation are heading.
 
 It reads the same v2 drivers and scenario positions as the dashboard, over
 the four regimes the answer key can grade, whichever framework the reader has
@@ -39,9 +40,9 @@ from src import ui
 from src.drivers import compute, config_hash, driver_groups, group_scores, load_config
 from views.common import data_version, get_store, registry
 
-st.html('<h1 class="mr-title">Three-year outlook</h1>'
-        '<p class="mr-sub">The most likely regime for the next three years, where growth and '
-        'inflation are heading, and why. Read from the v2 drivers.</p>')
+st.html('<h1 class="mr-title">Regime explorer</h1>'
+        '<p class="mr-sub">What each regime looked like going in and during, any month since 1968, '
+        'and the call for the next three years. Read from the v2 drivers.</p>')
 
 base = ctry.resolve(registry(), "US", framework="v2")
 CFG = load_config(base["indicators"])

@@ -68,7 +68,8 @@ st.navigation(
      # is already determined about the next three years.
      st.Page("views/forecast.py", title="Forecast", url_path="forecast",
              visibility="hidden"),
-     # The v2 three-year call: where growth and inflation are heading, and why.
-     st.Page("views/outlook.py", title="Three-year outlook", url_path="outlook")],
+     # Regime shapes, any month since 1968, and the v2 three-year call.
+     # Kept at /outlook so links from when it was the three-year outlook still work.
+     st.Page("views/outlook.py", title="Regime explorer", url_path="outlook")],
     position="top",
 ).run()
