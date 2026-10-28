@@ -272,7 +272,13 @@ def _bands(labels: pd.Series, row: str) -> pd.DataFrame:
                                   for s_, e_ in zip(sp["start"], sp["end"])]})
 
 
-bands = pd.concat([_bands(going_lab, ROW_IN), _bands(during_lab, ROW_DUR)], ignore_index=True)
+# What followed is known only up to three years ago; after that the row
+# shows the model's call instead, faded, so it runs to today.
+KNOWN, CALLED = "What followed", "Model's call (not known yet)"
+_open = _calls["called"].loc[_calls.index > going_lab.index[-1]].dropna()
+bands = pd.concat([_bands(going_lab, ROW_IN).assign(what=KNOWN),
+                   _bands(_open, ROW_IN).assign(what=CALLED) if len(_open) else None,
+                   _bands(during_lab, ROW_DUR).assign(what=KNOWN)], ignore_index=True)
 xs_t = alt.Scale(domain=[HX_MONTHS[0].to_timestamp(), (HX_MONTHS[-1] + 1).to_timestamp()])
 y_rows = alt.Y("row:N", sort=[ROW_EV, ROW_IN, ROW_DUR], title=None,
                scale=alt.Scale(domain=[ROW_EV, ROW_IN, ROW_DUR]), axis=alt.Axis(labelLimit=220))
@@ -280,8 +286,10 @@ layers = [alt.Chart(bands).mark_rect().encode(
     x=alt.X("start:T", scale=xs_t, title=None), x2="end:T", y=y_rows,
     color=alt.Color("regime:N", scale=alt.Scale(domain=list(COLOR), range=list(COLOR.values())),
                     legend=None),
-    tooltip=[alt.Tooltip("row:N", title=""), alt.Tooltip("name:N", title="Regime"),
-             alt.Tooltip("span:N", title="Months")])]
+    opacity=alt.Opacity("what:N", scale=alt.Scale(domain=[KNOWN, CALLED], range=[1, 0.35]),
+                        legend=None),
+    tooltip=[alt.Tooltip("row:N", title=""), alt.Tooltip("what:N", title=""),
+             alt.Tooltip("name:N", title="Regime"), alt.Tooltip("span:N", title="Months")])]
 hx_spells = {ROW_IN: _spell_of(going_lab, hx), ROW_DUR: _spell_of(during_lab, hx)}
 boxes = pd.DataFrame([{"start": sp["start"].to_timestamp(), "end": (sp["end"] + 1).to_timestamp(),
                        "row": r_} for r_, sp in hx_spells.items() if sp is not None])
@@ -435,8 +443,12 @@ if r_in is not None and sp_in is not None and r_in in going_avg.index:
                      f'{ui.esc(SHORT[d][0].lower())}, which read {_lean(d, this[d] - rest[d])} '
                      f'({ui.signed(this[d])} on average, against {ui.signed(rest[d])}).</p>')
 else:
+    _c = _calls["called"].get(hx)
+    _cw = (f' The model’s call is <span style="color:{COLOR[_c]}">{ui.esc(INTEXT[_c])}</span>, '
+           'shown faded on the timeline.' if _c in COLOR else "")
     lines.append('<p><b>Heading into: not known yet.</b> The three years after this month have not '
-                 f'fully happened; run-up labels end in {going_lab.index[-1].strftime("%b %Y")}.</p>')
+                 f'fully happened; what followed is known up to {going_lab.index[-1].strftime("%b %Y")}.'
+                 f'{_cw}</p>')
 if r_dur is not None and sp_dur is not None:
     nc = M["nowcast"].loc[hx] if hx in M["nowcast"].index else None
     nm_d = f'<span style="color:{COLOR[r_dur]}">{ui.esc(INTEXT[r_dur])}</span>'
