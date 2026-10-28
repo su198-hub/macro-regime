@@ -68,12 +68,15 @@ def held_out(train, prior, reg, names):
     return pd.concat(probs).sort_index(), pd.concat(fits).sort_index()
 
 
-def real_time(train, prior, reg, names):
+def real_time(train, prior, reg, names, scores=None):
+    """Probabilities and fits each month from positions learned only from labels
+    known then. Pass `scores` to call months past the last label too."""
+    frame = train if scores is None else scores
     probs, fits = {}, {}
-    for t in train.index[train.index >= pd.Period(FIRST, "M")]:
+    for t in frame.index[frame.index >= pd.Period(FIRST, "M")]:
         known = train[train.index <= t - ol.HORIZON - ol.LABEL_LAG]
         c = with_positions(reg, ol.realigned_positions(known, prior, names))
-        x = train.loc[[t], names]
+        x = frame.loc[[t], names]
         probs[t] = R.probabilities(x, c).iloc[0]
         fits[t] = bool(R.fit(x, c)["fits"].iloc[0])
     return pd.DataFrame(probs).T, pd.Series(fits)

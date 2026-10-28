@@ -248,11 +248,23 @@ c_ev.selectbox("Jump to an event", ["Choose an event…"] + list(EV_OPTS), key="
 c_mo.select_slider("Or pick a month", options=[HX_LABEL[m_] for m_ in HX_MONTHS], key="hx_month")
 hx = HX_BY_LABEL[st.session_state["hx_month"]]
 
-# The timeline: what each month was heading into (the next three years, the
-# run-up labels the call learns from) and what it was in (the past year and
-# a half). The boxes mark the run-up and the spell the chosen month counts in.
+@st.cache_data(ttl=6 * 3600, show_spinner="Calling every month since 1976…")
+def predicted(version: str, config_key: str) -> dict:
+    """The call each month from positions learned only from what followed
+    months already known then, from 1976 (enough run-ups to learn from) to today."""
+    from scripts.realign_positions import priors, real_time
+    P, _ = real_time(M["train"], priors(REG, NAMES), REG, NAMES, scores=M["scores"])
+    return {"probs": P, "called": R.call_regime(P, REG)["called"]}
+
+
+# The timeline: the model's prediction for the next three years as made at
+# the time, what the next three years turned out to be (the run-up labels the
+# call learns from), and what each month was in (the past year and a half).
+# The boxes mark the run-up and the spell the chosen month counts in.
+PRED = predicted(data_version(), CONFIG_KEY)
 going_lab, during_lab = M["train"]["label"], M["during"]["label"]
-ROW_EV, ROW_IN, ROW_DUR = "Events", "Next 3 years", "Living through"
+ROW_EV, ROW_PRED, ROW_IN, ROW_DUR = "Events", "Prediction (N3Y)", "What followed (N3Y)", "Living through"
+ROWS = [ROW_EV, ROW_PRED, ROW_IN, ROW_DUR]
 
 
 def _spell_of(labels: pd.Series, month: pd.Period):
@@ -272,24 +284,27 @@ def _bands(labels: pd.Series, row: str) -> pd.DataFrame:
                                   for s_, e_ in zip(sp["start"], sp["end"])]})
 
 
-# What followed is known only up to three years ago; after that the row
-# shows the model's call instead, faded, so it runs to today.
-KNOWN, CALLED = "What followed", "Model's call (not known yet)"
-_open = _calls["called"].loc[_calls.index > going_lab.index[-1]].dropna()
-bands = pd.concat([_bands(going_lab, ROW_IN).assign(what=KNOWN),
-                   _bands(_open, ROW_IN).assign(what=CALLED) if len(_open) else None,
-                   _bands(during_lab, ROW_DUR).assign(what=KNOWN)], ignore_index=True)
+_pred = PRED["called"][PRED["called"].isin(list(COLOR))]
+bands = pd.concat([_bands(_pred, ROW_PRED), _bands(going_lab, ROW_IN), _bands(during_lab, ROW_DUR)],
+                  ignore_index=True)
 xs_t = alt.Scale(domain=[HX_MONTHS[0].to_timestamp(), (HX_MONTHS[-1] + 1).to_timestamp()])
-y_rows = alt.Y("row:N", sort=[ROW_EV, ROW_IN, ROW_DUR], title=None,
-               scale=alt.Scale(domain=[ROW_EV, ROW_IN, ROW_DUR]), axis=alt.Axis(labelLimit=220))
+y_rows = alt.Y("row:N", sort=ROWS, title=None, scale=alt.Scale(domain=ROWS),
+               axis=alt.Axis(labelLimit=220))
+# What followed is known only up to three years ago.
+_unknown = pd.DataFrame({"start": [(going_lab.index[-1] + 1).to_timestamp()],
+                         "end": [(HX_MONTHS[-1] + 1).to_timestamp()], "row": [ROW_IN],
+                         "name": ["Not known yet"],
+                         "span": [f"{(going_lab.index[-1] + 1).strftime('%b %Y')} on"]})
 layers = [alt.Chart(bands).mark_rect().encode(
     x=alt.X("start:T", scale=xs_t, title=None), x2="end:T", y=y_rows,
     color=alt.Color("regime:N", scale=alt.Scale(domain=list(COLOR), range=list(COLOR.values())),
                     legend=None),
-    opacity=alt.Opacity("what:N", scale=alt.Scale(domain=[KNOWN, CALLED], range=[1, 0.35]),
-                        legend=None),
-    tooltip=[alt.Tooltip("row:N", title=""), alt.Tooltip("what:N", title=""),
-             alt.Tooltip("name:N", title="Regime"), alt.Tooltip("span:N", title="Months")])]
+    tooltip=[alt.Tooltip("row:N", title=""), alt.Tooltip("name:N", title="Regime"),
+             alt.Tooltip("span:N", title="Months")]),
+    alt.Chart(_unknown).mark_rect(color=ui.MUTED, opacity=0.18).encode(
+        x=alt.X("start:T", scale=xs_t), x2="end:T", y=y_rows,
+        tooltip=[alt.Tooltip("row:N", title=""), alt.Tooltip("name:N", title=""),
+                 alt.Tooltip("span:N", title="Months")])]
 hx_spells = {ROW_IN: _spell_of(going_lab, hx), ROW_DUR: _spell_of(during_lab, hx)}
 boxes = pd.DataFrame([{"start": sp["start"].to_timestamp(), "end": (sp["end"] + 1).to_timestamp(),
                        "row": r_} for r_, sp in hx_spells.items() if sp is not None])
@@ -304,7 +319,7 @@ layers.append(alt.Chart(ev_df).mark_point(shape="triangle-down", size=55, filled
                                           color=ui.MUTED).encode(
     x=alt.X("month:T", scale=xs_t), y=y_rows,
     tooltip=[alt.Tooltip("when:N", title=""), alt.Tooltip("title:N", title="Event")]))
-hx_box.altair_chart(ui.style(alt.layer(*layers).properties(height=130)), use_container_width=True)
+hx_box.altair_chart(ui.style(alt.layer(*layers).properties(height=160)), use_container_width=True)
 
 # The chosen month beside the averages it feeds.
 going_avg, during_avg = ol.positions(M["train"], NAMES), ol.positions(M["during"], NAMES)
@@ -443,12 +458,9 @@ if r_in is not None and sp_in is not None and r_in in going_avg.index:
                      f'{ui.esc(SHORT[d][0].lower())}, which read {_lean(d, this[d] - rest[d])} '
                      f'({ui.signed(this[d])} on average, against {ui.signed(rest[d])}).</p>')
 else:
-    _c = _calls["called"].get(hx)
-    _cw = (f' The model’s call is <span style="color:{COLOR[_c]}">{ui.esc(INTEXT[_c])}</span>, '
-           'shown faded on the timeline.' if _c in COLOR else "")
     lines.append('<p><b>Heading into: not known yet.</b> The three years after this month have not '
                  f'fully happened; what followed is known up to {going_lab.index[-1].strftime("%b %Y")}.'
-                 f'{_cw}</p>')
+                 '</p>')
 if r_dur is not None and sp_dur is not None:
     nc = M["nowcast"].loc[hx] if hx in M["nowcast"].index else None
     nm_d = f'<span style="color:{COLOR[r_dur]}">{ui.esc(INTEXT[r_dur])}</span>'
@@ -457,10 +469,18 @@ if r_dur is not None and sp_dur is not None:
     lines.append(f'<p><b>Living through {nm_d}</b>{body}. Part of the '
                  f'{sp_dur["start"].strftime("%b %Y")} to {sp_dur["end"].strftime("%b %Y")} spell.'
                  f'{held}</p>')
-_odds = R.probabilities(M["scores"].loc[[hx]], REG).iloc[0].sort_values(ascending=False)
-lines.append(f'<p><b>The model on this month</b>, with today\u2019s positions (learned with hindsight, '
-             f'so not what it would have said then): '
-             + ", ".join(f'{ui.esc(INTEXT[k])} {v:.0%}' for k, v in _odds.head(2).items()) + ".</p>")
+if hx in PRED["probs"].index:
+    _odds = PRED["probs"].loc[hx].sort_values(ascending=False)
+    _pc = PRED["called"].get(hx)
+    _call = (f'calling <span style="color:{COLOR[_pc]}">{ui.esc(INTEXT[_pc])}</span>; '
+             if _pc in COLOR else "")
+    lines.append(f'<p><b>Prediction (N3Y)</b>, from what was known then: {_call}'
+                 + ", ".join(f'{ui.esc(INTEXT[k])} {v:.0%}' for k, v in _odds.head(2).items()) + ".</p>")
+else:
+    _odds = R.probabilities(M["scores"].loc[[hx]], REG).iloc[0].sort_values(ascending=False)
+    lines.append(f'<p><b>The model on this month</b>, before 1976, so with today\u2019s positions '
+                 f'(learned with hindsight, not what it would have said then): '
+                 + ", ".join(f'{ui.esc(INTEXT[k])} {v:.0%}' for k, v in _odds.head(2).items()) + ".</p>")
 c_text.html(f'<div class="hx">{"".join(lines)}</div>')
 c_text.html(ui.table(
     ["", HX_LABEL[hx],
