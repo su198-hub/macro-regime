@@ -8,8 +8,8 @@ picked elsewhere.
 
   0. Regime shapes, first: where the drivers sat going into each regime and
      during it, against theory, one radar per regime beside today's.
-  0b. Go back in time: any month or notable event, its drivers, and which
-     run-up and spell it is averaged into.
+  0b. Go back in time: each call drawn over the months it was about, above
+     what they turned out to be, and what led into each turning point.
 
   1. The call: the most likely regime for the next three years, and the odds.
   2. Where growth and inflation are heading: each regime's typical outcome on
@@ -231,22 +231,10 @@ HX_MONTHS = list(M["scores"].index)
 HX_LABEL = {m_: m_.strftime("%b %Y") for m_ in HX_MONTHS}
 HX_BY_LABEL = {v: k for k, v in HX_LABEL.items()}
 EV_BY_MONTH = {pd.Period(e["month"], "M"): e for e in EVENTS if pd.Period(e["month"], "M") in HX_LABEL}
-EV_OPTS = {f'{HX_LABEL[m_]} · {e["title"]}': HX_LABEL[m_] for m_, e in EV_BY_MONTH.items()}
-if st.session_state.get("hx_month") not in HX_BY_LABEL:
-    st.session_state["hx_month"] = HX_LABEL.get(pd.Period("1981-07", "M"), HX_LABEL[HX_MONTHS[-1]])
+# In running text a regime is its code if it has one short enough to be a
+# heading (HGHI), otherwise its name in lower case.
+INTEXT = {k: HEAD[k] if HEAD[k].isupper() else LABEL[k].lower() for k in LABEL}
 
-
-def _hx_jump() -> None:
-    pick = st.session_state.get("hx_event")
-    if pick in EV_OPTS:
-        st.session_state["hx_month"] = EV_OPTS[pick]
-
-
-c_ev, c_mo = hx_box.columns([1, 1.6])
-c_ev.selectbox("Jump to an event", ["Choose an event…"] + list(EV_OPTS), key="hx_event",
-               on_change=_hx_jump)
-c_mo.select_slider("Or pick a month", options=[HX_LABEL[m_] for m_ in HX_MONTHS], key="hx_month")
-hx = HX_BY_LABEL[st.session_state["hx_month"]]
 
 @st.cache_data(ttl=6 * 3600, show_spinner="Calling every month since 1976…")
 def predicted(version: str, config_key: str) -> dict:
@@ -257,14 +245,53 @@ def predicted(version: str, config_key: str) -> dict:
     return {"probs": P, "called": R.call_regime(P, REG)["called"]}
 
 
-# The timeline: the model's prediction for the next three years as made at
-# the time, what the next three years turned out to be (the run-up labels the
-# call learns from), and what each month was in (the past year and a half).
-# The boxes mark the run-up and the spell the chosen month counts in.
 PRED = predicted(data_version(), CONFIG_KEY)
 going_lab, during_lab = M["train"]["label"], M["during"]["label"]
-ROW_EV, ROW_PRED, ROW_IN, ROW_DUR = "Events", "Prediction (N3Y)", "What followed (N3Y)", "Living through"
-ROWS = [ROW_EV, ROW_PRED, ROW_IN, ROW_DUR]
+
+# A call covers the next three years on average, so its middle is about a
+# year and a half out; living through covers the 18 months to three months
+# ahead, so its middle is about six months back. Drawn two years after it was
+# made, a call sits over the months it was about: shifted two years, the
+# answer key agrees with living through in 86% of months, against 71% at three
+# years (checked 29 Oct 2026, 1968 to 2023).
+SHIFT = 24
+ROW_TURN, ROW_PRED, ROW_DUR = "Turning points", "Called 2 years earlier", "Living through"
+ROWS = [ROW_TURN, ROW_PRED, ROW_DUR]
+TURNS = ol.spells(during_lab).iloc[1:].reset_index(drop=True)
+
+
+def _turn_of(month: pd.Period):
+    """The turning point an event led into: the first from six months before
+    it to two years after it. Otherwise the event sits inside a spell."""
+    later = TURNS[TURNS["start"] >= month - 6]
+    if len(later) and (later["start"].iloc[0] - month).n <= 24:
+        return later["start"].iloc[0]
+    return None
+
+
+LEADS_INTO: dict = {}
+for _m, _e in EV_BY_MONTH.items():
+    _t = _turn_of(_m)
+    if _t is not None:
+        LEADS_INTO.setdefault(_t, []).append((_m, _e))
+TURN_OPTS = {f'{HX_LABEL[t_]} · into {HEAD[r_]}'
+             + (f' · {LEADS_INTO[t_][-1][1]["title"]}' if t_ in LEADS_INTO else ""): HX_LABEL[t_]
+             for t_, r_ in zip(TURNS["start"], TURNS["label"]) if t_ in HX_LABEL}
+if st.session_state.get("hx_month") not in HX_BY_LABEL:
+    st.session_state["hx_month"] = HX_LABEL.get(pd.Period("2008-03", "M"), HX_LABEL[HX_MONTHS[-1]])
+
+
+def _hx_jump() -> None:
+    pick = st.session_state.get("hx_turn")
+    if pick in TURN_OPTS:
+        st.session_state["hx_month"] = TURN_OPTS[pick]
+
+
+c_ev, c_mo = hx_box.columns([1, 1.6])
+c_ev.selectbox("Jump to a turning point", ["Choose a turning point…"] + list(TURN_OPTS), key="hx_turn",
+               on_change=_hx_jump)
+c_mo.select_slider("Or pick a month", options=[HX_LABEL[m_] for m_ in HX_MONTHS], key="hx_month")
+hx = HX_BY_LABEL[st.session_state["hx_month"]]
 
 
 def _spell_of(labels: pd.Series, month: pd.Period):
@@ -274,52 +301,57 @@ def _spell_of(labels: pd.Series, month: pd.Period):
     return None
 
 
-def _bands(labels: pd.Series, row: str) -> pd.DataFrame:
+def _bands(labels: pd.Series, row: str, shift: int = 0) -> pd.DataFrame:
     sp = ol.spells(labels)
-    return pd.DataFrame({"start": [s_.to_timestamp() for s_ in sp["start"]],
-                         "end": [(e_ + 1).to_timestamp() for e_ in sp["end"]],
+
+    def span(s_, e_):
+        months = f"{s_.strftime('%b %Y')} to {e_.strftime('%b %Y')}"
+        return f"Called {months}, for the 3 years after" if shift else months
+
+    return pd.DataFrame({"start": [(s_ + shift).to_timestamp() for s_ in sp["start"]],
+                         "end": [(e_ + shift + 1).to_timestamp() for e_ in sp["end"]],
                          "regime": sp["label"].to_numpy(), "name": sp["label"].map(LABEL).to_numpy(),
-                         "row": row,
-                         "span": [f"{s_.strftime('%b %Y')} to {e_.strftime('%b %Y')}"
-                                  for s_, e_ in zip(sp["start"], sp["end"])]})
+                         "row": row, "span": [span(s_, e_) for s_, e_ in zip(sp["start"], sp["end"])]})
 
 
+# The timeline: each call drawn over the months it was about, above what those
+# months turned out to be, so the two rows read against each other. Calls made
+# in the last two years run past today. Markers sit at each turning point.
 _pred = PRED["called"][PRED["called"].isin(list(COLOR))]
-bands = pd.concat([_bands(_pred, ROW_PRED), _bands(going_lab, ROW_IN), _bands(during_lab, ROW_DUR)],
-                  ignore_index=True)
-xs_t = alt.Scale(domain=[HX_MONTHS[0].to_timestamp(), (HX_MONTHS[-1] + 1).to_timestamp()])
+bands = pd.concat([_bands(_pred, ROW_PRED, SHIFT), _bands(during_lab, ROW_DUR)], ignore_index=True)
+_last = max(HX_MONTHS[-1], _pred.index[-1] + SHIFT) if len(_pred) else HX_MONTHS[-1]
+xs_t = alt.Scale(domain=[HX_MONTHS[0].to_timestamp(), (_last + 1).to_timestamp()])
 y_rows = alt.Y("row:N", sort=ROWS, title=None, scale=alt.Scale(domain=ROWS),
                axis=alt.Axis(labelLimit=220))
-# What followed is known only up to three years ago.
-_unknown = pd.DataFrame({"start": [(going_lab.index[-1] + 1).to_timestamp()],
-                         "end": [(HX_MONTHS[-1] + 1).to_timestamp()], "row": [ROW_IN],
-                         "name": ["Not known yet"],
-                         "span": [f"{(going_lab.index[-1] + 1).strftime('%b %Y')} on"]})
 layers = [alt.Chart(bands).mark_rect().encode(
     x=alt.X("start:T", scale=xs_t, title=None), x2="end:T", y=y_rows,
     color=alt.Color("regime:N", scale=alt.Scale(domain=list(COLOR), range=list(COLOR.values())),
                     legend=None),
     tooltip=[alt.Tooltip("row:N", title=""), alt.Tooltip("name:N", title="Regime"),
-             alt.Tooltip("span:N", title="Months")]),
-    alt.Chart(_unknown).mark_rect(color=ui.MUTED, opacity=0.18).encode(
-        x=alt.X("start:T", scale=xs_t), x2="end:T", y=y_rows,
-        tooltip=[alt.Tooltip("row:N", title=""), alt.Tooltip("name:N", title=""),
-                 alt.Tooltip("span:N", title="Months")])]
-hx_spells = {ROW_IN: _spell_of(going_lab, hx), ROW_DUR: _spell_of(during_lab, hx)}
-boxes = pd.DataFrame([{"start": sp["start"].to_timestamp(), "end": (sp["end"] + 1).to_timestamp(),
-                       "row": r_} for r_, sp in hx_spells.items() if sp is not None])
-if len(boxes):
-    layers.append(alt.Chart(boxes).mark_rect(fill=None, stroke=ui.INK, strokeWidth=2).encode(
-        x=alt.X("start:T", scale=xs_t), x2="end:T", y=y_rows))
+             alt.Tooltip("span:N", title="Months")])]
+sp_dur = _spell_of(during_lab, hx)
+if sp_dur is not None:
+    layers.append(alt.Chart(pd.DataFrame([{"start": sp_dur["start"].to_timestamp(),
+                                           "end": (sp_dur["end"] + 1).to_timestamp(), "row": ROW_DUR}]))
+                  .mark_rect(fill=None, stroke=ui.INK, strokeWidth=2).encode(
+                      x=alt.X("start:T", scale=xs_t), x2="end:T", y=y_rows))
+_today = pd.DataFrame({"m": [(HX_MONTHS[-1] + 1).to_timestamp()], "t": ["Today"], "row": [ROW_TURN]})
+layers.append(alt.Chart(_today).mark_rule(color=ui.MUTED, strokeDash=[3, 3]).encode(
+    x=alt.X("m:T", scale=xs_t)))
+layers.append(alt.Chart(_today).mark_text(align="left", dx=4, fontSize=11, color=ui.MUTED).encode(
+    x=alt.X("m:T", scale=xs_t), y=y_rows, text="t:N"))
 layers.append(alt.Chart(pd.DataFrame({"m": [hx.to_timestamp()]})).mark_rule(
     color=ui.INK, strokeWidth=2).encode(x=alt.X("m:T", scale=xs_t)))
-ev_df = pd.DataFrame([{"month": m_.to_timestamp(), "title": e["title"], "when": HX_LABEL[m_],
-                       "row": ROW_EV} for m_, e in EV_BY_MONTH.items()])
-layers.append(alt.Chart(ev_df).mark_point(shape="triangle-down", size=55, filled=True,
-                                          color=ui.MUTED).encode(
+turn_df = pd.DataFrame([{"month": t_.to_timestamp(), "regime": r_, "row": ROW_TURN,
+                         "when": f"{t_.strftime('%b %Y')} · into {LABEL[r_].lower()}",
+                         "events": "; ".join(e["title"] for _, e in LEADS_INTO.get(t_, [])) or "–"}
+                        for t_, r_ in zip(TURNS["start"], TURNS["label"])])
+layers.append(alt.Chart(turn_df).mark_point(shape="triangle-down", size=70, filled=True, opacity=1).encode(
     x=alt.X("month:T", scale=xs_t), y=y_rows,
-    tooltip=[alt.Tooltip("when:N", title=""), alt.Tooltip("title:N", title="Event")]))
-hx_box.altair_chart(ui.style(alt.layer(*layers).properties(height=160)), use_container_width=True)
+    color=alt.Color("regime:N", scale=alt.Scale(domain=list(COLOR), range=list(COLOR.values())),
+                    legend=None),
+    tooltip=[alt.Tooltip("when:N", title=""), alt.Tooltip("events:N", title="Led in by")]))
+hx_box.altair_chart(ui.style(alt.layer(*layers).properties(height=130)), use_container_width=True)
 
 # The chosen month beside the averages it feeds.
 going_avg, during_avg = ol.positions(M["train"], NAMES), ol.positions(M["during"], NAMES)
@@ -344,45 +376,6 @@ def _per(df: pd.DataFrame) -> pd.DataFrame:
 ind_p, raw_p = _per(M["indicators"]), _per(M["inputs"])
 ind_in = ind_p.join(going_lab, how="inner").groupby("label").mean()
 raw_in = raw_p.join(going_lab, how="inner").groupby("label").mean()
-
-
-# Words for a driver reading more toward its +1 end, or its -1 end.
-LEAN = {"growth": ("stronger", "weaker"), "inflation": ("hotter", "cooler"),
-        "monetary": ("tighter", "looser"), "fiscal": ("more supportive", "less supportive"),
-        "reforms": ("more proactive", "less proactive")}
-
-
-def _lean(d: str, gap: float) -> str:
-    word = LEAN.get(d, ("higher", "lower"))[0 if gap > 0 else 1]
-    return ("much " if abs(gap) >= 0.5 else "") + word
-
-
-def _why(d: str, regime: str) -> str:
-    """The indicator doing most of the work in a driver's gap from the
-    regime's going-in average, as read then and as read typically."""
-    specs = CFG["drivers"][d]["indicators"]
-    total = sum(float(x["weight"]) for x in specs)
-    best, best_v = None, 0.0
-    for x in specs:
-        col = f"{d}::{x['id']}"
-        if col not in ind_p or regime not in ind_in.index:
-            continue
-        sc, av = ind_p[col].get(hx), ind_in.at[regime, col]
-        if pd.isna(sc) or pd.isna(av):
-            continue
-        v = float(x["weight"]) / total * (sc - av)
-        if abs(v) > abs(best_v):
-            best, best_v = x, v
-    if best is None:
-        return ""
-    col, tr, un = f"{d}::{best['id']}", best.get("transform", "level"), best.get("unit")
-    name = best["label"].split(" (")[0].split(", %")[0]
-    name = name[0].lower() + name[1:]
-    # Say so when a lower reading is what pushes the driver up.
-    flip = (f", where lower counts as {LEAN.get(d, ('higher',))[0]}"
-            if int(best.get("direction", 1)) < 0 else "")
-    return (f"mostly {ui.esc(name)}: {ui.format_reading(raw_p.at[hx, col], tr, un)} against "
-            f"{ui.format_reading(raw_in.at[regime, col], tr, un)} typically{flip}")
 
 
 def _gaps(row: pd.Series, horizon: str) -> str:
@@ -417,68 +410,111 @@ def _held(row, label: str) -> str:
     return (" " + " ".join(notes)) if notes else ""
 
 
-# In running text a regime is its code if it has one short enough to be a
-# heading (HGHI), otherwise its name in lower case.
-INTEXT = {k: HEAD[k] if HEAD[k].isupper() else LABEL[k].lower() for k in LABEL}
-ev = EV_BY_MONTH.get(hx)
+SALIENCE = pd.Series({d: float(REG["driver_salience"].get(d, 1.0)) for d in NAMES})
+
+
+def _tag(r: str) -> str:
+    return f'<span style="color:{COLOR[r]}">{ui.esc(INTEXT[r])}</span>'
+
+
+def _side(v: float, what: str) -> str:
+    return f"{abs(v):.1f} points {'above' if v >= 0 else 'below'} {what}"
+
+
+# A driver reading in a word: toward its +1 end, its -1 end, or about neutral.
+READS = {"growth": ("strong", "weak"), "inflation": ("hot", "cool"), "monetary": ("tight", "loose"),
+         "fiscal": ("supportive", "unsupportive"), "reforms": ("proactive", "passive")}
+
+
+def _reads(d: str, v: float) -> str:
+    return "about neutral" if abs(v) < 0.1 else READS.get(d, ("high", "low"))[0 if v > 0 else 1]
+
+
+def _call_why(made: pd.Period, call: str, rival: str) -> str:
+    """The drivers that most favored `call` over `rival` in `made`, against
+    each regime's position as the real-time call had it then."""
+    from scripts.realign_positions import priors
+    known = M["train"][M["train"].index <= made - ol.HORIZON - ol.LABEL_LAG]
+    pos = ol.realigned_positions(known, priors(REG, NAMES), NAMES)
+    x = M["scores"].loc[made, NAMES]
+    pull = SALIENCE * ((x - pos.loc[rival]) ** 2 - (x - pos.loc[call]) ** 2)
+    top = [d for d in pull.sort_values(ascending=False).index if pull[d] > 0][:2]
+    return "; ".join(f"{ui.esc(SHORT[d][0].lower())} read {_reads(d, x[d])} ({ui.signed(x[d])}), nearer a typical "
+                     f"{ui.esc(INTEXT[call])} run-up ({ui.signed(pos.at[call, d])}) than a typical "
+                     f"{ui.esc(INTEXT[rival])} one ({ui.signed(pos.at[rival, d])})" for d in top)
+
+
 lines = []
-if ev:
-    lines.append(f'<p class="hx-event"><b>{ui.esc(ev["title"])}.</b> {ui.esc(ev["note"])}</p>')
-sp_in, sp_dur = hx_spells[ROW_IN], hx_spells[ROW_DUR]
-if r_in is not None and sp_in is not None and r_in in going_avg.index:
-    nm = f'<span style="color:{COLOR[r_in]}">{ui.esc(INTEXT[r_in])}</span>'
-    fw = M["fwd"].loc[hx] if hx in M["fwd"].index else None
-    told = f": over the next three years {_gaps(fw, 'averaged')}" if fw is not None else ""
-    lines.append(f'<p><b>Heading into {nm}</b>{told}. Part of the '
-                 f'{sp_in["start"].strftime("%b %Y")} to {sp_in["end"].strftime("%b %Y")} run-up.'
-                 f'{_held(fw, r_in)}</p>')
-    # What stands out against a typical run-up into the same regime.
-    gap = (here - going_avg.loc[r_in]).reindex(NAMES)
-    top = [d for d in gap.abs().sort_values(ascending=False).index if abs(gap[d]) >= 0.2][:2]
-    if top:
-        parts = []
-        for d in top:
-            why = _why(d, r_in)
-            parts.append(f"{ui.esc(SHORT[d][0])} read {_lean(d, gap[d])} than usual "
-                         f"({ui.signed(here[d])} against {ui.signed(going_avg.at[r_in, d])})"
-                         + (f", {why}" if why else ""))
-        lines.append(f'<p><b>Against a typical {nm} run-up.</b> ' + ". ".join(parts) + ".</p>")
+turn_events = []
+# The turning point that began the spell this month is in: what changed, what
+# led into it, and what the model had called two years before.
+if sp_dur is not None and sp_dur["start"] in set(TURNS["start"]):
+    t0, new = sp_dur["start"], sp_dur["label"]
+    prev_sp = _spell_of(during_lab, t0 - 1)
+    nc = M["nowcast"]
+    before = nc.loc[prev_sp["start"]:prev_sp["end"], ["growth", "inflation"]].mean()
+    after = nc.loc[t0:sp_dur["end"], ["growth", "inflation"]].mean()
+    lines.append(f'<p><b>Turning point: into {_tag(new)}, {t0.strftime("%b %Y")}</b>, from '
+                 f'{_tag(prev_sp["label"])}. Growth went from {_side(before["growth"], "potential")} to '
+                 f'{_side(after["growth"], "potential")}, and core PCE inflation from '
+                 f'{_side(before["inflation"], "expectations")} to {_side(after["inflation"], "expectations")}, '
+                 f'on average over each spell.</p>')
+    turn_events = LEADS_INTO.get(t0, [])
+    for m_, e in turn_events:
+        lines.append(f'<p class="hx-event"><b>{ui.esc(e["title"])}</b> ({m_.strftime("%b %Y")}). '
+                     f'{ui.esc(e["note"])}</p>')
+    made = t0 - SHIFT
+    call = PRED["called"].get(made)
+    if made in PRED["probs"].index and call in COLOR:
+        odds = PRED["probs"].loc[made]
+        if call == new:
+            rival = odds.drop(call).idxmax()
+            lines.append(f'<p><b>Called two years earlier.</b> In {made.strftime("%b %Y")} the model '
+                         f'called {_tag(call)} for the next three years ({odds[call]:.0%}, against '
+                         f'{ui.esc(INTEXT[rival])} {odds[rival]:.0%}): {_call_why(made, call, rival)}.</p>')
+        else:
+            x0, x1 = M["scores"].loc[made, NAMES], M["scores"].loc[t0, NAMES]
+            d = (x1 - x0).abs().idxmax()
+            lines.append(f'<p><b>Missed two years earlier.</b> In {made.strftime("%b %Y")} the model '
+                         f'called {_tag(call)} ({odds[call]:.0%}; {ui.esc(INTEXT[new])} '
+                         f'{odds[new]:.0%}): {_call_why(made, call, new)}. Between then and the turn, '
+                         f'{ui.esc(SHORT[d][0].lower())} moved most, from {ui.signed(x0[d])} to '
+                         f'{ui.signed(x1[d])}.</p>')
     else:
-        lines.append(f'<p><b>Close to a typical {nm} run-up</b> on all five drivers.</p>')
-    # This run-up against the other run-ups into the same regime.
-    runs = ol.spells(going_lab)
-    runs = runs[runs["label"] == r_in]
-    this = M["train"].loc[sp_in["start"]:sp_in["end"], NAMES].mean()
-    others = [M["train"].loc[a_:b_, NAMES].mean() for a_, b_ in zip(runs["start"], runs["end"])
-              if a_ != sp_in["start"]]
-    if others:
-        rest = pd.concat(others, axis=1).mean(axis=1)
-        d = (this - rest).abs().idxmax()
-        lines.append(f'<p><b>Against the other {len(others)} {nm} run-ups.</b> This one stood out on '
-                     f'{ui.esc(SHORT[d][0].lower())}, which read {_lean(d, this[d] - rest[d])} '
-                     f'({ui.signed(this[d])} on average, against {ui.signed(rest[d])}).</p>')
-else:
-    lines.append('<p><b>Heading into: not known yet.</b> The three years after this month have not '
-                 f'fully happened; what followed is known up to {going_lab.index[-1].strftime("%b %Y")}.'
-                 '</p>')
+        lines.append('<p><b>No call two years earlier</b>: the model’s calls start in 1976, '
+                     'once there are past regimes to learn from.</p>')
+# Other events in this spell, and this month's own event in full.
+ev = EV_BY_MONTH.get(hx)
+shown = {m_ for m_, _ in turn_events}
+if ev and hx not in shown:
+    lines.append(f'<p class="hx-event"><b>{ui.esc(ev["title"])}</b> ({HX_LABEL[hx]}). '
+                 f'{ui.esc(ev["note"])}</p>')
+    shown.add(hx)
+if sp_dur is not None:
+    also = [(m_, e) for m_, e in EV_BY_MONTH.items()
+            if sp_dur["start"] <= m_ <= sp_dur["end"] and m_ not in shown and _turn_of(m_) is None]
+    if also:
+        lines.append('<p><b>Also in this spell:</b> '
+                     + "; ".join(f'{ui.esc(e["title"])} ({m_.strftime("%b %Y")})' for m_, e in also) + ".</p>")
+# This month: what it was living through, and what the model called from it.
 if r_dur is not None and sp_dur is not None:
     nc = M["nowcast"].loc[hx] if hx in M["nowcast"].index else None
-    nm_d = f'<span style="color:{COLOR[r_dur]}">{ui.esc(INTEXT[r_dur])}</span>'
     body = (f": over the 18 months around this month, {_gaps(nc, 'ran')}" if nc is not None else "")
-    held = _held(nc, r_dur)
-    lines.append(f'<p><b>Living through {nm_d}</b>{body}. Part of the '
+    lines.append(f'<p><b>{HX_LABEL[hx]}: living through {_tag(r_dur)}</b>{body}. Part of the '
                  f'{sp_dur["start"].strftime("%b %Y")} to {sp_dur["end"].strftime("%b %Y")} spell.'
-                 f'{held}</p>')
+                 f'{_held(nc, r_dur)}</p>')
 if hx in PRED["probs"].index:
     _odds = PRED["probs"].loc[hx].sort_values(ascending=False)
     _pc = PRED["called"].get(hx)
-    _call = (f'calling <span style="color:{COLOR[_pc]}">{ui.esc(INTEXT[_pc])}</span>; '
-             if _pc in COLOR else "")
-    lines.append(f'<p><b>Prediction (N3Y)</b>, from what was known then: {_call}'
-                 + ", ".join(f'{ui.esc(INTEXT[k])} {v:.0%}' for k, v in _odds.head(2).items()) + ".</p>")
+    _top = ", ".join(f'{ui.esc(INTEXT[k])} {v:.0%}' for k, v in _odds.head(2).items())
+    _call = f"{_tag(_pc)} ({_top})" if _pc in COLOR else _top
+    _out = (f" It turned out {_tag(r_in)}{', so right' if r_in == _pc else ''}." if r_in in COLOR
+            else f" Not known yet: what followed is known up to {going_lab.index[-1].strftime('%b %Y')}.")
+    lines.append(f'<p><b>Called in {HX_LABEL[hx]}</b> for the next three years, from what was known '
+                 f'then: {_call}.{_out}</p>')
 else:
     _odds = R.probabilities(M["scores"].loc[[hx]], REG).iloc[0].sort_values(ascending=False)
-    lines.append(f'<p><b>The model on this month</b>, before 1976, so with today\u2019s positions '
+    lines.append(f'<p><b>The model on this month</b>, before 1976, so with today’s positions '
                  f'(learned with hindsight, not what it would have said then): '
                  + ", ".join(f'{ui.esc(INTEXT[k])} {v:.0%}' for k, v in _odds.head(2).items()) + ".</p>")
 c_text.html(f'<div class="hx">{"".join(lines)}</div>')
