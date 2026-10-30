@@ -254,7 +254,6 @@ HX_MODES = {
 hx_mode = hx_box.radio("How the calls were made", list(HX_MODES), horizontal=True, key="hx_mode")
 HELD = hx_mode == "Held out"
 hx_box.html(f'<p class="mr-caption"><b>{hx_mode}:</b> {HX_MODES[hx_mode]}</p>')
-BASIS = "from positions learned without this episode" if HELD else "from what was known then"
 
 
 @st.cache_data(ttl=6 * 3600, show_spinner="Calling every month…")
@@ -311,9 +310,14 @@ for _m, _e in EV_BY_MONTH.items():
     _t = _turn_of(_m)
     if _t is not None:
         LEADS_INTO.setdefault(_t, []).append((_m, _e))
-TURN_OPTS = {f'{HX_LABEL[t_]} · into {HEAD[r_]}'
-             + (f' · {LEADS_INTO[t_][-1][1]["title"]}' if t_ in LEADS_INTO else ""): HX_LABEL[t_]
-             for t_, r_ in zip(TURNS["start"], TURNS["label"]) if t_ in HX_LABEL}
+# Today first, then each turning point.
+NOW_M = HX_MONTHS[-1]
+NOW_CALL = PRED["called"].get(NOW_M)
+TURN_OPTS = {f'Today · {HX_LABEL[NOW_M]}'
+             + (f' · calling {HEAD[NOW_CALL]}' if NOW_CALL in HEAD else ""): HX_LABEL[NOW_M]}
+TURN_OPTS.update({f'{HX_LABEL[t_]} · into {HEAD[r_]}'
+                  + (f' · {LEADS_INTO[t_][-1][1]["title"]}' if t_ in LEADS_INTO else ""): HX_LABEL[t_]
+                  for t_, r_ in zip(TURNS["start"], TURNS["label"]) if t_ in HX_LABEL})
 if st.session_state.get("hx_month") not in HX_BY_LABEL:
     st.session_state["hx_month"] = HX_LABEL.get(pd.Period("2008-03", "M"), HX_LABEL[HX_MONTHS[-1]])
 
@@ -325,7 +329,7 @@ def _hx_jump() -> None:
 
 
 c_ev, c_mo = hx_box.columns([1, 1.6])
-c_ev.selectbox("Jump to a turning point", ["Choose a turning point…"] + list(TURN_OPTS), key="hx_turn",
+c_ev.selectbox("Jump to today or a turning point", ["Choose…"] + list(TURN_OPTS), key="hx_turn",
                on_change=_hx_jump)
 c_mo.select_slider("Or pick a month", options=[HX_LABEL[m_] for m_ in HX_MONTHS], key="hx_month")
 hx = HX_BY_LABEL[st.session_state["hx_month"]]
@@ -357,7 +361,8 @@ def _bands(labels: pd.Series, row: str, shift: int = 0) -> pd.DataFrame:
 _pred = PRED["called"][PRED["called"].isin(list(COLOR))]
 bands = pd.concat([_bands(_pred, ROW_PRED, SHIFT), _bands(during_lab, ROW_DUR)], ignore_index=True)
 _last = max(HX_MONTHS[-1], _pred.index[-1] + SHIFT) if len(_pred) else HX_MONTHS[-1]
-xs_t = alt.Scale(domain=[HX_MONTHS[0].to_timestamp(), (_last + 1).to_timestamp()])
+# A few months' room past the last band, so today's second stamp is not cut off.
+xs_t = alt.Scale(domain=[HX_MONTHS[0].to_timestamp(), (_last + 4).to_timestamp()])
 y_rows = alt.Y("row:N", sort=ROWS, title=None, scale=alt.Scale(domain=ROWS),
                axis=alt.Axis(labelLimit=220))
 layers = [alt.Chart(bands).mark_rect().encode(
@@ -372,10 +377,23 @@ if sp_dur is not None:
                                            "end": (sp_dur["end"] + 1).to_timestamp(), "row": ROW_DUR}]))
                   .mark_rect(fill=None, stroke=ui.INK, strokeWidth=2).encode(
                       x=alt.X("start:T", scale=xs_t), x2="end:T", y=y_rows))
-_today = pd.DataFrame({"m": [(HX_MONTHS[-1] + 1).to_timestamp()], "t": ["Today"], "row": [ROW_TURN]})
-layers.append(alt.Chart(_today).mark_rule(color=ui.MUTED, strokeDash=[3, 3]).encode(
+# Today's stamp: a diamond on the turning points row, and another where
+# today's call is drawn, two years on, on the called row.
+_now_odds = PRED["probs"].loc[NOW_M] if NOW_M in PRED["probs"].index else None
+_now_tip = (f"Called {LABEL[NOW_CALL].lower()} for the next three years ({_now_odds[NOW_CALL]:.0%})"
+            if NOW_CALL in LABEL and _now_odds is not None else "–")
+_today = pd.DataFrame({"m": [(NOW_M + 1).to_timestamp(), (NOW_M + SHIFT).to_timestamp()],
+                       "t": ["Today", ""], "row": [ROW_TURN, ROW_PRED],
+                       "when": [f"Today, {HX_LABEL[NOW_M]}", f"Today's call, drawn two years on"],
+                       "what": [_now_tip, _now_tip]})
+layers.append(alt.Chart(_today.iloc[:1]).mark_rule(color=ui.MUTED, strokeDash=[3, 3]).encode(
     x=alt.X("m:T", scale=xs_t)))
-layers.append(alt.Chart(_today).mark_text(align="left", dx=4, fontSize=11, color=ui.MUTED).encode(
+layers.append(alt.Chart(_today).mark_point(shape="diamond", size=110, filled=True, color=ui.INK,
+                                           stroke="#fff", strokeWidth=1.5, opacity=1).encode(
+    x=alt.X("m:T", scale=xs_t), y=y_rows,
+    tooltip=[alt.Tooltip("when:N", title=""), alt.Tooltip("what:N", title="Call")]))
+layers.append(alt.Chart(_today.iloc[:1]).mark_text(align="left", dx=8, fontSize=11, fontWeight="bold",
+                                                   color=ui.INK).encode(
     x=alt.X("m:T", scale=xs_t), y=y_rows, text="t:N"))
 layers.append(alt.Chart(pd.DataFrame({"m": [hx.to_timestamp()]})).mark_rule(
     color=ui.INK, strokeWidth=2).encode(x=alt.X("m:T", scale=xs_t)))
@@ -446,7 +464,9 @@ c_chart.html(ui.radar_grid([ui.radar_svg(NAMES, SHORT, series, title=rd_title)],
 _light = [SHORT[d][0].lower() for d in NAMES if float(REG["driver_salience"].get(d, 1.0)) < 1]
 c_chart.html('<p class="mr-caption">The model calls the regime whose typical run-up the black shape '
              'sits closest to' + (f', with {ui.join_words(_light)} counting less' if _light else '') + '. '
-             + ('Typical run-ups are learned from every other episode, leaving out this one. ' if HELD
+             + ('Typical run-ups are learned from every episode known, none of which this month’s '
+                'three years belong to. ' if HELD and m_f > going_lab.index[-1] else
+                'Typical run-ups are learned from every other episode, leaving out this one. ' if HELD
                 else 'Typical run-ups are learned only from what was known then. '
                 if m_f in PRED["probs"].index else
                 'Before 1976 the typical run-ups are today’s, learned with hindsight. ')
@@ -618,6 +638,15 @@ def _event(m_: pd.Period, e: dict) -> str:
     return f'<b>{ui.esc(e["title"])}</b>, {m_.strftime("%b %Y")}. {ui.esc(e["note"])}'
 
 
+def _basis(month: pd.Period) -> str:
+    """How the call in `month` was made, in words."""
+    if not HELD:
+        return "from what was known then"
+    if month > going_lab.index[-1]:
+        return "from positions learned from every episode known so far"
+    return "from positions learned without this episode"
+
+
 def _chip(right: bool) -> str:
     return f' <span class="hx-chip{"" if right else " miss"}">{"Right" if right else "Wrong"}</span>'
 
@@ -724,8 +753,9 @@ if hx in PRED["probs"].index:
     _call = f"{_tag(_pc)} ({_top})" if _pc in COLOR else _top
     _out = (f" It turned out {_tag(r_in)}." + (_chip(r_in == _pc) if _pc in COLOR else "") if r_in in COLOR
             else f" Not known yet: what followed is known up to {going_lab.index[-1].strftime('%b %Y')}.")
+    _why = (_call_why(hx, _pc, _odds.drop(_pc).idxmax(), 3, 1) if _pc in COLOR else [])
     items.append(_item("Called for the next three years",
-                       f", {BASIS}: {_call}.{_out}"))
+                       f", {_basis(hx)}: {_call}.{_out}" + (" Why:" if _why else ""), _why))
 else:
     _odds = R.probabilities(M["scores"].loc[[hx]], REG).iloc[0].sort_values(ascending=False)
     items.append(_item("The model on this month",
