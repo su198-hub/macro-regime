@@ -9,7 +9,10 @@ picked elsewhere.
   0. Regime shapes, first: where the drivers sat going into each regime and
      during it, against theory, one radar per regime beside today's.
   0b. Go back in time: each call drawn over the months it was about, above
-     what they turned out to be, and what led into each turning point.
+     what they turned out to be, and what led into each turning point. A
+     radar shows what the call two years before a turn saw, against the
+     typical run-ups to what came and to its other pick, and the text says
+     which drivers and indicators decided it.
 
   1. The call: the most likely regime for the next three years, and the odds.
   2. Where growth and inflation are heading: each regime's typical outcome on
@@ -37,7 +40,7 @@ from src import outlook as ol
 from src import regimes as R
 from src import truth
 from src import ui
-from src.drivers import compute, config_hash, driver_groups, group_scores, load_config
+from src.drivers import DRIVER_SCALE, compute, config_hash, driver_groups, group_scores, load_config
 from views.common import data_version, get_store, registry
 
 st.html('<h1 class="mr-title">Regime explorer</h1>'
@@ -354,18 +357,61 @@ layers.append(alt.Chart(turn_df).mark_point(shape="triangle-down", size=70, fill
 hx_box.altair_chart(ui.style(alt.layer(*layers).properties(height=130)), use_container_width=True)
 
 # The chosen month beside the averages it feeds.
-going_avg, during_avg = ol.positions(M["train"], NAMES), ol.positions(M["during"], NAMES)
 r_in, r_dur = going_lab.get(hx), during_lab.get(hx)
-here = M["scores"].loc[hx]
-series = [{"name": HX_LABEL[hx], "values": here.to_dict(), "color": ui.INK, "fill": 0.12}]
-key_hx = [(HX_LABEL[hx], ui.INK, "solid")]
-if r_in in going_avg.index:
-    series.append({"name": f"Going-in average, {LABEL[r_in].lower()}",
-                   "values": going_avg.loc[r_in].to_dict(), "color": COLOR[r_in], "fill": 0,
-                   "dash": True})
-    key_hx.append(("Going-in average of what came next", COLOR[r_in], "dashed"))
+
+
+def _positions_at(month: pd.Period) -> pd.DataFrame:
+    """Each regime's typical run-up as the call had it in `month`: learned only
+    from what followed months already known then. Before 1976, today's."""
+    if month not in PRED["probs"].index:
+        return pd.DataFrame({r_: {d: float(s_["archetype"][d]) for d in NAMES}
+                             for r_, s_ in REG["regimes"].items()}).T
+    from scripts.realign_positions import priors
+    known = M["train"][M["train"].index <= month - ol.HORIZON - ol.LABEL_LAG]
+    return ol.realigned_positions(known, priors(REG, NAMES), NAMES)
+
+
+# The radar pictures the call the text explains. At a turning point: the
+# drivers two years before it, which the call read, against the typical
+# run-ups as known then to the regime that came and to the model's other
+# pick, with the drivers at the turn faint behind them. Elsewhere, and before
+# the calls start, the month's own call.
+t_turn = sp_dur["start"] if sp_dur is not None and sp_dur["start"] in set(TURNS["start"]) else None
+seen_at = t_turn - SHIFT if t_turn is not None else None
+if seen_at is not None and seen_at in PRED["probs"].index and PRED["called"].get(seen_at) in COLOR:
+    m_f, came, pick = seen_at, sp_dur["label"], PRED["called"][seen_at]
+    rival_f = pick if pick != came else PRED["probs"].loc[seen_at].drop(came).idxmax()
+    refs = [(came, "what came"), (rival_f, "called" if pick != came else "runner-up")]
+    rd_title, at_turn = f"Two years before the turn: {HX_LABEL[m_f]}", t_turn
+else:
+    m_f, at_turn = hx, None
+    odds_f = (PRED["probs"].loc[hx] if hx in PRED["probs"].index
+              else R.probabilities(M["scores"].loc[[hx]], REG).iloc[0])
+    pick = PRED["called"].get(hx) if PRED["called"].get(hx) in COLOR else odds_f.idxmax()
+    refs = [(pick, "called"), (odds_f.drop(pick).idxmax(), "runner-up")]
+    rd_title = HX_LABEL[hx]
+pos_f = _positions_at(m_f)
+series = [{"name": f"Drivers, {HX_LABEL[m_f]}", "values": M["scores"].loc[m_f].to_dict(),
+           "color": ui.INK, "fill": 0.12}]
+key_hx = [(f"Drivers, {HX_LABEL[m_f]}", ui.INK, "solid")]
+if at_turn is not None:
+    series.append({"name": f"Drivers at the turn, {HX_LABEL[at_turn]}",
+                   "values": M["scores"].loc[at_turn].to_dict(), "color": ui.MUTED, "fill": 0,
+                   "width": 1.5, "dash": "2 2"})
+    key_hx.append((f"At the turn, {HX_LABEL[at_turn]}", ui.MUTED, "dotted"))
+for r_, role in refs:
+    series.append({"name": f"Typical run-up to {INTEXT[r_]} ({role})", "values": pos_f.loc[r_].to_dict(),
+                   "color": COLOR[r_], "fill": 0, "dash": True})
+    key_hx.append((f"Typical run-up to {INTEXT[r_]} ({role})", COLOR[r_], "dashed"))
 c_chart, c_text = hx_box.columns([1, 1.3], gap="large")
-c_chart.html(ui.radar_grid([ui.radar_svg(NAMES, SHORT, series, title=HX_LABEL[hx])], key_hx))
+c_chart.html(ui.radar_grid([ui.radar_svg(NAMES, SHORT, series, title=rd_title)], key_hx))
+_light = [SHORT[d][0].lower() for d in NAMES if float(REG["driver_salience"].get(d, 1.0)) < 1]
+c_chart.html('<p class="mr-caption">The model calls the regime whose typical run-up the black shape '
+             'sits closest to' + (f', with {ui.join_words(_light)} counting less' if _light else '') + '. '
+             + ('Typical run-ups are learned only from what was known then. '
+                if m_f in PRED["probs"].index else
+                'Before 1976 the typical run-ups are today’s, learned with hindsight. ')
+             + 'Driver readings use today’s revised data. Rings run from −1 at the centre to +1.</p>')
 
 def _per(df: pd.DataFrame) -> pd.DataFrame:
     out = df.copy()
@@ -374,8 +420,6 @@ def _per(df: pd.DataFrame) -> pd.DataFrame:
 
 
 ind_p, raw_p = _per(M["indicators"]), _per(M["inputs"])
-ind_in = ind_p.join(going_lab, how="inner").groupby("label").mean()
-raw_in = raw_p.join(going_lab, how="inner").groupby("label").mean()
 
 
 def _gaps(row: pd.Series, horizon: str) -> str:
@@ -430,18 +474,75 @@ def _reads(d: str, v: float) -> str:
     return "about neutral" if abs(v) < 0.1 else READS.get(d, ("high", "low"))[0 if v > 0 else 1]
 
 
+def _behind(d: str, month: pd.Period) -> list[tuple[dict, float, float, float]]:
+    """Each indicator's part in driver `d` in `month`, largest first, as
+    (indicator, part, score, reading). The parts sum to the driver's score
+    before it is capped at ±1: the same weighted mean, block by block."""
+    if month not in ind_p.index:
+        return []
+    row, inds = ind_p.loc[month], {i_["id"]: i_ for i_ in CFG["drivers"][d]["indicators"]}
+    blocks = driver_groups(CFG, d)
+    has = {g: [i for i in b["indicators"] if pd.notna(row.get(f"{d}::{i}"))] for g, b in blocks.items()}
+    den = sum(blocks[g]["weight"] for g in blocks if has[g])
+    parts = []
+    for g, b in blocks.items():
+        gden = sum(float(inds[i]["weight"]) for i in has[g])
+        for i in has[g]:
+            z = float(row[f"{d}::{i}"])
+            parts.append((inds[i], b["weight"] / den * float(inds[i]["weight"]) / gden * z / DRIVER_SCALE,
+                          z, raw_p.at[month, f"{d}::{i}"] if f"{d}::{i}" in raw_p.columns else np.nan))
+    return sorted(parts, key=lambda p_: -abs(p_[1]))
+
+
+KEEP_CASE = {"Cleveland", "Fed", "Fraser", "US"}  # first words that stay capitalized
+
+
+def _name(i_: dict) -> str:
+    """An indicator's label mid-sentence: lower case unless it opens with an
+    acronym or a number (CBO, 10-year)."""
+    lab = i_["label"]
+    return ui.esc(lab if lab.split()[0] in KEEP_CASE or not lab[:2].istitle() else lab[0].lower() + lab[1:])
+
+
+def _reading(i_: dict, v: float) -> str:
+    return ui.format_reading(v, i_.get("transform", "level"), i_.get("unit"))
+
+
+def _drove(d: str, month: pd.Period) -> str:
+    """The indicators that moved driver `d` most in `month`: up to three, each
+    at least a third of the largest part."""
+    parts = _behind(d, month)
+    if not parts:
+        return ""
+    keep = [p_ for p_ in parts if abs(p_[1]) >= abs(parts[0][1]) / 3][:3]
+    return '<span class="hx-why">What drove it: ' + "; ".join(
+        f"{_name(i_)} at {_reading(i_, v)} ({abs(z):.1f} sd toward {_reads(d, z)})"
+        for i_, _, z, v in keep) + ".</span>"
+
+
 def _call_why(made: pd.Period, call: str, rival: str) -> list[str]:
     """The drivers that most favored `call` over `rival` in `made`, against
-    each regime's position as the real-time call had it then."""
-    from scripts.realign_positions import priors
-    known = M["train"][M["train"].index <= made - ol.HORIZON - ol.LABEL_LAG]
-    pos = ol.realigned_positions(known, priors(REG, NAMES), NAMES)
+    each regime's position as the real-time call had it then, and the
+    indicators behind each."""
+    pos = _positions_at(made)
     x = M["scores"].loc[made, NAMES]
     pull = SALIENCE * ((x - pos.loc[rival]) ** 2 - (x - pos.loc[call]) ** 2)
     top = [d for d in pull.sort_values(ascending=False).index if pull[d] > 0][:2]
-    return [f"{ui.esc(SHORT[d][0])} read {_reads(d, x[d])} ({ui.signed(x[d])}), nearer a typical "
+    return [f"<b>{ui.esc(SHORT[d][0])} read {_reads(d, x[d])}</b> ({ui.signed(x[d])}), nearer a typical "
             f"{ui.esc(INTEXT[call])} run-up ({ui.signed(pos.at[call, d])}) than a typical "
-            f"{ui.esc(INTEXT[rival])} one ({ui.signed(pos.at[rival, d])})." for d in top]
+            f"{ui.esc(INTEXT[rival])} one ({ui.signed(pos.at[rival, d])}).{_drove(d, made)}" for d in top]
+
+
+def _moved(d: str, a: pd.Period, b: pd.Period) -> str:
+    """The indicator whose part in driver `d` changed most from `a` to `b`."""
+    pa = {p_[0]["id"]: p_ for p_ in _behind(d, a)}
+    pb = {p_[0]["id"]: p_ for p_ in _behind(d, b)}
+    both = [i for i in pa if i in pb]
+    if not both:
+        return ""
+    i = max(both, key=lambda k: abs(pb[k][1] - pa[k][1]))
+    i_ = pa[i][0]
+    return f", led by {_name(i_)} ({_reading(i_, pa[i][3])} to {_reading(i_, pb[i][3])})"
 
 
 def _item(head: str, body: str = "", sub=()) -> str:
@@ -494,8 +595,9 @@ if sp_dur is not None and sp_dur["start"] in set(TURNS["start"]):
                                f' In {made.strftime("%b %Y")} the model called {_tag(call)} '
                                f'({odds[call]:.0%}; {ui.esc(INTEXT[new])} {odds[new]:.0%}), because:',
                                _call_why(made, call, new)
-                               + [f"What changed after: {ui.esc(SHORT[d][0].lower())} moved most by the "
-                                  f"turn, from {ui.signed(x0[d])} to {ui.signed(x1[d])}."]))
+                               + [f"<b>What changed after:</b> {ui.esc(SHORT[d][0].lower())} moved most "
+                                  f"by the turn, from {ui.signed(x0[d])} to {ui.signed(x1[d])}"
+                                  f"{_moved(d, made, t0)}."]))
     else:
         items.append(_item('No call two years earlier.',
                            ' The model’s calls start in 1976, once there are past regimes to learn from.'))
@@ -540,20 +642,19 @@ else:
 sections.append((f"This month, {HX_LABEL[hx]}", items))
 c_text.html('<div class="hx">' + "".join(f'<div class="hx-h">{t}</div><ul>{"".join(i)}</ul>'
                                          for t, i in sections) + "</div>")
+# The radar's shapes as numbers.
+_cols = [m_f] + ([at_turn] if at_turn is not None else [])
 c_text.html(ui.table(
-    ["", HX_LABEL[hx],
-     ui.Raw(f"Going-in average,<br>{ui.esc(HEAD[r_in])}") if r_in in going_avg.index
-     else "Going-in average",
-     ui.Raw(f"During average,<br>{ui.esc(HEAD[r_dur])}") if r_dur in during_avg.index
-     else "During average"],
-    [[SHORT[d][0], ui.signed(here[d]),
-      ui.signed(going_avg.at[r_in, d]) if r_in in going_avg.index else "–",
-      ui.signed(during_avg.at[r_dur, d]) if r_dur in during_avg.index else "–"] for d in NAMES],
-    numeric={1, 2, 3}))
+    [""] + [ui.Raw(f"Drivers,<br>{HX_LABEL[m_]}") if m_ == m_f else ui.Raw(f"At the turn,<br>{HX_LABEL[m_]}")
+            for m_ in _cols]
+    + [ui.Raw(f"Typical run-up,<br>{ui.esc(HEAD[r_])} ({role})") for r_, role in refs],
+    [[SHORT[d][0]] + [ui.signed(M["scores"].at[m_, d]) for m_ in _cols]
+     + [ui.signed(pos_f.at[r_, d]) for r_, _ in refs] for d in NAMES],
+    numeric=set(range(1, 1 + len(_cols) + len(refs)))))
 
-# The indicators behind each driver that month, as read (in their own units)
-# and as scored, beside their going-in average for the regime that followed.
-# Folded: thirty-odd rows.
+# The indicators behind each driver in the month the radar shows, as read (in
+# their own units) and as scored, and at the turn when there is one. Folded:
+# thirty-odd rows.
 
 
 def _cell(frame: pd.DataFrame, row, col: str, fmt) -> str:
@@ -563,7 +664,8 @@ def _cell(frame: pd.DataFrame, row, col: str, fmt) -> str:
 
 rows_ind = []
 for d in NAMES:
-    rows_ind.append(ui.Raw(f"<b>{ui.esc(DLABEL[d])}</b> · driver {ui.signed(here[d])}"))
+    rows_ind.append(ui.Raw(f"<b>{ui.esc(DLABEL[d])}</b> · driver "
+                           + " → ".join(ui.signed(M["scores"].at[m_, d]) for m_ in _cols)))
     total = sum(float(i_["weight"]) for i_ in CFG["drivers"][d]["indicators"])
     for i_ in sorted(CFG["drivers"][d]["indicators"], key=lambda x: -float(x["weight"])):
         col, tr = f"{d}::{i_['id']}", i_.get("transform", "level")
@@ -572,19 +674,15 @@ for d in NAMES:
             ui.Raw(f'{ui.esc(i_["label"])}<br><span style="color:{ui.MUTED};font-size:0.8rem">'
                    f'{ui.esc(ui.TRANSFORM_TEXT.get(tr, tr))}</span>'),
             f"{float(i_['weight']) / total:.0%}",
-            _cell(raw_p, hx, col, read), _cell(ind_p, hx, col, ui.signed),
-            _cell(raw_in, r_in, col, read), _cell(ind_in, r_in, col, ui.signed)])
+            *[c_ for m_ in _cols for c_ in (_cell(raw_p, m_, col, read), _cell(ind_p, m_, col, ui.signed))]])
 with hx_box.expander("The indicators behind each driver"):
     st.html('<p class="mr-caption">Each indicator as read, in its own units, and as scored: '
             'standard deviations from its norm, capped at ±3, signed so positive points to the '
             'driver\u2019s +1 end. Weight is its share of the driver. A dash is an indicator not '
             'yet measured that month.</p>')
-    _reg = ui.esc(HEAD[r_in]) if r_in in going_avg.index else ""
     st.html(ui.table(
-        ["Indicator", "Weight", ui.Raw(f"Reading,<br>{HX_LABEL[hx]}"), ui.Raw(f"Score,<br>{HX_LABEL[hx]}"),
-         ui.Raw(f"Going-in reading,<br>{_reg}") if _reg else "Going-in reading",
-         ui.Raw(f"Going-in score,<br>{_reg}") if _reg else "Going-in score"],
-        rows_ind, numeric={1, 2, 3, 4, 5}))
+        ["Indicator", "Weight"] + [ui.Raw(f"{k},<br>{HX_LABEL[m_]}") for m_ in _cols for k in ("Reading", "Score")],
+        rows_ind, numeric=set(range(1, 2 + 2 * len(_cols)))))
 
 # The call and how it is made, folded under the two sections above.
 with st.expander("The three-year call: odds, landing point, drivers, what-if and track record",

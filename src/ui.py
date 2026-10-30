@@ -258,6 +258,7 @@ CSS = f"""
 .hx li li {{ margin: 0 0 0.25rem; }}
 .hx-chip {{ display: inline-block; font-size: 0.74rem; font-weight: 700; color: {INK};
   border: 1px solid {INK}; padding: 0 0.35rem; margin-left: 0.2rem; vertical-align: 1px; }}
+.hx-why {{ display: block; color: {INK_2}; font-size: 0.84rem; margin-top: 0.15rem; }}
 .hx-chip.miss {{ color: {INK_2}; border-color: {AXIS}; border-style: dashed; }}
 .rd-explain {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
   gap: 0.5rem 1.4rem; font-size: 0.85rem; color: {INK_2}; line-height: 1.45;
@@ -759,6 +760,12 @@ def radar_svg(drivers: list[str], labels: dict[str, tuple[str, str]], series: li
                        (radar_point(v, k, n, cx, cy) for k in range(n)))
         out.append(f'<polygon points="{pts}" fill="none" stroke="{GRID}" stroke-width="1" '
                    f'stroke-dasharray="2 3"/>')
+        # Each inner ring's value, just right of the top spoke; the outer one
+        # would sit on the spoke's label.
+        if v < 1:
+            rx, ry = radar_point(v, 0, n, cx, cy)
+            out.append(f'<text x="{rx + 3:.1f}" y="{ry - 2:.1f}" font-size="7.5" fill="{MUTED}">'
+                       f'{f"{v:+.1f}".replace("-", "−") if v else "0"}</text>')
     for k, d in enumerate(drivers):
         x, y = radar_point(1.0, k, n, cx, cy)
         out.append(f'<line x1="{cx}" y1="{cy}" x2="{x:.1f}" y2="{y:.1f}" stroke="{GRID}"/>')
