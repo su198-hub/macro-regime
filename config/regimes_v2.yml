@@ -20,7 +20,7 @@
 
 settings:
   temperature: 0.20
-  persistence_months: 3
+  persistence_months: 6
   min_confidence: 0.25
   fit_gate: none
   fit_tolerance: 1.25
@@ -66,11 +66,15 @@ rationale:
       modest at any temperature; 0.15 to 0.20 gave the lowest held-out log
       loss (1.37 to 1.38 against 1.43 at 0.30).
     persistence_months: >-
-      Three months, as in v1. Retested on 1976-2023 with the 32 indicators:
-      one, two, three, four and six months all score 68-70% held out and
-      65-69% in real time, so the rule is about steadiness, not accuracy. In
-      the earlier test, three months changed the call about 0.4 times a year
-      in real time, against 0.7 at one month.
+      Six months since 30 October 2026, three before: two quarters, the rule
+      of thumb for a recession, so a new regime has to show up in two
+      quarters of data before the call moves. At three months the call
+      flipped through short spells in the late 1980s, when the top two
+      regimes were often within 25 points of each other (8, 9, 8 and 5-month
+      calls from 1987 to 1991). Six months, 1976-2023: 66% held out and 68% in
+      real time, against 67% and 66% at three, and 0.29 changes a year against
+      0.31. Nine and twelve months fell to 64% and 63% held out and react later
+      to real turns. Today's call is the same either way.
     min_confidence: >-
       0.25. With four scenarios the leader always has at least 25%, so the
       floor never binds; it is kept so a reader can raise it in the control

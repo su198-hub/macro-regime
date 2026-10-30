@@ -752,6 +752,11 @@ section("m-versions", 11, "Versions and reproducibility")
 # table wants to know what the model is, not what it was.
 prose(
     '<h3 class="m-h3">What changed</h3>'
+    '<p><b>October 2026 — six months to change the call (v2).</b> A new leader now has to lead '
+    'for six months in a row, two quarters, before the call moves, up from three. At three '
+    'months the call flipped through short spells in the late 1980s, when the regimes were '
+    'close. Graded on the three years that followed, 1976 to 2023: 66% held out and 68% in real '
+    'time, against 67% and 66%. Today’s call is unchanged.</p>'
     '<p><b>October 2026 — the investment share centered on its own norm (v2).</b> Read against '
     'its ten-year average, the share still sat below it in 82% of months from 1985 to 2019, '
     'because it keeps falling; with the norm set at zero it scored about −0.5 on average '

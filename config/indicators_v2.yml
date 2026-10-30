@@ -65,7 +65,7 @@ meta:
   positions_note: >-
     Each regime's position is learned from the run-ups to past regimes,
     1968-2023; graded on the three years that followed, 1976-2023, the call
-    got 67% of each regime's months right on average held out, 66% in real
+    got 66% of each regime's months right on average held out, 68% in real
     time.
   positions_method: >-
     where the drivers sat in the run-up to that regime, 1968 to 2023, shrunk
@@ -81,8 +81,8 @@ meta:
         goldilocks, four high growth, high inflation, four stagflation and
         three hard landings. Before 1979 the inflation anchor is the Fed's
         FRB/US estimate of long-run expectations, not a survey. Graded on the
-        three years that followed, 1976-2023, the call got 67% of each
-        regime's months right on average held out and 66% in real time,
+        three years that followed, 1976-2023, the call got 66% of each
+        regime's months right on average held out and 68% in real time,
         against 34% for assuming the current regime continues; in 60 runs with
         the readings slid out of line with what followed, none matched it. It
         caught all three hard-landing run-ups held out, two in real time. In
