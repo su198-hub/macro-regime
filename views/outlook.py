@@ -169,7 +169,7 @@ SHORT = {d: (DLABEL[d].split(" and ")[0],
          for d in NAMES}
 today_panel = ui.radar_svg(NAMES, SHORT, [{"name": f"{when:%b %Y}", "values": now.iloc[0].to_dict(),
                                             "color": ui.INK, "fill": 0.10}],
-                          title=f"Today ({when:%b %Y})")
+                          title=f"Today ({when:%b %Y})", ring_labels=True)
 panels = []
 for r in REG["regimes"]:
     series = []
@@ -374,8 +374,9 @@ def _positions_at(month: pd.Period) -> pd.DataFrame:
 # The radar pictures the call the text explains. At a turning point: the
 # drivers two years before it, which the call read, against the typical
 # run-ups as known then to the regime that came and to the model's other
-# pick, with the drivers at the turn faint behind them. Elsewhere, and before
-# the calls start, the month's own call.
+# pick. The drivers at the turn are in the table, not drawn: three shapes
+# read, four did not. Elsewhere, and before the calls start, the month's own
+# call.
 t_turn = sp_dur["start"] if sp_dur is not None and sp_dur["start"] in set(TURNS["start"]) else None
 seen_at = t_turn - SHIFT if t_turn is not None else None
 if seen_at is not None and seen_at in PRED["probs"].index and PRED["called"].get(seen_at) in COLOR:
@@ -391,18 +392,14 @@ else:
     refs = [(pick, "called"), (odds_f.drop(pick).idxmax(), "runner-up")]
     rd_title = HX_LABEL[hx]
 pos_f = _positions_at(m_f)
-series = [{"name": f"Drivers, {HX_LABEL[m_f]}", "values": M["scores"].loc[m_f].to_dict(),
-           "color": ui.INK, "fill": 0.12}]
-key_hx = [(f"Drivers, {HX_LABEL[m_f]}", ui.INK, "solid")]
-if at_turn is not None:
-    series.append({"name": f"Drivers at the turn, {HX_LABEL[at_turn]}",
-                   "values": M["scores"].loc[at_turn].to_dict(), "color": ui.MUTED, "fill": 0,
-                   "width": 1.5, "dash": "2 2"})
-    key_hx.append((f"At the turn, {HX_LABEL[at_turn]}", ui.MUTED, "dotted"))
-for r_, role in refs:
-    series.append({"name": f"Typical run-up to {INTEXT[r_]} ({role})", "values": pos_f.loc[r_].to_dict(),
-                   "color": COLOR[r_], "fill": 0, "dash": True})
-    key_hx.append((f"Typical run-up to {INTEXT[r_]} ({role})", COLOR[r_], "dashed"))
+# The two typical run-ups as light tinted areas, the month's drivers as one
+# black line over them.
+series = [{"name": f"Typical run-up to {INTEXT[r_]} ({role})", "values": pos_f.loc[r_].to_dict(),
+           "color": COLOR[r_], "fill": 0.12, "width": 1.5} for r_, role in refs]
+key_hx = [(f"Typical run-up to {INTEXT[r_]} ({role})", COLOR[r_], "solid") for r_, role in refs]
+series.append({"name": f"Drivers, {HX_LABEL[m_f]}", "values": M["scores"].loc[m_f].to_dict(),
+               "color": ui.INK, "fill": 0, "width": 2.5})
+key_hx.insert(0, (f"Drivers, {HX_LABEL[m_f]}", ui.INK, "solid"))
 c_chart, c_text = hx_box.columns([1, 1.3], gap="large")
 c_chart.html(ui.radar_grid([ui.radar_svg(NAMES, SHORT, series, title=rd_title)], key_hx))
 _light = [SHORT[d][0].lower() for d in NAMES if float(REG["driver_salience"].get(d, 1.0)) < 1]
@@ -411,7 +408,7 @@ c_chart.html('<p class="mr-caption">The model calls the regime whose typical run
              + ('Typical run-ups are learned only from what was known then. '
                 if m_f in PRED["probs"].index else
                 'Before 1976 the typical run-ups are today’s, learned with hindsight. ')
-             + 'Driver readings use today’s revised data. Rings run from −1 at the centre to +1.</p>')
+             + 'Driver readings use today’s revised data.</p>')
 
 def _per(df: pd.DataFrame) -> pd.DataFrame:
     out = df.copy()

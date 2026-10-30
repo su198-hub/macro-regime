@@ -743,8 +743,9 @@ def radar_point(value: float, k: int, n: int, cx: float, cy: float, r: float = R
 
 
 def radar_svg(drivers: list[str], labels: dict[str, tuple[str, str]], series: list[dict],
-              title: str = "", title_color: str = INK) -> str:
+              title: str = "", title_color: str = INK, ring_labels: bool = False) -> str:
     """One radar panel: a spoke per driver, each series drawn as a polygon.
+    `ring_labels` marks each ring's value, once per page is enough.
 
     `labels` maps a driver to (name, what its outer end means). Each series is
     {"name", "values" (driver -> score), "color", "fill" (opacity, 0 for
@@ -760,12 +761,6 @@ def radar_svg(drivers: list[str], labels: dict[str, tuple[str, str]], series: li
                        (radar_point(v, k, n, cx, cy) for k in range(n)))
         out.append(f'<polygon points="{pts}" fill="none" stroke="{GRID}" stroke-width="1" '
                    f'stroke-dasharray="2 3"/>')
-        # Each inner ring's value, just right of the top spoke; the outer one
-        # would sit on the spoke's label.
-        if v < 1:
-            rx, ry = radar_point(v, 0, n, cx, cy)
-            out.append(f'<text x="{rx + 3:.1f}" y="{ry - 2:.1f}" font-size="7.5" fill="{MUTED}">'
-                       f'{f"{v:+.1f}".replace("-", "−") if v else "0"}</text>')
     for k, d in enumerate(drivers):
         x, y = radar_point(1.0, k, n, cx, cy)
         out.append(f'<line x1="{cx}" y1="{cy}" x2="{x:.1f}" y2="{y:.1f}" stroke="{GRID}"/>')
@@ -793,6 +788,14 @@ def radar_svg(drivers: list[str], labels: dict[str, tuple[str, str]], series: li
             out.extend(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="2" fill="{s_["color"]}"/>' for x, y in xy)
         hover.append(f'{s_["name"]}: ' + ", ".join(f"{labels[d][0].lower()} {signed(vals[d])}"
                                                    for d in drivers))
+    # Each inner ring's value, just right of the top spoke and over the
+    # shapes; the outer one would sit on the spoke's label.
+    for v in RADAR_RINGS if ring_labels else ():
+        if v < 1:
+            rx, ry = radar_point(v, 0, n, cx, cy)
+            out.append(f'<text x="{rx + 3:.1f}" y="{ry - 2:.1f}" font-size="7.5" fill="{INK_2}" '
+                       f'paint-order="stroke" stroke="#fff" stroke-width="2">'
+                       f'{f"{v:+.1f}".replace("-", "−") if v else "0"}</text>')
     out.append("</svg>")
     src = "data:image/svg+xml;base64," + base64.b64encode("".join(out).encode()).decode()
     head = (f'<div class="rd-title" style="color:{title_color}">{esc(title)}</div>'
