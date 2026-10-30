@@ -253,6 +253,11 @@ drivers:
           speed, from labor, capital and productivity.
     indicators:
       - id: unemployment_gap
+        # What a reading told us, toward the driver's + end (high) or its - end
+        # (low): the call's reasons on the regime explorer quote it.
+        reads:
+          high: "There was slack in the labor market: idle workers could be rehired, so output could grow faster than potential."
+          low: "There was little slack left: with unemployment below its long-run rate, growth usually slows back toward potential."
         group: cycle
         label: Unemployment rate less CBO's long-run rate
         source:
@@ -276,6 +281,9 @@ drivers:
           usually slows back toward potential.
 
       - id: capacity_utilization_gap
+        reads:
+          high: "Plants had spare capacity, so output could rise without waiting for new investment."
+          low: "Plants were running hot: more output needed new capacity first, so costs rise and growth slows."
         group: cycle
         label: Capacity utilization less its 10-year average
         source: {series: TCU}
@@ -295,6 +303,9 @@ drivers:
           services.
 
       - id: company_credit_real_3y
+        reads:
+          high: "Companies had borrowed little, so there was no debt to work off."
+          low: "Companies had borrowed fast, spending beyond their cash flow: demand pulled forward that tends to be paid back with cuts to investment and hiring."
         group: cycle
         label: Company debt, real growth over three years
         source:
@@ -321,6 +332,9 @@ drivers:
           Net of core inflation, because inflation shrinks debt in real terms.
 
       - id: household_credit_real_3y
+        reads:
+          high: "Households had borrowed little, so spending had no debt to work off."
+          low: "Households had borrowed faster than their incomes grew, pulling spending forward; once borrowing stops, spending has to lag income while the debt is paid down."
         group: cycle
         label: Household debt, real growth over three years
         source:
@@ -345,6 +359,9 @@ drivers:
           Kept apart from company debt because the two drive different busts.
 
       - id: cbo_potential_growth_revision
+        reads:
+          high: "CBO had raised its view of potential growth: new evidence that the trend was improving."
+          low: "CBO had cut its view of potential growth: new evidence that the trend was slowing."
         group: potential
         label: Revision to CBO potential growth, next five years
         source: {series: CBO_POTGROWTH_REV}
@@ -361,6 +378,9 @@ drivers:
           running faster than assumed.
 
       - id: spf_productivity_revision
+        reads:
+          high: "Forecasters had raised their ten-year productivity view, judging faster growth to be durable."
+          low: "Forecasters had cut their ten-year productivity view."
         group: potential
         label: Revision to forecasters' 10-year productivity growth
         source: {series: SPF10PROD}
@@ -378,6 +398,9 @@ drivers:
           through firms: a forward view of what the trailing pace records.
 
       - id: capex_revision
+        reads:
+          high: "Companies had raised their investment plans: more capital per worker ahead."
+          low: "Companies had cut their investment plans."
         group: potential
         label: Revision to the S&P 500's three-year capex consensus
         source: {series: SPX_CAPEX_3FY}
@@ -394,6 +417,9 @@ drivers:
           stock.
 
       - id: cbo_labour_force_revision
+        reads:
+          high: "CBO had raised its labor force projection: more workers to grow with."
+          low: "CBO had cut its labor force projection: fewer workers to grow with."
         group: potential
         label: Revision to CBO potential labor force
         source: {series: CBO_LABFORCE_REV}
@@ -432,6 +458,9 @@ drivers:
           anchor, read from markets and models.
     indicators:
       - id: m2_growth_3y
+        reads:
+          high: "Money had grown faster than usual: spending power that tends to end up in prices."
+          low: "Money had grown slowly: little excess spending to push prices up."
         group: pressure
         label: M2 money supply, three-year annualized growth
         source: {series: M2SL}
@@ -450,6 +479,9 @@ drivers:
           elevated, and weak when money sits idle in bank reserves, as in 2009.
 
       - id: house_prices_3y
+        reads:
+          high: "House prices had risen fast, which feeds rents and shelter inflation a year or more later."
+          low: "House prices had risen slowly, holding back rents and shelter inflation."
         group: pressure
         label: House prices (Case-Shiller national), three-year annualized growth
         source: {series: CSUSHPISA}
@@ -467,6 +499,9 @@ drivers:
           bust, as in 2006.
 
       - id: wage_growth_3y
+        reads:
+          high: "Pay had grown fast, and firms tend to pass labor costs on in prices."
+          low: "Pay had grown slowly: little cost pressure from wages."
         group: pressure
         label: Average hourly earnings, three-year annualized growth
         source: {series: AHE_PROD}
@@ -489,6 +524,9 @@ drivers:
           in 2000.
 
       - id: underlying_inflation_gap
+        reads:
+          high: "Underlying inflation ran high against long-run expectations."
+          low: "Underlying inflation ran low against long-run expectations."
         group: pressure
         label: Core PCE inflation less forecasters' 10-year CPI
         source:
@@ -523,6 +561,9 @@ drivers:
           PCE report is out.
 
       - id: breakeven_5y5y
+        reads:
+          high: "Markets expected higher inflation five to ten years out."
+          low: "Markets expected lower inflation five to ten years out."
         group: anchoring
         label: 5-year inflation expectations, 5 years ahead
         source: {series: T5YIFR}
@@ -538,6 +579,9 @@ drivers:
           first in prices.
 
       - id: cleveland_10y
+        reads:
+          high: "Inflation expected over the next ten years sat above target."
+          low: "Inflation expected over the next ten years sat below target."
         group: anchoring
         label: Cleveland Fed 10-year expected inflation
         source: {series: EXPINF10YR}
@@ -552,6 +596,9 @@ drivers:
           inflation swaps and surveys, against the 2% target.
 
       - id: inflation_risk_premium
+        reads:
+          high: "Investors paid more to insure against inflation: less sure the anchor would hold."
+          low: "Investors paid little to insure against inflation: confident it would stay low."
         group: anchoring
         label: Inflation risk premium, 10 year
         source: {series: INFRISKPREM}
@@ -591,6 +638,9 @@ drivers:
           whether policy is behind the curve.
     indicators:
       - id: yield_curve
+        reads:
+          high: "The curve was flat or inverted: markets expected the Fed to cut, usually because policy is tight enough to slow the economy."
+          low: "The curve was steep: markets expected rates to rise from low levels, so policy was still easy."
         group: stance
         label: 10-year Treasury yield less fed funds
         source:
@@ -610,6 +660,9 @@ drivers:
           and 2008; the one from 2022 did not end in recession.
 
       - id: hiking_pace_3y
+        reads:
+          high: "The Fed had been raising rates, and hikes keep squeezing housing, investment and credit for a year or two after the last one."
+          low: "The Fed had cut rates, an easing still working through."
         group: stance
         label: Change in fed funds over three years, per year
         source: {series: FEDFUNDS}
@@ -626,6 +679,9 @@ drivers:
           cycle ended softly.
 
       - id: real_rate_gap
+        reads:
+          high: "The real rate sat above neutral, so policy was restraining demand."
+          low: "The real rate sat below neutral, so policy was adding to demand."
         group: stance
         label: Real fed funds less the neutral rate
         source:
@@ -650,6 +706,9 @@ drivers:
           estimate before; both are uncertain by a point or more.
 
       - id: taylor_gap
+        reads:
+          high: "Rates sat above what inflation and slack called for: a Fed ahead of the curve."
+          low: "Rates sat below what inflation and slack called for: a Fed behind the curve."
         group: credibility
         label: Fed funds less the Taylor rule rate
         source:
@@ -677,6 +736,9 @@ drivers:
           average: it reads faster and predicts inflation better.
 
       - id: target_miss_rate
+        reads:
+          high: "Inflation had rarely missed target, so the Fed was credible."
+          low: "Inflation had often missed target, wearing down the Fed's credibility."
         group: credibility
         label: Share of the last 36 months off target
         source: {series: PCEPILFE}
@@ -691,6 +753,9 @@ drivers:
           rather than up.
 
       - id: inflation_volatility
+        reads:
+          high: "Inflation had been steady, which makes the anchor easy to believe."
+          low: "Inflation had swung a lot, which makes the anchor harder to believe."
         group: credibility
         label: Inflation volatility, 36 months
         source: {series: PCEPILFE}
@@ -702,6 +767,9 @@ drivers:
         why: "**Inflation volatility**: steady inflation, even off target, is easier to believe than violent swings."
 
       - id: forecaster_disagreement
+        reads:
+          high: "Forecasters agreed on inflation, a sign the anchor held."
+          low: "Forecasters disagreed on inflation, a sign the anchor was in doubt."
         group: credibility
         label: Forecaster disagreement on inflation
         source: {series: SPFDISP}
@@ -740,6 +808,9 @@ drivers:
         description: How much of federal spending goes to investment rather than consumption and transfers.
     indicators:
       - id: capb_3y_change
+        reads:
+          high: "The budget, adjusted for the cycle, had loosened: policy added to demand."
+          low: "The budget, adjusted for the cycle, had tightened: policy took demand out."
         group: impulse
         label: Cyclically adjusted primary balance, three-year change (loosening +)
         source: {series: OECD_CAPB}
@@ -758,6 +829,9 @@ drivers:
           over three years, per year.
 
       - id: outlays_vs_receipts
+        reads:
+          high: "Spending had grown faster than revenue, widening the deficit and adding to demand."
+          low: "Revenue had grown faster than spending, narrowing the deficit and taking demand out."
         group: impulse
         label: Federal outlays growth less receipts growth, three years
         source:
@@ -782,6 +856,9 @@ drivers:
           demand out.
 
       - id: forward_r_minus_g
+        reads:
+          high: "Borrowing cost less than expected growth, so the debt ratio could fall on its own."
+          low: "Borrowing cost more than expected growth, so the debt ratio rises unless the budget is in surplus."
         group: debt
         label: 10-year yield less expected nominal growth (low +)
         source:
@@ -810,6 +887,9 @@ drivers:
           of inflation flatters it.
 
       - id: repricing_drift
+        reads:
+          high: "The interest bill was barely rising as the debt rolled over."
+          low: "The interest bill was rising as the debt rolled over at higher rates, squeezing the budget."
         group: debt
         label: Rise in the interest bill as the debt rolls over, % of GDP a year (low +)
         source:
@@ -839,6 +919,9 @@ drivers:
           budget and has come before weaker growth.
 
       - id: federal_investment_share
+        reads:
+          high: "The budget had tilted toward investment, which adds to capacity."
+          low: "The budget had tilted away from investment."
         group: composition
         label: Federal investment, % of non-interest spending, against its 10-year average
         source:
@@ -898,6 +981,9 @@ drivers:
         description: Whether tariffs are rising, and whether federal non-defense R&D is growing as a share of the economy.
     indicators:
       - id: regulation_growth
+        reads:
+          high: "Regulation had grown more slowly than usual."
+          low: "Regulation had grown faster than usual, adding costs and deterring entry."
         group: regulation
         label: Restrictions in the Code of Federal Regulations, 5-year growth (slower +)
         source: {series: REGDATA}
@@ -917,6 +1003,9 @@ drivers:
           year arrives the following year.
 
       - id: regulation_score
+        reads:
+          high: "Doing business had got easier."
+          low: "Doing business had got harder."
         group: regulation
         label: Fraser business regulation score, 5-year change (lighter +)
         source: {series: FRASER_BUSREG, start: "2001-01-01"}
@@ -937,6 +1026,9 @@ drivers:
           2001, when the method changed, and published about two years late.
 
       - id: policy_uncertainty
+        reads:
+          high: "Policy uncertainty was low, so firms had less reason to hold back investment."
+          low: "Policy uncertainty was high, so firms tend to delay investment and hiring."
         group: uncertainty
         label: Economic policy uncertainty, 12-month average (low +)
         source: {series: EPU}
@@ -957,6 +1049,9 @@ drivers:
           investment back, not whether it is rising.
 
       - id: tariff_rate_change
+        reads:
+          high: "Tariffs had fallen, lowering prices and input costs."
+          low: "Tariffs had risen, raising prices and input costs."
         group: industrial
         label: Effective tariff rate, change over three years (falling +)
         source:
@@ -976,6 +1071,9 @@ drivers:
           inflation; the long-run case rests on the economics.
 
       - id: public_rnd_change
+        reads:
+          high: "Federal research spending had risen as a share of GDP, which raises productivity over time."
+          low: "Federal research spending had fallen as a share of GDP."
         group: industrial
         label: Federal non-defense R&D, % of GDP, change over five years
         source:

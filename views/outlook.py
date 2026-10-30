@@ -29,6 +29,7 @@ from __future__ import annotations
 import copy
 import datetime as dt
 import pathlib
+import re
 
 import altair as alt
 import numpy as np
@@ -286,6 +287,7 @@ going_lab, during_lab = M["train"]["label"], M["during"]["label"]
 # answer key agrees with living through in 86% of months, against 71% at three
 # years (checked 29 Oct 2026, 1968 to 2023).
 SHIFT = 24
+EARLY = 6  # months a call may run ahead of the run-up before the text calls it early
 ROW_TURN, ROW_PRED, ROW_DUR = "Turning points", "Called 2 years earlier", "Living through"
 ROWS = [ROW_TURN, ROW_PRED, ROW_DUR]
 TURNS = ol.spells(during_lab).iloc[1:].reset_index(drop=True)
@@ -541,29 +543,53 @@ def _reading(i_: dict, v: float) -> str:
     return ui.format_reading(v, i_.get("transform", "level"), i_.get("unit"))
 
 
-def _drove(d: str, month: pd.Period) -> str:
-    """The indicators that moved driver `d` most in `month`: up to three, each
-    at least a third of the largest part."""
-    parts = _behind(d, month)
-    if not parts:
+def _norm(i_: dict, z: float) -> str:
+    """Where a reading sat against the indicator's norm, in words."""
+    n = i_.get("normalize") or {}
+    if n.get("method") != "gap":
         return ""
-    keep = [p_ for p_ in parts if abs(p_[1]) >= abs(parts[0][1]) / 3][:3]
-    return '<span class="hx-why">What drove it: ' + "; ".join(
-        f"{_name(i_)} at {_reading(i_, v)} ({abs(z):.1f} sd toward {_reads(d, z)})"
-        for i_, _, z, v in keep) + ".</span>"
+    raw_z = z * float(i_.get("direction", 1))
+    side = "close to" if abs(raw_z) < 0.5 else ("well " if abs(raw_z) >= 1.5 else "") + (
+        "above" if raw_z > 0 else "below")
+    return f", {side} its norm of {_reading(i_, float(n['center']))}"
 
 
-def _call_why(made: pd.Period, call: str, rival: str) -> list[str]:
+def _explain(d: str, month: pd.Period, sign: float, most: int = 2) -> list[str]:
+    """The indicators that pushed driver `d` toward `sign` in `month`, each a
+    bullet: its reading against its norm, then what that told us. Up to
+    `most`, each at least a third of the largest push."""
+    parts = [p_ for p_ in _behind(d, month) if p_[1] * sign > 0]
+    keep = [p_ for p_ in parts if abs(p_[1]) >= abs(parts[0][1]) / 3][:most] if parts else []
+    # Labels end in a tag such as "(falling +)" for the chart; the sentence says it.
+    return [f"<b>{ui.esc(re.sub(r' [(][^)]*[+][)]$', '', i_['label']))}: {_reading(i_, v)}</b>{_norm(i_, z)}. "
+            + ui.esc((i_.get("reads") or {}).get("high" if z > 0 else "low", ""))
+            for i_, _, z, v in keep]
+
+
+def _call_why(made: pd.Period, call: str, rival: str, drivers: int = 3, per: int = 2) -> list[str]:
     """The drivers that most favored `call` over `rival` in `made`, against
-    each regime's position as the real-time call had it then, and the
-    indicators behind each."""
+    each regime's typical run-up as the call had it, each with the indicators
+    behind it nested under it. Up to `drivers`, with up to `per` indicators."""
     pos = _positions_at(made)
     x = M["scores"].loc[made, NAMES]
     pull = SALIENCE * ((x - pos.loc[rival]) ** 2 - (x - pos.loc[call]) ** 2)
-    top = [d for d in pull.sort_values(ascending=False).index if pull[d] > 0][:2]
-    return [f"<b>{ui.esc(SHORT[d][0])} read {_reads(d, x[d])}</b> ({ui.signed(x[d])}), nearer a typical "
-            f"{ui.esc(INTEXT[call])} run-up ({ui.signed(pos.at[call, d])}) than a typical "
-            f"{ui.esc(INTEXT[rival])} one ({ui.signed(pos.at[rival, d])}).{_drove(d, made)}" for d in top]
+    top = [d for d in pull.sort_values(ascending=False).index if pull[d] > 0][:drivers]
+    out = []
+    for d in top:
+        # Which way the driver had to lean to favor the call over the rival.
+        sub = _explain(d, made, np.sign(pos.at[call, d] - pos.at[rival, d]), per)
+        out.append(f"<b>{ui.esc(SHORT[d][0])} read {_reads(d, x[d])}</b> ({ui.signed(x[d])}), nearer a typical "
+                   f"{ui.esc(INTEXT[call])} run-up ({ui.signed(pos.at[call, d])}) than a typical "
+                   f"{ui.esc(INTEXT[rival])} one ({ui.signed(pos.at[rival, d])})."
+                   + (f'<ul>{"".join(f"<li>{t}</li>" for t in sub)}</ul>' if sub else ""))
+    return out
+
+
+def _span(n: int) -> str:
+    """A number of months in years and months."""
+    y, m_ = divmod(n, 12)
+    parts = ([f"{y} year{'s' if y != 1 else ''}"] if y else []) + ([f"{m_} month{'s' if m_ != 1 else ''}"] if m_ else [])
+    return " and ".join(parts)
 
 
 def _moved(d: str, a: pd.Period, b: pd.Period) -> str:
@@ -621,6 +647,21 @@ if sp_dur is not None and sp_dur["start"] in set(TURNS["start"]):
                                f' In {made.strftime("%b %Y")} the model called {_tag(call)} for the next '
                                f'three years ({odds[call]:.0%}, against {ui.esc(INTEXT[rival])} '
                                f'{odds[rival]:.0%}), because:', _call_why(made, call, rival)))
+            # Early: the same call ran back well before the run-up the answer
+            # key gives, through months whose next three years went otherwise.
+            c_sp, k_sp = _spell_of(PRED["called"].dropna(), made), _spell_of(going_lab, made)
+            if (c_sp is not None and k_sp is not None and k_sp["label"] == new
+                    and (k_sp["start"] - c_sp["start"]).n > EARLY):
+                c0, k0 = c_sp["start"], k_sp["start"]
+                was = going_lab.loc[c0:k0 - 1].value_counts().idxmax()
+                items.append(_item('But early.',
+                                   f' The model had called {_tag(new)} since {c0.strftime("%b %Y")}, '
+                                   f'{_span((t0 - c0).n)} before the turn. Calls made from then to '
+                                   f'{(k0 - 1).strftime("%b %Y")} were wrong: the three years after them '
+                                   f'turned out {_tag(was)}. In {c0.strftime("%b %Y")} it read:',
+                                   _call_why(c0, new, was, 2, 1)
+                                   + ["<b>So</b> the drivers caught the build-up, not its timing: the "
+                                      "same signs can sit for years before a turn."]))
         else:
             x0, x1 = M["scores"].loc[made, NAMES], M["scores"].loc[t0, NAMES]
             d = (x1 - x0).abs().idxmax()
