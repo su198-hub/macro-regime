@@ -288,6 +288,10 @@ going_lab, during_lab = M["train"]["label"], M["during"]["label"]
 # years (checked 29 Oct 2026, 1968 to 2023).
 SHIFT = 24
 EARLY = 6  # months a call may run ahead of the run-up before the text calls it early
+# A call that switches to the coming regime within this many months of two
+# years before the turn, and before the turn itself, still counts as seen:
+# the persistence rule alone can hold a call back six months.
+LATE = 6
 ROW_TURN, ROW_PRED, ROW_DUR = "Turning points", "Called 2 years earlier", "Living through"
 ROWS = [ROW_TURN, ROW_PRED, ROW_DUR]
 TURNS = ol.spells(during_lab).iloc[1:].reset_index(drop=True)
@@ -641,6 +645,9 @@ if sp_dur is not None and sp_dur["start"] in set(TURNS["start"]):
     call = PRED["called"].get(made)
     if made in PRED["probs"].index and call in COLOR:
         odds = PRED["probs"].loc[made]
+        # When the call switched to the coming regime, if it did before the turn.
+        switched = PRED["called"].loc[made:t0 - 1]
+        switched = switched.index[switched == new]
         if call == new:
             rival = odds.drop(call).idxmax()
             items.append(_item('Seen two years earlier.',
@@ -662,6 +669,17 @@ if sp_dur is not None and sp_dur["start"] in set(TURNS["start"]):
                                    _call_why(c0, new, was, 2, 1)
                                    + ["<b>So</b> the drivers caught the build-up, not its timing: the "
                                       "same signs can sit for years before a turn."]))
+        elif len(switched) and (switched[0] - made).n <= LATE:
+            sw = switched[0]
+            ahead = "the odds already favored it" if odds.idxmax() == new else "the odds were moving its way"
+            items.append(_item(f'Seen, {_span((sw - made).n)} late.',
+                               f' In {made.strftime("%b %Y")} the model still called {_tag(call)}, but '
+                               f'{ahead} ({ui.esc(INTEXT[new])} {odds[new]:.0%}, {ui.esc(INTEXT[call])} '
+                               f'{odds[call]:.0%}). A new regime has to lead for '
+                               f'{int(REG["settings"]["persistence_months"])} months in a row before the '
+                               f'call moves, so it switched to {_tag(new)} in {sw.strftime("%b %Y")}, '
+                               f'{_span((t0 - sw).n)} before the turn. What the odds read in '
+                               f'{made.strftime("%b %Y")}:', _call_why(made, new, call)))
         else:
             x0, x1 = M["scores"].loc[made, NAMES], M["scores"].loc[t0, NAMES]
             d = (x1 - x0).abs().idxmax()
