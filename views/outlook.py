@@ -8,8 +8,9 @@ picked elsewhere.
 
   0. Regime shapes, first: where the drivers sat going into each regime and
      during it, against theory, one radar per regime beside today's.
-  0b. Go back in time: each call drawn over the months it was about, above
-     what they turned out to be, and what led into each turning point. A
+  0b. Go back in time: each call, held out or in real time, drawn over the
+     months it was about, above what they turned out to be, and what led into
+     each turning point. A
      radar shows what the call two years before a turn saw, against the
      typical run-ups to what came and to its other pick, and the text says
      which drivers and indicators decided it.
@@ -239,16 +240,43 @@ EV_BY_MONTH = {pd.Period(e["month"], "M"): e for e in EVENTS if pd.Period(e["mon
 INTEXT = {k: HEAD[k] if HEAD[k].isupper() else LABEL[k].lower() for k in LABEL}
 
 
-@st.cache_data(ttl=6 * 3600, show_spinner="Calling every month since 1976…")
-def predicted(version: str, config_key: str) -> dict:
-    """The call each month from positions learned only from what followed
-    months already known then, from 1976 (enough run-ups to learn from) to today."""
-    from scripts.realign_positions import priors, real_time
-    P, _ = real_time(M["train"], priors(REG, NAMES), REG, NAMES, scores=M["scores"])
+# Two ways to make the calls the section grades. Held out leans on later
+# history, so it shows what the drivers say with every other run-up known;
+# real time is what the model could have said then, which before 2000 meant
+# no hard landing to learn from.
+HX_MODES = {
+    "Held out": "each month called from positions learned from every other episode, leaving out its "
+                "own and any month sharing its three years. It uses later history: what the drivers "
+                "say with the other run-ups known, not what the model could have said then.",
+    "Real time": "each month called from positions learned only from outcomes known then, from 1976. "
+                 "The model had no hard landing to learn from until 2002."}
+hx_mode = hx_box.radio("How the calls were made", list(HX_MODES), horizontal=True, key="hx_mode")
+HELD = hx_mode == "Held out"
+hx_box.html(f'<p class="mr-caption"><b>{hx_mode}:</b> {HX_MODES[hx_mode]}</p>')
+BASIS = "from positions learned without this episode" if HELD else "from what was known then"
+
+
+@st.cache_data(ttl=6 * 3600, show_spinner="Calling every month…")
+def predicted(version: str, config_key: str, mode: str) -> dict:
+    """The call each month. Held out: each episode from positions learned
+    without it or any month sharing its outcomes, and months past the last
+    known outcome from positions learned from all of them. Real time: from
+    positions learned only from what followed months already known then, from
+    1976 (enough run-ups to learn from) to today."""
+    from scripts.realign_positions import held_out, priors, real_time, with_positions
+    prior = priors(REG, NAMES)
+    if mode == "Held out":
+        P, _ = held_out(M["train"], prior, REG, NAMES)
+        later = M["scores"].loc[M["scores"].index > M["train"].index[-1], NAMES]
+        if len(later):
+            today = with_positions(REG, ol.realigned_positions(M["train"], prior, NAMES))
+            P = pd.concat([P, R.probabilities(later, today)])
+    else:
+        P, _ = real_time(M["train"], prior, REG, NAMES, scores=M["scores"])
     return {"probs": P, "called": R.call_regime(P, REG)["called"]}
 
 
-PRED = predicted(data_version(), CONFIG_KEY)
+PRED = predicted(data_version(), CONFIG_KEY, hx_mode)
 going_lab, during_lab = M["train"]["label"], M["during"]["label"]
 
 # A call covers the next three years on average, so its middle is about a
@@ -361,19 +389,26 @@ r_in, r_dur = going_lab.get(hx), during_lab.get(hx)
 
 
 def _positions_at(month: pd.Period) -> pd.DataFrame:
-    """Each regime's typical run-up as the call had it in `month`: learned only
-    from what followed months already known then. Before 1976, today's."""
+    """Each regime's typical run-up as the call had it in `month`. Held out:
+    learned without the month's episode and anything sharing its outcomes.
+    Real time: learned only from what followed months already known then, and
+    before 1976 today's."""
+    from scripts.realign_positions import priors
+    prior, train = priors(REG, NAMES), M["train"]
+    if HELD:
+        sp = _spell_of(going_lab, month) if month <= going_lab.index[-1] else None
+        rest = train if sp is None else train[~ol.purged(train.index, sp["start"], sp["end"])]
+        return ol.realigned_positions(rest, prior, NAMES)
     if month not in PRED["probs"].index:
         return pd.DataFrame({r_: {d: float(s_["archetype"][d]) for d in NAMES}
                              for r_, s_ in REG["regimes"].items()}).T
-    from scripts.realign_positions import priors
-    known = M["train"][M["train"].index <= month - ol.HORIZON - ol.LABEL_LAG]
-    return ol.realigned_positions(known, priors(REG, NAMES), NAMES)
+    known = train[train.index <= month - ol.HORIZON - ol.LABEL_LAG]
+    return ol.realigned_positions(known, prior, NAMES)
 
 
 # The radar pictures the call the text explains. At a turning point: the
 # drivers two years before it, which the call read, against the typical
-# run-ups as known then to the regime that came and to the model's other
+# run-ups, as the call had them, to the regime that came and to the model's other
 # pick. The drivers at the turn are in the table, not drawn: three shapes
 # read, four did not. Elsewhere, and before the calls start, the month's own
 # call.
@@ -405,7 +440,8 @@ c_chart.html(ui.radar_grid([ui.radar_svg(NAMES, SHORT, series, title=rd_title)],
 _light = [SHORT[d][0].lower() for d in NAMES if float(REG["driver_salience"].get(d, 1.0)) < 1]
 c_chart.html('<p class="mr-caption">The model calls the regime whose typical run-up the black shape '
              'sits closest to' + (f', with {ui.join_words(_light)} counting less' if _light else '') + '. '
-             + ('Typical run-ups are learned only from what was known then. '
+             + ('Typical run-ups are learned from every other episode, leaving out this one. ' if HELD
+                else 'Typical run-ups are learned only from what was known then. '
                 if m_f in PRED["probs"].index else
                 'Before 1976 the typical run-ups are today’s, learned with hindsight. ')
              + 'Driver readings use today’s revised data.</p>')
@@ -597,6 +633,7 @@ if sp_dur is not None and sp_dur["start"] in set(TURNS["start"]):
                                   f"{_moved(d, made, t0)}."]))
     else:
         items.append(_item('No call two years earlier.',
+                           ' The data start in 1968.' if HELD else
                            ' The model’s calls start in 1976, once there are past regimes to learn from.'))
     sections.append((f'Turning point, {t0.strftime("%b %Y")}', items))
 # This month: what it was living through, with its own events, and the call made in it.
@@ -629,7 +666,7 @@ if hx in PRED["probs"].index:
     _out = (f" It turned out {_tag(r_in)}." + (_chip(r_in == _pc) if _pc in COLOR else "") if r_in in COLOR
             else f" Not known yet: what followed is known up to {going_lab.index[-1].strftime('%b %Y')}.")
     items.append(_item("Called for the next three years",
-                       f", from what was known then: {_call}.{_out}"))
+                       f", {BASIS}: {_call}.{_out}"))
 else:
     _odds = R.probabilities(M["scores"].loc[[hx]], REG).iloc[0].sort_values(ascending=False)
     items.append(_item("The model on this month",
