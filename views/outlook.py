@@ -417,8 +417,8 @@ def _tag(r: str) -> str:
     return f'<span style="color:{COLOR[r]}">{ui.esc(INTEXT[r])}</span>'
 
 
-def _side(v: float, what: str) -> str:
-    return f"{abs(v):.1f} points {'above' if v >= 0 else 'below'} {what}"
+def _side(v: float, what: str = "") -> str:
+    return f"{abs(v):.1f} points {'above' if v >= 0 else 'below'}" + (f" {what}" if what else "")
 
 
 # A driver reading in a word: toward its +1 end, its -1 end, or about neutral.
@@ -430,7 +430,7 @@ def _reads(d: str, v: float) -> str:
     return "about neutral" if abs(v) < 0.1 else READS.get(d, ("high", "low"))[0 if v > 0 else 1]
 
 
-def _call_why(made: pd.Period, call: str, rival: str) -> str:
+def _call_why(made: pd.Period, call: str, rival: str) -> list[str]:
     """The drivers that most favored `call` over `rival` in `made`, against
     each regime's position as the real-time call had it then."""
     from scripts.realign_positions import priors
@@ -439,85 +439,107 @@ def _call_why(made: pd.Period, call: str, rival: str) -> str:
     x = M["scores"].loc[made, NAMES]
     pull = SALIENCE * ((x - pos.loc[rival]) ** 2 - (x - pos.loc[call]) ** 2)
     top = [d for d in pull.sort_values(ascending=False).index if pull[d] > 0][:2]
-    return "; ".join(f"{ui.esc(SHORT[d][0].lower())} read {_reads(d, x[d])} ({ui.signed(x[d])}), nearer a typical "
-                     f"{ui.esc(INTEXT[call])} run-up ({ui.signed(pos.at[call, d])}) than a typical "
-                     f"{ui.esc(INTEXT[rival])} one ({ui.signed(pos.at[rival, d])})" for d in top)
+    return [f"{ui.esc(SHORT[d][0])} read {_reads(d, x[d])} ({ui.signed(x[d])}), nearer a typical "
+            f"{ui.esc(INTEXT[call])} run-up ({ui.signed(pos.at[call, d])}) than a typical "
+            f"{ui.esc(INTEXT[rival])} one ({ui.signed(pos.at[rival, d])})." for d in top]
 
 
-lines = []
+def _item(head: str, body: str = "", sub=()) -> str:
+    """One bullet: a bold lead, its sentence, and any bullets nested under it."""
+    inner = "".join(f"<li>{s}</li>" for s in sub)
+    return f'<li><b>{head}</b>{body}{f"<ul>{inner}</ul>" if inner else ""}</li>'
+
+
+def _event(m_: pd.Period, e: dict) -> str:
+    return f'<b>{ui.esc(e["title"])}</b>, {m_.strftime("%b %Y")}. {ui.esc(e["note"])}'
+
+
+def _chip(right: bool) -> str:
+    return f' <span class="hx-chip{"" if right else " miss"}">{"Right" if right else "Wrong"}</span>'
+
+
+# Two sections, each a few bullets: the turning point that began this spell
+# (what changed, the events that led in, what the model had called two years
+# before), then this month (what it was living through, what it called).
+sections = []
 turn_events = []
-# The turning point that began the spell this month is in: what changed, what
-# led into it, and what the model had called two years before.
 if sp_dur is not None and sp_dur["start"] in set(TURNS["start"]):
     t0, new = sp_dur["start"], sp_dur["label"]
     prev_sp = _spell_of(during_lab, t0 - 1)
     nc = M["nowcast"]
     before = nc.loc[prev_sp["start"]:prev_sp["end"], ["growth", "inflation"]].mean()
     after = nc.loc[t0:sp_dur["end"], ["growth", "inflation"]].mean()
-    lines.append(f'<p><b>Turning point: into {_tag(new)}, {t0.strftime("%b %Y")}</b>, from '
-                 f'{_tag(prev_sp["label"])}. Growth went from {_side(before["growth"], "potential")} to '
-                 f'{_side(after["growth"], "potential")}, and core PCE inflation from '
-                 f'{_side(before["inflation"], "expectations")} to {_side(after["inflation"], "expectations")}, '
-                 f'on average over each spell.</p>')
     turn_events = LEADS_INTO.get(t0, [])
-    for m_, e in turn_events:
-        lines.append(f'<p class="hx-event"><b>{ui.esc(e["title"])}</b> ({m_.strftime("%b %Y")}). '
-                     f'{ui.esc(e["note"])}</p>')
+    items = [_item(f'Into {_tag(new)}, from {_tag(prev_sp["label"])}.',
+                   f' Growth went from {_side(before["growth"], "potential")} to '
+                   f'{_side(after["growth"])}; core PCE inflation from '
+                   f'{_side(before["inflation"], "expectations")} to {_side(after["inflation"])} '
+                   f'(averages over each spell).'
+                   + (" What led in:" if turn_events else ""),
+                   [_event(m_, e) for m_, e in turn_events])]
     made = t0 - SHIFT
     call = PRED["called"].get(made)
     if made in PRED["probs"].index and call in COLOR:
         odds = PRED["probs"].loc[made]
         if call == new:
             rival = odds.drop(call).idxmax()
-            lines.append(f'<p><b>Called two years earlier.</b> In {made.strftime("%b %Y")} the model '
-                         f'called {_tag(call)} for the next three years ({odds[call]:.0%}, against '
-                         f'{ui.esc(INTEXT[rival])} {odds[rival]:.0%}): {_call_why(made, call, rival)}.</p>')
+            items.append(_item('Seen two years earlier.',
+                               f' In {made.strftime("%b %Y")} the model called {_tag(call)} for the next '
+                               f'three years ({odds[call]:.0%}, against {ui.esc(INTEXT[rival])} '
+                               f'{odds[rival]:.0%}), because:', _call_why(made, call, rival)))
         else:
             x0, x1 = M["scores"].loc[made, NAMES], M["scores"].loc[t0, NAMES]
             d = (x1 - x0).abs().idxmax()
-            lines.append(f'<p><b>Missed two years earlier.</b> In {made.strftime("%b %Y")} the model '
-                         f'called {_tag(call)} ({odds[call]:.0%}; {ui.esc(INTEXT[new])} '
-                         f'{odds[new]:.0%}): {_call_why(made, call, new)}. Between then and the turn, '
-                         f'{ui.esc(SHORT[d][0].lower())} moved most, from {ui.signed(x0[d])} to '
-                         f'{ui.signed(x1[d])}.</p>')
+            items.append(_item('Not seen two years earlier.',
+                               f' In {made.strftime("%b %Y")} the model called {_tag(call)} '
+                               f'({odds[call]:.0%}; {ui.esc(INTEXT[new])} {odds[new]:.0%}), because:',
+                               _call_why(made, call, new)
+                               + [f"What changed after: {ui.esc(SHORT[d][0].lower())} moved most by the "
+                                  f"turn, from {ui.signed(x0[d])} to {ui.signed(x1[d])}."]))
     else:
-        lines.append('<p><b>No call two years earlier</b>: the model’s calls start in 1976, '
-                     'once there are past regimes to learn from.</p>')
-# Other events in this spell, and this month's own event in full.
-ev = EV_BY_MONTH.get(hx)
+        items.append(_item('No call two years earlier.',
+                           ' The model’s calls start in 1976, once there are past regimes to learn from.'))
+    sections.append((f'Turning point, {t0.strftime("%b %Y")}', items))
+# This month: what it was living through, with its own events, and the call made in it.
+items = []
 shown = {m_ for m_, _ in turn_events}
+ev = EV_BY_MONTH.get(hx)
+sub = []
 if ev and hx not in shown:
-    lines.append(f'<p class="hx-event"><b>{ui.esc(ev["title"])}</b> ({HX_LABEL[hx]}). '
-                 f'{ui.esc(ev["note"])}</p>')
+    sub.append(_event(hx, ev))
     shown.add(hx)
 if sp_dur is not None:
     also = [(m_, e) for m_, e in EV_BY_MONTH.items()
             if sp_dur["start"] <= m_ <= sp_dur["end"] and m_ not in shown and _turn_of(m_) is None]
     if also:
-        lines.append('<p><b>Also in this spell:</b> '
-                     + "; ".join(f'{ui.esc(e["title"])} ({m_.strftime("%b %Y")})' for m_, e in also) + ".</p>")
-# This month: what it was living through, and what the model called from it.
+        sub.append("Also in this spell: " + "; ".join(f'{ui.esc(e["title"])} ({m_.strftime("%b %Y")})'
+                                                     for m_, e in also) + ".")
 if r_dur is not None and sp_dur is not None:
     nc = M["nowcast"].loc[hx] if hx in M["nowcast"].index else None
-    body = (f": over the 18 months around this month, {_gaps(nc, 'ran')}" if nc is not None else "")
-    lines.append(f'<p><b>{HX_LABEL[hx]}: living through {_tag(r_dur)}</b>{body}. Part of the '
-                 f'{sp_dur["start"].strftime("%b %Y")} to {sp_dur["end"].strftime("%b %Y")} spell.'
-                 f'{_held(nc, r_dur)}</p>')
+    body = f": over the 18 months around it, {_gaps(nc, 'ran')}." if nc is not None else "."
+    sub.insert(0, f'Part of the {sp_dur["start"].strftime("%b %Y")} to {sp_dur["end"].strftime("%b %Y")} '
+                  f'spell.{_held(nc, r_dur)}')
+    items.append(_item(f"Living through {_tag(r_dur)}", body, sub))
+elif sub:
+    items.append(_item("Events", "", sub))
 if hx in PRED["probs"].index:
     _odds = PRED["probs"].loc[hx].sort_values(ascending=False)
     _pc = PRED["called"].get(hx)
     _top = ", ".join(f'{ui.esc(INTEXT[k])} {v:.0%}' for k, v in _odds.head(2).items())
     _call = f"{_tag(_pc)} ({_top})" if _pc in COLOR else _top
-    _out = (f" It turned out {_tag(r_in)}{', so right' if r_in == _pc else ''}." if r_in in COLOR
+    _out = (f" It turned out {_tag(r_in)}." + (_chip(r_in == _pc) if _pc in COLOR else "") if r_in in COLOR
             else f" Not known yet: what followed is known up to {going_lab.index[-1].strftime('%b %Y')}.")
-    lines.append(f'<p><b>Called in {HX_LABEL[hx]}</b> for the next three years, from what was known '
-                 f'then: {_call}.{_out}</p>')
+    items.append(_item("Called for the next three years",
+                       f", from what was known then: {_call}.{_out}"))
 else:
     _odds = R.probabilities(M["scores"].loc[[hx]], REG).iloc[0].sort_values(ascending=False)
-    lines.append(f'<p><b>The model on this month</b>, before 1976, so with today’s positions '
-                 f'(learned with hindsight, not what it would have said then): '
-                 + ", ".join(f'{ui.esc(INTEXT[k])} {v:.0%}' for k, v in _odds.head(2).items()) + ".</p>")
-c_text.html(f'<div class="hx">{"".join(lines)}</div>')
+    items.append(_item("The model on this month",
+                       ", before 1976, so with today’s positions (learned with hindsight, not what it "
+                       "would have said then): "
+                       + ", ".join(f'{ui.esc(INTEXT[k])} {v:.0%}' for k, v in _odds.head(2).items()) + "."))
+sections.append((f"This month, {HX_LABEL[hx]}", items))
+c_text.html('<div class="hx">' + "".join(f'<div class="hx-h">{t}</div><ul>{"".join(i)}</ul>'
+                                         for t, i in sections) + "</div>")
 c_text.html(ui.table(
     ["", HX_LABEL[hx],
      ui.Raw(f"Going-in average,<br>{ui.esc(HEAD[r_in])}") if r_in in going_avg.index

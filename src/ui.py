@@ -249,9 +249,16 @@ CSS = f"""
 .rd-note p {{ margin: 0 0 0.5rem; }}
 .rd-panel {{ min-width: 0; }}
 .hx {{ font-family: {BODY_FONT}; font-size: 0.9rem; color: {INK_2}; line-height: 1.5; }}
-.hx p {{ margin: 0 0 0.6rem; }}
 .hx b {{ color: {INK}; }}
-.hx-event {{ font-size: 0.95rem; }}
+.hx-h {{ font-family: {HEADING_FONT}; font-weight: 700; font-size: 1.05rem; color: {INK};
+  border-bottom: 1px solid {GRID}; padding-bottom: 0.2rem; margin: 0 0 0.4rem; }}
+.hx ul {{ margin: 0 0 0.9rem; padding-left: 1.1rem; }}
+.hx li {{ margin: 0 0 0.4rem; }}
+.hx li ul {{ margin: 0.3rem 0 0; padding-left: 1.1rem; list-style: circle; }}
+.hx li li {{ margin: 0 0 0.25rem; }}
+.hx-chip {{ display: inline-block; font-size: 0.74rem; font-weight: 700; color: {INK};
+  border: 1px solid {INK}; padding: 0 0.35rem; margin-left: 0.2rem; vertical-align: 1px; }}
+.hx-chip.miss {{ color: {INK_2}; border-color: {AXIS}; border-style: dashed; }}
 .rd-explain {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
   gap: 0.5rem 1.4rem; font-size: 0.85rem; color: {INK_2}; line-height: 1.45;
   border-top: 1px solid {GRID}; border-bottom: 1px solid {GRID}; padding: 0.6rem 0; margin: 0.4rem 0 0.8rem; }}
