@@ -1,8 +1,9 @@
 # The v2 scenarios, placed on the v2 signposts (config/indicators_v2.yml).
 #
 # Scores run from the left pole to the right: weak to strong growth,
-# inflation de-anchored lower to higher, dovish to hawkish, fiscal
-# restrictive to supportive, reforms reactive to proactive.
+# inflation de-anchored lower to higher, monetary stance dovish to hawkish,
+# credibility losing to credible, fiscal restrictive to supportive, reforms
+# reactive to proactive.
 #
 # The regime call describes the next three years. Each scenario's position
 # (archetype) is where the signposts sat in the run-up to that regime, learned
@@ -30,7 +31,8 @@ settings:
 driver_salience:
   growth: 1.0
   inflation: 1.0
-  monetary: 1.0
+  monetary: 0.5
+  credibility: 0.5
   fiscal: 0.5
   reforms: 0.5
 
@@ -43,8 +45,18 @@ rationale:
       Full weight. Whether the anchor holds separates high growth, high
       inflation from goldilocks, and stagflation from a hard landing.
     monetary: >-
-      Full weight. Credibility is what decides whether an inflation shock
-      becomes stagflation.
+      Half weight, as is credibility: together they keep the full weight
+      monetary policy had as one driver until 30 October 2026. Stance carries
+      the timing: tight policy slows demand with a lag of a year or two, and
+      the run-ups to stagflation and to a hard landing both came with policy
+      on the tight side.
+    credibility: >-
+      Half weight, with stance. Credibility decides what a slowdown does to
+      inflation: believed, a slowdown pulls inflation down (a hard landing);
+      not believed, inflation stays high as growth weakens (stagflation). It
+      is what tells those two run-ups apart. At equal weight within one
+      driver the two cancelled when tight policy lacked credibility, as in
+      1973-74, 1978-82 and 2022-25.
     fiscal: >-
       Half weight. Its growth signal overlaps the growth driver's slack:
       deficits widen in downturns and recoveries follow. Impulse and debt
@@ -71,8 +83,8 @@ rationale:
       quarters of data before the call moves. At three months the call
       flipped through short spells in the late 1980s, when the top two
       regimes were often within 25 points of each other (8, 9, 8 and 5-month
-      calls from 1987 to 1991). Six months, 1976-2023: 66% held out and 68% in
-      real time, against 67% and 66% at three, and 0.29 changes a year against
+      calls from 1987 to 1991). Six months, 1976-2023, with five drivers: 66%
+      held out and 68% in real time, against 67% and 66% at three, and 0.29 changes a year against
       0.31. Nine and twelve months fell to 64% and 63% held out and react later
       to real turns. Today's call is the same either way.
     min_confidence: >-
@@ -89,15 +101,17 @@ rationale:
   theory: >-
     Each scenario as the judgment draws it, slot for slot (-0.67, -0.33,
     0, +0.33, +0.67), on the judgment's own axes: monetary policy as
-    credibility, fiscal policy as sustainability (its multiplier line
-    averaged in, which moves only hard landing, to -0.33). A direction, not
-    a reading: shown on the outlook page against the full drivers. Not used
-    by the call, which uses prior.
+    credibility, so it sits on the credibility driver, and fiscal policy as
+    sustainability (its multiplier line averaged in, which moves only hard
+    landing, to -0.33). The judgment has no axis for monetary stance, so
+    theory gives none; the outlook page draws it at neutral and says so. A
+    direction, not a reading. Not used by the call, which uses prior.
   prior: >-
     The judgment of where each scenario sits, before the data. Growth,
-    inflation and reforms keep their direction. Monetary policy now reads
-    hawkish rather than credible; a credible central bank leans hawkish, so
-    the numbers carry over. Fiscal policy now reads supportive rather than
+    inflation and reforms keep their direction, and credibility the
+    judgment's monetary axis. Monetary stance has no judgment behind it, so
+    its prior is neutral for every scenario and its positions come from the
+    data. Fiscal policy now reads supportive rather than
     sustainable, so it is placed from each scenario's story: public
     investment crowding in private investment (high growth, high inflation)
     is the most supportive, then goldilocks and stagflation, where deficits
@@ -115,29 +129,33 @@ regimes:
     prior:
       growth: 0.67
       inflation: 0.00
-      monetary: 0.67
+      monetary: 0.00
+      credibility: 0.67
       fiscal: 0.33
       reforms: 0.67
     notes:
       theory: >-
-        Growth leads with inflation near the anchor, as theory has it. The Fed
-        ran looser than theory but kept its credibility: dovish enough to
-        support growth, as in the 1990s and after the GFC. Fiscal and reforms
-        did little on average.
+        Growth leads with inflation near the anchor, as theory has it. Policy
+        was loose going in (stance -0.35), dovish enough to support growth, as
+        in 2001-05 and after the GFC. Credibility sat below theory's: the
+        1982-87 run-up, with the 1970s still fresh, read -0.66, the later ones
+        about -0.15. Fiscal and reforms did little on average.
       during: >-
-        Little changes. Easing fades as the expansion matures.
+        Little changes. Easing fades as the expansion matures, and credibility
+        holds near zero, as in every goldilocks spell since 1993.
     theory:
       growth: 0.67
       inflation: 0.00
-      monetary: 0.67
+      credibility: 0.67
       fiscal: 0.67
       reforms: 0.67
     archetype:
-      growth: 0.19
+      growth: 0.20
       inflation: 0.09
-      monetary: -0.24
-      fiscal: 0.05
-      reforms: -0.08
+      monetary: -0.31
+      credibility: -0.19
+      fiscal: 0.06
+      reforms: -0.07
     tell: Productivity and capex plans rising together with expectations at target.
 
   high_growth_high_inflation:
@@ -148,27 +166,32 @@ regimes:
     prior:
       growth: 0.33
       inflation: 0.33
-      monetary: 0.33
+      monetary: 0.00
+      credibility: 0.33
       fiscal: 0.67
       reforms: 0.33
     notes:
       theory: >-
         Growth and inflation as theory has it, but the engine was easy money
-        rather than fiscal: a stretched Fed in the 1970s, and the Fed at zero
-        into 2021. Only 2021-22 was fiscal-led.
+        with credibility stretched rather than fiscal: policy about neutral
+        going in (-0.07) and credibility well below theory's (-0.56), from the
+        1970s to the Fed at zero into 2021. Only 2021-22 was fiscal-led.
       during: >-
-        Stays loose: the Fed falls further behind as inflation persists.
+        Credibility stays low, -0.5 to -1.0 in every spell, while stance
+        swings: loose in 1975-79 and 2021-22, tight in 1988-90 and since
+        2023.
     theory:
       growth: 0.33
       inflation: 0.33
-      monetary: 0.33
+      credibility: 0.33
       fiscal: 0.33
       reforms: 0.33
     archetype:
-      growth: 0.17
-      inflation: 0.71
-      monetary: -0.29
-      fiscal: 0.01
+      growth: 0.18
+      inflation: 0.72
+      monetary: -0.06
+      credibility: -0.48
+      fiscal: 0.02
       reforms: -0.30
     tell: Investment strong and inflation above target, with credibility stretched.
 
@@ -180,28 +203,32 @@ regimes:
     prior:
       growth: -0.67
       inflation: 0.67
-      monetary: -0.67
+      monetary: 0.00
+      credibility: -0.67
       fiscal: 0.33
       reforms: -0.67
     notes:
       theory: >-
-        The closest fit. Supply shocks (1973, 1979, 1990, 2022) met a loose
-        Fed losing credibility, with growth weak going in.
+        The closest fit. Supply shocks (1973, 1979, 1990, 2022) met a Fed that
+        had lost its credibility (-0.87 going in), with growth weak. Policy
+        itself was on the tight side (+0.25), as in 1977-81: tightening
+        without credibility did not bring inflation down.
       during: >-
         The growth outlook turns up as recovery gets priced in, as when
         Volcker's squeeze gave way to the 1982 easing.
     theory:
       growth: -0.67
       inflation: 0.67
-      monetary: -0.67
+      credibility: -0.67
       fiscal: -0.67
       reforms: -0.67
     archetype:
-      growth: -0.26
-      inflation: 0.81
-      monetary: -0.34
+      growth: -0.27
+      inflation: 0.82
+      monetary: 0.23
+      credibility: -0.82
       fiscal: -0.12
-      reforms: -0.05
+      reforms: -0.06
     tell: Expectations rising while credibility and the debt trajectory both weaken.
 
   hard_landing:
@@ -212,28 +239,32 @@ regimes:
     prior:
       growth: -0.67
       inflation: -0.67
-      monetary: -0.33
+      monetary: 0.00
+      credibility: -0.33
       fiscal: 0.00
       reforms: -0.67
     notes:
       theory: >-
         Demand busts after tightening (the Fed at 6.5% in 2000, 5.25% in
-        2006), with inflation a little hot going in rather than deflation. It
-        fell below the anchor only at the bottom of the GFC. 2020 was Covid,
-        which nothing foresaw.
+        2006): stance on the tight side going in (+0.22) with credibility
+        intact (about zero, where theory has it lower), so the slowdown pulled
+        inflation down rather than up. Inflation was a little hot going in
+        rather than deflation, and fell below the anchor only at the bottom of
+        the GFC. 2020 was Covid, which nothing foresaw.
       during: >-
         The policy response: rates cut and deficits widened, as in 2001, 2009
-        and 2020.
+        and 2020; stance turns loose (-0.4 in 2000-03, -0.6 in 2008-10).
     theory:
       growth: -0.67
       inflation: -0.67
-      monetary: -0.33
+      credibility: -0.33
       fiscal: -0.33
       reforms: -0.67
     archetype:
-      growth: -0.14
-      inflation: 0.16
-      monetary: 0.09
+      growth: -0.15
+      inflation: 0.15
+      monetary: 0.19
+      credibility: 0.01
       fiscal: -0.01
-      reforms: 0.12
+      reforms: 0.10
     tell: Expectations falling below target while growth prospects weaken.

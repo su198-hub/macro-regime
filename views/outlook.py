@@ -20,7 +20,7 @@ picked elsewhere.
      a growth x inflation map, and the probability-weighted landing point.
   3. What is pushing it: each driver's pull on that landing point.
   4. The drivers, as on the dashboard.
-  5. A policy what-if: move monetary or fiscal policy, watch the call move.
+  5. A policy what-if: move monetary stance or fiscal policy, watch the call move.
   6. The track record, graded as the call would have been made at the time.
 """
 
@@ -140,8 +140,9 @@ when = latest.to_timestamp(how="end")
 
 st.html(ui.section_head(
     "Regime shapes", f"Since 1968 · {when:%b %Y}",
-    "How the five drivers looked going into each regime and during it, set against theory: "
-    "where each regime should sit by its definition. Theory is a direction, not a reading."))
+    f"How the {ui.NUMBER_WORDS[len(NAMES)]} drivers looked going into each regime and during it, "
+    "set against theory: where each regime should sit by its definition. Theory is a direction, "
+    "not a reading."))
 PAIRS = {"Going in vs theory": ("going", "theory"), "Going in vs during": ("going", "during"),
          "During vs theory": ("during", "theory")}
 c_pair, c_months = st.columns([1.4, 1])
@@ -156,6 +157,9 @@ shape = {
     "theory": pd.DataFrame({r: v["theory"] for r, v in REG["regimes"].items()
                             if v.get("theory")}).T.reindex(columns=NAMES),
 }
+# Drivers theory takes no view on (monetary stance): drawn at neutral on the
+# radar so the shape closes, left out of the gaps, a dash in the table.
+NO_THEORY = [d for d in NAMES if shape["theory"][d].isna().all()]
 NAME = {"going": "Going in", "during": "During", "theory": "Theory"}
 KEY_NAME = {"going": "Going in: the three years before", "during": "During", "theory": "Theory"}
 shape_a, shape_b = PAIRS[pair_label]
@@ -164,7 +168,7 @@ shape_a, shape_b = PAIRS[pair_label]
 LOOK = {shape_a: ({"fill": 0.18}, "solid"), shape_b: ({"fill": 0, "dash": True}, "dashed")}
 LOOK["theory"] = ({"fill": 0, "dash": "1.5 2.5", "width": 1.4, "grey": True}, "dotted")
 # Each spoke names its driver and what its outer end means, kept short so
-# five fit round a small chart.
+# six fit round a small chart.
 POLE = {"inflation": "Above anchor"}
 SHORT = {d: (DLABEL[d].split(" and ")[0],
              POLE.get(d, CFG["drivers"][d]["signpost"]["high"]["label"].split(" / ")[0]))
@@ -179,8 +183,8 @@ for r in REG["regimes"]:
         if r in shape[kind].index:
             look = dict(LOOK[kind][0])
             color = ui.INK_2 if look.pop("grey", False) else COLOR[r]
-            series.append({"name": NAME[kind], "values": shape[kind].loc[r].to_dict(),
-                           "color": color, **look})
+            vals = shape[kind].loc[r].fillna(0.0) if kind == "theory" else shape[kind].loc[r]
+            series.append({"name": NAME[kind], "values": vals.to_dict(), "color": color, **look})
     panels.append(ui.radar_svg(NAMES, SHORT, series, title=HEAD[r], title_color=COLOR[r]))
 st.html(ui.radar_grid(
     panels, [(KEY_NAME[k], ui.INK_2, LOOK[k][1]) for k in (shape_a, shape_b)], lead=today_panel,
@@ -193,7 +197,10 @@ st.html(ui.radar_grid(
          ("Drivers look ahead", "So going in is what compares with theory; during a regime they "
                                 "already read the policy response and the next phase."),
          ("Direction over size", "An average of many months sits closer to neutral than theory. "
-                                 "Strongest quarter keeps only each regime’s deepest months.")]))
+                                 "Strongest quarter keeps only each regime’s deepest months."
+                                 + (f" Theory takes no view on "
+                                    f"{ui.join_words([SHORT[d][0].lower() for d in NO_THEORY])}, "
+                                    "drawn at neutral." if NO_THEORY else ""))]))
 # Where the two shapes part ways: a card per regime with its two biggest
 # gaps and a note, the theory note whenever theory is one of the pair.
 _diff = (shape[shape_b] - shape[shape_a]).reindex(list(REG["regimes"]))
@@ -219,7 +226,8 @@ for r in REG["regimes"]:
     rows.append(ui.Raw(f'<b style="color:{COLOR[r]}">{ui.esc(HEAD[r])}</b>'))
     for kind in ("theory", "going", "during"):
         if r in shape[kind].index:
-            rows.append([NAME[kind]] + [ui.signed(shape[kind].at[r, d]) for d in NAMES]
+            rows.append([NAME[kind]] + ["–" if pd.isna(shape[kind].at[r, d])
+                                        else ui.signed(shape[kind].at[r, d]) for d in NAMES]
                         + [_count[kind](r)])
 with st.expander("All the numbers"):
     st.html(ui.table(["Strongest quarter of months" if strong else "All months"]
@@ -526,6 +534,7 @@ def _side(v: float, what: str = "") -> str:
 
 # A driver reading in a word: toward its +1 end, its -1 end, or about neutral.
 READS = {"growth": ("strong", "weak"), "inflation": ("hot", "cool"), "monetary": ("tight", "loose"),
+         "credibility": ("strong", "weak"),
          "fiscal": ("supportive", "unsupportive"), "reforms": ("proactive", "passive")}
 
 
@@ -924,10 +933,10 @@ with st.expander("The three-year call: odds, landing point, drivers, what-if and
 
     st.html(ui.section_head(
         "What if policy moves", "",
-        "Set monetary and fiscal policy where you think they are heading; the odds and the landing "
-        "point update. Everything else stays as it reads today."))
+        "Set monetary stance and fiscal policy where you think they are heading; the odds and the "
+        "landing point update. Everything else, credibility included, stays as it reads today."))
     c1, c2 = st.columns(2)
-    mon = c1.slider("Monetary policy (dovish − / hawkish +)", -1.0, 1.0,
+    mon = c1.slider("Monetary stance (dovish − / hawkish +)", -1.0, 1.0,
                     float(round(now["monetary"].iloc[0], 2)), 0.05, key="prop_mon")
     fis = c2.slider("Fiscal policy (restrictive − / supportive +)", -1.0, 1.0,
                     float(round(now["fiscal"].iloc[0], 2)), 0.05, key="prop_fis")
@@ -985,9 +994,9 @@ with st.expander("The three-year call: odds, landing point, drivers, what-if and
                          f"{g['hard_landing_caught']} of {g['hard_landing_runups']}"])
         st.html(ui.table(["", "Regimes right, average"] + [LABEL[r] for r in REG["regimes"]]
                          + ["Hard-landing run-ups caught"], rows, numeric=set(range(1, 7))))
-        st.caption("Placebo, run 22 October 2026: with the driver readings slid out of line with what "
-                   "followed, none of 40 held-out and none of 20 real-time runs matched the scores "
-                   "then, 67% and 66% (medians 30% and 26%).")
+        st.caption("Placebo, run 31 October 2026 on the six drivers: with the driver readings slid "
+                   "out of line with what followed, none of 40 held-out and none of 20 real-time runs "
+                   "matched 71% and 64% (medians 31% and 31%; the best held-out run reached 68%).")
         band = pd.DataFrame({"Real-time call": T["Real time"]["calls"],
                              "What the next 3 years were": T["labels"]})
         long = band.reset_index(names="month").melt("month", var_name="row", value_name="regime").dropna()
@@ -1007,16 +1016,22 @@ with st.expander("The three-year call: odds, landing point, drivers, what-if and
     st.html(ui.section_head("How it works"))
     st.html(
         '<div class="m-body"><ul>'
-        '<li><b>Five drivers, read monthly:</b> growth, inflation, monetary policy, fiscal policy, '
-        'reforms. Each is a weighted average of indicators chosen for their economic link and '
+        f'<li><b>{ui.NUMBER_WORDS[len(NAMES)].capitalize()} drivers, read monthly:</b> '
+        + ui.esc(ui.join_words([DLABEL[d] if i == 0 else DLABEL[d].lower() for i, d in enumerate(NAMES)]))
+        + '. Each is a weighted average of indicators chosen for their economic link and '
         'checked against history.</li>'
-        '<li><b>Each regime has a position:</b> where the five drivers sat in the three years '
-        'before it, learned from fifteen run-ups since 1968 (three or four per regime) and nudged '
-        'toward a judgment of where the regime sits. Policy is part of the position: hard '
-        'landings came after tight money, high inflation after loose money.</li>'
+        f'<li><b>Each regime has a position:</b> where the {ui.NUMBER_WORDS[len(NAMES)]} drivers sat '
+        'in the three years before it, learned from fifteen run-ups since 1968 (three or four per '
+        'regime) and nudged toward a judgment of where the regime sits. Policy is part of the '
+        'position: hard landings came after tight policy with credibility intact, stagflation '
+        'after tight policy without it, high inflation after loose money.</li>'
         '<li><b>The call</b> compares this month\'s drivers with each position; the closer, the '
-        'likelier. Fiscal policy and reforms count at half weight. The call is held for three '
-        'months before it changes.</li>'
+        'likelier. '
+        + ui.esc(ui.join_words([DLABEL[d] if i == 0 else DLABEL[d].lower()
+                                for i, d in enumerate(d for d in NAMES
+                                                      if float(REG["driver_salience"].get(d, 1)) < 1)]))
+        + ' count at half weight. A new call has to lead for '
+        f'{int(REG["settings"]["persistence_months"])} months in a row before it changes.</li>'
         '<li><b>Where growth and inflation are heading</b> weighs what followed each regime\'s '
         'run-ups by today\'s odds.</li>'
         '<li><b>Before 1979</b> the inflation anchor is the Fed\'s FRB/US estimate of long-run '

@@ -755,7 +755,8 @@ def radar_svg(drivers: list[str], labels: dict[str, tuple[str, str]], series: li
     """
     n, cx, cy = len(drivers), 150.0, 126.0
     font = esc(BODY_FONT)
-    out = ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 240" '
+    # Wider than the rings need, so side labels as long as "Monetary stance" fit.
+    out = ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="-28 0 356 240" '
            f'font-family="{font}">']
     for v in RADAR_RINGS:
         pts = " ".join(f"{x:.1f},{y:.1f}" for x, y in

@@ -40,7 +40,7 @@ countries:
     # is the default, and its files are the indicators and regimes above.
     frameworks:
       v2:
-        label: "v2: five signposts"
+        label: "v2: six drivers"
         indicators: config/indicators_v2.yml
         regimes: config/regimes_v2.yml
       v1:
