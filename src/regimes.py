@@ -52,7 +52,7 @@ def probabilities(drivers: pd.DataFrame, reg_cfg: dict) -> pd.DataFrame:
     """Monthly probability across regimes.
 
     Rows where any driver is missing return NaN rather than a guess. A regime
-    call built on three of five drivers is not a regime call.
+    call built on some of the drivers is not a regime call.
     """
     driver_order = _driver_order(reg_cfg)
     names, arche, salience = _matrix(reg_cfg, driver_order)

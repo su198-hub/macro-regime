@@ -56,7 +56,7 @@ rationale:
       not believed, inflation stays high as growth weakens (stagflation). It
       is what tells those two run-ups apart. At equal weight within one
       driver the two cancelled when tight policy lacked credibility, as in
-      1973-74, 1978-82 and 2022-25.
+      1969-70, 1973-74, 1978-82, 1988-90 and 2022-25.
     fiscal: >-
       Half weight. Its growth signal overlaps the growth driver's slack:
       deficits widen in downturns and recoveries follow. Impulse and debt
@@ -75,8 +75,10 @@ rationale:
   settings:
     temperature: >-
       0.20. Run-up positions sit close together, so the probabilities are
-      modest at any temperature; 0.15 to 0.20 gave the lowest held-out log
-      loss (1.37 to 1.38 against 1.43 at 0.30).
+      modest at any temperature. On the six drivers, held-out log loss is 0.96
+      at 0.20 and 0.25, against 1.02 at 0.15 and 0.97 at 0.30; real time
+      prefers warmer (1.25 at 0.20, 1.13 at 0.30). The call itself is the
+      same at every one of them.
     persistence_months: >-
       Six months since 30 October 2026, three before: two quarters, the rule
       of thumb for a recession, so a new regime has to show up in two
@@ -86,7 +88,11 @@ rationale:
       calls from 1987 to 1991). Six months, 1976-2023, with five drivers: 66%
       held out and 68% in real time, against 67% and 66% at three, and 0.29 changes a year against
       0.31. Nine and twelve months fell to 64% and 63% held out and react later
-      to real turns. Today's call is the same either way.
+      to real turns. Regraded on the six drivers (31 October 2026), three
+      months does slightly better, 73% held out and 65% in real time against
+      71% and 64%, within the noise, so six months rests on steadiness and the
+      two-quarter rule, not on the grade. Today's call is the same either
+      way.
     min_confidence: >-
       0.25. With four scenarios the leader always has at least 25%, so the
       floor never binds; it is kept so a reader can raise it in the control
@@ -210,9 +216,10 @@ regimes:
     notes:
       theory: >-
         The closest fit. Supply shocks (1973, 1979, 1990, 2022) met a Fed that
-        had lost its credibility (-0.87 going in), with growth weak. Policy
-        itself was on the tight side (+0.25), as in 1977-81: tightening
-        without credibility did not bring inflation down.
+        had lost its credibility: -0.87 on average in the run-ups to 1969,
+        1974, 1981 and 1990, with growth weak. Policy itself was on the tight
+        side (+0.25), as in 1977-81: tightening without credibility did not
+        bring inflation down.
       during: >-
         The growth outlook turns up as recovery gets priced in, as when
         Volcker's squeeze gave way to the 1982 easing.

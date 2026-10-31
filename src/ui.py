@@ -750,7 +750,9 @@ def radar_svg(drivers: list[str], labels: dict[str, tuple[str, str]], series: li
 
     `labels` maps a driver to (name, what its outer end means). Each series is
     {"name", "values" (driver -> score), "color", "fill" (opacity, 0 for
-    none), "dash" (True for dashed, or an SVG dash pattern), "width"}. The drawing goes in as an image, since st.html
+    none), "dash" (True for dashed, or an SVG dash pattern), "width",
+    "no_view" (drivers the series takes no view on: drawn as given, shown as
+    a dash on hover)}. The drawing goes in as an image, since st.html
     strips inline SVG; hovering it lists every series' scores.
     """
     n, cx, cy = len(drivers), 150.0, 126.0
@@ -788,8 +790,9 @@ def radar_svg(drivers: list[str], labels: dict[str, tuple[str, str]], series: li
                    f'stroke="{s_["color"]}" stroke-width="{width}"{dash} stroke-linejoin="round"/>')
         if width >= 2:
             out.extend(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="2" fill="{s_["color"]}"/>' for x, y in xy)
-        hover.append(f'{s_["name"]}: ' + ", ".join(f"{labels[d][0].lower()} {signed(vals[d])}"
-                                                   for d in drivers))
+        hover.append(f'{s_["name"]}: ' + ", ".join(
+            f"{labels[d][0].lower()} {'–' if d in s_.get('no_view', ()) else signed(vals[d])}"
+            for d in drivers))
     # Each inner ring's value, just right of the top spoke and over the
     # shapes; the outer one would sit on the spoke's label.
     for v in RADAR_RINGS if ring_labels else ():

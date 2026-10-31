@@ -68,7 +68,7 @@ meta:
   call_horizon: the next three years
   call_note: >-
     The regime call is a reading of the next three years from where the
-    signposts stand, not a point forecast, and it makes no subjective
+    drivers stand, not a point forecast, and it makes no subjective
     adjustments.
   positions_note: >-
     Each regime's position is learned from the run-ups to past regimes,
@@ -107,8 +107,8 @@ meta:
       text: >-
         Run-ups average many months, so the learned positions sit near the
         middle and near each other, and the probabilities are modest: since
-        1968 the leading scenario has had a median of 65%, and more than 80%
-        in about one month in eight. The judgment positions are scaled
+        1968 the leading scenario has had a median of 72%, and more than 80%
+        in about one month in four. The judgment positions are scaled
         to the same spread before the data are weighed against them; unscaled,
         they pulled every position outward and the call fell below 40% held
         out.
@@ -116,7 +116,7 @@ meta:
       text: >-
         The call covers the four growth-inflation regimes the answer key can
         grade. A Baseline scenario, the average month, was dropped in October
-        2026: it could not be graded, sat in the middle of every signpost and
+        2026: it could not be graded, sat in the middle of every driver and
         took about a quarter of the odds. A month near the middle now shows
         as close odds between regimes rather than as a fifth call.
     - title: Reforms is at its floor
@@ -157,7 +157,7 @@ meta:
     - title: Tight is not the same as credible
       text: >-
         Stance and credibility were one driver until 30 October 2026. They
-        move independently (+0.06 month to month), and they pull apart in
+        move independently (+0.06 across months since 1968), and they pull apart in
         exactly the episodes that matter: tight policy without credibility in
         1969-70, 1973-74, 1978-82, 1988-90 and 2022-25, where their average sat
         near zero and hid both. Run-ups to stagflation and to a hard landing
@@ -170,7 +170,7 @@ meta:
       text: >-
         The miss rate and volatility look back. Since 2021 they
         read as losing credibility while long-run breakevens held near 2.3%; a
-        market anchor is not in the signpost.
+        market anchor is not in the driver.
     - title: Fiscal policy reads change, not the size of the deficit
       text: >-
         The impulse block reads whether the deficit is widening or narrowing,
@@ -663,7 +663,9 @@ drivers:
           market expects the Fed to cut, usually because it has tightened
           enough to slow the economy, and banks that borrow short and lend long
           tighten credit. Inverted reads as tight. Inversions came before 2001
-          and 2008; the one from 2022 did not end in recession.
+          and 2008 (the 10-year 0.43 points below fed funds in June 2000, 0.12
+          above in June 2006, both before hard landings); the one from 2022,
+          1.31 points below by December 2023, did not end in recession.
 
       - id: hiking_pace_3y
         reads:
@@ -680,8 +682,9 @@ drivers:
           **How hard the Fed has tightened.** Policy works with long lags, so a
           large cumulative hike keeps squeezing housing, investment and credit
           for a year or two after the last move, and big cycles have usually
-          overshot. The 2004-06 cycle, 1% to 5.25%, came before 2008; the 1994
-          cycle ended softly.
+          overshot. The 2004-06 cycle, 1% to 5.25%, read 1.26 points a year by
+          June 2006 and came before 2008; the 1994 cycle, 0.75 a year by June
+          1995, ended softly.
 
       - id: real_rate_gap
         reads:
@@ -707,7 +710,9 @@ drivers:
           real rate sits above neutral, the rate that neither speeds up nor
           slows the economy. Neutral is the FOMC's longer-run median less 2%
           from 2012, the New York Fed's one-sided Holston-Laubach-Williams
-          estimate before; both are uncertain by a point or more.
+          estimate before; both are uncertain by a point or more. 0.89 points
+          above neutral in June 2000, before the 2001 recession; 5.6 points
+          below in December 2021, with the Fed at zero and inflation near 5%.
 
   credibility:
     label: Monetary credibility
@@ -794,11 +799,14 @@ drivers:
         direction: -1
         weight: 0.25
         why: >-
-          **Inflation volatility**: how much core inflation swung over the last
-          three years. Steady inflation, even off target, is easier to plan
-          around and to believe than violent swings, which make every
-          forecast, and the anchor, look fragile. 1.3 points in mid-1974 and
-          1.8 points in December 2022, against 0.17 points in June 2019.
+          **Inflation volatility**: how much core inflation's yearly rate swung
+          over the last three years, in percentage points. Steady inflation,
+          even off target, is easier to plan around and to believe; violent
+          swings make the anchor look fragile, so wage and price setters lean
+          on recent inflation rather than the target, and when demand weakens
+          inflation stays up. 1.3 points in mid-1974, after which core
+          inflation ran 2.6 points above expectations for three years; 1.8 in
+          December 2022, against 0.17 in June 2019.
 
       - id: forecaster_disagreement
         reads:
@@ -814,10 +822,14 @@ drivers:
         carry_forward_periods: 2
         why: >-
           **Forecaster disagreement on inflation**: the spread between
-          professional forecasters' inflation forecasts. When the anchor holds,
-          forecasters agree that inflation will head back toward target,
-          whatever it is today; when it slips, their forecasts fan out. 1.5
-          points in September 1979, against 0.4 points in June 2019.
+          professional forecasters' inflation forecasts, in percentage points.
+          When the anchor holds, forecasters agree that inflation will head
+          back toward target, whatever it is today; when it slips, their
+          forecasts fan out, and a shock can move expectations, so a slowdown
+          is less likely to pull inflation down. 1.5 points in September 1979,
+          after which inflation ran 1.7 points above expectations and growth
+          2.2 points below potential for three years, a stagflation; 0.4 points
+          in June 2019.
 
   fiscal:
     label: Fiscal policy

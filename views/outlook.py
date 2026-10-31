@@ -184,7 +184,8 @@ for r in REG["regimes"]:
             look = dict(LOOK[kind][0])
             color = ui.INK_2 if look.pop("grey", False) else COLOR[r]
             vals = shape[kind].loc[r].fillna(0.0) if kind == "theory" else shape[kind].loc[r]
-            series.append({"name": NAME[kind], "values": vals.to_dict(), "color": color, **look})
+            series.append({"name": NAME[kind], "values": vals.to_dict(), "color": color, **look,
+                           "no_view": NO_THEORY if kind == "theory" else []})
     panels.append(ui.radar_svg(NAMES, SHORT, series, title=HEAD[r], title_color=COLOR[r]))
 st.html(ui.radar_grid(
     panels, [(KEY_NAME[k], ui.INK_2, LOOK[k][1]) for k in (shape_a, shape_b)], lead=today_panel,
@@ -1024,7 +1025,8 @@ with st.expander("The three-year call: odds, landing point, drivers, what-if and
         'in the three years before it, learned from fifteen run-ups since 1968 (three or four per '
         'regime) and nudged toward a judgment of where the regime sits. Policy is part of the '
         'position: hard landings came after tight policy with credibility intact, stagflation '
-        'after tight policy without it, high inflation after loose money.</li>'
+        'after tight policy without it, high inflation after policy that had lost its '
+        'credibility.</li>'
         '<li><b>The call</b> compares this month\'s drivers with each position; the closer, the '
         'likelier. '
         + ui.esc(ui.join_words([DLABEL[d] if i == 0 else DLABEL[d].lower()
