@@ -73,7 +73,7 @@ meta:
   positions_note: >-
     Each regime's position is learned from the run-ups to past regimes,
     1968-2023; graded on the three years that followed, 1976-2023, the call
-    got 71% of each regime's months right on average held out, 64% in real
+    got 73% of each regime's months right on average held out, 65% in real
     time.
   positions_method: >-
     where the drivers sat in the run-up to that regime, 1968 to 2023, shrunk
@@ -89,11 +89,11 @@ meta:
         goldilocks, four high growth, high inflation, four stagflation and
         three hard landings. Before 1979 the inflation anchor is the Fed's
         FRB/US estimate of long-run expectations, not a survey. Graded on the
-        three years that followed, 1976-2023, the call got 71% of each
-        regime's months right on average held out and 64% in real time,
+        three years that followed, 1976-2023, the call got 73% of each
+        regime's months right on average held out and 65% in real time,
         against 34% for assuming the current regime continues; in 60 runs with
         the readings slid out of line with what followed, none matched it
-        (medians 31%; the best held-out run reached 68%). It
+        (medians about 31%; the best held-out run reached 69%). It
         caught all three hard-landing run-ups held out, two in real time. In
         real time a month learns only from outcomes published by then, 40
         months later (three years plus the last GDP quarter), and a regime not
@@ -163,8 +163,8 @@ meta:
         near zero and hid both. Run-ups to stagflation and to a hard landing
         both came with policy on the tight side; credibility is what tells
         them apart (about -0.8 before stagflation, about zero before a hard
-        landing). Split, the call scored 71% held out and 64% in real time,
-        against 66% and 68%, within the noise of so few episodes, so the
+        landing). Split, the call scored 73% held out and 65% in real time,
+        against 67% and 66%, within the noise of so few episodes, so the
         split rests on what the two measure rather than on the grade.
     - title: Credibility is a track record only
       text: >-
