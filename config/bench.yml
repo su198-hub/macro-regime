@@ -1,13 +1,19 @@
 # Indicator bench — the candidate pool for the US set.
 #
-# One row per indicator, live or proposed. This file feeds the Bench tab only:
-# nothing here is scored, and ticking a row changes no result anywhere.
+# One row per indicator, live or proposed, under v2's six drivers. This file
+# feeds the Bench tab only: nothing here is scored, and ticking a row changes no
+# result anywhere.
 #
-#   status:  in_set     currently scored; `id` must match config/indicators.yml
-#            candidate  proposed, not scored
+#   status:  in_set     scored in the presented model; `id` must match
+#                       config/indicators_v2.yml
+#            candidate  proposed, not scored. `preselect: false` parks it: tested
+#                       or dropped, kept so it can be put back
+#            v1         scored in v1 (config/indicators.yml) and not in v2
 #
 #   where:   macrobond        confirmed to exist in Macrobond (code noted)
 #            macrobond_check  a real named series, vendor code not yet confirmed
+#            bloomberg        verified through the terminal, not publishable
+#            open_data        an open download the model already reads
 #            external         needs CIQ, a vendor, or an open publisher
 #
 # TWO AXES, deliberately. They are not the same thing and the gap between them
@@ -34,11 +40,10 @@
 # the limit — structural. Plot thirty years: a wave is cyclical, a drift that
 # never comes back is structural.
 #
-# Four live indicators are tagged long-horizon but are cyclical in nature —
-# productivity_yoy, yield_curve_slope, equity_risk_premium and
-# inflation_risk_premium. A valuation or a premium can look a decade ahead and
-# still mean-revert inside a cycle. That is why both axes are carried, and why
-# "27% long-horizon" flattered a set that is 18% structural.
+# Some rows are tagged long-horizon but are cyclical in nature, such as the
+# inflation risk premium and policy uncertainty. A valuation or a premium can
+# look a decade ahead and still mean-revert inside a cycle. That is why both
+# axes are carried.
 #
 #   enters:  how the reading would be SCORED, which is a separate question from
 #            what it measures.
@@ -49,8 +54,8 @@
 #            revision   how much an estimate OF THE SAME FUTURE TARGET moved
 #                       between publications
 #
-# `revision` is the one nothing in the model uses today, and it is the answer to
-# a specific objection: a potential-growth level sits near 1.8% for years and
+# `revision` is the answer to a specific objection, and v2's potential block is
+# read this way: a potential-growth level sits near 1.8% for years and
 # cannot discriminate between months, so as a level it is dead weight. The
 # CHANGE in it is news about the future arriving now — the economy being re-rated
 # toward a higher- or lower-growth world — and it is stationary, so it normalizes
@@ -71,33 +76,23 @@
 # The full 87-candidate review this was cut from is archived separately. The
 # bench is deliberately shorter: six or seven candidates a driver, weighted
 # toward the structural layer the set is missing, because a list nobody can
-# read in a meeting is not a bench.
+# read in a meeting is not a bench. Parked rows and v1's rows follow the
+# candidates and do not count toward that.
 
 meta:
   title: Indicator bench
   note: >-
-    Candidates from the September 2026 review, trimmed to the ones that change
-    the character of a driver rather than its news flow. Ticking is for
+    v2's indicators, then candidates from the September 2026 review trimmed to
+    the ones that change the character of a driver rather than its news flow,
+    then what has been parked or scored only in v1. Ticking is for
     discussion: selections stay in this browser session and never reach the model.
 
 drivers:
 
-  demand:
+  growth:
     label: Growth
     items:
-      - id: real_pce_yoy
-        name: Real consumer spending
-        status: in_set
-        horizon: medium
-        nature: cyclical
-        kind: official
-        enters: change
-        where: macrobond
-        code: PCEC96
-        refers: Household spending on goods and services, inflation-adjusted — two thirds of GDP.
-        measured: >-
-          BEA combines Census retail sales, service-sector surveys and administrative
-          records, then deflates by the PCE price index. Monthly, about 30 days.
+      # --- Scored in v2.
 
       - id: unemployment_gap
         name: Unemployment rate less its long-run level
@@ -110,116 +105,89 @@ drivers:
         code: UNRATE − NROU
         refers: >-
           Labor market slack measured against full employment rather than against
-          zero. Kept but demoted — weight cut from 0.25 to 0.15 in September 2026.
-          Unemployment turns after the spending that causes it, and the benchmark it
-          is measured against is CBO's noncyclical rate, which is itself revised
-          backwards. The released weight goes to the ten-year growth revision.
+          zero. With unemployment above its long-run rate, output sits below potential,
+          and it grows faster than potential as idle workers are rehired. Caution — the
+          benchmark is CBO's noncyclical rate, which is itself revised backwards.
         measured: >-
           Rate from the BLS household survey of ~60,000 households, first Friday.
           Noncyclical rate is CBO's estimate, updated once or twice a year.
 
-      # DROPPED from the set in September 2026, kept here so it can be put
-      # back. A payroll bump a household reads as temporary barely moves
-      # consumption, because spending follows expected lifetime resources
-      # rather than this month's income.
-      - id: cand_payrolls_3m_ann
-        name: Payroll growth, 3 months annualized
-        status: candidate
-        preselect: false
-        horizon: short
-        nature: news
+      - id: capacity_utilization_gap
+        name: Capacity utilization less its 10-year average
+        status: in_set
+        horizon: medium
+        nature: cyclical
         kind: official
-        enters: change
+        enters: deviation
         where: macrobond
-        code: PAYEMS
-        refers: The pace at which the economy is adding jobs.
+        code: TCU
+        refers: >-
+          Slack in plants and machines. With spare capacity, firms can raise output
+          without waiting for new investment; running hotter than usual, more output
+          needs new capacity first, so costs rise and growth slows.
         measured: >-
-          BLS establishment survey of ~119,000 businesses covering 630,000 worksites;
-          benchmarked annually to unemployment insurance tax records.
+          Federal Reserve G.17: industrial production over an estimate of sustainable
+          maximum output. Monthly, ~16 days. Against its own ten-year average because
+          utilization has drifted down for decades as the economy moved to services.
+          v1 read it as a level.
 
-      - id: wage_growth_yoy
-        name: Employment cost index, wages
+      - id: company_credit_real_3y
+        name: Company debt, real growth over three years
         status: in_set
         horizon: medium
         nature: cyclical
         kind: official
         enters: change
         where: macrobond
-        code: ECIWAG
-        refers: What the labor market pays, holding the mix of jobs constant.
+        code: BIS_NFC_CREDIT, PCEPILFE
+        refers: >-
+          Borrowing that pulls demand forward. Companies that borrow fast are spending
+          beyond their cash flow, and if the investment earns less than hoped they cut
+          capex and hiring to repair balance sheets, as after the dot-com boom. Fast
+          growth reads as a payback ahead.
         measured: >-
-          BLS National Compensation Survey, ~27,000 establishments, quarterly at ~30
-          days. Fixed-weight, so it prices the same occupations each quarter.
+          BIS credit to US non-financial corporations, market value, quarterly, about two
+          quarters after the quarter ends. Three-year annualized growth less the same
+          for core PCE, because inflation shrinks debt in real terms.
 
-      # Opens unticked. It reads the state of the economy today and nothing
-      # past it: average unemployment lasts about six months, so a claims print
-      # is absorbed within two quarters and carries no information about year
-      # five by construction.
-      - id: cand_jobless_claims_yoy
-        name: Initial jobless claims
-        status: candidate
-        preselect: false
-        horizon: short
-        nature: news
+      - id: household_credit_real_3y
+        name: Household debt, real growth over three years
+        status: in_set
+        horizon: medium
+        nature: cyclical
         kind: official
         enters: change
         where: macrobond
-        code: IC4WSA
-        refers: New layoffs, the earliest turning-point signal in the set.
+        code: BIS_HH_CREDIT, PCEPILFE
+        refers: >-
+          The household side of the same payback. Once borrowing stops, spending has to
+          grow slower than income for years while the debt is paid down, as after 2008.
+          Kept apart from company debt because the two drive different busts.
         measured: >-
-          An administrative count of claims actually filed at state unemployment
-          offices — not a survey. Weekly, Thursdays, four-week average.
+          BIS credit to US households and the non-profits serving them, quarterly, about
+          two quarters late. Three-year annualized growth less the same for core PCE.
 
-      # --- What the long run is expected to look like, and how that view is
-      # drifting. Realised income barely moves consumption: a household spends
-      # out of expected lifetime resources, so a payroll bump it believes is
-      # temporary changes almost nothing. The same logic dates the fast
-      # indicators: average unemployment lasts about six months, so a claims
-      # print is fully absorbed within two quarters and carries no information
-      # about year five by construction.
-      #
-      # Score these as REVISIONS, not levels. A potential-growth level sits near
-      # 1.8% for years and cannot discriminate between months; the change in it
-      # is news about the future arriving now, and it is stationary, so it
-      # normalizes properly instead of scoring which decade it is.
-      #
-      # Two different revision mechanics, and only one needs new machinery:
-      #   forecast-dated  each observation is that quarter's forecast of the same
-      #                   distant horizon, so the revision is the first
-      #                   difference. SPF and HLW work with today's transforms.
-      #   target-dated    the series is indexed by the year being forecast, so
-      #                   the revision is value(this vintage, 2035) less
-      #                   value(last vintage, 2035). Needs a vintage-diff
-      #                   transform, which the point-in-time store can support
-      #                   and almost no other dashboard could.
-
-      - id: spf_growth_revision
-        name: Revision to forecasters' 10-year GDP growth
+      - id: cbo_potential_growth_revision
+        name: Revision to CBO potential growth, next five years
         status: in_set
         horizon: long
         nature: structural
-        kind: survey
+        kind: model
         enters: revision
         where: macrobond
-        code: usfcst0722
+        code: usfcst1985
         refers: >-
-          Whether professional forecasters have marked their view of the next decade's
-          growth up or down since last quarter. The level sits near 2% for years and
-          says nothing; the change in it is the economy being re-rated toward a
-          higher- or lower-growth world, and that re-rating is what moves expected
-          lifetime income. The growth twin of the 10-year CPI expectation the
-          inflation driver already carries.
+          CBO rebuilds potential from labor, capital and productivity at each projection,
+          so a revision means new evidence about the trend has arrived. Part of the
+          potential block, 6.25% of growth. It raises the bar the regime is graded on
+          rather than predicting a clear of it, so it is there for the long-run view.
         measured: >-
-          Philadelphia Fed Survey of Professional Forecasters, ~35 respondents.
-          Macrobond labels it quarterly, but the ten-year questions are asked once a
-          year, so there is one new reading each Q1 and 34 in total since 1992.
-          Forecast-dated, so the revision is the change from the previous survey and
-          needs no new machinery — but it is an annual signal carried for twelve
-          months, which is the honest cost of reading this far ahead.
+          Change in CBO's projected potential GDP growth over the next five years between
+          consecutive projections, from 1997. Target-dated, so a vintage diff.
 
-      - id: cand_spf_lt_productivity
+      - id: spf_productivity_revision
         name: Revision to forecasters' 10-year productivity growth
-        status: candidate
+        status: in_set
         horizon: long
         nature: structural
         kind: survey
@@ -230,452 +198,54 @@ drivers:
           The Solow A term marked up or down. Sharper than the headline growth
           forecast, because ten-year-ahead labor force growth is close to already
           known and productivity is where the real uncertainty sits.
-          Caution — an either/or with the GDP revision above, not an addition: the two
-          correlate 0.83 and share a sign 91% of the time.
+          Part of the potential block, 6.25% of growth. An either/or with the GDP
+          revision parked below, not an addition: the two correlate 0.83 and share a
+          sign 91% of the time.
         measured: >-
           Philadelphia Fed SPF. Asked once a year despite the quarterly label, so 34
           readings since 1992 and an annual signal carried for twelve months.
 
-      - id: cand_hlw_trend_growth
-        name: Revision to trend growth inside r*
-        status: candidate
-        horizon: long
-        nature: structural
-        kind: model
-        enters: revision
-        where: macrobond
-        code: usfcst2426
-        refers: >-
-          How much the New York Fed has moved its estimate of the economy's trend
-          growth rate — the g that sits inside r*. The one candidate with NO
-          measurable echo of the past: it correlates +0.01 with growth already
-          published, against +0.44 for the CBO revision it replaces and +0.49 for the
-          analyst one, and it leads the unemployment gap by eighteen months. It is
-          not, however, demonstrably forward-looking — its correlation with the next
-          year's growth is +0.10, 95% [−0.03, +0.23], indistinguishable from zero.
-          Not in the proposed set, and the reason is placement rather than quality:
-          against consumer spending, the thing this driver is about, it scores −0.03,
-          95% [−0.19, +0.14]. Trend growth of potential output is a supply quantity,
-          and it sat in demand only through the permanent-income argument, which the
-          data does not show. Worth moving to the supply driver, where the speed
-          limit belongs — an open decision, not a rejection. Note also that the New
-          York Fed suspended publication for 32 months, from August 2020 to May 2023.
-        measured: >-
-          Holston-Laubach-Williams one-sided estimate, quarterly from 1961 — 262
-          readings against the CBO revision's 67, with 33 vintages in Macrobond.
-          Scored as the four-quarter change, which moves more than 0.05 points in 69%
-          of quarters. Caveat: the model is re-estimated each quarter, so the whole
-          filtered path shifts a little; this is the standard real-time reading, not
-          a strict vintage difference.
-
-      - id: cand_cbo_potential_revision
-        name: Revision to CBO potential GDP for 2035
-        status: candidate
-        horizon: long
-        nature: structural
-        kind: model
-        enters: revision
-        where: macrobond
-        code: usfcst1985
-        refers: >-
-          How much CBO has changed its estimate of what the economy will be capable of
-          producing in 2035 since it last published. Looks like the cleanest revision
-          in the set and is not: it correlates +0.44 with growth already published
-          when CBO writes, and only +0.21 with the growth of the year that follows.
-          CBO re-reads the recent past into its speed limit, so much of the series is
-          a slow echo of data the model has already scored. dropped for that reason —
-          though note the analyst revision that replaces it scores +0.49 on the same
-          backward test, so the swap is justified by frequency and by dropping a news
-          indicator, not by forward-lookingness.
-        measured: >-
-          CBO 10-Year Economic Projections, quarterly, currently running to 2036, with
-          67 vintages in the store. Target-dated rather than forecast-dated, so this
-          one needs the vintage-diff transform: this vintage's 2035 estimate less the
-          previous vintage's.
-
-      - id: retail_vs_staples
-        name: Retailers against consumer staples
+      - id: capex_revision
+        name: Revision to the S&P 500's three-year capex consensus
         status: in_set
-        horizon: medium
-        nature: cyclical
-        kind: market
-        enters: change
-        where: bloomberg
-        code: S5RETL Index / S5CONS Index
-        vendor: Bloomberg
-        refers: >-
-          What the market pays for the companies households spend at, against the
-          ones they cannot stop spending at. A relative price, so the discount rate
-          largely divides out — both legs are valued off the same curve — leaving the
-          market's view of the consumer. It predicts real consumer spending a year
-          out at +0.29, 95% [+0.08, +0.51], leads spending by nine months, and keeps
-          adding information beyond simple persistence with the 2004–12 housing cycle
-          removed (partial +0.24, 95% [+0.02, +0.44]). Its two- and three-year
-          correlations are +0.08: this is a three-quarter signal and nothing longer.
-          Preferred over the 5y5y forward real rate, the other market-priced
-          candidate, which is the cleaner idea — the real rate the market sets for
-          years six to ten is its view of trend growth — but scores +0.07, 95%
-          [−0.27, +0.40], against consumer spending.
-        measured: >-
-          S&P 500 retailing industry group over the consumer staples sector, daily
-          from September 1989, scored as the 12-month percent change. Centred on +6.0
-          rather than zero, because retailers beat staples by six points a year on
-          average to 2019, so a flat year is already a downgrade of the consumer.
-
-      - id: cand_analyst_ltg
-        name: Revision to analysts' three-year outlook
-        status: candidate
         horizon: long
         nature: structural
         kind: survey
         enters: revision
         where: bloomberg
-        code: SPX Index|BEST_EPS|3FY
-        vendor: Bloomberg BEst / IBES
+        code: SPX Index|BEST_CAPEX|3FY
+        vendor: Bloomberg BEst
         refers: >-
-          The change in the three-year-ahead earnings analysts attach to the index —
-          the bottom-up version of the speed-limit question. Tested against the claim
-          that it is the forward-looking one, it fails: it correlates +0.49 with
-          growth already published, worse than the +0.44 of the CBO revision it was
-          meant to replace, and −0.08 with the next year's growth. It scores 4 points
-          better on the ex-post scorecard since 2003, but the interval on that gap is
-          [0.0, +11.5] — the backtest cannot separate the two — so the slot is decided
-          on the echo instead, and HLW holds it. Untick HLW and tick this to swap.
-          not the expected growth rate, which is the natural reading and is
-          disqualified: measured from the near-term year, which is what collapses in a
-          recession, the rate rose through every recession in the sample — 2007 11.9 to
-          16.8, 2020 8.8 to 21.9, onset to six months in — and it follows the
-          unemployment gap by fourteen months. A ten-year earnings base fixes that sign
-          but still correlates +0.45 with past growth.
+          The K in Solow for the whole market: more machines, data centers and software
+          per worker raise output per hour once they are built, and an upgraded plan is
+          the earliest read on tomorrow's capital stock. Part of the potential block,
+          6.25% of growth. Well evidenced for its first link: +0.46 against industrial
+          capacity three years out, 95% [+0.09, +0.69].
         measured: >-
-          Consensus S&P 500 EPS for the third fiscal year out, monthly from 1990 — 438
-          readings. Scored as the 12-month percent revision, centred on +7.0 rather
-          than zero: it revises a nominal level that analysts mark up by 7% a year on
-          average, so an unchanged number is already bad news. Needs the
-          BEST_FPERIOD_OVERRIDE, or the horizon shortens as each year runs on.
+          Bloomberg consensus capex, third fiscal year out, monthly from December 2007,
+          scored as the 12-month percent revision. The AI capex surge is in it: analysts
+          marked three-year capex up 62% in the year to September 2026, against a
+          pre-2019 range of −17 to +18.
 
-      # --- The stock that permanent income is actually drawn from. Not
-      # expectations, but not news either: these move over decades and set how
-      # much of any income change gets spent.
-
-      - id: cand_net_worth_to_income
-        name: Household net worth to disposable income
-        status: candidate
-        horizon: long
-        nature: structural
-        kind: official
-        enters: level
-        where: macrobond_check
-        refers: >-
-          The stock of household wealth relative to what households earn — the balance
-          sheet demand is spent from, rather than the flow of one month's income.
-        measured: >-
-          Federal Reserve Financial Accounts (Z.1) household balance sheet over BEA
-          disposable income. Quarterly. Drifts for decades rather than cycling.
-
-      - id: cand_labour_share
-        name: Labor share of national income
-        status: candidate
-        horizon: long
-        nature: structural
-        kind: official
-        enters: level
-        where: macrobond_check
-        refers: >-
-          How much of output reaches wages rather than profits. Wages are spent at a
-          far higher rate, so the split sets how much of any given growth rate turns
-          into demand at all.
-        measured: >-
-          BLS compensation over BEA gross value added, nonfarm business. Quarterly.
-          Fell for thirty years and has only partly retraced — a drift, not a wave.
-
-
-  inflation_expectations:
-    label: Inflation
-    items:
-      - id: breakeven_5y5y
-        name: 5-year inflation, 5 years forward
-        status: in_set
-        horizon: long
-        nature: structural
-        kind: market
-        enters: level
-        where: macrobond
-        code: T5YIFR
-        refers: The inflation rate priced for years six to ten — the anchor itself.
-        measured: >-
-          Computed from the Treasury curve: nominal less TIPS at ten and five years,
-          with the first five stripped out. Daily, never revised.
-
-      - id: cleveland_10y
-        name: Cleveland Fed 10-year expected inflation
+      - id: cbo_labour_force_revision
+        name: Revision to CBO potential labor force
         status: in_set
         horizon: long
         nature: structural
         kind: model
-        enters: level
-        where: macrobond
-        code: EXPINF10YR
-        refers: Expected inflation with risk and liquidity premia removed.
-        measured: >-
-          A model blending Treasury yields, inflation swaps and surveys. Monthly,
-          published before the month ends; re-estimated, so it revises.
-
-      - id: spf_long_run
-        name: Professional forecasters, 10-year CPI
-        status: in_set
-        horizon: long
-        nature: structural
-        kind: survey
-        enters: level
-        where: macrobond
-        code: SPFCPI10
-        refers: >-
-          What professional forecasters expect inflation to average over a decade.
-          Stays a level, and keeps half its weight since September 2026: an anchor is a statement about
-          where expectations sit against 2%, so a revision alone would score
-          expectations stuck at 4% as neutral the moment they stopped moving. The
-          other half goes to the revision below — the two correlate −0.14 and
-          disagree in sign in 51% of quarters, so they are not one reading twice.
-        measured: >-
-          Philadelphia Fed survey of ~35 forecasters, quarterly since 1968, published
-          mid-quarter. Centred on 2.3 because it forecasts CPI, not PCE.
-
-      # The revision half of the row above, added alongside it rather than in
-      # place of it. Neither version forecasts realised inflation, so there is
-      # nothing to gain by trading the level away; what the revision adds is
-      # the moment the anchor moves, which a level travelling between 2.1 and
-      # 2.6 for thirty years cannot show.
-      - id: spf_cpi_revision
-        name: Revision to forecasters' 10-year CPI
-        status: in_set
-        horizon: long
-        nature: structural
-        kind: survey
         enters: revision
         where: macrobond
-        code: SPFCPI10
+        code: usfcst0572
         refers: >-
-          The anchor moving rather than where it sits. Ran +0.48 through 2022 as
-          forecasters marked the decade up, then −0.63 through 2023 as they took it
-          back — both invisible in a level that never left a half-point band. Small
-          Held at the same weight as the level, not more: it reads zero when
-          expectations are merely wrong and stable, which is the one thing a
-          de-anchoring measure must not miss.
+          How much CBO has changed its view of the labor force five years out. The L
+          in Solow, as a projection that gets revised rather than a count
+          of who turned up last month — immigration policy and participation move it
+          years before they move anything measurable.
         measured: >-
-          Same Philadelphia Fed survey, scored as the four-quarter change: one
-          quarter's revision moves more than 0.1 points only a quarter of the time,
-          a year's accumulated revision about half the time.
+          CBO Potential GDP and Underlying Inputs, with 52 vintages. Target-dated, so
+          the revision is a vintage diff between consecutive projections, in log percent.
 
-      - id: umich_1y
-        name: Household expectations, 1 year
-        status: in_set
-        horizon: short
-        nature: news
-        kind: survey
-        enters: level
-        where: macrobond
-        code: MICH
-        refers: What households expect prices to do over the next twelve months.
-        measured: >-
-          University of Michigan, ~600 households by phone and web. Centred on 3.0
-          because households have always reported above realized inflation.
-
-      - id: inflation_risk_premium
-        name: Inflation risk premium
-        status: in_set
-        horizon: long
-        nature: cyclical
-        kind: model
-        enters: level
-        where: macrobond
-        code: INFRISKPREM
-        refers: >-
-          What investors charge for bearing inflation uncertainty, as distinct from
-          expecting it. Long-dated in content, but it widens and narrows with stress.
-        measured: >-
-          The residual from the Cleveland Fed decomposition — a breakeven less
-          expected inflation. Monthly.
-
-      - id: cand_atlanta_bie
-        name: Atlanta Fed business inflation expectations
-        status: candidate
-        horizon: medium
-        nature: structural
-        kind: survey
-        enters: level
-        where: macrobond_check
-        refers: >-
-          What firms — the people who actually set prices — expect their own unit
-          costs to do. The one constituency the driver never asks.
-        measured: >-
-          Atlanta Fed panel of ~300 businesses, asked about unit cost expectations a
-          year ahead. Monthly since 2011.
-
-      - id: cand_inflation_swaps
-        name: Inflation swap curve, 5y5y and 10y
-        status: candidate
-        horizon: long
-        nature: structural
-        kind: market
-        enters: level
-        where: external
-        vendor: CIQ
-        refers: Market-priced inflation across the term structure.
-        measured: >-
-          Zero-coupon inflation swap quotes. More liquid than TIPS breakevens and
-          free of the liquidity premium that distorts them in stress.
-
-      - id: cand_inflation_options
-        name: Inflation cap/floor implied distribution
-        status: candidate
-        horizon: long
-        nature: structural
-        kind: market
-        enters: level
-        where: external
-        vendor: CIQ / dealer
-        refers: >-
-          The market-implied probability of inflation above 3% or below 1% — the
-          tails rather than the mean, which is what "anchored" actually means.
-        measured: Backed out of inflation option prices across strikes. Daily.
-
-      - id: cand_nyfed_sce
-        name: NY Fed Survey of Consumer Expectations, 3-year
-        status: candidate
-        horizon: medium
-        nature: cyclical
-        kind: survey
-        enters: level
-        where: macrobond_check
-        refers: Household expectations at a medium-term horizon.
-        measured: >-
-          NY Fed rotating panel of ~1,300 households, better designed than Michigan
-          and asked at three years. Monthly since 2013.
-
-      - id: cand_trimmed_mean
-        name: Trimmed-mean PCE
-        status: candidate
-        horizon: medium
-        nature: cyclical
-        kind: official
-        enters: change
-        where: macrobond_check
-        refers: The persistent core of realized inflation, with the tails cut off.
-        measured: >-
-          Dallas Fed trims the most extreme price changes each month. The thing
-          expectations are actually formed from, and the driver carries no realized
-          inflation at all today.
-
-      - id: cand_consensus_lt_cpi
-        name: Consensus Economics long-run CPI
-        status: candidate
-        horizon: long
-        nature: structural
-        kind: survey
-        enters: level
-        where: external
-        vendor: vendor
-        refers: A second forecaster panel, to check SPF rather than rely on it alone.
-        measured: Consensus Economics or Blue Chip survey, semi-annual at long horizons.
-
-  supply:
-    label: Supply constraint
-    items:
-      - id: capacity_utilisation
-        name: Capacity utilization
-        status: in_set
-        horizon: medium
-        nature: cyclical
-        kind: official
-        enters: level
-        where: macrobond
-        code: TCU
-        refers: How much physical headroom industry has before it hits its own ceiling.
-        measured: >-
-          Federal Reserve G.17: industrial production over an estimate of sustainable
-          maximum output. Monthly, ~16 days, capacity re-estimated annually.
-
-      - id: vacancies_per_unemployed
-        name: Job openings per unemployed person
-        status: in_set
-        horizon: medium
-        nature: cyclical
-        kind: official
-        enters: level
-        where: macrobond
-        code: JTSJOL / UNEMPLOY
-        refers: Labor market tightness — how many jobs chase each available worker.
-        measured: >-
-          JOLTS survey of ~21,000 establishments at ~33 days over the household
-          survey's unemployment level at ~6 days.
-
-      - id: cand_oil_inventory_tightness
-        name: Crude inventories vs 5-year average
-        status: candidate
-        preselect: false
-        horizon: medium
-        nature: cyclical
-        kind: official
-        enters: deviation
-        where: macrobond
-        code: WCESTUS1
-        refers: Physical tightness in the one input that has actually caused stagflation.
-        measured: >-
-          EIA mandatory weekly survey of refiners, terminals and pipelines, Wednesdays.
-          Commercial stocks only; the SPR is excluded deliberately.
-          Dropped September 2026: no measurable relationship with inflation ahead (+0.16, 95% [−0.06, +0.30] against core; −0.06 against headline), while carrying a fifth of the driver. Replaced by the EIA's forward gas balance, which looks ahead instead of at last week's tanks.
-
-      - id: unit_labour_costs_yoy
-        name: Unit labor costs
-        status: in_set
-        horizon: medium
-        nature: cyclical
-        kind: official
-        enters: change
-        where: macrobond
-        code: ULCNFB
-        refers: Labor cost per unit of output — where wage pressure becomes price pressure.
-        measured: >-
-          BLS Productivity and Costs — compensation per hour over output per hour.
-          Quarterly, and heavily revised because both halves move.
-
-      # Opens unticked, with the potential labor force revision in its place.
-      # The most news-bound input in supply: it turns in weeks and says nothing
-      # about whether the economy's capacity to produce is growing.
-      - id: cand_supply_chain_pressure
-        name: Global supply chain pressure
-        status: candidate
-        preselect: false
-        horizon: short
-        nature: news
-        kind: model
-        enters: level
-        where: macrobond
-        code: GSCPI
-        refers: Bottlenecks originating outside the domestic economy.
-        measured: >-
-          NY Fed index of global freight rates plus survey delivery times across seven
-          economies, with demand effects removed. Monthly, ~6 days.
-
-      - id: cand_productivity_yoy
-        name: Labor productivity
-        status: candidate
-        preselect: false
-        horizon: long
-        nature: cyclical
-        kind: official
-        enters: change
-        where: macrobond
-        code: OPHNFB
-        refers: >-
-          Output per hour. Meant as the structural term, but measured year over year
-          it is strongly procyclical — it rises in recoveries and falls in slowdowns,
-          so it tracks the cycle rather than the trend it was added to capture.
-        measured: >-
-          BLS, nonfarm business output over hours. Quarterly, among the most revised
-          series in macro.
-          Dropped September 2026: it scored +0.24 against core inflation a year out, the weakest real reading in the driver, flipped sign after 2012 (+0.34 to −0.16), and correlates 0.50 with unit labor costs, which is the same quantity net of wages and scores +0.74.
+      # --- Candidates.
 
       - id: cand_tfp
         name: Total factor productivity
@@ -724,9 +294,376 @@ drivers:
           accumulates into, and the set measures only the flow.
         measured: BEA fixed asset accounts over employment. Annual from 1925.
 
+      - id: cand_capex_to_depreciation
+        name: Capex-to-depreciation ratio, S&P 500
+        status: candidate
+        horizon: long
+        nature: structural
+        kind: company
+        enters: level
+        where: external
+        vendor: CIQ
+        refers: >-
+          Whether the corporate capital stock is growing or quietly eroding. Below
+          one, firms are not replacing what wears out.
+        measured: Aggregated capital expenditure over depreciation and amortisation, bottom-up.
+
+      # --- The stock that permanent income is actually drawn from. Not
+      # expectations, but not news either: these move over decades and set how
+      # much of any income change gets spent.
+      - id: cand_net_worth_to_income
+        name: Household net worth to disposable income
+        status: candidate
+        horizon: long
+        nature: structural
+        kind: official
+        enters: level
+        where: macrobond_check
+        refers: >-
+          The stock of household wealth relative to what households earn — the balance
+          sheet demand is spent from, rather than the flow of one month's income.
+        measured: >-
+          Federal Reserve Financial Accounts (Z.1) household balance sheet over BEA
+          disposable income. Quarterly. Drifts for decades rather than cycling.
+
+      - id: cand_labour_share
+        name: Labor share of national income
+        status: candidate
+        horizon: long
+        nature: structural
+        kind: official
+        enters: level
+        where: macrobond_check
+        refers: >-
+          How much of output reaches wages rather than profits. Wages are spent at a
+          far higher rate, so the split sets how much of any given growth rate turns
+          into demand at all.
+        measured: >-
+          BLS compensation over BEA gross value added, nonfarm business. Quarterly.
+          Fell for thirty years and has only partly retraced — a drift, not a wave.
+
+      - id: cand_intangible_share
+        name: Intellectual property share of investment
+        status: candidate
+        horizon: long
+        nature: structural
+        kind: official
+        enters: level
+        where: macrobond_check
+        refers: >-
+          Software, R&D and data as a share of total business investment. The capital
+          stock has been shifting from things that rust to things that don't for
+          thirty years, which changes how investment converts into capacity at all.
+        measured: BEA national accounts, IP products over total nonresidential investment. Quarterly.
+
+      - id: cand_net_debt_ebitda
+        name: Net debt / EBITDA, nonfinancial corporates
+        status: candidate
+        horizon: long
+        nature: structural
+        kind: company
+        enters: level
+        where: external
+        vendor: CIQ
+        refers: >-
+          Corporate leverage measured against earnings rather than GDP — which is why
+          it avoids the era bias that killed corporate debt/GDP in backtest.
+        measured: Aggregated from filings, by rating bucket. Quarterly.
+
+      # --- Parked: tested or dropped, kept so they can be put back.
+
+      - id: cand_hlw_trend_growth
+        name: Revision to trend growth inside r*
+        status: candidate
+        preselect: false
+        horizon: long
+        nature: structural
+        kind: model
+        enters: revision
+        where: macrobond
+        code: usfcst2426
+        refers: >-
+          How much the New York Fed has moved its estimate of the economy's trend
+          growth rate — the g that sits inside r*. The one candidate with NO
+          measurable echo of the past: it correlates +0.01 with growth already
+          published, against +0.44 for the CBO revision it replaces and +0.49 for the
+          analyst one, and it leads the unemployment gap by eighteen months. It is
+          not, however, demonstrably forward-looking — its correlation with the next
+          year's growth is +0.10, 95% [−0.03, +0.23], indistinguishable from zero.
+          The level already reaches v2 through the forward r minus g in fiscal. Note
+          that the New York Fed suspended publication for 32 months, from August 2020
+          to May 2023.
+        measured: >-
+          Holston-Laubach-Williams one-sided estimate, quarterly from 1961 — 262
+          readings against the CBO revision's 67, with 33 vintages in Macrobond.
+          Scored as the four-quarter change, which moves more than 0.05 points in 69%
+          of quarters. Caveat: the model is re-estimated each quarter, so the whole
+          filtered path shifts a little; this is the standard real-time reading, not
+          a strict vintage difference.
+
+      - id: cand_cbo_potential_revision
+        name: Revision to CBO potential GDP for 2035
+        status: candidate
+        preselect: false
+        horizon: long
+        nature: structural
+        kind: model
+        enters: revision
+        where: macrobond
+        code: usfcst1985
+        refers: >-
+          How much CBO has changed its estimate of what the economy will be capable of
+          producing in 2035 since it last published. Looks like the cleanest revision
+          in the set and is not: it correlates +0.44 with growth already published
+          when CBO writes, and only +0.21 with the growth of the year that follows.
+          CBO re-reads the recent past into its speed limit, so much of the series is
+          a slow echo of data the model has already scored. dropped for that reason —
+          though note the analyst revision that replaces it scores +0.49 on the same
+          backward test, so the swap is justified by frequency and by dropping a news
+          indicator, not by forward-lookingness.
+        measured: >-
+          CBO 10-Year Economic Projections, quarterly, currently running to 2036, with
+          67 vintages in the store. Target-dated rather than forecast-dated, so this
+          one needs the vintage-diff transform: this vintage's 2035 estimate less the
+          previous vintage's.
+
+      - id: cand_analyst_ltg
+        name: Revision to analysts' three-year outlook
+        status: candidate
+        preselect: false
+        horizon: long
+        nature: structural
+        kind: survey
+        enters: revision
+        where: bloomberg
+        code: SPX Index|BEST_EPS|3FY
+        vendor: Bloomberg BEst / IBES
+        refers: >-
+          The change in the three-year-ahead earnings analysts attach to the index —
+          the bottom-up version of the speed-limit question. Tested against the claim
+          that it is the forward-looking one, it fails: it correlates +0.49 with
+          growth already published, worse than the +0.44 of the CBO revision it was
+          meant to replace, and −0.08 with the next year's growth. It scores 4 points
+          better on the ex-post scorecard since 2003, but the interval on that gap is
+          [0.0, +11.5] — the backtest cannot separate the two. Read as the revision, and
+          not the expected growth rate, which is the natural reading and is
+          disqualified: measured from the near-term year, which is what collapses in a
+          recession, the rate rose through every recession in the sample — 2007 11.9 to
+          16.8, 2020 8.8 to 21.9, onset to six months in — and it follows the
+          unemployment gap by fourteen months. A ten-year earnings base fixes that sign
+          but still correlates +0.45 with past growth.
+        measured: >-
+          Consensus S&P 500 EPS for the third fiscal year out, monthly from 1990 — 438
+          readings. Scored as the 12-month percent revision, centred on +7.0 rather
+          than zero: it revises a nominal level that analysts mark up by 7% a year on
+          average, so an unchanged number is already bad news. Needs the
+          BEST_FPERIOD_OVERRIDE, or the horizon shortens as each year runs on.
+
+      - id: cand_sp_capex
+        name: Revision to consensus capex, S&P 500
+        status: candidate
+        preselect: false
+        horizon: medium
+        nature: cyclical
+        kind: survey
+        enters: revision
+        where: bloomberg
+        code: SPX Index|BEST_CAPEX
+        refers: >-
+          Whether analysts are marking up or cutting what firms will spend on capex
+          over the next year. A near-term echo of the three-year revision v2 scores.
+        measured: >-
+          Bloomberg consensus (BEst), blended 12-month forward, monthly from 2007. Up
+          53% on a year ago, the highest on record; low −29% in April 2009.
+
+      - id: cand_buybacks_vs_capex
+        name: Buyback authorizations vs capex
+        status: candidate
+        preselect: false
+        horizon: long
+        nature: structural
+        kind: company
+        enters: level
+        where: external
+        vendor: CIQ
+        refers: >-
+          The capital allocation choice — build something, or buy your own stock. The
+          shift toward buybacks has run for two decades and has not reverted; it is a
+          change in how corporate America uses cash, not a cyclical swing.
+        measured: Announced repurchase authorizations against reported capex, aggregated.
+
+      - id: cand_interest_coverage
+        name: Net interest coverage, IG and HY issuers
+        status: candidate
+        preselect: false
+        horizon: medium
+        nature: cyclical
+        kind: company
+        enters: level
+        where: external
+        vendor: CIQ
+        refers: >-
+          Whether firms earn enough to service debt and still fund investment. The
+          corporate analogue of the fiscal interest burden.
+        measured: EBIT over interest expense, aggregated by rating bucket. Quarterly.
+
+      # DROPPED from the set in September 2026, kept here so it can be put
+      # back. A payroll bump a household reads as temporary barely moves
+      # consumption, because spending follows expected lifetime resources
+      # rather than this month's income.
+      - id: cand_payrolls_3m_ann
+        name: Payroll growth, 3 months annualized
+        status: candidate
+        preselect: false
+        horizon: short
+        nature: news
+        kind: official
+        enters: change
+        where: macrobond
+        code: PAYEMS
+        refers: The pace at which the economy is adding jobs.
+        measured: >-
+          BLS establishment survey of ~119,000 businesses covering 630,000 worksites;
+          benchmarked annually to unemployment insurance tax records.
+
+      # Opens unticked. It reads the state of the economy today and nothing
+      # past it: average unemployment lasts about six months, so a claims print
+      # is absorbed within two quarters and carries no information about year
+      # five by construction.
+      - id: cand_jobless_claims_yoy
+        name: Initial jobless claims
+        status: candidate
+        preselect: false
+        horizon: short
+        nature: news
+        kind: official
+        enters: change
+        where: macrobond
+        code: IC4WSA
+        refers: New layoffs, the earliest turning-point signal in the set.
+        measured: >-
+          An administrative count of claims actually filed at state unemployment
+          offices — not a survey. Weekly, Thursdays, four-week average.
+
+      # Opens unticked. A good housing-cycle timer with a nine to twelve month
+      # lead, but purely cyclical.
+      - id: cand_building_permits_yoy
+        name: Building permits
+        status: candidate
+        preselect: false
+        horizon: medium
+        nature: cyclical
+        kind: official
+        enters: change
+        where: macrobond
+        code: PERMIT
+        refers: The earliest decision to build, in the most cyclical sector there is.
+        measured: Census survey of permit-issuing jurisdictions, monthly at ~21 days.
+
+      # --- Scored in v1 and not in v2.
+
+      - id: real_pce_yoy
+        name: Real consumer spending
+        status: v1
+        horizon: medium
+        nature: cyclical
+        kind: official
+        enters: change
+        where: macrobond
+        code: PCEC96
+        refers: Household spending on goods and services, inflation-adjusted — two thirds of GDP.
+        measured: >-
+          BEA combines Census retail sales, service-sector surveys and administrative
+          records, then deflates by the PCE price index. Monthly, about 30 days.
+
+      - id: spf_growth_revision
+        name: Revision to forecasters' 10-year GDP growth
+        status: v1
+        horizon: long
+        nature: structural
+        kind: survey
+        enters: revision
+        where: macrobond
+        code: usfcst0722
+        refers: >-
+          Whether professional forecasters have marked their view of the next decade's
+          growth up or down since last quarter. The level sits near 2% for years and
+          says nothing; the change in it is the economy being re-rated toward a
+          higher- or lower-growth world, and that re-rating is what moves expected
+          lifetime income. The growth twin of the 10-year CPI expectation the
+          inflation driver already carries.
+        measured: >-
+          Philadelphia Fed Survey of Professional Forecasters, ~35 respondents.
+          Macrobond labels it quarterly, but the ten-year questions are asked once a
+          year, so there is one new reading each Q1 and 34 in total since 1992.
+          Forecast-dated, so the revision is the change from the previous survey and
+          needs no new machinery — but it is an annual signal carried for twelve
+          months, which is the honest cost of reading this far ahead.
+
+      - id: retail_vs_staples
+        name: Retailers against consumer staples
+        status: v1
+        horizon: medium
+        nature: cyclical
+        kind: market
+        enters: change
+        where: bloomberg
+        code: S5RETL Index / S5CONS Index
+        vendor: Bloomberg
+        refers: >-
+          What the market pays for the companies households spend at, against the
+          ones they cannot stop spending at. A relative price, so the discount rate
+          largely divides out — both legs are valued off the same curve — leaving the
+          market's view of the consumer. It predicts real consumer spending a year
+          out at +0.29, 95% [+0.08, +0.51], leads spending by nine months, and keeps
+          adding information beyond simple persistence with the 2004–12 housing cycle
+          removed (partial +0.24, 95% [+0.02, +0.44]). Its two- and three-year
+          correlations are +0.08: this is a three-quarter signal and nothing longer.
+          Preferred over the 5y5y forward real rate, the other market-priced
+          candidate, which is the cleaner idea — the real rate the market sets for
+          years six to ten is its view of trend growth — but scores +0.07, 95%
+          [−0.27, +0.40], against consumer spending.
+        measured: >-
+          S&P 500 retailing industry group over the consumer staples sector, daily
+          from September 1989, scored as the 12-month percent change. Centred on +6.0
+          rather than zero, because retailers beat staples by six points a year on
+          average to 2019, so a flat year is already a downgrade of the consumer.
+
+      - id: vacancies_per_unemployed
+        name: Job openings per unemployed person
+        status: v1
+        horizon: medium
+        nature: cyclical
+        kind: official
+        enters: level
+        where: macrobond
+        code: JTSJOL / UNEMPLOY
+        refers: Labor market tightness — how many jobs chase each available worker.
+        measured: >-
+          JOLTS survey of ~21,000 establishments at ~33 days over the household
+          survey's unemployment level at ~6 days.
+
+      - id: cbo_lfpr_revision
+        name: Revision to CBO potential participation rate
+        status: v1
+        horizon: long
+        nature: structural
+        kind: model
+        enters: revision
+        where: macrobond
+        code: usfcst4766
+        refers: >-
+          The participation half of the same projection, isolated: how much of the
+          labor force view is people choosing to work rather than people existing.
+          Ageing pushes it down mechanically; childcare, health and wages push back.
+        measured: >-
+          CBO 10-Year Economic Projections, quarterly, running to 2036 with 22
+          vintages. Currently 62.0%. Target-dated, so the revision is a vintage diff.
+          In the set since September 2026, at 0.10 and on construct grounds only: Macrobond holds 22 vintages from 2019, which is too few to validate against anything. It correlates just +0.32 with the labor-force revision beside it, so it is not that reading twice.
+
       - id: energy_capex_revision
         name: Revision to energy majors' three-year capex plans
-        status: in_set
+        status: v1
         horizon: long
         nature: structural
         kind: survey
@@ -754,187 +691,494 @@ drivers:
           currently pinned at its clip at 62% year-on-year, where this reads +5% and
           still moves.
 
-      - id: cand_capex_revision
-        name: Revision to analysts' three-year capex plans, whole index
-        status: candidate
-        preselect: false
-        horizon: long
-        nature: structural
-        kind: survey
-        enters: revision
-        where: bloomberg
-        code: SPX Index|BEST_CAPEX|3FY
-        vendor: Bloomberg BEst
-        refers: >-
-          The K in Solow for the whole market rather than for energy. The best-evidenced
-          first link in the set: +0.46 against industrial capacity three years out, 95%
-          [+0.09, +0.69], point estimate between 0.41 and 0.60 in every subsample though
-          the interval clears zero in four of six. What is not shown is the rest of the
-          chain — capacity growth to core inflation is +0.16 and this measure to core
-          inflation is +0.22 at one year and −0.01 at three, none distinguishable from
-          zero. So it predicts capacity, not the constraint the driver scores.
-        measured: >-
-          Bloomberg consensus capex, third fiscal year out, monthly from December 2007.
-          Sits at the clip today: analysts have marked three-year capex up 62% in a year
-          against a pre-2019 range of −17 to +18, which is the AI cycle and is real (the
-          level went 99 to 259 since 2022 with no vendor break).
-
-      - id: cbo_labour_force_revision
-        name: Revision to CBO potential labor force
-        status: in_set
-        horizon: long
-        nature: structural
-        kind: model
-        enters: revision
+      - id: core_capex_orders_yoy
+        name: Core capital goods orders
+        status: v1
+        horizon: medium
+        nature: cyclical
+        kind: official
+        enters: change
         where: macrobond
-        code: usfcst0572
-        refers: >-
-          How much CBO has changed its view of how many people will be working in
-          2035. The L in Solow, as a projection that gets revised rather than a count
-          of who turned up last month — immigration policy and participation move it
-          years before they move anything measurable.
+        code: NEWORDER
+        refers: The earliest hard commitment to invest — an order is a contract.
         measured: >-
-          CBO Potential GDP and Underlying Inputs, annual, running to 2036 with 52
-          vintages. Target-dated, so the revision is a vintage diff.
+          Census M3 survey of ~5,000 manufacturers, ~27 days. Nondefense capital goods
+          excluding aircraft, because one wide-body order can swing a month.
 
-      - id: cbo_lfpr_revision
-        name: Revision to CBO potential participation rate
-        status: in_set
-        horizon: long
-        nature: structural
-        kind: model
-        enters: revision
+      - id: real_nonres_investment_yoy
+        name: Real business investment
+        status: v1
+        horizon: medium
+        nature: cyclical
+        kind: official
+        enters: change
         where: macrobond
-        code: usfcst4766
-        refers: >-
-          The participation half of the same projection, isolated: how much of the
-          labor force view is people choosing to work rather than people existing.
-          Ageing pushes it down mechanically; childcare, health and wages push back.
-        measured: >-
-          CBO 10-Year Economic Projections, quarterly, running to 2036 with 22
-          vintages. Currently 62.0%. Target-dated, so the revision is a vintage diff.
-          In the set since September 2026, at 0.10 and on construct grounds only: Macrobond holds 22 vintages from 2019, which is too few to validate against anything. It correlates just +0.32 with the labor-force revision beside it, so it is not that reading twice.
+        code: PNFIC1
+        refers: The actual capital spending, as against orders and intentions.
+        measured: BEA national accounts — structures, equipment and IP in chained volumes. Quarterly.
 
-      - id: cand_capex_to_depreciation
-        name: Capex-to-depreciation ratio, S&P 500
-        status: candidate
-        horizon: long
-        nature: structural
-        kind: company
-        enters: level
-        where: external
-        vendor: CIQ
-        refers: >-
-          Whether the corporate capital stock is growing or quietly eroding. Below
-          one, firms are not replacing what wears out.
-        measured: Aggregated capital expenditure over depreciation and amortisation, bottom-up.
-
-  monetary:
-    label: Monetary policy
-    items:
-      - id: taylor_gap
-        name: Fed funds less the Taylor rule rate
-        status: in_set
+      - id: excess_bond_premium
+        name: Excess bond premium
+        status: v1
         horizon: medium
         nature: cyclical
         kind: model
-        enters: spread
-        where: macrobond
-        code: FEDFUNDS, PCEPILFE, SEPLR
-        refers: How far the policy rate sits from what inflation and slack call for.
-        measured: >-
-          Effective funds rate less a rule built from core PCE, the unemployment gap
-          and r*. r* is the FOMC's own longer-run median, or HLW before 2012.
-
-      # Opens unticked. The shortest-horizon input in the driver: a weekly index
-      # of market prices that turns on news and says nothing about the stance
-      # policy is actually set at.
-      - id: cand_financial_conditions
-        name: Financial conditions index
-        status: candidate
-        preselect: false
-        horizon: short
-        nature: cyclical
-        kind: model
         enters: level
         where: macrobond
-        code: NFCI
-        refers: How tight or loose markets are, independently of the policy rate.
+        code: EBP
+        refers: >-
+          The price of bearing credit risk, kept as a level because it is mean zero by
+          construction and it is the level that forecasts investment.
         measured: >-
-          Chicago Fed, 105 financial series — spreads, volatility, leverage, funding —
-          in one weekly index, zero-centred by construction.
+          Gilchrist-Zakrajšek: thousands of individual corporate bond prices with each
+          issuer's modelled default risk removed. Mean zero by construction.
 
-      # Named without a comma: it is listed inside prose sentences on the page,
-      # where a comma in the name reads as another item in the list.
-      - id: yield_curve_slope
-        name: Yield curve slope
-        status: in_set
+      - id: equity_risk_premium
+        name: Change in equity risk premium
+        status: v1
         horizon: long
         nature: cyclical
         kind: market
-        enters: spread
+        enters: change
         where: macrobond
-        code: DGS10 − DGS1
+        code: CAPE, DGS10, EXPINF10YR
         refers: >-
-          The bond market's verdict on where the current stance leads. Long-dated in
-          content, but it is a cycle-timing tool: it inverts and re-steepens once per
-          cycle rather than drifting.
-        measured: Treasury constant-maturity yields from the daily par curve, monthly averages.
+          The hurdle a new project must clear to be financed with equity, read as a
+          change because its level carries decades of valuation drift.
+        measured: Inverse of the Shiller CAPE less a real 10-year yield. Monthly.
 
-      # Opens unticked. One measure of the stance is enough: this and the real
-      # rate below are both the Taylor gap with a term swapped, and all three
-      # move together. The anchor above is kept because it is the most complete.
-      - id: cand_taylor_gap_expected
-        name: Taylor gap on expected inflation
-        status: candidate
-        preselect: false
+      - id: hy_spread_change
+        name: Change in high yield spreads
+        status: v1
         horizon: medium
         nature: cyclical
-        kind: model
-        enters: spread
-        where: macrobond
-        code: EXPINF1YR
-        refers: The same rule, run on expected rather than realized inflation.
+        kind: market
+        enters: change
+        where: bloomberg
+        code: LF98OAS Index
+        refers: >-
+          The market repricing corporate credit risk, read as a change because it is
+          the repricing, not the level, that stops capex.
         measured: >-
-          Cleveland Fed 1-year expected inflation substituted for core PCE, so it is
-          available weeks earlier.
+          Bloomberg US Corporate High Yield OAS, daily from 1994, currently 267bp,
+          peak 1,971bp in December 2008. Bloomberg's index rather than ICE BofA's;
+          the two track closely.
 
-      - id: balance_sheet_impulse
-        name: Fed securities held, 3-year annualized change
+      - id: capital_age
+        name: Average age of the capital stock
+        status: v1
+        horizon: long
+        nature: structural
+        kind: official
+        enters: level
+        where: macrobond
+        code: bea001_106e1ptotl1es00_a
+        refers: >-
+          How old the equipment American firms actually work with. It rises when
+          investment is not keeping up with retirement, and it is the cleanest single
+          answer to whether the country is re-equipping itself — capex flows tell you
+          what was spent, this tells you what it added up to.
+        measured: >-
+          BEA current-cost average age of private fixed assets, equipment, annual from
+          1925. Slow and annual, which is the point: it drifts for decades rather than
+          cycling.
+
+
+  inflation:
+    label: Inflation
+    items:
+      # --- Scored in v2.
+
+      - id: m2_growth_3y
+        name: M2 money supply, three-year annualized growth
         status: in_set
         horizon: medium
         nature: cyclical
         kind: official
         enters: change
         where: macrobond
-        code: WSHOSHO / GDPNOM
+        code: M2SL
         refers: >-
-          Quantitative easing and tightening — the stance a policy rate cannot show.
-          Proposed change: read over three years annualized rather than twelve months.
-          QE and QT run for years, and a one-year window turns a single multi-year
-          program into a run of on-and-off pulses that whipsaw the driver.
-        measured: >-
-          H.4.1 weekly balance sheet, Thursdays. Securities held outright rather than
-          total assets, which also swing with repo and emergency facilities. The
-          three-year window needs a transform the model does not have yet.
+          Spending power. When money grows much faster than the economy, the excess
+          eventually chases goods and services; it is also where Fed easing and deficit
+          financing meet, since both create deposits. Strongest when inflation is already
+          elevated, weak when money sits idle in bank reserves, as in 2009.
+        measured: Fed H.6 money stock, seasonally adjusted, monthly from 1947.
 
-      # Opens unticked, for the same reason: the Taylor gap without the rule's
-      # coefficients. A useful cross-check when the driver had room for it, but
-      # a third reading of one stance crowds out everything else.
-      - id: cand_real_fed_funds
-        name: Real fed funds less neutral
+      - id: house_prices_3y
+        name: House prices, three-year annualized growth
+        status: in_set
+        horizon: medium
+        nature: cyclical
+        kind: official
+        enters: change
+        where: macrobond
+        code: CSUSHPISA
+        refers: >-
+          Shelter is the largest slow-moving part of core inflation, and rents follow
+          house prices with a lag of a year or more as leases reset. Misleads when a boom
+          ends in a bust, as in 2006.
+        measured: S&P CoreLogic Case-Shiller national index, seasonally adjusted, monthly from 1975.
+
+      - id: wage_growth_3y
+        name: Average hourly earnings, three-year annualized growth
+        status: in_set
+        horizon: medium
+        nature: cyclical
+        kind: official
+        enters: change
+        where: macrobond
+        code: AHE_PROD
+        refers: >-
+          Tight labor reaching prices through labor costs. Read over three years so it
+          describes the trend, and so composition swings such as spring 2020 count for
+          less. Wages also follow past inflation, so part of the signal is persistence.
+        measured: >-
+          BLS average hourly earnings of production and nonsupervisory workers, total
+          private, monthly. Chosen over the unemployment gap, whose link to later
+          inflation disappears after 1995, and job openings per unemployed worker, which
+          start only in 2000.
+
+      - id: underlying_inflation_gap
+        name: Core PCE inflation less forecasters' 10-year CPI
+        status: in_set
+        horizon: medium
+        nature: cyclical
+        kind: official
+        enters: spread
+        where: macrobond
+        code: PCEPILFE − SPFCPI10
+        refers: >-
+          Where inflation starts relative to the anchor: the largest weight in the driver,
+          31.25%, and the most short-term of the pressure readings, since such gaps tend
+          to close within a couple of years.
+        measured: >-
+          Core PCE year over year less the Survey of Professional Forecasters' ten-year
+          CPI; before the survey, the Fed's FRB/US long-run expectations put on its basis.
+
+      - id: breakeven_5y5y
+        name: 5-year inflation, 5 years forward
+        status: in_set
+        horizon: long
+        nature: structural
+        kind: market
+        enters: level
+        where: macrobond
+        code: T5YIFR
+        refers: The inflation rate priced for years six to ten — the anchor itself.
+        measured: >-
+          Computed from the Treasury curve: nominal less TIPS at ten and five years,
+          with the first five stripped out. Daily, never revised.
+
+      - id: cleveland_10y
+        name: Cleveland Fed 10-year expected inflation
+        status: in_set
+        horizon: long
+        nature: structural
+        kind: model
+        enters: level
+        where: macrobond
+        code: EXPINF10YR
+        refers: Expected inflation with risk and liquidity premia removed.
+        measured: >-
+          A model blending Treasury yields, inflation swaps and surveys. Monthly,
+          published before the month ends; re-estimated, so it revises.
+
+      - id: inflation_risk_premium
+        name: Inflation risk premium
+        status: in_set
+        horizon: long
+        nature: cyclical
+        kind: model
+        enters: level
+        where: macrobond
+        code: INFRISKPREM
+        refers: >-
+          What investors charge for bearing inflation uncertainty, as distinct from
+          expecting it. Long-dated in content, but it widens and narrows with stress.
+        measured: >-
+          The residual from the Cleveland Fed decomposition — a breakeven less
+          expected inflation. Monthly.
+
+      # --- Candidates.
+
+      - id: cand_inflation_swaps
+        name: Inflation swap curve, 5y5y and 10y
+        status: candidate
+        horizon: long
+        nature: structural
+        kind: market
+        enters: level
+        where: external
+        vendor: CIQ
+        refers: Market-priced inflation across the term structure.
+        measured: >-
+          Zero-coupon inflation swap quotes. More liquid than TIPS breakevens and
+          free of the liquidity premium that distorts them in stress.
+
+      - id: cand_atlanta_bie
+        name: Atlanta Fed business inflation expectations
+        status: candidate
+        horizon: medium
+        nature: structural
+        kind: survey
+        enters: level
+        where: macrobond_check
+        refers: >-
+          What firms — the people who actually set prices — expect their own unit
+          costs to do. The one constituency the driver never asks.
+        measured: >-
+          Atlanta Fed panel of ~300 businesses, asked about unit cost expectations a
+          year ahead. Monthly since 2011.
+
+      - id: cand_nyfed_sce
+        name: NY Fed Survey of Consumer Expectations, 3-year
+        status: candidate
+        horizon: medium
+        nature: cyclical
+        kind: survey
+        enters: level
+        where: macrobond_check
+        refers: Household expectations at a medium-term horizon.
+        measured: >-
+          NY Fed rotating panel of ~1,300 households, better designed than Michigan
+          and asked at three years. Monthly since 2013.
+
+      - id: cand_consensus_lt_cpi
+        name: Consensus Economics long-run CPI
+        status: candidate
+        horizon: long
+        nature: structural
+        kind: survey
+        enters: level
+        where: external
+        vendor: vendor
+        refers: A second forecaster panel, to check SPF rather than rely on it alone.
+        measured: Consensus Economics or Blue Chip survey, semi-annual at long horizons.
+
+      # --- Parked: tested or dropped, kept so they can be put back.
+
+      - id: cand_trimmed_mean
+        name: Trimmed-mean PCE
         status: candidate
         preselect: false
+        horizon: medium
+        nature: cyclical
+        kind: official
+        enters: change
+        where: macrobond_check
+        refers: The persistent core of realized inflation, with the tails cut off.
+        measured: >-
+          Dallas Fed trims the most extreme price changes each month. Scored in v2 until
+          October 2026, when core PCE replaced it: the trim drops a shock such as tariffs,
+          which matters when the question is whether that shock spreads. On its own it
+          predicted the next three years slightly better (+0.53 against +0.49, 1971-2023);
+          the model as a whole did slightly better on core.
+
+      - id: cand_oil_inventory_tightness
+        name: Crude inventories vs 5-year average
+        status: candidate
+        preselect: false
+        horizon: medium
+        nature: cyclical
+        kind: official
+        enters: deviation
+        where: macrobond
+        code: WCESTUS1
+        refers: Physical tightness in the one input that has actually caused stagflation.
+        measured: >-
+          EIA mandatory weekly survey of refiners, terminals and pipelines, Wednesdays.
+          Commercial stocks only; the SPR is excluded deliberately.
+          Dropped September 2026: no measurable relationship with inflation ahead (+0.16, 95% [−0.06, +0.30] against core; −0.06 against headline), while carrying a fifth of the driver. Replaced by the EIA's forward gas balance, which looks ahead instead of at last week's tanks.
+
+      # Opens unticked. Turns in weeks and says nothing about whether the
+      # economy's capacity to produce is growing.
+      - id: cand_supply_chain_pressure
+        name: Global supply chain pressure
+        status: candidate
+        preselect: false
+        horizon: short
+        nature: news
+        kind: model
+        enters: level
+        where: macrobond
+        code: GSCPI
+        refers: Bottlenecks originating outside the domestic economy.
+        measured: >-
+          NY Fed index of global freight rates plus survey delivery times across seven
+          economies, with demand effects removed. Monthly, ~6 days.
+
+      - id: cand_productivity_yoy
+        name: Labor productivity
+        status: candidate
+        preselect: false
+        horizon: long
+        nature: cyclical
+        kind: official
+        enters: change
+        where: macrobond
+        code: OPHNFB
+        refers: >-
+          Output per hour. Meant as the structural term, but measured year over year
+          it is strongly procyclical — it rises in recoveries and falls in slowdowns,
+          so it tracks the cycle rather than the trend it was added to capture.
+        measured: >-
+          BLS, nonfarm business output over hours. Quarterly, among the most revised
+          series in macro.
+          Dropped September 2026: it scored +0.24 against core inflation a year out, the weakest real reading in the driver, flipped sign after 2012 (+0.34 to −0.16), and correlates 0.50 with unit labor costs, which is the same quantity net of wages and scores +0.74.
+
+      # --- Scored in v1 and not in v2.
+
+      - id: spf_long_run
+        name: Professional forecasters, 10-year CPI
+        status: v1
+        horizon: long
+        nature: structural
+        kind: survey
+        enters: level
+        where: macrobond
+        code: SPFCPI10
+        refers: >-
+          What professional forecasters expect inflation to average over a decade.
+          Stays a level, and keeps half its weight since September 2026: an anchor is a statement about
+          where expectations sit against 2%, so a revision alone would score
+          expectations stuck at 4% as neutral the moment they stopped moving. The
+          other half goes to the revision below — the two correlate −0.14 and
+          disagree in sign in 51% of quarters, so they are not one reading twice.
+        measured: >-
+          Philadelphia Fed survey of ~35 forecasters, quarterly since 1968, published
+          mid-quarter. Centred on 2.3 because it forecasts CPI, not PCE.
+
+      # The revision half of the row above, added alongside it rather than in
+      # place of it. Neither version forecasts realised inflation, so there is
+      # nothing to gain by trading the level away; what the revision adds is
+      # the moment the anchor moves, which a level travelling between 2.1 and
+      # 2.6 for thirty years cannot show.
+      - id: spf_cpi_revision
+        name: Revision to forecasters' 10-year CPI
+        status: v1
+        horizon: long
+        nature: structural
+        kind: survey
+        enters: revision
+        where: macrobond
+        code: SPFCPI10
+        refers: >-
+          The anchor moving rather than where it sits. Ran +0.48 through 2022 as
+          forecasters marked the decade up, then −0.63 through 2023 as they took it
+          back — both invisible in a level that never left a half-point band. Small
+          Held at the same weight as the level, not more: it reads zero when
+          expectations are merely wrong and stable, which is the one thing a
+          de-anchoring measure must not miss.
+        measured: >-
+          Same Philadelphia Fed survey, scored as the four-quarter change: one
+          quarter's revision moves more than 0.1 points only a quarter of the time,
+          a year's accumulated revision about half the time.
+
+      - id: umich_1y
+        name: Household expectations, 1 year
+        status: v1
+        horizon: short
+        nature: news
+        kind: survey
+        enters: level
+        where: macrobond
+        code: MICH
+        refers: What households expect prices to do over the next twelve months.
+        measured: >-
+          University of Michigan, ~600 households by phone and web. Centred on 3.0
+          because households have always reported above realized inflation.
+
+      - id: wage_growth_yoy
+        name: Employment cost index, wages
+        status: v1
+        horizon: medium
+        nature: cyclical
+        kind: official
+        enters: change
+        where: macrobond
+        code: ECIWAG
+        refers: What the labor market pays, holding the mix of jobs constant.
+        measured: >-
+          BLS National Compensation Survey, ~27,000 establishments, quarterly at ~30
+          days. Fixed-weight, so it prices the same occupations each quarter.
+
+      - id: unit_labour_costs_yoy
+        name: Unit labor costs
+        status: v1
+        horizon: medium
+        nature: cyclical
+        kind: official
+        enters: change
+        where: macrobond
+        code: ULCNFB
+        refers: Labor cost per unit of output — where wage pressure becomes price pressure.
+        measured: >-
+          BLS Productivity and Costs — compensation per hour over output per hour.
+          Quarterly, and heavily revised because both halves move.
+
+
+  monetary:
+    label: Monetary stance
+    items:
+      # --- Scored in v2.
+
+      - id: yield_curve
+        name: 10-year Treasury yield less fed funds
+        status: in_set
+        horizon: medium
+        nature: cyclical
+        kind: market
+        enters: spread
+        where: macrobond
+        code: DGS10 − FEDFUNDS
+        refers: >-
+          The 10-year is roughly the market's forecast of short rates over the next decade.
+          Below fed funds, the market expects the Fed to cut, usually because it has
+          tightened enough to slow the economy, and banks that borrow short and lend long
+          tighten credit. Inverted reads as tight.
+        measured: >-
+          Monthly averages, read against the policy rate itself. v1 used the 10-year less
+          the 1-year.
+
+      - id: hiking_pace_3y
+        name: Change in fed funds over three years, per year
+        status: in_set
+        horizon: medium
+        nature: cyclical
+        kind: official
+        enters: change
+        where: macrobond
+        code: FEDFUNDS
+        refers: >-
+          How hard the Fed has tightened. Policy works with long lags, so a large
+          cumulative hike keeps squeezing housing, investment and credit for a year or two
+          after the last move. The 2004-06 cycle read 1.26 points a year by June 2006 and
+          came before 2008; the 1994 cycle, 0.75 a year by June 1995, ended softly.
+        measured: >-
+          Effective funds rate, three-year change, per year. Direction rather than level,
+          so a fall from a very high rate reads as loose even if policy is still tight, as
+          in 1983.
+
+      - id: real_rate_gap
+        name: Real fed funds less the neutral rate
+        status: in_set
         horizon: medium
         nature: cyclical
         kind: model
         enters: spread
         where: macrobond
-        code: FEDFUNDS, PCEPILFE
-        refers: The policy rate in real terms against an estimate of neutral.
+        code: FEDFUNDS, PCEPILFE, SEPLR, HLWRSTAR
+        refers: >-
+          Policy restrains only when the real rate sits above neutral, the rate that
+          neither speeds up nor slows the economy. A check that does not depend on the
+          Taylor rule's coefficients.
         measured: >-
-          Funds rate less core PCE inflation less r*. A check that does not depend on
-          the Taylor rule's coefficients.
+          Funds rate less core PCE inflation less neutral: the FOMC's longer-run median
+          less 2% from 2012, the New York Fed's one-sided Holston-Laubach-Williams estimate
+          before. Both are uncertain by a point or more.
+
+      # --- Candidates.
 
       - id: cand_r_star
         name: Neutral real rate, r*
@@ -952,80 +1196,6 @@ drivers:
         measured: >-
           Holston-Laubach-Williams or Lubik-Matthes model estimate, quarterly. Highly
           uncertain, which is itself worth having on screen.
-
-      # --- Has the target been delivered, and do people believe it will be?
-      # The rest of this driver measures how tight policy is. None of it
-      # measures whether policy is believed, which is what decides whether a
-      # given stance is enough. The real 10-year TIPS yield was dropped from
-      # here: the 5y5y forward real rate in demand now covers it better.
-
-      - id: target_miss_rate
-        name: Share of the last 36 months off target
-        status: in_set
-        horizon: long
-        nature: structural
-        kind: official
-        enters: level
-        where: macrobond
-        code: PCEPILFE
-        refers: >-
-          The track record: how much of the last three years core inflation spent
-          outside a 1.5–2.5% band. A central bank that has missed for three years is
-          believed less than one that has not, whatever its current stance.
-        measured: >-
-          Rolling share computed from core PCE, already in the set. Needs a
-          share-outside-a-band transform the model does not have yet.
-
-      - id: inflation_volatility
-        name: Inflation volatility, 36 months
-        status: in_set
-        horizon: long
-        nature: structural
-        kind: official
-        enters: level
-        where: macrobond
-        code: PCEPILFE
-        refers: >-
-          How steady inflation has been, not where it sat. Distinct from the miss
-          rate: through the 2010s inflation was persistently below target but very
-          stable, a credible undershoot. In 2021–23 it was both off target and
-          violent, which is a different regime entirely.
-        measured: >-
-          Rolling standard deviation of core PCE year-over-year over 36 months.
-          Needs a rolling-volatility transform.
-
-      - id: forecaster_disagreement
-        name: Forecaster disagreement on inflation
-        status: in_set
-        horizon: medium
-        nature: cyclical
-        kind: survey
-        enters: level
-        where: macrobond
-        code: usfcst2854
-        refers: >-
-          How far apart professional forecasters are on inflation. Agreement is what
-          an anchor looks like from the outside; when forecasters scatter, nobody is
-          sure what the central bank will tolerate.
-          Caution — the published dispersion is four quarters ahead, not ten years,
-          so some of it is uncertainty about oil rather than about the anchor.
-          Long-run dispersion would be better and is not published here.
-        measured: >-
-          Philadelphia Fed SPF cross-sectional dispersion, GDP price index four
-          quarters ahead, quarterly from 1968 with 30 vintages.
-
-      - id: cand_term_premium
-        name: Term premium
-        status: candidate
-        horizon: long
-        nature: cyclical
-        kind: model
-        enters: level
-        where: macrobond_check
-        refers: The part of the long yield that is compensation rather than expectation.
-        measured: >-
-          Adrian-Crump-Moench or Kim-Wright model estimate. The same decomposition
-          already applied to inflation, applied to rates.
 
       - id: cand_broad_dollar
         name: Broad dollar index
@@ -1068,93 +1238,268 @@ drivers:
           one that SLOOS and the excess bond premium both miss entirely.
         measured: BDC portfolio marks and reported yields. Quarterly, a ~$1.7tn market.
 
-  fiscal:
-    label: Fiscal policy
-    items:
-      # Opens unticked: the three-year change and the impulse carry the stance.
-      - id: cand_primary_balance_gdp
-        name: Primary balance
+      # --- Parked: tested or dropped, kept so they can be put back.
+
+      # Opens unticked. A weekly index of market prices that turns on news and
+      # says nothing about the stance policy is actually set at.
+      - id: cand_financial_conditions
+        name: Financial conditions index
         status: candidate
         preselect: false
-        horizon: medium
+        horizon: short
         nature: cyclical
-        kind: official
+        kind: model
         enters: level
         where: macrobond
-        code: MTSBAL, MTSNETINT
-        refers: The deficit with interest added back — what government is choosing now.
+        code: NFCI
+        refers: How tight or loose markets are, independently of the policy rate.
         measured: >-
-          Monthly Treasury Statement cash receipts and outlays at ~12 days, essentially
-          never revised, summed over twelve months over nominal GDP.
+          Chicago Fed, 105 financial series — spreads, volatility, leverage, funding —
+          in one weekly index, zero-centred by construction.
 
-      - id: fiscal_impulse
-        name: Fiscal impulse
-        status: in_set
-        horizon: medium
-        nature: cyclical
-        kind: official
-        enters: change
-        where: macrobond
-        code: MTSBAL, MTSNETINT
-        refers: The direction of fiscal support, since demand responds to the change.
-        measured: The twelve-month change in the primary balance, in percentage points of GDP.
-
-      # Opens unticked as a row of its own, but not discarded: r minus g is the
-      # input to the debt-stabilising balance below, which is a more legible
-      # number than the spread on its own.
-      - id: cand_debt_sustainability_gap
-        name: 10-year yield less nominal GDP growth
+      # Opens unticked. A quarterly survey of what banks say they will do.
+      - id: cand_ci_lending_standards
+        name: Banks tightening lending standards
         status: candidate
         preselect: false
+        horizon: medium
+        nature: cyclical
+        kind: survey
+        enters: level
+        where: macrobond
+        code: DRTSCILM
+        refers: Whether credit is available at all, as distinct from what it costs.
+        measured: >-
+          Federal Reserve survey of ~80 large banks, quarterly, published before the
+          quarter ends. Net percentage tightening minus easing.
+
+      # --- Scored in v1 and not in v2.
+
+      # Named without a comma: it is listed inside prose sentences on the page,
+      # where a comma in the name reads as another item in the list.
+      - id: yield_curve_slope
+        name: Yield curve slope
+        status: v1
         horizon: long
-        nature: structural
+        nature: cyclical
         kind: market
         enters: spread
         where: macrobond
-        code: DGS10 − GDPNOM
-        refers: r minus g — whether debt compounds on its own or erodes.
-        measured: >-
-          The 10-year yield less five-year annualized nominal growth. Five years, not
-          one: a one-year window spiked to +7.5 in 2020 and said fiscal room had gone.
+        code: DGS10 − DGS1
+        refers: >-
+          The bond market's verdict on where the current stance leads. Long-dated in
+          content, but it is a cycle-timing tool: it inverts and re-steepens once per
+          cycle rather than drifting.
+        measured: Treasury constant-maturity yields from the daily par curve, monthly averages.
 
-      - id: interest_burden_gdp
-        name: Net interest outlays
-        status: in_set
-        horizon: long
-        nature: structural
-        kind: official
-        enters: level
-        where: macrobond
-        code: MTSNETINT
-        refers: Debt service as a claim on the budget.
-        measured: Monthly Treasury Statement interest paid net of received, twelve-month sum over GDP.
-
-      - id: cand_debt_trajectory
-        name: Debt held by the public, 12-month change
-        status: candidate
-        preselect: false
+      - id: balance_sheet_impulse
+        name: Fed securities held, 3-year annualized change
+        status: v1
         horizon: medium
-        nature: structural
+        nature: cyclical
         kind: official
         enters: change
         where: macrobond
-        code: DEBTPUB
-        refers: What the debt ratio actually did, against what r−g says it should.
+        code: WSHOSHO / GDPNOM
+        refers: >-
+          Quantitative easing and tightening — the stance a policy rate cannot show.
+          Proposed change: read over three years annualized rather than twelve months.
+          QE and QT run for years, and a one-year window turns a single multi-year
+          program into a run of on-and-off pulses that whipsaw the driver.
         measured: >-
-          Fed Financial Accounts (Z.1), quarterly at ~73 days — the slowest release in
-          the set. Dropped September 2026, because it correlated 0.68 with the fiscal
-          impulse beside it, so the driver was reading the same deficit twice, and it is
-          the weaker of the two against the debt path.
+          H.4.1 weekly balance sheet, Thursdays. Securities held outright rather than
+          total assets, which also swing with repo and emergency facilities. The
+          three-year window needs a transform the model does not have yet.
 
-      - id: locked_in_refinancing
-        name: Interest cost already locked in
+
+  credibility:
+    label: Monetary credibility
+    items:
+      # --- Scored in v2.
+
+      - id: taylor_gap
+        name: Fed funds less the Taylor rule rate
+        status: in_set
+        horizon: medium
+        nature: cyclical
+        kind: model
+        enters: spread
+        where: macrobond
+        code: FEDFUNDS, PCEPILFE, SEPLR
+        refers: How far the policy rate sits from what inflation and slack call for.
+        measured: >-
+          Effective funds rate less a rule built from core PCE, the unemployment gap
+          and r*. r* is the FOMC's own longer-run median, or HLW before 2012.
+
+      - id: target_miss_rate
+        name: Share of the last 36 months off target
         status: in_set
         horizon: long
         nature: structural
         kind: official
         enters: level
         where: macrobond
-        code: AVGMAT, DGS5, MTSNETINT, DEBTPUB, GDPNOM
+        code: PCEPILFE
+        refers: >-
+          The track record: how much of the last three years core inflation spent
+          outside a 1.5–2.5% band. A central bank that has missed for three years is
+          believed less than one that has not, whatever its current stance.
+        measured: >-
+          Rolling 36-month share computed from core PCE, already in the set. Off target
+          in 8% of months by June 2006; in every month by December 2024.
+
+      - id: inflation_volatility
+        name: Inflation volatility, 36 months
+        status: in_set
+        horizon: long
+        nature: structural
+        kind: official
+        enters: level
+        where: macrobond
+        code: PCEPILFE
+        refers: >-
+          How steady inflation has been, not where it sat. Distinct from the miss
+          rate: through the 2010s inflation was persistently below target but very
+          stable, a credible undershoot. In 2021–23 it was both off target and
+          violent, which is a different regime entirely.
+        measured: >-
+          Rolling standard deviation of core PCE year-over-year over 36 months: 1.8
+          points in December 2022, against 0.17 in June 2019.
+
+      - id: forecaster_disagreement
+        name: Forecaster disagreement on inflation
+        status: in_set
+        horizon: medium
+        nature: cyclical
+        kind: survey
+        enters: level
+        where: macrobond
+        code: usfcst2854
+        refers: >-
+          How far apart professional forecasters are on inflation. Agreement is what
+          an anchor looks like from the outside; when forecasters scatter, nobody is
+          sure what the central bank will tolerate.
+          Caution — the published dispersion is four quarters ahead, not ten years,
+          so some of it is uncertainty about oil rather than about the anchor.
+          Long-run dispersion would be better and is not published here.
+        measured: >-
+          Philadelphia Fed SPF cross-sectional dispersion, GDP price index four
+          quarters ahead, quarterly from 1968 with 30 vintages.
+
+      # --- Candidates.
+
+      - id: cand_inflation_options
+        name: Inflation cap/floor implied distribution
+        status: candidate
+        horizon: long
+        nature: structural
+        kind: market
+        enters: level
+        where: external
+        vendor: CIQ / dealer
+        refers: >-
+          The market-implied probability of inflation above 3% or below 1% — the
+          tails rather than the mean, which is what "anchored" actually means.
+        measured: Backed out of inflation option prices across strikes. Daily.
+
+      - id: cand_term_premium
+        name: Term premium
+        status: candidate
+        horizon: long
+        nature: cyclical
+        kind: model
+        enters: level
+        where: macrobond_check
+        refers: The part of the long yield that is compensation rather than expectation.
+        measured: >-
+          Adrian-Crump-Moench or Kim-Wright model estimate. The same decomposition
+          already applied to inflation, applied to rates.
+
+      # --- Parked: tested or dropped, kept so they can be put back.
+
+      # Opens unticked. The same rule with one term swapped, so it would read the
+      # Taylor gap twice.
+      - id: cand_taylor_gap_expected
+        name: Taylor gap on expected inflation
+        status: candidate
+        preselect: false
+        horizon: medium
+        nature: cyclical
+        kind: model
+        enters: spread
+        where: macrobond
+        code: EXPINF1YR
+        refers: The same rule, run on expected rather than realized inflation.
+        measured: >-
+          Cleveland Fed 1-year expected inflation substituted for core PCE, so it is
+          available weeks earlier.
+
+
+  fiscal:
+    label: Fiscal policy
+    items:
+      # --- Scored in v2.
+
+      - id: capb_3y_change
+        name: Cyclically adjusted primary balance, three-year change
+        status: in_set
+        horizon: medium
+        nature: structural
+        kind: model
+        enters: change
+        where: macrobond
+        code: OECD_CAPB
+        refers: >-
+          Fiscal impulse with the cycle taken out. The primary balance is revenue less
+          non-interest spending; the OECD strips out what the business cycle does to it on
+          its own, leaving the part set by policy. A falling balance reads as policy adding
+          to demand.
+        measured: >-
+          OECD Economic Outlook, general government, % of potential GDP, annual; the latest
+          years are its estimates. Three-year change, per year.
+
+      - id: outlays_vs_receipts
+        name: Federal outlays growth less receipts growth, three years
+        status: in_set
+        horizon: medium
+        nature: cyclical
+        kind: official
+        enters: spread
+        where: macrobond
+        code: MTSOUTLAYS, MTSRECEIPTS
+        refers: >-
+          Spending outrunning revenue widens the deficit and adds to demand; revenue
+          outrunning spending, as with higher tariffs or tax receipts, takes demand out.
+        measured: >-
+          Monthly Treasury Statement, twelve-month sums, annualized growth over three years
+          of each, one less the other.
+
+      - id: forward_r_minus_g
+        name: 10-year yield less expected nominal growth
+        status: in_set
+        horizon: long
+        nature: structural
+        kind: model
+        enters: spread
+        where: macrobond
+        code: DGS10, HLW_TREND_G, SPFCPI10_LONG
+        refers: >-
+          r minus g looking forward. Below zero the debt ratio can fall without being
+          repaid; above it, it rises unless the budget is in primary surplus. Forward-looking
+          on both sides, so neither old cheap debt nor a burst of inflation flatters it.
+        measured: >-
+          The 10-year yield less the New York Fed's trend growth plus forecasters' ten-year
+          CPI, less 0.3 for CPI running above the GDP price index.
+
+      - id: repricing_drift
+        name: Rise in the interest bill as the debt rolls over
+        status: in_set
+        horizon: medium
+        nature: structural
+        kind: official
+        enters: level
+        where: macrobond
+        code: AVGMAT_PRIV, DGS5, MTSNETINT, DEBTPUB, GDPNOM
         refers: >-
           What the debt already outstanding will cost as it rolls over at today's
           yields, in points of GDP a year. Arithmetic, not a forecast: a sixth of the
@@ -1165,8 +1510,8 @@ drivers:
           (−0.18 to −0.05, debt rolling into cheaper rates) and turns positive in 2022.
         measured: >-
           (12 / average maturity) × (5-year yield − interest paid over the last 12
-          months as a share of debt) × (debt / GDP). Monthly from 2000, limited by the
-          maturity series. Centred on zero, not on its own average: zero means the debt
+          months as a share of debt) × (debt / GDP). Scored in v1 too, under the name
+          interest cost already locked in. Centred on zero, not on its own average: zero means the debt
           rolls at the rate it already pays, while the 2000–19 mean of −0.04 is an
           artefact of a twenty-year bond bull market.
           PREFERRED OVER the two obvious alternatives, both of which are spurious. The
@@ -1175,52 +1520,26 @@ drivers:
           against rising debt. Average maturity scores −0.44 and FLIPS to +0.80 after
           2012, when the Treasury termed out while deficits grew.
 
-      - id: primary_balance_3y
-        name: Primary balance, 3-year change
+      - id: federal_investment_share
+        name: Federal investment share of non-interest spending
         status: in_set
-        horizon: medium
-        nature: structural
-        kind: official
-        enters: change
-        where: macrobond
-        code: MTSBAL, MTSNETINT
-        refers: >-
-          How far the government's stance has moved over a full policy cycle rather
-          than over one tax year. Three years spans a budget and its follow-through,
-          so it reads as sustained posture instead of a run of one-off cheques and
-          filing-season noise.
-        measured: >-
-          The same Monthly Treasury Statement primary balance already in the set,
-          differenced over 36 months rather than 12. Needs a three-year change
-          transform.
-
-      - id: cand_cyclically_adjusted_pb
-        name: Cyclically adjusted primary balance
-        status: candidate
-        horizon: medium
-        nature: structural
-        kind: model
-        enters: level
-        where: macrobond_check
-        refers: >-
-          The fiscal stance with the automatic stabilizers taken out — what was
-          decided, rather than what the cycle did to the budget. It is the structural
-          balance by construction, which is exactly what the raw one is not.
-        measured: CBO or OECD estimate of the balance at potential output. Annual, with quarterly interpolations.
-
-      - id: cand_public_investment_share
-        name: Federal investment vs transfers
-        status: candidate
         horizon: long
         nature: structural
         kind: official
-        enters: level
-        where: macrobond_check
+        enters: deviation
+        where: macrobond
+        code: FEDGROSSINV, FED_CONSUMPTION, FED_BENEFITS, FED_GRANTS, FED_SUBSIDIES
         refers: >-
           The split between spending that adds to the capital stock and spending that
           transfers income. Only the first enters Solow's K; the two have different
-          multipliers and completely different long-run effects.
-        measured: BEA government gross investment and current transfers, quarterly.
+          multipliers and completely different long-run effects. A quarter of fiscal, the
+          long-run part, kept by design.
+        measured: >-
+          BEA federal gross investment over non-interest spending, quarterly, against
+          its own ten-year average: the share has fallen from about 20% in the 1960s to
+          under 7%, so a fixed norm would read low whatever policy did.
+
+      # --- Candidates.
 
       - id: cand_cbo_projections
         name: CBO 10-year deficit projections, vintage-tracked
@@ -1262,9 +1581,140 @@ drivers:
           Treasury quarterly refunding and auction results. Bill-heavy funding is very
           different for markets than duration-heavy.
 
+      # --- Parked: tested or dropped, kept so they can be put back.
+
+      - id: cand_primary_balance_gdp
+        name: Primary balance
+        status: candidate
+        preselect: false
+        horizon: medium
+        nature: cyclical
+        kind: official
+        enters: level
+        where: macrobond
+        code: MTSBAL, MTSNETINT
+        refers: >-
+          The deficit less interest: revenue less non-interest spending, what government
+          is choosing now rather than what it owes on past borrowing. Left out of v2:
+          the level of the deficit was tested and its sign flips between periods.
+        measured: >-
+          Monthly Treasury Statement cash receipts and outlays at ~12 days, essentially
+          never revised, summed over twelve months over nominal GDP. The published balance
+          is negative in deficit, so it is the balance plus net interest, which takes the
+          interest out of the deficit: over the three years to August 2026, a $5.7tn
+          deficit less $2.9tn of interest is a $2.8tn primary deficit.
+
+      - id: cand_cyclically_adjusted_pb
+        name: Cyclically adjusted primary balance
+        status: candidate
+        preselect: false
+        horizon: medium
+        nature: structural
+        kind: model
+        enters: level
+        where: macrobond_check
+        refers: >-
+          The fiscal stance with the automatic stabilizers taken out — what was
+          decided, rather than what the cycle did to the budget. It is the structural
+          balance by construction, which is exactly what the raw one is not. v2 scores
+          its three-year change; the level was tested and left out, as for the raw balance.
+        measured: CBO or OECD estimate of the balance at potential output. Annual, with quarterly interpolations.
+
+      # Opens unticked. v2 reads r minus g looking forward, which neither old
+      # cheap debt nor a burst of inflation flatters.
+      - id: cand_debt_sustainability_gap
+        name: 10-year yield less nominal GDP growth
+        status: candidate
+        preselect: false
+        horizon: long
+        nature: structural
+        kind: market
+        enters: spread
+        where: macrobond
+        code: DGS10 − GDPNOM
+        refers: r minus g — whether debt compounds on its own or erodes.
+        measured: >-
+          The 10-year yield less five-year annualized nominal growth. Five years, not
+          one: a one-year window spiked to +7.5 in 2020 and said fiscal room had gone.
+
+      - id: cand_debt_trajectory
+        name: Debt held by the public, 12-month change
+        status: candidate
+        preselect: false
+        horizon: medium
+        nature: structural
+        kind: official
+        enters: change
+        where: macrobond
+        code: DEBTPUB
+        refers: What the debt ratio actually did, against what r−g says it should.
+        measured: >-
+          Fed Financial Accounts (Z.1), quarterly at ~73 days — the slowest release in
+          the set. Dropped September 2026, because it correlated 0.68 with the fiscal
+          impulse beside it, so the driver was reading the same deficit twice, and it is
+          the weaker of the two against the debt path.
+
+      # --- Scored in v1 and not in v2.
+
+      - id: fiscal_impulse
+        name: Fiscal impulse, 12-month change
+        status: v1
+        horizon: medium
+        nature: cyclical
+        kind: official
+        enters: change
+        where: macrobond
+        code: MTSBAL, MTSNETINT
+        refers: >-
+          The direction of fiscal support over one year, since demand responds to the
+          change. Tested November 2026, 1981-2023, a looser budget reading +: +0.22 with
+          the next three years' growth gap, 95% [+0.09, +0.40], and +0.10 given growth,
+          inflation, stance and credibility; +0.23 with the inflation gap, 95% [−0.37,
+          +0.59], and +0.09 without the windows that touch 2020-21. Demand first, prices
+          later: +0.28 with growth over the next year, while the link to inflation peaks
+          at +0.24 a year to eighteen months on. Added to the impulse block, the call went
+          from 70.8% to 70.9% held out and 64.3% to 64.8% in real time, within the noise,
+          and today's odds did not change. Parked for that reason.
+        measured: >-
+          The twelve-month change in the primary balance, in percentage points of GDP.
+          Not cyclically adjusted, so part of the signal is the budget widening in a
+          downturn: it correlates +0.51 with the capacity reading in the same month.
+
+      - id: primary_balance_3y
+        name: Primary balance, 3-year change
+        status: v1
+        horizon: medium
+        nature: structural
+        kind: official
+        enters: change
+        where: macrobond
+        code: MTSBAL, MTSNETINT
+        refers: >-
+          How far the government's stance has moved over a full policy cycle rather
+          than over one tax year. Three years spans a budget and its follow-through,
+          so it reads as sustained posture instead of a run of one-off cheques and
+          filing-season noise.
+        measured: >-
+          The Monthly Treasury Statement primary balance, differenced over 36 months
+          rather than 12. Left v2's impulse block in October 2026 because it overlaps
+          what stayed: since 1983 it correlates 0.98 with outlays less receipts and 0.84
+          with the cyclically adjusted change.
+
+      - id: interest_burden_gdp
+        name: Net interest outlays
+        status: v1
+        horizon: long
+        nature: structural
+        kind: official
+        enters: level
+        where: macrobond
+        code: MTSNETINT
+        refers: Debt service as a claim on the budget.
+        measured: Monthly Treasury Statement interest paid net of received, twelve-month sum over GDP.
+
       - id: sovereign_cds
         name: Sovereign CDS on Treasuries
-        status: in_set
+        status: v1
         horizon: long
         nature: structural
         kind: market
@@ -1283,202 +1733,214 @@ drivers:
           Germany (GERMAN CDS USD SR 5Y D14) and Japan (JGB CDS USD SR 5Y D14) run
           from 2003, ready for those countries.
 
-  investment:
+
+  reforms:
     label: Reforms and industrial policy
     items:
-      - id: core_capex_orders_yoy
-        name: Core capital goods orders
+      # --- Scored in v2.
+
+      - id: regulation_growth
+        name: Restrictions in the Code of Federal Regulations, 5-year growth
         status: in_set
-        horizon: medium
-        nature: cyclical
-        kind: official
+        horizon: long
+        nature: structural
+        kind: model
         enters: change
-        where: macrobond
-        code: NEWORDER
-        refers: The earliest hard commitment to invest — an order is a contract.
+        where: open_data
+        code: REGDATA
+        vendor: QuantGov RegData
+        refers: >-
+          Rules raise costs, deter entry and slow the shift of resources toward productive
+          firms, so restrictions growing more slowly than usual reads as reform.
         measured: >-
-          Census M3 survey of ~5,000 manufacturers, ~27 days. Nondefense capital goods
-          excluding aircraft, because one wide-body order can swing a month.
+          RegData counts the words that bind ("shall", "must", "may not", "prohibited",
+          "required") across the whole Code each year, so the latest year arrives the
+          following year.
 
-      - id: real_nonres_investment_yoy
-        name: Real business investment
+      - id: regulation_score
+        name: Fraser business regulation score, 5-year change
         status: in_set
-        horizon: medium
-        nature: cyclical
-        kind: official
+        horizon: long
+        nature: structural
+        kind: model
         enters: change
         where: macrobond
-        code: PNFIC1
-        refers: The actual capital spending, as against orders and intentions.
-        measured: BEA national accounts — structures, equipment and IP in chained volumes. Quarterly.
+        code: fraser_reg_busr_tot_us
+        refers: >-
+          How burdensome rules feel, where RegData counts them, so the two are averaged.
+          The nearest long-running stand-in for ease of doing business.
+        measured: >-
+          Fraser Institute, 0 to 10: administrative burden, bureaucracy costs, the cost of
+          starting a business, licensing and tax compliance, partly from executive surveys.
+          Read from 2001, when the method changed, and published about two years late.
 
-      # Opens unticked. A good housing-cycle timer with a nine to twelve month
-      # lead, but purely cyclical, and the driver had nothing structural at all.
-      # Swapped for the average age of the capital stock below.
-      - id: cand_building_permits_yoy
-        name: Building permits
-        status: candidate
-        preselect: false
-        horizon: medium
-        nature: cyclical
-        kind: official
-        enters: change
-        where: macrobond
-        code: PERMIT
-        refers: The earliest decision to build, in the most cyclical sector there is.
-        measured: Census survey of permit-issuing jurisdictions, monthly at ~21 days.
-
-      - id: excess_bond_premium
-        name: Excess bond premium
+      - id: policy_uncertainty
+        name: Economic policy uncertainty, 12-month average
         status: in_set
-        horizon: medium
+        horizon: long
         nature: cyclical
         kind: model
         enters: level
         where: macrobond
-        code: EBP
+        code: EPU
         refers: >-
-          The price of bearing credit risk, kept as a level because it is mean zero by
-          construction and it is the level that forecasts investment.
+          When policy is unpredictable, firms delay investment and hiring until it clears.
+          It also spikes in recessions and crises, whatever the policy.
         measured: >-
-          Gilchrist-Zakrajšek: thousands of individual corporate bond prices with each
-          issuer's modelled default risk removed. Mean zero by construction.
-      - id: equity_risk_premium
-        name: Change in equity risk premium
+          Baker, Bloom and Davis, from newspaper coverage, expiring tax provisions and
+          forecaster disagreement, monthly from 1985. A level against its 1985-2019 average.
+
+      - id: tariff_rate_change
+        name: Effective tariff rate, change over three years
         status: in_set
-        horizon: long
-        nature: cyclical
-        kind: market
+        horizon: medium
+        nature: structural
+        kind: official
         enters: change
         where: macrobond
-        code: CAPE, DGS10, EXPINF10YR
+        code: CUSTOMS, GOODS_IMPORTS_SHARE, GDPNOM
         refers: >-
-          The hurdle a new project must clear to be financed with equity, read as a
-          change because its level carries decades of valuation drift.
-        measured: Inverse of the Shiller CAPE less a real 10-year yield. Monthly.
-      # Opens unticked. A quarterly survey of what banks say they will do, and
-      # the change in high yield spreads below prices the same credit conditions
-      # daily and from people with money at stake.
-      - id: cand_ci_lending_standards
-        name: Banks tightening lending standards
-        status: candidate
-        preselect: false
-        horizon: medium
-        nature: cyclical
-        kind: survey
-        enters: level
-        where: macrobond
-        code: DRTSCILM
-        refers: Whether credit is available at all, as distinct from what it costs.
-        measured: >-
-          Federal Reserve survey of ~80 large banks, quarterly, published before the
-          quarter ends. Net percentage tightening minus easing.
+          The tariff actually paid. Tariffs pass through to US prices, raise input costs and
+          shield weak firms. Over the next three years a rising rate has gone with higher
+          inflation; the long-run case rests on the economics.
+        measured: BEA customs duties as a share of goods imports, quarterly.
 
-      - id: cand_sp_capex
-        name: Revision to consensus capex, S&P 500
-        status: candidate
-        horizon: medium
-        nature: cyclical
-        kind: survey
-        enters: revision
-        where: bloomberg
-        code: SPX Index|BEST_CAPEX
-        refers: >-
-          Whether analysts are marking up or cutting what firms will spend on capex
-          over the next year — the only forward-looking investment row.
-        measured: >-
-          Bloomberg consensus (BEst), blended 12-month forward, monthly from 2007. Up
-          53% on a year ago, the highest on record; low −29% in April 2009.
-      - id: cand_buybacks_vs_capex
-        name: Buyback authorizations vs capex
-        status: candidate
-        horizon: long
-        nature: structural
-        kind: company
-        enters: level
-        where: external
-        vendor: CIQ
-        refers: >-
-          The capital allocation choice — build something, or buy your own stock. The
-          shift toward buybacks has run for two decades and has not reverted; it is a
-          change in how corporate America uses cash, not a cyclical swing.
-        measured: Announced repurchase authorizations against reported capex, aggregated.
-
-      - id: capital_age
-        name: Average age of the capital stock
+      - id: public_rnd_change
+        name: Federal non-defense R&D, % of GDP, change over five years
         status: in_set
         horizon: long
         nature: structural
         kind: official
+        enters: change
+        where: macrobond
+        code: FED_RND, GDPNOM
+        refers: >-
+          Non-defense federal R&D feeds private innovation and raises productivity, but
+          slowly: the effect builds over 8 to 15 years.
+        measured: BEA federal non-defense gross investment in R&D, quarterly.
+
+      # --- Candidates.
+
+      - id: cand_gta_nontariff
+        name: Share of US imports hit by new non-tariff barriers
+        status: candidate
+        horizon: long
+        nature: structural
+        kind: official
+        enters: level
+        where: external
+        vendor: Global Trade Alert
+        refers: >-
+          Trade policy beyond the tariff line: quotas, standards and subsidies the effective
+          tariff rate cannot see. The best remaining reading from Global Trade Alert, but it
+          could not be graded in real time or on decade productivity, so it would rest on
+          construct validity alone.
+        measured: >-
+          Global Trade Alert trade estimates, a download from its site, free for
+          non-commercial use. The demo API returned nothing announced before 2017, and
+          counts of measures were rejected: heavy publication lag means they partly track
+          recording effort.
+
+      - id: cand_b_ready
+        name: World Bank B-Ready
+        status: candidate
+        horizon: long
+        nature: structural
+        kind: survey
+        enters: level
+        where: external
+        vendor: World Bank
+        refers: >-
+          The successor to Doing Business: the quality of business regulation and public
+          services, which is the question the Fraser score stands in for.
+        measured: Annual and new, so there is no history to score yet.
+
+      # --- Parked: tested or dropped, kept so they can be put back.
+
+      - id: cand_trade_policy_uncertainty
+        name: Trade policy uncertainty
+        status: candidate
+        preselect: false
+        horizon: long
+        nature: cyclical
+        kind: model
         enters: level
         where: macrobond
-        code: bea001_106e1ptotl1es00_a
+        code: TPU
         refers: >-
-          How old the equipment American firms actually work with. It rises when
-          investment is not keeping up with retirement, and it is the cleanest single
-          answer to whether the country is re-equipping itself — capex flows tell you
-          what was spent, this tells you what it added up to.
-        measured: >-
-          BEA current-cost average age of private fixed assets, equipment, annual from
-          1925. Slow and annual, which is the point: it drifts for decades rather than
-          cycling.
+          Dropped from v2 in October 2026: policy uncertainty already rose with each trade
+          war, and the tariff rate reads what was done. The grade held, 69% to 68% held out,
+          64% in real time.
+        measured: Caldara et al., newspaper coverage of trade policy together with uncertainty, monthly from 1960.
 
-      - id: cand_intangible_share
-        name: Intellectual property share of investment
+      - id: cand_public_investment_total
+        name: Public investment, total and non-defense
         status: candidate
+        preselect: false
         horizon: long
         nature: structural
         kind: official
         enters: level
         where: macrobond_check
         refers: >-
-          Software, R&D and data as a share of total business investment. The capital
-          stock has been shifting from things that rust to things that don't for
-          thirty years, which changes how investment converts into capacity at all.
-        measured: BEA national accounts, IP products over total nonresidential investment. Quarterly.
+          Tested 2 November 2026 for reforms and not adopted: a wrong or sign-flipping link
+          to the following decade's productivity, and the call stayed within the noise.
+        measured: BEA national accounts, quarterly.
 
-      - id: cand_net_debt_ebitda
-        name: Net debt / EBITDA, nonfinancial corporates
+      - id: cand_corporate_tax_rate
+        name: Corporate tax rate
         status: candidate
+        preselect: false
         horizon: long
         nature: structural
-        kind: company
+        kind: official
         enters: level
-        where: external
-        vendor: CIQ
+        where: macrobond_check
         refers: >-
-          Corporate leverage measured against earnings rather than GDP — which is why
-          it avoids the era bias that killed corporate debt/GDP in backtest.
-        measured: Aggregated from filings, by rating bucket. Quarterly.
+          Tested 2 November 2026 for reforms and not adopted: a wrong or sign-flipping link
+          to the following decade's productivity, and the call stayed within the noise.
+        measured: Statutory rate, changed by legislation.
 
-      - id: cand_interest_coverage
-        name: Net interest coverage, IG and HY issuers
+      - id: cand_tariff_level
+        name: Effective tariff rate, level
         status: candidate
-        horizon: medium
-        nature: cyclical
-        kind: company
+        preselect: false
+        horizon: long
+        nature: structural
+        kind: official
         enters: level
-        where: external
-        vendor: CIQ
+        where: macrobond
+        code: CUSTOMS, GOODS_IMPORTS_SHARE, GDPNOM
         refers: >-
-          Whether firms earn enough to service debt and still fund investment. The
-          corporate analogue of the fiscal interest burden already carried.
-        measured: EBIT over interest expense, aggregated by rating bucket. Quarterly.
+          Tested 2 November 2026 for reforms and not adopted: a wrong or sign-flipping link
+          to the following decade's productivity, and the call stayed within the noise. The
+          three-year change stays in the set.
+        measured: BEA customs duties as a share of goods imports, quarterly.
 
-      - id: hy_spread_change
-        name: Change in high yield spreads
-        status: in_set
-        horizon: medium
+      - id: cand_epu_trade
+        name: Policy uncertainty about trade
+        status: candidate
+        preselect: false
+        horizon: long
         nature: cyclical
-        kind: market
-        enters: change
-        where: bloomberg
-        code: LF98OAS Index
+        kind: model
+        enters: level
+        where: macrobond_check
         refers: >-
-          The market repricing corporate credit risk, read as a change because it is
-          the repricing, not the level, that stops capex.
-        measured: >-
-          Bloomberg US Corporate High Yield OAS, daily from 1994, currently 267bp,
-          peak 1,971bp in December 2008. Bloomberg's index rather than ICE BofA's;
-          the two track closely.
+          Tested 2 November 2026 for reforms and not adopted: a wrong or sign-flipping link
+          to the following decade's productivity, and the call stayed within the noise.
+        measured: Baker, Bloom and Davis category index, from newspaper coverage.
 
+      - id: cand_business_formation
+        name: Business formation
+        status: candidate
+        preselect: false
+        horizon: long
+        nature: structural
+        kind: official
+        enters: level
+        where: macrobond_check
+        refers: >-
+          Whether new firms are being started, which is where reallocation shows up. Tested
+          2 November 2026 and not adopted: 67 months of history is too little to grade.
+        measured: Census business formation statistics, monthly.

@@ -5,8 +5,10 @@ proposed, and this module turns it into the counts and diffs a discussion needs:
 how many indicators a driver would carry, how far ahead the selection looks, and
 how much of it needs a vendor we do not have yet.
 
-The live rows carry the same `id` as `config/indicators.yml`, so a test can
-check the bench has not drifted from the set it claims to describe.
+The live rows carry the same `id` as `config/indicators_v2.yml`, the presented
+model, so a test can check the bench has not drifted from the set it claims to
+describe. Rows scored only in v1 stay on the bench, parked, so they can be
+argued back in.
 """
 
 from __future__ import annotations
@@ -74,13 +76,16 @@ SOURCE_LABEL = {
     # Verified through the Desktop API, but only where a terminal is logged in,
     # and never publishable: the hosted app cannot have it.
     "bloomberg": "Bloomberg terminal",
+    # Already read by the model, from a publisher's own download.
+    "open_data": "Open download",
     "external": "New source",
 }
 SOURCE_SHORT = {"macrobond": "MB", "macrobond_check": "MB?", "bloomberg": "BBG",
-                "external": "EXT"}
+                "open_data": "OPEN", "external": "EXT"}
 
-# A driver a reader can hold in their head. Same bounds the config test enforces.
-MIN_PER_DRIVER, MAX_PER_DRIVER = 3, 6
+# A driver a reader can hold in their head. Same bounds the config test enforces
+# on v2.
+MIN_PER_DRIVER, MAX_PER_DRIVER = 2, 8
 
 
 def load(path: str = "config/bench.yml") -> dict:
@@ -103,6 +108,12 @@ def rows(bench: dict) -> list[dict]:
 
 def in_set_ids(bench: dict) -> list[str]:
     return [r["id"] for r in rows(bench) if r.get("status") == "in_set"]
+
+
+def parked(row: dict) -> bool:
+    """Not on offer: scored only in v1, or a candidate tested or dropped."""
+    return row.get("status") == "v1" or (
+        row.get("status") == "candidate" and row.get("preselect") is False)
 
 
 def preselect_ids(bench: dict) -> list[str]:
@@ -136,7 +147,8 @@ def by_driver(bench: dict, driver: str) -> list[dict]:
 
 
 def display_order(items: list[dict]) -> list[dict]:
-    """Scored rows first, then the candidates put forward, then the rest.
+    """Scored rows first, then the candidates put forward, then the rest,
+    with parked rows last.
 
     Config order holds within each group. The live set leads because it is the
     reference point; the proposal comes next so it is read before the
@@ -145,6 +157,8 @@ def display_order(items: list[dict]) -> list[dict]:
     def rank(item: dict) -> int:
         if item.get("status") == "in_set":
             return 0
+        if parked(item):
+            return 3
         return 1 if item.get("preselect") else 2
     return sorted(items, key=rank)
 
@@ -174,8 +188,8 @@ def nature_mix(items: list[dict]) -> dict:
 def revisions(items: list[dict]) -> list[dict]:
     """Rows that would be scored as a revision rather than as a reading.
 
-    Nothing in the model does this today, which is the gap the demand driver
-    was sent back for.
+    v2's potential block reads this way; the demand driver was sent back in
+    2026 for having nothing that did.
     """
     return [i for i in items if i.get("enters") == "revision"]
 
@@ -291,7 +305,7 @@ def summary(bench: dict, selected: set[str]) -> str:
                   f"structural {mix['structural']:.0%}"]
     lines.append(f"  scored as a revision rather than a reading: {len(rev)}"
                  + (f" ({'; '.join(r['name'] for r in rev)})" if rev else
-                    " — nothing in the model does this today"))
+                    " — none in this selection"))
     empty = [b["label"] for b in tally(bench, selected) if not b["structural"]]
     if empty:
         lines.append(f"  no structural content at all in: {', '.join(empty)}")

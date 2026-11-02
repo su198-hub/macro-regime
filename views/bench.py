@@ -4,11 +4,11 @@ A place to argue about the set with the evidence on screen. Every row says what
 the indicator refers to, how it is collected, and how far ahead it looks;
 ticking one changes nothing the model does.
 
-That is deliberate. The dashboard is scored from config/indicators.yml and the
-published weights; a bench that silently rescored would turn a discussion into a
-series of accidental commitments. What the page does give back is the thing a
-selection has to survive — three to six per driver, a horizon mix that is not
-all news, and a count of how much of it needs a vendor we do not have.
+That is deliberate. The dashboard is scored from config/indicators_v2.yml and
+the published weights; a bench that silently rescored would turn a discussion
+into a series of accidental commitments. What the page does give back is the
+thing a selection has to survive — two to eight per driver, a horizon mix that
+is not all news, and a count of how much of it needs a vendor we do not have.
 """
 
 from __future__ import annotations
@@ -54,9 +54,9 @@ if not st.session_state.get(SEEDED):
 # ---------- header ----------
 
 st.html('<h1 class="mr-title">Indicator bench</h1>'
-        '<p class="mr-sub">Every indicator we score today, and every candidate from the '
-        'September review, with what it measures and how far ahead it looks. '
-        'Tick and untick to build a set out loud.</p>')
+        '<p class="mr-sub">Every indicator v2 scores, the candidates, and what has been '
+        'parked or was scored only in v1, with what each measures and how far ahead it '
+        'looks. Tick and untick to build a set out loud.</p>')
 
 country_picker(st.sidebar)
 settings_banner()
@@ -87,16 +87,17 @@ st.html(
     'Most rows enter as a level, a change or a spread. A row marked ↻ enters as the '
     'movement in an estimate of the same future target between publications — the '
     'level of a ten-year forecast barely moves, so only its revision carries '
-    'information. Nothing was scored this way until September 2026; the ten-year '
-    'growth and CPI revisions now are.</span></div>'
+    'information. The potential-growth rows under Growth are scored this way.'
+    '</span></div>'
     '</div>')
 
 
 # ---------- toolbar ----------
 
 bar = st.columns([1.3, 1.4, 1.4, 1.55, 2.0, 0.95, 0.95])
-show = bar[0].selectbox("Show", ["Everything", "In the set", "Candidates"],
-                        help="Narrow the list without losing what is already ticked.")
+show = bar[0].selectbox("Show", ["Everything", "In the set", "Candidates", "Parked"],
+                        help="Narrow the list without losing what is already ticked. "
+                             "Parked rows were tested or dropped, or scored only in v1.")
 natures = bar[1].multiselect("Nature", list(bn.NATURE_ORDER), default=[],
                              format_func=lambda n: bn.NATURE_LABEL[n],
                              placeholder="Any nature",
@@ -131,7 +132,9 @@ detail = st.toggle("Show how each one is measured", value=False,
 def visible(row: dict) -> bool:
     if show == "In the set" and row.get("status") != "in_set":
         return False
-    if show == "Candidates" and row.get("status") == "in_set":
+    if show == "Candidates" and (row.get("status") == "in_set" or bn.parked(row)):
+        return False
+    if show == "Parked" and not bn.parked(row):
         return False
     if natures and row.get("nature", "cyclical") not in natures:
         return False
@@ -169,9 +172,9 @@ flat = bn.flattered(whole)
 st.html(ui.section_head(
     "Where the selection stands",
     meta=f"{len(picked)} selected · {len(d['added'])} added · {len(d['dropped'])} dropped",
-    caption="A driver has to carry three to six indicators to stay readable. Red means "
-            "the selection could not ship as it is; amber means the driver has nothing "
-            "structural in it at all."))
+    caption=f"A driver has to carry {bn.MIN_PER_DRIVER} to {bn.MAX_PER_DRIVER} indicators to "
+            "stay readable. Red means the selection could not ship as it is; amber means the "
+            "driver has nothing structural in it at all."))
 
 AMBER = "#b7791f"
 cards = []
@@ -248,8 +251,8 @@ st.caption("  \n".join(notes))
 # ---------- the bench ----------
 
 st.html(ui.section_head("The bench", caption=
-        "Ticked rows are what we score today. Everything else is a candidate from the "
-        "review; nothing has been backtested, so inclusion here is a proposal, not a result."))
+        "Ticked rows are what v2 scores today. Candidates are proposals, not results: most "
+        "have not been backtested, and a row says so when one has. Parked rows follow."))
 
 for key, block in bn.drivers(bench).items():
     items = bn.display_order([i for i in (block.get("items") or []) if visible(i)])
@@ -260,17 +263,26 @@ for key, block in bn.drivers(bench).items():
     hidden = len(block.get("items") or []) - len(items)
     suffix = f" · {hidden} hidden by filters" if hidden else ""
     with st.expander(f"{label} — {b['n']} selected{suffix}", expanded=True):
+        heading = None
         for item in items:
             live = item.get("status") == "in_set"
+            # A driver can run to thirty rows, so say where each kind starts.
+            group = ("Scored in v2" if live
+                     else "Parked: tested or dropped, or scored only in v1" if bn.parked(item)
+                     else "Candidates")
+            if group != heading:
+                heading = group
+                st.html(f'<div class="mr-caption" style="margin:0.5rem 0 0.2rem"><b>{group}</b></div>')
             tag = bn.HORIZON_SHORT.get(item.get("horizon", "medium"), "MT")
             kind = item.get("nature", "cyclical")
             nat_tag = bn.NATURE_SHORT.get(kind, "CYC")
             who = item.get("kind", "official")
             ent = item.get("enters", "level")
-            mark = "" if live else " · new"
-            # Three standing chips, plus a fourth only on a revision. Nothing in
-            # the model is scored that way today, so it is the exception worth
-            # seeing rather than another axis to read on every row.
+            mark = ("" if live else " · v1" if item.get("status") == "v1"
+                    else " · parked" if bn.parked(item) else " · new")
+            # Three standing chips, plus a fourth only on a revision: few rows
+            # are scored that way, so it is the exception worth seeing rather
+            # than another axis to read on every row.
             rev = "  **↻ Revision**" if ent == "revision" else ""
             st.checkbox(f"**{item['name']}**  `{tag}`  `{nat_tag}`  "
                         f"`{bn.KIND_SHORT.get(who, 'OFFICIAL')}`{rev}{mark}",
