@@ -1474,6 +1474,31 @@ drivers:
           Monthly Treasury Statement, twelve-month sums, annualized growth over three years
           of each, one less the other.
 
+      - id: fiscal_impulse
+        name: Fiscal impulse, 12-month change
+        status: in_set
+        horizon: medium
+        nature: cyclical
+        kind: official
+        enters: change
+        where: macrobond
+        code: MTSBAL, MTSNETINT
+        refers: >-
+          The direction of fiscal support over one year, since demand responds to the
+          change. Tested November 2026, 1981-2023, a looser budget reading +: +0.22 with
+          the next three years' growth gap, 95% [+0.09, +0.40], and +0.10 given growth,
+          inflation, stance and credibility; +0.23 with the inflation gap, 95% [−0.37,
+          +0.59], and +0.09 without the windows that touch 2020-21. Demand first, prices
+          later: +0.28 with growth over the next year, while the link to inflation peaks
+          at +0.24 a year to eighteen months on. Joined the impulse block in November 2026
+          with the governance score: the call held at 71% held out and 64% in real time,
+          and today's call did not change.
+        measured: >-
+          The twelve-month change in the primary balance, in percentage points of GDP.
+          Not cyclically adjusted, so part of the signal is the budget widening in a
+          downturn: it correlates +0.51 with the capacity reading in the same month.
+
+
       - id: forward_r_minus_g
         name: 10-year yield less expected nominal growth
         status: in_set
@@ -1656,30 +1681,6 @@ drivers:
 
       # --- Scored in v1 and not in v2.
 
-      - id: fiscal_impulse
-        name: Fiscal impulse, 12-month change
-        status: v1
-        horizon: medium
-        nature: cyclical
-        kind: official
-        enters: change
-        where: macrobond
-        code: MTSBAL, MTSNETINT
-        refers: >-
-          The direction of fiscal support over one year, since demand responds to the
-          change. Tested November 2026, 1981-2023, a looser budget reading +: +0.22 with
-          the next three years' growth gap, 95% [+0.09, +0.40], and +0.10 given growth,
-          inflation, stance and credibility; +0.23 with the inflation gap, 95% [−0.37,
-          +0.59], and +0.09 without the windows that touch 2020-21. Demand first, prices
-          later: +0.28 with growth over the next year, while the link to inflation peaks
-          at +0.24 a year to eighteen months on. Added to the impulse block, the call went
-          from 70.8% to 70.9% held out and 64.3% to 64.8% in real time, within the noise,
-          and today's odds did not change. Parked for that reason.
-        measured: >-
-          The twelve-month change in the primary balance, in percentage points of GDP.
-          Not cyclically adjusted, so part of the signal is the budget widening in a
-          downturn: it correlates +0.51 with the capacity reading in the same month.
-
       - id: primary_balance_3y
         name: Primary balance, 3-year change
         status: v1
@@ -1738,6 +1739,29 @@ drivers:
     label: Reforms and industrial policy
     items:
       # --- Scored in v2.
+
+      - id: governance_change
+        name: World Bank governance score, five-year change
+        status: in_set
+        horizon: long
+        nature: structural
+        kind: survey
+        enters: change
+        where: macrobond
+        code: WGI_RL, WGI_RQ, WGI_GE, WGI_CC
+        refers: >-
+          Whether the rule of law and the quality of government are improving. Long-lived
+          investment pays only if contracts hold and rules stay predictable. The average of
+          rule of law, regulatory quality, government effectiveness and control of
+          corruption; voice and political stability are left out as further from the
+          question. Added November 2026 as the institutions block: a fifth of reforms. It
+          goes with the following decade's productivity at +0.67, trend removed, but on only
+          14 years of outcomes, so the case rests on what it measures.
+        measured: >-
+          World Bank Worldwide Governance Indicators, from surveys of firms, households and
+          experts. Annual since 2002 and every two years from 1996, so read from 2001, and
+          published the following autumn. Fell 0.32 points in the five years to 2007 and 0.23
+          to 2025.
 
       - id: regulation_growth
         name: Restrictions in the Code of Federal Regulations, 5-year growth
@@ -1856,6 +1880,126 @@ drivers:
         measured: Annual and new, so there is no history to score yet.
 
       # --- Parked: tested or dropped, kept so they can be put back.
+
+      - id: cand_fraser_legal
+        name: Fraser legal system and property rights
+        status: candidate
+        preselect: false
+        horizon: long
+        nature: structural
+        kind: model
+        enters: level
+        where: macrobond
+        code: fraser_ls_tot_woga_us
+        refers: >-
+          Tested November 2026 and rejected for a method break: the property score jumps from 7.8 in 1995 to 9.6 in 2000, and the link to the following decade's productivity flips from -0.40 before 2000 to +0.51 after.
+        measured: >-
+          Fraser Institute Economic Freedom of the World, every five years to 2000, then annual. About two years late.
+
+      - id: cand_wjp_rule_of_law
+        name: World Justice Project Rule of Law Index
+        status: candidate
+        preselect: false
+        horizon: long
+        nature: structural
+        kind: survey
+        enters: level
+        where: macrobond
+        code: wjp_rol_us_0001
+        refers: >-
+          Tested November 2026 and not adopted: it starts in 2014, so about five years of three-year changes and no decade outcome at all. The World Bank rule of law score reads the same idea from 1996.
+        measured: >-
+          World Justice Project household and expert surveys, annual.
+
+      - id: cand_ipri
+        name: International Property Rights Index
+        status: candidate
+        preselect: false
+        horizon: long
+        nature: structural
+        kind: model
+        enters: level
+        where: external
+        vendor: Property Rights Alliance
+        refers: >-
+          Tested November 2026 and not adopted: it starts in 2007, too short for a decade outcome, and jumps between editions; the physical property subindex went 7.2, 8.1, 7.2 from 2013 to 2015.
+        measured: >-
+          Property Rights Alliance, annual, 7.655 in 2025. No bulk download found, and it is not in Macrobond.
+
+      - id: cand_property_surveys
+        name: Heritage and V-Dem property rights scores
+        status: candidate
+        preselect: false
+        horizon: long
+        nature: structural
+        kind: model
+        enters: level
+        where: macrobond
+        code: uspoli0398, vdem_us_v2xcl_prpty
+        refers: >-
+          Tested November 2026 and not adopted: both barely move for the US, 11 and 14 distinct values, so there is little signal to read. V-Dem shows no link to the following decade's productivity (-0.06).
+        measured: >-
+          Heritage Foundation, annual from 1995; Varieties of Democracy, annual over a very long history.
+
+      - id: cand_oecd_rnd
+        name: OECD R&D, government-funded and total
+        status: candidate
+        preselect: false
+        horizon: long
+        nature: structural
+        kind: official
+        enters: change
+        where: macrobond
+        code: oecd_science_00006478, oecd_science_00006482
+        refers: >-
+          OECD Main Science and Technology Indicators, tested November 2026 and rejected for the wrong sign: since 1987 the five-year change in government-funded R&D goes -0.86 with the following decade's productivity, and total R&D -0.49. It includes defense, so it reads the end of the Cold War. Caution for the BEA non-defense measure scored above: on that same window it reads -0.28, and its positive link comes from before 1987.
+        measured: >-
+          OECD Main Science and Technology Indicators, % of GDP, annual from 1981.
+
+      - id: cand_tiva
+        name: Domestic value added in exports
+        status: candidate
+        preselect: false
+        horizon: medium
+        nature: structural
+        kind: official
+        enters: level
+        where: external
+        vendor: OECD
+        refers: >-
+          OECD Trade in Value Added, tested November 2026 and not adopted: the 2025 edition stops at 2022, nearly four years late, and starts in 1995. Its signs change with the measure on under two independent decades (-0.24 as a level, +0.38 as a five-year change, against decade productivity).
+        measured: >-
+          OECD TiVA, domestic value added as a share of gross exports, annual.
+
+      - id: cand_oec_eci
+        name: Economic Complexity Index
+        status: candidate
+        preselect: false
+        horizon: long
+        nature: structural
+        kind: model
+        enters: level
+        where: macrobond
+        code: wosurv0243
+        refers: >-
+          Tested November 2026 and not adopted. It scores what a country can export, not how it is governed, and the US level only drifts down: -0.09 with the following decade's productivity and -0.28 with the next three years' growth gap.
+        measured: >-
+          Observatory of Economic Complexity, annual from 1995.
+
+      - id: cand_cost_of_capital
+        name: Cost of capital, equity and credit blend
+        status: candidate
+        preselect: false
+        horizon: long
+        nature: cyclical
+        kind: market
+        enters: level
+        where: macrobond
+        code: CAPE, usrate0233, EXPINF10YR
+        refers: >-
+          Tested November 2026 and rejected. It goes with the following decade's productivity (+0.27, the same sign in both halves) but runs the wrong way for the next three years (-0.26), and added to reforms it made the probabilities worse: log loss 0.96 to 0.99 held out, 1.25 to 1.31 in real time. A low cost of capital is mostly high valuations, so it would read an equity boom as friendlier policy.
+        measured: >-
+          70% cyclically adjusted earnings yield, 30% real Baa yield. Bloomberg has no index-level WACC, only company-level; a Bloomberg build from the investment-grade yield and forward earnings correlates 0.86 with this one, so no licensed data is needed to test it.
 
       - id: cand_trade_policy_uncertainty
         name: Trade policy uncertainty

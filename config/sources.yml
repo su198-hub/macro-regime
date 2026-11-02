@@ -445,6 +445,20 @@ series:
   FED_RND:
     macrobond: usgpfi0536
     note: Federal non-defense gross investment in research and development, quarterly, SAAR, USD (BEA).
+  # World Bank Worldwide Governance Indicators, estimates on a scale of about
+  # -2.5 to +2.5, annual since 2002 and every two years from 1996.
+  WGI_RL:
+    macrobond: us_wbwgi_rl_est
+    note: World Bank Worldwide Governance Indicators, rule of law, estimate.
+  WGI_RQ:
+    macrobond: us_wbwgi_rq_est
+    note: World Bank Worldwide Governance Indicators, regulatory quality, estimate.
+  WGI_GE:
+    macrobond: us_wbwgi_ge_est
+    note: World Bank Worldwide Governance Indicators, government effectiveness, estimate.
+  WGI_CC:
+    macrobond: us_wbwgi_cc_est
+    note: World Bank Worldwide Governance Indicators, control of corruption, estimate.
   FRASER_BUSREG:
     macrobond: fraser_reg_busr_tot_us
     note: >-

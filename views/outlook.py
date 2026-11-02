@@ -952,9 +952,9 @@ with st.expander("The three-year call: odds, landing point, drivers, what-if and
                          f"{g['hard_landing_caught']} of {g['hard_landing_runups']}"])
         st.html(ui.table(["", "Regimes right, average"] + [LABEL[r] for r in REG["regimes"]]
                          + ["Hard-landing run-ups caught"], rows, numeric=set(range(1, 7))))
-        st.caption("Placebo, run 31 October 2026 on the six drivers: with the driver readings slid "
+        st.caption("Placebo, run 2 November 2026 on the six drivers: with the driver readings slid "
                    "out of line with what followed, none of 40 held-out and none of 20 real-time runs "
-                   "matched 71% and 64% (medians 31% and 31%; the best held-out run reached 68%).")
+                   "matched 71% and 64% (medians 33% and 32%; the best held-out run reached 62%).")
         band = pd.DataFrame({"Real-time call": T["Real time"]["calls"],
                              "What the next 3 years were": T["labels"]})
         long = band.reset_index(names="month").melt("month", var_name="row", value_name="regime").dropna()

@@ -25,9 +25,9 @@
 #                          37.5%), and the investment
 #                          share of spending (25%); half weight in the call
 #   reforms                whether the policy environment is turning
-#                          friendlier to long-run growth: regulation, policy
-#                          uncertainty, trade policy and public R&D (25%
-#                          each); half weight in the call
+#                          friendlier to long-run growth: institutions,
+#                          regulation, policy uncertainty, trade policy and
+#                          public R&D (a fifth each); half weight in the call
 #
 # Every score runs from its left pole (-1) to its right pole (+1):
 # weak to strong, de-anchored lower to higher, dovish to hawkish,
@@ -93,7 +93,7 @@ meta:
         regime's months right on average held out and 64% in real time,
         against 34% for assuming the current regime continues; in 60 runs with
         the readings slid out of line with what followed, none matched it
-        (medians 31%; the best held-out run reached 68%). It
+        (medians 33% and 32%; the best held-out run reached 62%). It
         caught all three hard-landing run-ups held out, two in real time. In
         real time a month learns only from outcomes published by then, 40
         months later (three years plus the last GDP quarter), and a regime not
@@ -122,13 +122,13 @@ meta:
     - title: Reforms is at its floor
       text: >-
         Policy uncertainty and the change in the effective tariff rate both
-        sit at the -3 cap in 2026, and the reforms driver at -1. It was last that low in 1971, the year of price
+        sit at the -3 cap in 2026, and the reforms driver at -0.98. It was last that low in 1971, the year of price
         controls and a 10% import surcharge, and in 1975 and 1983. Run-ups to
         high growth, high inflation since 1968 came with low reforms, so today
         it tilts the outlook toward higher inflation, at half weight. Reforms
         is there for the long run: it goes with faster productivity over the
-        following decade (+0.45, trend removed), but runs the wrong way for
-        the next three years' growth (-0.34 with the growth gap), because
+        following decade (+0.44, trend removed), but runs the wrong way for
+        the next three years' growth (-0.37 with the growth gap), because
         policy uncertainty spikes in recessions and recoveries follow.
     - title: Potential growth is there by design, not for the forecast
       text: >-
@@ -182,9 +182,10 @@ meta:
         inflation. That rests largely on 2020-21. Weighting spending and taxes
         by CBO's multipliers predicted no better than the plain total. The
         forecasting comes from impulse and debt dynamics: impulse correlates
-        +0.28 with the next three years' growth gap, and the two together
-        +0.25 with the inflation gap (about +0.5 in each half, 1971-95 and
-        1996-2023). Composition is there for the long run and runs the other
+        +0.23 with the next three years' growth gap, and the two together
+        +0.24 with the inflation gap (about +0.5 in each half, 1971-95 and
+        1996-2023, though the 2020-21 windows lift the 1996-2023 half).
+        Composition is there for the long run and runs the other
         way on three-year inflation (-0.30), so the whole driver shows only
         +0.06.
     - title: Proposed, thin or contaminated inputs
@@ -196,7 +197,10 @@ meta:
         about two quarters after the quarter ends. Growth leans on the AI
         capex surge. RegData counts restrictions once a year, and the Fraser
         score arrives about two years late and is read only from 2001, when
-        its method changed. B-Ready and Global Trade Alert are not included.
+        its method changed. The World Bank governance score reads from 2001,
+        rests on surveys of perception and has only about 14 years of
+        following-decade outcomes, so it is there for what it measures rather
+        than for its record. B-Ready and Global Trade Alert are not included.
   history_start: "1970-01-01"
   carry_forward_periods: 2
   min_reported_share: 0.6
@@ -221,6 +225,7 @@ meta:
       - taylor_gap
       - forecaster_disagreement
       - outlays_vs_receipts
+      - fiscal_impulse
       - repricing_drift
       - capb_3y_change
     long:
@@ -235,6 +240,7 @@ meta:
       - inflation_volatility
       - forward_r_minus_g
       - federal_investment_share
+      - governance_change
       - regulation_growth
       - regulation_score
       - policy_uncertainty
@@ -847,7 +853,7 @@ drivers:
     groups:
       impulse:
         label: Impulse
-        description: Whether fiscal policy is adding to demand, read two ways.
+        description: Whether fiscal policy is adding to demand, read three ways.
       debt:
         label: Debt dynamics
         description: >-
@@ -868,7 +874,7 @@ drivers:
         unit: "pp"
         normalize: {method: gap, center: 0.0, scale: 0.80}
         direction: -1
-        weight: 0.1875
+        weight: 0.125
         carry_forward_periods: 2
         why: >-
           **Fiscal impulse, adjusted for the cycle.** The primary balance is
@@ -896,7 +902,7 @@ drivers:
         unit: "pp"
         normalize: {method: gap, center: 0.0, scale: 4.98}
         direction: 1
-        weight: 0.1875
+        weight: 0.125
         release: Monthly Treasury Statement
         why: >-
           **Revenue against expenditure trajectory.** Annualized growth of
@@ -904,6 +910,39 @@ drivers:
           outrunning revenue widens the deficit and adds to demand; revenue
           outrunning spending, as with higher tariffs or tax receipts, takes
           demand out.
+
+      - id: fiscal_impulse
+        reads:
+          high: "The primary deficit had widened over the past year, adding to demand now."
+          low: "The primary deficit had narrowed over the past year, taking demand out."
+        group: impulse
+        label: Primary balance, change over a year (loosening +)
+        source:
+          expr: "(balance_12m + interest_12m) / GDPNOM * 100"
+          series: [MTSBAL, MTSNETINT, GDPNOM]
+          derived:
+            balance_12m: {series: MTSBAL, transform: sum_12m}
+            interest_12m: {series: MTSNETINT, transform: sum_12m}
+        transform: diff_12m
+        unit: "pp"
+        normalize: {method: gap, center: 0.0, scale: 1.59}
+        direction: -1
+        weight: 0.125
+        release: Monthly Treasury Statement
+        why: >-
+          **Fiscal impulse, over one year.** Demand responds to the change in
+          the deficit, not its size: a budget that adds more this year than
+          last puts extra spending in people's hands now, and a shrinking
+          deficit takes it out even if the deficit stays large. So growth moves
+          first and inflation about a year to eighteen months later (+0.28 with
+          the next year's growth gap, +0.24 with inflation a year to eighteen
+          months on, 1981-2023). The primary balance leaves out interest, which
+          past borrowing sets rather than this year's choices. The fastest of
+          the three impulse readings, and not adjusted for the cycle: receipts
+          fall and benefits rise in a downturn, so part of a widening is the
+          slump itself. The balance fell 10.7 points of GDP in the year to
+          December 2020 and rose 7.3 in the year to June 2022, as the aid ran
+          out.
 
       - id: forward_r_minus_g
         reads:
@@ -1004,14 +1043,15 @@ drivers:
     label: Reforms and industrial policy
     description: >-
       Whether the policy environment is turning more or less friendly to
-      long-run growth: regulation, how predictable policy is, and industrial
-      policy (tariffs and public research).
+      long-run growth: institutions, regulation, how predictable policy is,
+      and industrial policy (tariffs and public research).
     signpost:
       low: {label: Reactive / limited, tone: risk, phrase: the policy environment is turning against long-run growth}
       high: {label: Proactive / extensive, tone: good, phrase: the policy environment is turning toward long-run growth}
       mid: {phrase: the policy environment is roughly unchanged}
-    # Three blocks: regulation and policy uncertainty a quarter each,
-    # industrial policy half (tariffs and public research, a quarter each).
+    # Four blocks, each indicator a fifth or a tenth: institutions, regulation
+    # and policy uncertainty a fifth each, industrial policy two fifths
+    # (tariffs and public research, a fifth each).
     # The long-run part of the model, kept by design: together they go with
     # faster productivity over the following decade, and run the wrong way for
     # the three-year call, so the driver takes half weight there
@@ -1020,6 +1060,9 @@ drivers:
     # 2025), and the tariff rate reads what was done; the grade held (69% to 68% held out,
     # 64% in real time).
     groups:
+      institutions:
+        label: Institutions
+        description: Whether the rule of law and the quality of government are improving or slipping.
       regulation:
         label: Regulation
         description: Whether federal rules are accumulating faster or slower than usual.
@@ -1030,6 +1073,38 @@ drivers:
         label: Industrial policy
         description: Whether tariffs are rising, and whether federal non-defense R&D is growing as a share of the economy.
     indicators:
+      - id: governance_change
+        reads:
+          high: "The rule of law and the quality of government had improved."
+          low: "The rule of law and the quality of government had slipped, which makes long-lived investment riskier."
+        group: institutions
+        label: World Bank governance score, five-year change
+        source:
+          expr: "(WGI_RL + WGI_RQ + WGI_GE + WGI_CC) / 4"
+          series: [WGI_RL, WGI_RQ, WGI_GE, WGI_CC]
+        transform: diff_5y
+        unit: "pts"
+        normalize: {method: gap, center: 0.0, scale: 0.127}
+        direction: 1
+        weight: 0.20
+        carry_forward_periods: 2
+        release: World Bank
+        why: >-
+          **Institutions.** The average of the World Bank's scores for rule of
+          law, regulatory quality, government effectiveness and control of
+          corruption. Long-lived investment pays only if contracts hold and
+          rules stay predictable; when those slip, firms ask a higher return or
+          invest less, and productivity follows over years rather than
+          quarters. Read as the five-year change because the US level has
+          drifted down since the late 1990s and would otherwise score the
+          decade. Built from surveys of firms, households and experts, so it is
+          perception, and a news cycle can move it. Read from 2001, when the
+          first five-year change exists, and published the following autumn.
+          Over the five years to 2007 it fell 0.32 points, and 0.23 to 2025; it
+          was flat through 2014-18. It goes with the following decade's
+          productivity (+0.67, trend removed), but on only 14 years of
+          outcomes, so the case rests on what it measures.
+
       - id: regulation_growth
         reads:
           high: "Regulation had grown more slowly than usual."
@@ -1041,7 +1116,7 @@ drivers:
         unit: "%"
         normalize: {method: gap, center: 1.39, scale: 0.76}
         direction: -1
-        weight: 0.125
+        weight: 0.10
         carry_forward_periods: 2
         release: QuantGov RegData
         why: >-
@@ -1063,7 +1138,7 @@ drivers:
         unit: "pts"
         normalize: {method: gap, center: 0.0, scale: 0.378}
         direction: 1
-        weight: 0.125
+        weight: 0.10
         carry_forward_periods: 3
         release: Fraser Institute
         why: >-
@@ -1086,7 +1161,7 @@ drivers:
         unit: "index"
         normalize: {method: gap, center: 108.68, scale: 25.89}
         direction: -1
-        weight: 0.25
+        weight: 0.20
         absolute_level: true
         release: Baker, Bloom and Davis
         why: >-
@@ -1111,7 +1186,7 @@ drivers:
         unit: "pp"
         normalize: {method: gap, center: 0.0, scale: 0.148}
         direction: -1
-        weight: 0.25
+        weight: 0.20
         carry_forward_periods: 2
         why: >-
           **Trade policy.** Customs duties as a share of goods imports,
@@ -1133,7 +1208,7 @@ drivers:
         unit: "pp"
         normalize: {method: gap, center: 0.0, scale: 0.05}
         direction: 1
-        weight: 0.25
+        weight: 0.20
         carry_forward_periods: 2
         why: >-
           **Public research.** Non-defense federal R&D feeds private

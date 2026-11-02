@@ -60,23 +60,23 @@ rationale:
     fiscal: >-
       Half weight. Its growth signal overlaps the growth driver's slack:
       deficits widen in downturns and recoveries follow. Impulse and debt
-      dynamics together correlate +0.25 with the next three years' inflation
+      dynamics together correlate +0.24 with the next three years' inflation
       gap, about +0.5 in each half of 1971-2023. Graded on the next three years, 1993-2023, at full weight
       it lowered the call on top of growth, inflation and monetary policy
       (51% to 43% of regimes right on average, held out); at half weight it
       kept 51% and improved the probabilities.
     reforms: >-
       Half weight. Reforms is there for the long run: the signpost goes with
-      faster productivity over the following decade (+0.45, trend removed),
-      but with the next three years' growth gap it runs the wrong way (-0.34:
+      faster productivity over the following decade (+0.44, trend removed),
+      but with the next three years' growth gap it runs the wrong way (-0.37:
       policy uncertainty spikes in recessions, and recoveries follow). Graded
       on the next three years, 1993-2023, held out, the call is about the same
       at a quarter or half weight and loses about eight points at full weight.
   settings:
     temperature: >-
       0.20. Run-up positions sit close together, so the probabilities are
-      modest at any temperature. On the six drivers, held-out log loss is 0.96
-      at 0.20 and 0.25, against 1.02 at 0.15 and 0.97 at 0.30; real time
+      modest at any temperature. On the six drivers, held-out log loss is 0.97
+      at 0.20 and 0.25, against 1.03 at 0.15 and 0.98 at 0.30; real time
       prefers warmer (1.25 at 0.20, 1.13 at 0.30). The call itself is the
       same at every one of them.
     persistence_months: >-
@@ -156,8 +156,8 @@ regimes:
       inflation: 0.09
       monetary: -0.31
       credibility: -0.19
-      fiscal: 0.06
-      reforms: -0.07
+      fiscal: 0.05
+      reforms: -0.08
     tell: Productivity and capex plans rising together with expectations at target.
 
   high_growth_high_inflation:
@@ -197,8 +197,8 @@ regimes:
       inflation: 0.72
       monetary: -0.06
       credibility: -0.48
-      fiscal: 0.02
-      reforms: -0.30
+      fiscal: -0.01
+      reforms: -0.31
     tell: Investment strong and inflation above target, with credibility stretched.
 
   stagflation:
@@ -247,7 +247,7 @@ regimes:
       inflation: 0.82
       monetary: 0.23
       credibility: -0.82
-      fiscal: -0.12
+      fiscal: -0.11
       reforms: -0.06
     tell: Expectations rising while credibility and the debt trajectory both weaken.
 
@@ -276,7 +276,7 @@ regimes:
           short 2019-21 spell.
         - >-
           Fiscal turns supportive in all three, as spending outruns revenue
-          and the budget loosens: +0.22 in 2000-03, +0.46 in 2008-10, +0.76 in
+          and the budget loosens: +0.24 in 2000-03, +0.48 in 2008-10, +0.75 in
           2019-21.
         - >-
           Growth rises in all three, which looks odd in a slump. The driver
@@ -294,5 +294,5 @@ regimes:
       monetary: 0.19
       credibility: 0.01
       fiscal: -0.01
-      reforms: 0.10
+      reforms: 0.03
     tell: Expectations falling below target while growth prospects weaken.
