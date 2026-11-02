@@ -394,7 +394,7 @@ layers.append(alt.Chart(turn_df).mark_point(shape="triangle-down", size=70, fill
 hx_box.altair_chart(ui.style(alt.layer(*layers).properties(height=130)), use_container_width=True)
 
 # The chosen month beside the averages it feeds.
-r_in, r_dur = going_lab.get(hx), during_lab.get(hx)
+r_dur = during_lab.get(hx)
 
 
 def _positions_at(month: pd.Period) -> pd.DataFrame:
@@ -624,22 +624,9 @@ def _event(m_: pd.Period, e: dict) -> str:
     return f'<b>{ui.esc(e["title"])}</b>, {m_.strftime("%b %Y")}. {ui.esc(e["note"])}'
 
 
-def _basis(month: pd.Period) -> str:
-    """How the call in `month` was made, in words."""
-    if not HELD:
-        return "from what was known then"
-    if month > going_lab.index[-1]:
-        return "from positions learned from every episode known so far"
-    return "from positions learned without this episode"
-
-
-def _chip(right: bool) -> str:
-    return f' <span class="hx-chip{"" if right else " miss"}">{"Right" if right else "Wrong"}</span>'
-
-
 # Two sections, each a few bullets: the turning point that began this spell
 # (what changed, the events that led in, what the model had called two years
-# before), then this month (what it was living through, what it called).
+# before), then this month (what it was living through).
 sections = []
 turn_events = []
 if sp_dur is not None and sp_dur["start"] in set(TURNS["start"]):
@@ -710,7 +697,7 @@ if sp_dur is not None and sp_dur["start"] in set(TURNS["start"]):
                            ' The data start in 1968.' if HELD else
                            ' The model’s calls start in 1976, once there are past regimes to learn from.'))
     sections.append((f'Turning point, {t0.strftime("%b %Y")}', items))
-# This month: what it was living through, with its own events, and the call made in it.
+# This month: what it was living through, with its own events.
 items = []
 shown = {m_ for m_, _ in turn_events}
 ev = EV_BY_MONTH.get(hx)
@@ -732,23 +719,13 @@ if r_dur is not None and sp_dur is not None:
     items.append(_item(f"Living through {_tag(r_dur)}", body, sub))
 elif sub:
     items.append(_item("Events", "", sub))
-if hx in PRED["probs"].index:
-    _odds = PRED["probs"].loc[hx].sort_values(ascending=False)
-    _pc = PRED["called"].get(hx)
-    _top = ", ".join(f'{ui.esc(INTEXT[k])} {v:.0%}' for k, v in _odds.head(2).items())
-    _call = f"{_tag(_pc)} ({_top})" if _pc in COLOR else _top
-    _out = (f" It turned out {_tag(r_in)}." + (_chip(r_in == _pc) if _pc in COLOR else "") if r_in in COLOR
-            else f" Not known yet: what followed is known up to {going_lab.index[-1].strftime('%b %Y')}.")
-    _why = (_call_why(hx, _pc, _odds.drop(_pc).idxmax(), 3, 1) if _pc in COLOR else [])
-    items.append(_item("Called for the next three years",
-                       f", {_basis(hx)}: {_call}.{_out}" + (" Why:" if _why else ""), _why))
-else:
-    _odds = R.probabilities(M["scores"].loc[[hx]], REG).iloc[0].sort_values(ascending=False)
-    items.append(_item("The model on this month",
-                       ", before 1976, so with today’s positions (learned with hindsight, not what it "
-                       "would have said then): "
-                       + ", ".join(f'{ui.esc(INTEXT[k])} {v:.0%}' for k, v in _odds.head(2).items()) + "."))
-sections.append((f"This month, {HX_LABEL[hx]}", items))
+if not items and hx > during_lab.index[-1]:
+    _last = during_lab.index[-1]
+    items.append(_item("Too recent to label",
+                       f": living through reads the three months after a month, so the latest is "
+                       f'{_last.strftime("%b %Y")}, {_tag(during_lab.iloc[-1])}.'))
+if items:
+    sections.append((f"This month, {HX_LABEL[hx]}", items))
 c_text.html('<div class="hx">' + "".join(f'<div class="hx-h">{t}</div><ul>{"".join(i)}</ul>'
                                          for t, i in sections) + "</div>")
 # The radar's shapes as numbers.
