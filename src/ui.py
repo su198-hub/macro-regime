@@ -282,11 +282,14 @@ CSS = f"""
 .rd-note li {{ margin: 0 0 0.35rem; }}
 .gp {{ font-family: {BODY_FONT}; margin-top: 1.2rem; }}
 .gp-head {{ font-size: 0.86rem; color: {INK_2}; margin-bottom: 0.6rem; }}
-.gp-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
-  gap: 1rem 2rem; }}
+.gp-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+  gap: 1.4rem 2.5rem; }}
 .gp-card {{ border-top: 1px solid {GRID}; padding-top: 0.6rem; min-width: 0; }}
 .gp-title {{ font-family: {HEADING_FONT}; font-weight: 700; font-size: 1.05rem; }}
-.gp-note {{ font-size: 0.88rem; color: {INK_2}; line-height: 1.45; margin: 0.2rem 0 0.55rem; }}
+.gp-note {{ font-size: 0.92rem; color: {INK}; line-height: 1.45; margin: 0.2rem 0 0.55rem; }}
+.gp-points {{ font-size: 0.88rem; color: {INK_2}; line-height: 1.45; margin: 0.65rem 0 0;
+  padding-left: 1.1rem; }}
+.gp-points li {{ margin: 0 0 0.35rem; }}
 .gp-row {{ display: grid; grid-template-columns: 7.5rem 1fr 7rem; align-items: center;
   gap: 0.6rem; margin: 0.3rem 0; font-size: 0.86rem; }}
 .gp-label {{ color: {INK}; }}
@@ -750,10 +753,9 @@ def radar_svg(drivers: list[str], labels: dict[str, tuple[str, str]], series: li
 
     `labels` maps a driver to (name, what its outer end means). Each series is
     {"name", "values" (driver -> score), "color", "fill" (opacity, 0 for
-    none), "dash" (True for dashed, or an SVG dash pattern), "width",
-    "no_view" (drivers the series takes no view on: drawn as given, shown as
-    a dash on hover)}. The drawing goes in as an image, since st.html
-    strips inline SVG; hovering it lists every series' scores.
+    none), "dash" (True for dashed, or an SVG dash pattern), "width"}. The
+    drawing goes in as an image, since st.html strips inline SVG; hovering it
+    lists every series' scores.
     """
     n, cx, cy = len(drivers), 150.0, 126.0
     font = esc(BODY_FONT)
@@ -791,8 +793,7 @@ def radar_svg(drivers: list[str], labels: dict[str, tuple[str, str]], series: li
         if width >= 2:
             out.extend(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="2" fill="{s_["color"]}"/>' for x, y in xy)
         hover.append(f'{s_["name"]}: ' + ", ".join(
-            f"{labels[d][0].lower()} {'–' if d in s_.get('no_view', ()) else signed(vals[d])}"
-            for d in drivers))
+            f"{labels[d][0].lower()} {signed(vals[d])}" for d in drivers))
     # Each inner ring's value, just right of the top spoke and over the
     # shapes; the outer one would sit on the spoke's label.
     for v in RADAR_RINGS if ring_labels else ():
@@ -840,8 +841,9 @@ def gap_track(a: float, b: float, color: str, b_ring: str, a_name: str, b_name: 
 
 def gap_cards(cards: list[dict], a_name: str, b_name: str) -> str:
     """Where two readings of each regime part ways: a card per regime with a
-    note and its biggest gaps. Each card is {"title", "color", "note",
-    "ring" (CSS border style and color for b's marker), "rows": [(label, a, b)]}."""
+    note, its gaps and the reasons. Each card is {"title", "color", "note",
+    "points" (the reasons, one bullet each), "ring" (CSS border style and color
+    for b's marker), "rows": [(label, a, b)]}."""
     out = []
     for c in cards:
         rows = "".join(
@@ -849,10 +851,14 @@ def gap_cards(cards: list[dict], a_name: str, b_name: str) -> str:
             f'{gap_track(a, b, c["color"], c["ring"], a_name, b_name)}'
             f'<span class="gp-vals">{signed(a)} <span class="gp-arrow">→</span> {signed(b)}</span></div>'
             for label, a, b in c["rows"])
+        # A true minus, as in the rows; year ranges such as 1975-79 keep their hyphen.
+        points = [re.sub(r"(?<!\d)-(?=\d)", "−", p) for p in c.get("points", ())]
+        points = "".join(f"<li>{esc(p)}</li>" for p in points)
+        points = f'<ul class="gp-points">{points}</ul>' if points else ""
         out.append(f'<div class="gp-card"><div class="gp-title" style="color:{c["color"]}">'
-                   f'{esc(c["title"])}</div><p class="gp-note">{esc(c["note"])}</p>{rows}</div>')
+                   f'{esc(c["title"])}</div><p class="gp-note">{esc(c["note"])}</p>{rows}{points}</div>')
     return (f'<div class="gp"><div class="gp-head">{esc(a_name)} (dot) against {esc(b_name.lower())} '
-            f'(ring): the two biggest gaps in each regime, on the −1 to +1 scale</div>'
+            f'(ring), biggest change first, on the −1 to +1 scale. The notes read all months.</div>'
             f'<div class="gp-grid">{"".join(out)}</div></div>')
 
 

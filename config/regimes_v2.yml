@@ -107,14 +107,6 @@ rationale:
       left half of all months unclassified.
     fit_tolerance: >-
       1.25, as in v1; unused while the gate is off.
-  theory: >-
-    Each scenario as the judgment draws it, slot for slot (-0.67, -0.33,
-    0, +0.33, +0.67), on the judgment's own axes: monetary policy as
-    credibility, so it sits on the credibility driver, and fiscal policy as
-    sustainability (its multiplier line averaged in, which moves only hard
-    landing, to -0.33). The judgment has no axis for monetary stance, so
-    theory gives none; the outlook page draws it at neutral and says so. A
-    direction, not a reading. Not used by the call, which uses prior.
   prior: >-
     The judgment of where each scenario sits, before the data. Growth,
     inflation and reforms keep their direction, and credibility the
@@ -143,21 +135,22 @@ regimes:
       fiscal: 0.33
       reforms: 0.67
     notes:
-      theory: >-
-        Growth leads with inflation near the anchor, as theory has it. Policy
-        was loose going in (stance -0.35), dovish enough to support growth, as
-        in 2001-05 and after the GFC. Credibility sat below theory's: the
-        1982-87 run-up, with the 1970s still fresh, read -0.66, the later ones
-        about -0.15. Fiscal and reforms did little on average.
       during: >-
-        Little changes. Easing fades as the expansion matures, and credibility
-        holds near zero, as in every goldilocks spell since 1993.
-    theory:
-      growth: 0.67
-      inflation: 0.00
-      credibility: 0.67
-      fiscal: 0.67
-      reforms: 0.67
+        The support from the run-up fades without anything breaking: the
+        easing wears off and the slack gets used up.
+      shifts:
+        - >-
+          Monetary stance tightens in all four spells. The cuts that set up
+          the regime drop out of the three-year window and the curve flattens:
+          -0.60 going into 2003-08, about neutral during it.
+        - >-
+          Growth cools in all four, as the slack behind the rebound is used.
+          Unemployment reads +0.97 going in and +0.41 during, plant capacity
+          +0.41 and -0.13. That is an expansion maturing, not a slump.
+        - >-
+          Credibility repairs as inflation stays steady, near zero in every
+          spell since 1993. The 1980s are the exception: with the 1970s still
+          fresh, it read -0.74 during.
     archetype:
       growth: 0.20
       inflation: 0.09
@@ -180,21 +173,25 @@ regimes:
       fiscal: 0.67
       reforms: 0.33
     notes:
-      theory: >-
-        Growth and inflation as theory has it, but the engine was easy money
-        with credibility stretched rather than fiscal: policy about neutral
-        going in (-0.07) and credibility well below theory's (-0.56), from the
-        1970s to the Fed at zero into 2021. Only 2021-22 was fiscal-led.
       during: >-
-        Credibility stays low, -0.5 to -1.0 in every spell, while stance
-        swings: loose in 1975-79 and 2021-22, tight in 1988-90 and since
-        2023.
-    theory:
-      growth: 0.33
-      inflation: 0.33
-      credibility: 0.33
-      fiscal: 0.33
-      reforms: 0.33
+        The averages barely move, and that hides two things: credibility keeps
+        wearing down, and stance swings from one spell to the next.
+      shifts:
+        - >-
+          Credibility falls further as inflation keeps overshooting. Target
+          misses go from -1.00 to -1.68 and forecasters disagree more (-0.72
+          to -1.34). It stays between -0.5 and -1.0 in every spell.
+        - >-
+          Monetary stance is what sets the spells apart: loose in 1975-79
+          (-0.37), 1992-93 (-0.79) and 2021-22 (-0.58), tight in 1988-90
+          (+0.49) and since 2023 (+0.53). The Fed has run this regime both
+          ways, so an average near zero says little.
+        - >-
+          Growth eases as plants fill up. Spare capacity goes from +0.77 to
+          -0.16, so more output starts to need new investment first.
+        - >-
+          Inflation stays high even as money growth fades (+1.69 to +0.91):
+          the spending power built up in the run-up is still reaching prices.
     archetype:
       growth: 0.18
       inflation: 0.72
@@ -217,21 +214,27 @@ regimes:
       fiscal: 0.33
       reforms: -0.67
     notes:
-      theory: >-
-        The closest fit. Supply shocks (1973, 1979, 1990, 2022) met a Fed that
-        had lost its credibility: -0.87 on average in the run-ups to 1969,
-        1974, 1981 and 1990, with growth weak. Policy itself was on the tight
-        side (+0.25), as in 1977-81: tightening without credibility did not
-        bring inflation down.
       during: >-
-        The growth outlook turns up as recovery gets priced in, as when
-        Volcker's squeeze gave way to the 1982 easing.
-    theory:
-      growth: -0.67
-      inflation: 0.67
-      credibility: -0.67
-      fiscal: -0.67
-      reforms: -0.67
+        Growth turns and inflation does not: the slump frees up room to
+        recover, but inflation stays near the top of the scale and credibility
+        barely repairs.
+      shifts:
+        - >-
+          Growth rises from each run-up into its spell. Plants run hot going
+          in (-0.67) and have room during (+0.77), and unemployment moves the
+          same way (-0.39 to +0.22). The driver is reading room to recover, as
+          when Volcker's squeeze gave way to the 1982 easing.
+        - >-
+          Inflation does not follow. It sat at the top of the scale in 1968-71,
+          1973-75 and 1979-83 and read +0.93 in 2022-23; only 1990-92 came
+          down quickly (+0.42).
+        - >-
+          Credibility repairs only a little as the Fed catches up. Rates sit
+          less far behind what inflation called for (-2.03 to -1.46) and
+          forecasters disagree less (-1.79 to -1.10).
+        - >-
+          Fiscal weakens as debt rolls over at higher rates: the interest bill
+          reading goes from -0.83 to -1.46.
     archetype:
       growth: -0.27
       inflation: 0.82
@@ -254,22 +257,30 @@ regimes:
       fiscal: 0.00
       reforms: -0.67
     notes:
-      theory: >-
-        Demand busts after tightening (the Fed at 6.5% in 2000, 5.25% in
-        2006): stance on the tight side going in (+0.22) with credibility
-        intact (about zero, where theory has it lower), so the slowdown pulled
-        inflation down rather than up. Inflation was a little hot going in
-        rather than deflation, and fell below the anchor only at the bottom of
-        the GFC. 2020 was Covid, which nothing foresaw.
       during: >-
-        The policy response: rates cut and deficits widened, as in 2001, 2009
-        and 2020; stance turns loose (-0.4 in 2000-03, -0.6 in 2008-10).
-    theory:
-      growth: -0.67
-      inflation: -0.67
-      credibility: -0.33
-      fiscal: -0.33
-      reforms: -0.67
+        The biggest change of the four regimes, because the policy response
+        arrives. Going in looks tight and calm; during, rates are being cut
+        and deficits widened.
+      shifts:
+        - >-
+          Monetary stance flips from tight to loose in all three. Hikes give
+          way to cuts and the curve steepens from flat or inverted (+1.01) to
+          normal (-0.19): -0.39 in 2000-03, -0.58 in 2008-10, -0.06 in the
+          short 2019-21 spell.
+        - >-
+          Fiscal turns supportive in all three, as spending outruns revenue
+          and the budget loosens: +0.22 in 2000-03, +0.46 in 2008-10, +0.76 in
+          2019-21.
+        - >-
+          Growth rises in all three, which looks odd in a slump. The driver
+          looks ahead: idle plants (+1.70) and jobless workers (+0.98) are room
+          to recover, even while companies cut investment plans.
+        - >-
+          Policy uncertainty is low going in (+0.82, where higher means calmer)
+          and high during (-0.75), so this measure gave little warning.
+        - >-
+          Inflation falls less than the name suggests. Only 2008-10 went below
+          the anchor (-0.13); 2000-03 held at +0.29.
     archetype:
       growth: -0.15
       inflation: 0.15

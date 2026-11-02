@@ -7,7 +7,7 @@ the four regimes the answer key can grade, whichever framework the reader has
 picked elsewhere.
 
   0. Regime shapes, first: where the drivers sat going into each regime and
-     during it, against theory, one radar per regime beside today's.
+     during it, one radar per regime beside today's, and what changed.
   0b. Go back in time: each call, held out or in real time, drawn over the
      months it was about, above what they turned out to be, and what led into
      each turning point. A
@@ -141,32 +141,18 @@ when = latest.to_timestamp(how="end")
 st.html(ui.section_head(
     "Regime shapes", f"Since 1968 · {when:%b %Y}",
     f"How the {ui.NUMBER_WORDS[len(NAMES)]} drivers looked going into each regime and during it, "
-    "set against theory: where each regime should sit by its definition. Theory is a direction, "
-    "not a reading."))
-PAIRS = {"Going in vs theory": ("going", "theory"), "Going in vs during": ("going", "during"),
-         "During vs theory": ("during", "theory")}
-c_pair, c_months = st.columns([1.4, 1])
-pair_label = c_pair.segmented_control("Compare", list(PAIRS), default="Going in vs theory",
-                                      key="shape_pair") or "Going in vs theory"
-months = c_months.segmented_control("Months", ["All", "Strongest quarter"], default="All",
-                                    key="shape_months") or "All"
+    "and what changes between the two."))
+months = st.segmented_control("Months", ["All", "Strongest quarter"], default="All",
+                              key="shape_months") or "All"
 strong = months == "Strongest quarter"
 shape = {
     "going": M["core_in"] if strong else ol.positions(M["train"], NAMES),
     "during": M["core_during"] if strong else ol.positions(M["during"], NAMES),
-    "theory": pd.DataFrame({r: v["theory"] for r, v in REG["regimes"].items()
-                            if v.get("theory")}).T.reindex(columns=NAMES),
 }
-# Drivers theory takes no view on (monetary stance): drawn at neutral on the
-# radar so the shape closes, left out of the gaps, a dash in the table.
-NO_THEORY = [d for d in NAMES if shape["theory"][d].isna().all()]
-NAME = {"going": "Going in", "during": "During", "theory": "Theory"}
-KEY_NAME = {"going": "Going in: the three years before", "during": "During", "theory": "Theory"}
-shape_a, shape_b = PAIRS[pair_label]
-# The first shape of the pair is filled, the second dashed; theory is always
-# a thin grey dotted line, so data and judgment never look alike.
-LOOK = {shape_a: ({"fill": 0.18}, "solid"), shape_b: ({"fill": 0, "dash": True}, "dashed")}
-LOOK["theory"] = ({"fill": 0, "dash": "1.5 2.5", "width": 1.4, "grey": True}, "dotted")
+NAME = {"going": "Going in", "during": "During"}
+KEY_NAME = {"going": "Going in: the three years before", "during": "During"}
+# Going in is filled, during dashed.
+LOOK = {"going": ({"fill": 0.18}, "solid"), "during": ({"fill": 0, "dash": True}, "dashed")}
 # Each spoke names its driver and what its outer end means, kept short so
 # six fit round a small chart.
 POLE = {"inflation": "Above anchor"}
@@ -178,57 +164,45 @@ today_panel = ui.radar_svg(NAMES, SHORT, [{"name": f"{when:%b %Y}", "values": no
                           title=f"Today ({when:%b %Y})", ring_labels=True)
 panels = []
 for r in REG["regimes"]:
-    series = []
-    for kind in (shape_b, shape_a) if shape_b == "theory" else (shape_a, shape_b):
-        if r in shape[kind].index:
-            look = dict(LOOK[kind][0])
-            color = ui.INK_2 if look.pop("grey", False) else COLOR[r]
-            vals = shape[kind].loc[r].fillna(0.0) if kind == "theory" else shape[kind].loc[r]
-            series.append({"name": NAME[kind], "values": vals.to_dict(), "color": color, **look,
-                           "no_view": NO_THEORY if kind == "theory" else []})
+    series = [{"name": NAME[kind], "values": shape[kind].loc[r].to_dict(), "color": COLOR[r], **LOOK[kind][0]}
+              for kind in NAME if r in shape[kind].index]
     panels.append(ui.radar_svg(NAMES, SHORT, series, title=HEAD[r], title_color=COLOR[r]))
 st.html(ui.radar_grid(
-    panels, [(KEY_NAME[k], ui.INK_2, LOOK[k][1]) for k in (shape_a, shape_b)], lead=today_panel,
+    panels, [(KEY_NAME[k], ui.INK_2, LOOK[k][1]) for k in NAME], lead=today_panel,
     key=[("Scale", "The centre is −1, the middle ring neutral and the outer ring +1, toward the "
                    "end named under each driver. Hover a chart for its scores."),
          ("Going in and during", "Going in is the three years before each regime, its run-ups, "
                                  "which the call learns from. During is the months whose growth "
                                  "and inflation over the 18 months around them (15 before, 3 "
                                  "after) fit the regime, so it trails events by about six months."),
-         ("Drivers look ahead", "So going in is what compares with theory; during a regime they "
-                                "already read the policy response and the next phase."),
-         ("Direction over size", "An average of many months sits closer to neutral than theory. "
-                                 "Strongest quarter keeps only each regime’s deepest months."
-                                 + (f" Theory takes no view on "
-                                    f"{ui.join_words([SHORT[d][0].lower() for d in NO_THEORY])}, "
-                                    "drawn at neutral." if NO_THEORY else ""))]))
-# Where the two shapes part ways: a card per regime with its two biggest
-# gaps and a note, the theory note whenever theory is one of the pair.
-_diff = (shape[shape_b] - shape[shape_a]).reindex(list(REG["regimes"]))
-_note = "theory" if "theory" in (shape_a, shape_b) else "during"
-_ring = "dotted " + ui.INK_2 if shape_b == "theory" else "dashed "
+         ("Drivers look ahead", "So during a regime they already read the policy response and the "
+                                "next phase; going in is the shape that warns of it."),
+         ("Direction over size", "An average of many months sits closer to neutral than any one "
+                                 "month. Strongest quarter keeps only each regime’s deepest months.")]))
+# How each regime changes from going in to during: a card with what happened
+# and all the drivers, biggest change first.
+_diff = (shape["during"] - shape["going"]).reindex(list(REG["regimes"]))
 cards = []
 for r in REG["regimes"]:
     if r not in _diff.index or _diff.loc[r].isna().all():
         continue
-    top = _diff.loc[r].abs().sort_values(ascending=False).index[:2]
-    cards.append({"title": HEAD[r], "color": COLOR[r],
-                  "note": (REG["regimes"][r].get("notes") or {}).get(_note, ""),
-                  "ring": _ring if shape_b == "theory" else _ring + COLOR[r],
-                  "rows": [(SHORT[d][0], float(shape[shape_a].at[r, d]),
-                            float(shape[shape_b].at[r, d])) for d in top]})
-st.html(ui.gap_cards(cards, NAME[shape_a], NAME[shape_b]))
+    notes = REG["regimes"][r].get("notes") or {}
+    top = _diff.loc[r].abs().sort_values(ascending=False).index
+    cards.append({"title": HEAD[r], "color": COLOR[r], "note": notes.get("during", ""),
+                  "points": notes.get("shifts", []), "ring": "dashed " + COLOR[r],
+                  "rows": [(SHORT[d][0], float(shape["going"].at[r, d]),
+                            float(shape["during"].at[r, d])) for d in top]})
+st.html(ui.gap_cards(cards, NAME["going"], NAME["during"]))
 _runs = ol.spells(M["train"]["label"])["label"].value_counts()
 _spells = ol.spells(M["during"]["label"])["label"].value_counts()
 _count = {"going": lambda r: f"{int(_runs.get(r, 0))} run-ups",
-          "during": lambda r: f"{int(_spells.get(r, 0))} spells", "theory": lambda r: ""}
+          "during": lambda r: f"{int(_spells.get(r, 0))} spells"}
 rows = []
 for r in REG["regimes"]:
     rows.append(ui.Raw(f'<b style="color:{COLOR[r]}">{ui.esc(HEAD[r])}</b>'))
-    for kind in ("theory", "going", "during"):
+    for kind in NAME:
         if r in shape[kind].index:
-            rows.append([NAME[kind]] + ["–" if pd.isna(shape[kind].at[r, d])
-                                        else ui.signed(shape[kind].at[r, d]) for d in NAMES]
+            rows.append([NAME[kind]] + [ui.signed(shape[kind].at[r, d]) for d in NAMES]
                         + [_count[kind](r)])
 with st.expander("All the numbers"):
     st.html(ui.table(["Strongest quarter of months" if strong else "All months"]
