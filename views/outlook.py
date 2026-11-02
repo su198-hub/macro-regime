@@ -8,7 +8,7 @@ picked elsewhere.
 
   0. Regime shapes, first: where the drivers sat going into each regime and
      during it, one radar per regime beside today's, and what changed.
-  0b. Go back in time: each call, held out or in real time, drawn over the
+  0b. Go back in time: each call, held out, drawn over the
      months it was about, above what they turned out to be, and what led into
      each turning point. A
      radar shows what the call two years before a turn saw, against the
@@ -234,7 +234,9 @@ HX_MODES = {
                 "say with the other run-ups known, not what the model could have said then.",
     "Real time": "each month called from positions learned only from outcomes known then, from 1976. "
                  "The model had no hard landing to learn from until 2002."}
-hx_mode = hx_box.radio("How the calls were made", list(HX_MODES), horizontal=True, key="hx_mode")
+# Fixed at held out. The real-time paths stay: to offer the choice again, make
+# this hx_box.radio("How the calls were made", list(HX_MODES), horizontal=True).
+hx_mode = "Held out"
 HELD = hx_mode == "Held out"
 hx_box.html(f'<p class="mr-caption"><b>{hx_mode}:</b> {HX_MODES[hx_mode]}</p>')
 
