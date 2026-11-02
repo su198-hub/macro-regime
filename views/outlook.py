@@ -11,7 +11,7 @@ picked elsewhere.
   0b. Go back in time: each call, held out, drawn over the
      months it was about, above what they turned out to be, and what led into
      each turning point. A
-     radar shows what the call two years before a turn saw, against the
+     radar shows what the model saw when it called a turn, against the
      typical run-ups to what came and to its other pick, and the text says
      which drivers and indicators decided it.
 
@@ -272,10 +272,7 @@ going_lab, during_lab = M["train"]["label"], M["during"]["label"]
 # years (checked 29 Oct 2026, 1968 to 2023).
 SHIFT = 24
 EARLY = 6  # months a call may run ahead of the run-up before the text calls it early
-# A call that switches to the coming regime within this many months of two
-# years before the turn, and before the turn itself, still counts as seen:
-# the persistence rule alone can hold a call back six months.
-LATE = 6
+CALL_SPAN = 36  # a call covers three years, so one dropped before a turn was about it only if made within this
 ROW_TURN, ROW_PRED, ROW_DUR = "Turning points", "Called 2 years earlier", "Living through"
 ROWS = [ROW_TURN, ROW_PRED, ROW_DUR]
 TURNS = ol.spells(during_lab).iloc[1:].reset_index(drop=True)
@@ -415,19 +412,42 @@ def _positions_at(month: pd.Period) -> pd.DataFrame:
     return ol.realigned_positions(known, prior, NAMES)
 
 
+def _turn_call(t0: pd.Period, new: str):
+    """The run of calls for `new` that a turn into it is credited to: the last
+    to start before the turn, if it held to the turn or, dropped before it,
+    was made within a call's span of it. None if the model did not call it."""
+    runs = ol.spells(_pred)
+    runs = runs[(runs["label"] == new) & (runs["start"] < t0)]
+    if runs.empty:
+        return None
+    run = runs.iloc[-1]
+    return run if run["end"] >= t0 - 1 or (t0 - run["start"]).n <= CALL_SPAN else None
+
+
+def _instead(t0: pd.Period, new: str) -> pd.Period:
+    """Where to read a turn the model did not call: two years before it, or if
+    an old call for `new` was still standing then, the month it was dropped."""
+    made = t0 - SHIFT
+    return _spell_of(_pred, made)["end"] + 1 if _pred.get(made) == new else made
+
+
 # The radar pictures the call the text explains. At a turning point: the
-# drivers two years before it, which the call read, against the typical
-# run-ups, as the call had them, to the regime that came and to the model's other
-# pick. The drivers at the turn are in the table, not drawn: three shapes
-# read, four did not. Elsewhere, and before the calls start, the month's own
-# call.
+# drivers when the model called it, or what it called instead, against the
+# typical run-ups, as the call had them, to the regime that came and to the
+# model's other pick. The drivers at the turn are in the table, not drawn:
+# three shapes read, four did not. Elsewhere, and before the calls start, the
+# month's own call.
 t_turn = sp_dur["start"] if sp_dur is not None and sp_dur["start"] in set(TURNS["start"]) else None
-seen_at = t_turn - SHIFT if t_turn is not None else None
+turn_run = _turn_call(t_turn, sp_dur["label"]) if t_turn is not None else None
+seen_at = (None if t_turn is None else turn_run["start"] if turn_run is not None
+           else _instead(t_turn, sp_dur["label"]))
 if seen_at is not None and seen_at in PRED["probs"].index and PRED["called"].get(seen_at) in COLOR:
     m_f, came, pick = seen_at, sp_dur["label"], PRED["called"][seen_at]
     rival_f = pick if pick != came else PRED["probs"].loc[seen_at].drop(came).idxmax()
     refs = [(came, "what came"), (rival_f, "called" if pick != came else "runner-up")]
-    rd_title, at_turn = f"Two years before the turn: {HX_LABEL[m_f]}", t_turn
+    rd_title = (f"When it called the turn: {HX_LABEL[m_f]}" if turn_run is not None
+                else f"{(t_turn - m_f).n} months before the turn: {HX_LABEL[m_f]}")
+    at_turn = t_turn
 else:
     m_f, at_turn = hx, None
     odds_f = (PRED["probs"].loc[hx] if hx in PRED["probs"].index
@@ -595,11 +615,8 @@ def _call_why(made: pd.Period, call: str, rival: str, drivers: int = 3, per: int
     return out
 
 
-def _span(n: int) -> str:
-    """A number of months in years and months."""
-    y, m_ = divmod(n, 12)
-    parts = ([f"{y} year{'s' if y != 1 else ''}"] if y else []) + ([f"{m_} month{'s' if m_ != 1 else ''}"] if m_ else [])
-    return " and ".join(parts)
+def _months(n: int) -> str:
+    return f"{n} month{'s' if n != 1 else ''}"
 
 
 def _moved(d: str, a: pd.Period, b: pd.Period) -> str:
@@ -643,57 +660,44 @@ if sp_dur is not None and sp_dur["start"] in set(TURNS["start"]):
                    f'(averages over each spell).'
                    + (" What led in:" if turn_events else ""),
                    [_event(m_, e) for m_, e in turn_events])]
-    made = t0 - SHIFT
+    made = seen_at
     call = PRED["called"].get(made)
-    if made in PRED["probs"].index and call in COLOR:
-        odds = PRED["probs"].loc[made]
-        # When the call switched to the coming regime, if it did before the turn.
-        switched = PRED["called"].loc[made:t0 - 1]
-        switched = switched.index[switched == new]
-        if call == new:
-            rival = odds.drop(call).idxmax()
-            items.append(_item('Seen two years earlier.',
-                               f' In {made.strftime("%b %Y")} the model called {_tag(call)} for the next '
-                               f'three years ({odds[call]:.0%}, against {ui.esc(INTEXT[rival])} '
-                               f'{odds[rival]:.0%}), because:', _call_why(made, call, rival)))
-            # Early: the same call ran back well before the run-up the answer
-            # key gives, through months whose next three years went otherwise.
-            c_sp, k_sp = _spell_of(PRED["called"].dropna(), made), _spell_of(going_lab, made)
-            if (c_sp is not None and k_sp is not None and k_sp["label"] == new
-                    and (k_sp["start"] - c_sp["start"]).n > EARLY):
-                c0, k0 = c_sp["start"], k_sp["start"]
-                was = going_lab.loc[c0:k0 - 1].value_counts().idxmax()
-                items.append(_item('But early.',
-                                   f' The model had called {_tag(new)} since {c0.strftime("%b %Y")}, '
-                                   f'{_span((t0 - c0).n)} before the turn. Calls made from then to '
-                                   f'{(k0 - 1).strftime("%b %Y")} were wrong: the three years after them '
-                                   f'turned out {_tag(was)}. In {c0.strftime("%b %Y")} it read:',
-                                   _call_why(c0, new, was, 2, 1)
-                                   + ["<b>So</b> the drivers caught the build-up, not its timing: the "
-                                      "same signs can sit for years before a turn."]))
-        elif len(switched) and (switched[0] - made).n <= LATE:
-            sw = switched[0]
-            ahead = "the odds already favored it" if odds.idxmax() == new else "the odds were moving its way"
-            items.append(_item(f'Seen, {_span((sw - made).n)} late.',
-                               f' In {made.strftime("%b %Y")} the model still called {_tag(call)}, but '
-                               f'{ahead} ({ui.esc(INTEXT[new])} {odds[new]:.0%}, {ui.esc(INTEXT[call])} '
-                               f'{odds[call]:.0%}). A new regime has to lead for '
-                               f'{int(REG["settings"]["persistence_months"])} months in a row before the '
-                               f'call moves, so it switched to {_tag(new)} in {sw.strftime("%b %Y")}, '
-                               f'{_span((t0 - sw).n)} before the turn. What the odds read in '
-                               f'{made.strftime("%b %Y")}:', _call_why(made, new, call)))
+    if turn_run is not None:
+        sw, last = turn_run["start"], turn_run["end"]
+        odds = PRED["probs"].loc[sw]
+        rival = odds.drop(new).idxmax()
+        moved = (f' The model moved to {_tag(new)} in {sw.strftime("%b %Y")} ({odds[new]:.0%}, against '
+                 f'{ui.esc(INTEXT[rival])} {odds[rival]:.0%})')
+        if last >= t0 - 1:
+            moved += ' and held it to the turn. What it saw when it called it:'
         else:
-            x0, x1 = M["scores"].loc[made, NAMES], M["scores"].loc[t0, NAMES]
-            d = (x1 - x0).abs().idxmax()
-            items.append(_item('Not seen two years earlier.',
-                               f' In {made.strftime("%b %Y")} the model called {_tag(call)} '
-                               f'({odds[call]:.0%}; {ui.esc(INTEXT[new])} {odds[new]:.0%}), because:',
-                               _call_why(made, call, new)
-                               + [f"<b>What changed after:</b> {ui.esc(SHORT[d][0].lower())} moved most "
-                                  f"by the turn, from {ui.signed(x0[d])} to {ui.signed(x1[d])}"
-                                  f"{_moved(d, made, t0)}."]))
+            off = last + 1
+            moved += (f', then dropped it for {_tag(PRED["called"][off])} in {off.strftime("%b %Y")}, '
+                      f'{_months((t0 - off).n)} before the turn. What it saw when it called it:')
+        items.append(_item(f'Called it {_months((t0 - sw).n)} in advance.', moved, _call_why(sw, new, rival)))
+        # Early: the call ran back well before the run-up the answer key gives,
+        # through months whose next three years went otherwise.
+        k_sp = _spell_of(going_lab, t0 - SHIFT)
+        if k_sp is not None and k_sp["label"] == new and (k_sp["start"] - sw).n > EARLY:
+            k0 = k_sp["start"]
+            was = going_lab.loc[sw:k0 - 1].value_counts().idxmax()
+            items.append(_item('Too early at first.',
+                               f' Calls made from {sw.strftime("%b %Y")} to {(k0 - 1).strftime("%b %Y")} were '
+                               f'wrong: the three years after them turned out {_tag(was)}. The drivers caught '
+                               f'the build-up, not its timing: the same signs can sit for years before a turn.'))
+    elif made in PRED["probs"].index and call in COLOR:
+        odds = PRED["probs"].loc[made]
+        x0, x1 = M["scores"].loc[made, NAMES], M["scores"].loc[t0, NAMES]
+        d = (x1 - x0).abs().idxmax()
+        items.append(_item('Not called in advance.',
+                           f' {_months((t0 - made).n)} before, in {made.strftime("%b %Y")}, the model called '
+                           f'{_tag(call)} ({odds[call]:.0%}; {ui.esc(INTEXT[new])} {odds[new]:.0%}), because:',
+                           _call_why(made, call, new)
+                           + [f"<b>What changed after:</b> {ui.esc(SHORT[d][0].lower())} moved most "
+                              f"by the turn, from {ui.signed(x0[d])} to {ui.signed(x1[d])}"
+                              f"{_moved(d, made, t0)}."]))
     else:
-        items.append(_item('No call two years earlier.',
+        items.append(_item('Not called in advance.',
                            ' The data start in 1968.' if HELD else
                            ' The model’s calls start in 1976, once there are past regimes to learn from.'))
     sections.append((f'Turning point, {t0.strftime("%b %Y")}', items))
