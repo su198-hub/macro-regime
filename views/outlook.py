@@ -298,7 +298,7 @@ SHIFT = 24
 EARLY = 6  # months a call may run ahead of the run-up before the text calls it early
 # A call that switches to the coming regime within this many months of two
 # years before the turn, and before the turn itself, still counts as seen:
-# half a year is tight against a call two years out.
+# the persistence rule alone can hold a call back six months.
 LATE = 6
 ROW_TURN, ROW_PRED, ROW_DUR = "Turning points", "Called 2 years earlier", "Living through"
 ROWS = [ROW_TURN, ROW_PRED, ROW_DUR]
@@ -716,7 +716,7 @@ if sp_dur is not None and sp_dur["start"] in set(TURNS["start"]):
                                f'{ahead} ({ui.esc(INTEXT[new])} {odds[new]:.0%}, {ui.esc(INTEXT[call])} '
                                f'{odds[call]:.0%}). A new regime has to lead for '
                                f'{int(REG["settings"]["persistence_months"])} months in a row before the '
-                               f'call moves, and it switched to {_tag(new)} in {sw.strftime("%b %Y")}, '
+                               f'call moves, so it switched to {_tag(new)} in {sw.strftime("%b %Y")}, '
                                f'{_span((t0 - sw).n)} before the turn. What the odds read in '
                                f'{made.strftime("%b %Y")}:', _call_why(made, new, call)))
         else:
@@ -995,9 +995,9 @@ with st.expander("The three-year call: odds, landing point, drivers, what-if and
                          f"{g['hard_landing_caught']} of {g['hard_landing_runups']}"])
         st.html(ui.table(["", "Regimes right, average"] + [LABEL[r] for r in REG["regimes"]]
                          + ["Hard-landing run-ups caught"], rows, numeric=set(range(1, 7))))
-        st.caption("Placebo, run 2 November 2026 on the six drivers: with the driver readings slid "
+        st.caption("Placebo, run 31 October 2026 on the six drivers: with the driver readings slid "
                    "out of line with what followed, none of 40 held-out and none of 20 real-time runs "
-                   "matched 73% and 65% (medians 31% and 32%; the best held-out run reached 69%).")
+                   "matched 71% and 64% (medians 31% and 31%; the best held-out run reached 68%).")
         band = pd.DataFrame({"Real-time call": T["Real time"]["calls"],
                              "What the next 3 years were": T["labels"]})
         long = band.reset_index(names="month").melt("month", var_name="row", value_name="regime").dropna()

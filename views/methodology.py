@@ -758,12 +758,6 @@ section("m-versions", 11, "Versions and reproducibility")
 # table wants to know what the model is, not what it was.
 prose(
     '<h3 class="m-h3">What changed</h3>'
-    '<p><b>November 2026 — back to three months to change the call (v2).</b> A new leader now '
-    'has to lead for three months in a row, one quarter of data, down from six. Six was set '
-    'before credibility was split from stance; the split removed the short calls of the late '
-    '1980s that six was meant to stop, so on the six drivers it only added delay. Graded on the '
-    'three years that followed, 1976 to 2023: 73% held out and 65% in real time, against 71% and '
-    '64%, within the noise. Today’s call is unchanged.</p>'
     '<p><b>October 2026 — monetary credibility becomes its own driver (v2).</b> Monetary policy '
     'was one driver of two halves: stance, how tight policy is (the yield curve, the hiking pace, '
     'the real rate against neutral), and credibility, whether the commitment to 2% is believed '

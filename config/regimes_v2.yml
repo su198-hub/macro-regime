@@ -21,7 +21,7 @@
 
 settings:
   temperature: 0.20
-  persistence_months: 3
+  persistence_months: 6
   min_confidence: 0.25
   fit_gate: none
   fit_tolerance: 1.25
@@ -80,18 +80,22 @@ rationale:
       prefers warmer (1.25 at 0.20, 1.13 at 0.30). The call itself is the
       same at every one of them.
     persistence_months: >-
-      Three months: one quarter of data, and v1's setting. It was six from 30
-      October to 2 November 2026, on the rule of thumb that a recession is two
-      quarters and because three months flipped through short calls in the
-      late 1980s. Splitting credibility from stance then removed those flips:
-      on the six drivers 1985-95 shows the same calls at three and at six, so
-      six only added delay. At six, one hard-landing month in September 2001
-      reset the count and held the move to goldilocks back eight months.
-      1976-2023, three against six: 73% against 71% held out, 65% against 64%
-      in real time, within the noise, and 0.36 against 0.32 changes a year held
-      out, 0.23 either way in real time. One and two months score 74% and 66-67%
-      but flip more (0.56 and 0.40 changes a year held out). Today's call is the
-      same at any of them.
+      Six months since 30 October 2026, three before: two quarters, the rule
+      of thumb for a recession, so a new regime has to show up in two
+      quarters of data before the call moves. At three months the call
+      flipped through short spells in the late 1980s, when the top two
+      regimes were often within 25 points of each other (8, 9, 8 and 5-month
+      calls from 1987 to 1991). Six months, 1976-2023, with five drivers: 66%
+      held out and 68% in real time, against 67% and 66% at three, and 0.29 changes a year against
+      0.31. Nine and twelve months fell to 64% and 63% held out and react later
+      to real turns. Regraded on the six drivers (31 October 2026), three
+      months does slightly better, 73% held out and 65% in real time against
+      71% and 64%, within the noise, and the late-1980s flips no longer
+      separate the two: splitting credibility from stance removed them, so
+      1985-95 shows the same calls at three and at six. Six stays by choice
+      (confirmed 2 November 2026), so a new regime has to show in two quarters
+      of data, which suits a long-horizon call. The cost is moving about four
+      months later on average at a turn. Today's call is the same either way.
     min_confidence: >-
       0.25. With four scenarios the leader always has at least 25%, so the
       floor never binds; it is kept so a reader can raise it in the control
