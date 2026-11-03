@@ -213,8 +213,9 @@ with st.expander("All the numbers"):
 
 st.html(ui.section_head("Go back in time", f"1968 to {when:%b %Y}"))
 hx_box = st.container()
-EVENTS = yaml.safe_load(open(pathlib.Path(__file__).resolve().parents[1] / "config" / "history_events.yml",
-                             encoding="utf-8"))["events"]
+_HX_CFG = yaml.safe_load(open(pathlib.Path(__file__).resolve().parents[1] / "config" / "history_events.yml",
+                              encoding="utf-8"))
+EVENTS, MISSES = _HX_CFG["events"], _HX_CFG.get("misses", [])
 HX_MONTHS = list(M["scores"].index)
 HX_LABEL = {m_: m_.strftime("%b %Y") for m_ in HX_MONTHS}
 HX_BY_LABEL = {v: k for k, v in HX_LABEL.items()}
@@ -263,6 +264,14 @@ def predicted(version: str, config_key: str, mode: str) -> dict:
 
 PRED = predicted(data_version(), CONFIG_KEY, hx_mode)
 going_lab, during_lab = M["train"]["label"], M["during"]["label"]
+# Misses written up in history_events.yml, as (first month, last month, entry),
+# kept only while the model still makes the call in most of their months.
+MISS_SPANS = []
+for _e in MISSES:
+    _a, _b = pd.Period(_e["from"], "M"), pd.Period(_e["to"], "M")
+    _c = PRED["called"].loc[_a:_b]
+    if len(_c) and (_c == _e["called"]).mean() >= 0.5:
+        MISS_SPANS.append((_a, _b, _e))
 
 # A call covers the next three years on average, so its middle is about a
 # year and a half out; living through covers the 18 months to three months
@@ -300,6 +309,7 @@ TURN_OPTS = {f'Today · {HX_LABEL[NOW_M]}'
 TURN_OPTS.update({f'{HX_LABEL[t_]} · into {HEAD[r_]}'
                   + (f' · {LEADS_INTO[t_][-1][1]["title"]}' if t_ in LEADS_INTO else ""): HX_LABEL[t_]
                   for t_, r_ in zip(TURNS["start"], TURNS["label"]) if t_ in HX_LABEL})
+TURN_OPTS.update({f'{HX_LABEL[a_]} · {e["title"]}': HX_LABEL[a_] for a_, _, e in MISS_SPANS if a_ in HX_LABEL})
 if st.session_state.get("hx_month") not in HX_BY_LABEL:
     st.session_state["hx_month"] = HX_LABEL.get(pd.Period("2008-03", "M"), HX_LABEL[HX_MONTHS[-1]])
 
@@ -311,7 +321,7 @@ def _hx_jump() -> None:
 
 
 c_ev, c_mo = hx_box.columns([1, 1.6])
-c_ev.selectbox("Jump to today or a turning point", ["Choose…"] + list(TURN_OPTS), key="hx_turn",
+c_ev.selectbox("Jump to today, a turning point or a false alarm", ["Choose…"] + list(TURN_OPTS), key="hx_turn",
                on_change=_hx_jump)
 c_mo.select_slider("Or pick a month", options=[HX_LABEL[m_] for m_ in HX_MONTHS], key="hx_month")
 hx = HX_BY_LABEL[st.session_state["hx_month"]]
@@ -388,6 +398,16 @@ layers.append(alt.Chart(turn_df).mark_point(shape="triangle-down", size=70, fill
     color=alt.Color("regime:N", scale=alt.Scale(domain=list(COLOR), range=list(COLOR.values())),
                     legend=None),
     tooltip=[alt.Tooltip("when:N", title=""), alt.Tooltip("events:N", title="Led in by")]))
+# A pin in the middle of each miss, where its calls are drawn.
+if MISS_SPANS:
+    miss_df = pd.DataFrame([{"m": (a_ + (b_ - a_).n // 2 + SHIFT).to_timestamp(), "row": ROW_PRED,
+                             "what": e["title"],
+                             "when": f'Called {a_.strftime("%b %Y")} to {b_.strftime("%b %Y")}; '
+                                     f'pick a month in it for why'} for a_, b_, e in MISS_SPANS])
+    layers.append(alt.Chart(miss_df).mark_point(shape="circle", size=90, filled=True, color=ui.INK,
+                                                stroke="#fff", strokeWidth=1.5, opacity=1).encode(
+        x=alt.X("m:T", scale=xs_t), y=y_rows,
+        tooltip=[alt.Tooltip("what:N", title=""), alt.Tooltip("when:N", title="")]))
 hx_box.altair_chart(ui.style(alt.layer(*layers).properties(height=130)), use_container_width=True)
 
 # The chosen month beside the averages it feeds.
@@ -437,7 +457,10 @@ def _instead(t0: pd.Period, new: str) -> pd.Period:
 # model's other pick. The drivers at the turn are in the table, not drawn:
 # three shapes read, four did not. Elsewhere, and before the calls start, the
 # month's own call.
-t_turn = sp_dur["start"] if sp_dur is not None and sp_dur["start"] in set(TURNS["start"]) else None
+# Inside a miss, the month's own call is the story, not the turn its spell began with.
+in_miss = [e for a_, b_, e in MISS_SPANS if a_ <= hx <= b_]
+t_turn = (sp_dur["start"] if not in_miss and sp_dur is not None and sp_dur["start"] in set(TURNS["start"])
+          else None)
 turn_run = _turn_call(t_turn, sp_dur["label"]) if t_turn is not None else None
 seen_at = (None if t_turn is None else turn_run["start"] if turn_run is not None
            else _instead(t_turn, sp_dur["label"]))
@@ -646,7 +669,7 @@ def _event(m_: pd.Period, e: dict) -> str:
 # before), then this month (what it was living through).
 sections = []
 turn_events = []
-if sp_dur is not None and sp_dur["start"] in set(TURNS["start"]):
+if t_turn is not None:
     t0, new = sp_dur["start"], sp_dur["label"]
     prev_sp = _spell_of(during_lab, t0 - 1)
     nc = M["nowcast"]
@@ -702,7 +725,7 @@ if sp_dur is not None and sp_dur["start"] in set(TURNS["start"]):
                            ' The model’s calls start in 1976, once there are past regimes to learn from.'))
     sections.append((f'Turning point, {t0.strftime("%b %Y")}', items))
 # This month: what it was living through, with its own events.
-items = []
+items = [_item(f'{ui.esc(e["title"])}.', f' {ui.esc(e["note"])}') for e in in_miss]
 shown = {m_ for m_, _ in turn_events}
 ev = EV_BY_MONTH.get(hx)
 sub = []
