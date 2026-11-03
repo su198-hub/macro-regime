@@ -306,10 +306,11 @@ NOW_M = HX_MONTHS[-1]
 NOW_CALL = PRED["called"].get(NOW_M)
 TURN_OPTS = {f'Today · {HX_LABEL[NOW_M]}'
              + (f' · calling {HEAD[NOW_CALL]}' if NOW_CALL in HEAD else ""): HX_LABEL[NOW_M]}
+# False alarms next, so they are not lost at the bottom of a long list.
+TURN_OPTS.update({f'{HX_LABEL[a_]} · {e["title"]}': HX_LABEL[a_] for a_, _, e in MISS_SPANS if a_ in HX_LABEL})
 TURN_OPTS.update({f'{HX_LABEL[t_]} · into {HEAD[r_]}'
                   + (f' · {LEADS_INTO[t_][-1][1]["title"]}' if t_ in LEADS_INTO else ""): HX_LABEL[t_]
                   for t_, r_ in zip(TURNS["start"], TURNS["label"]) if t_ in HX_LABEL})
-TURN_OPTS.update({f'{HX_LABEL[a_]} · {e["title"]}': HX_LABEL[a_] for a_, _, e in MISS_SPANS if a_ in HX_LABEL})
 if st.session_state.get("hx_month") not in HX_BY_LABEL:
     st.session_state["hx_month"] = HX_LABEL.get(pd.Period("2008-03", "M"), HX_LABEL[HX_MONTHS[-1]])
 
@@ -389,6 +390,19 @@ layers.append(alt.Chart(_today.iloc[:1]).mark_text(align="left", dx=8, fontSize=
     x=alt.X("m:T", scale=xs_t), y=y_rows, text="t:N"))
 layers.append(alt.Chart(pd.DataFrame({"m": [hx.to_timestamp()]})).mark_rule(
     color=ui.INK, strokeWidth=2).encode(x=alt.X("m:T", scale=xs_t)))
+# The chosen month's call sits two years on, so mark it there too, and inside
+# a false alarm outline the alarm's calls, as the spell is outlined below.
+if hx in _pred.index:
+    layers.append(alt.Chart(pd.DataFrame([{"m": (hx + SHIFT).to_timestamp(), "row": ROW_PRED,
+                                           "when": f"{HX_LABEL[hx]}'s call, drawn two years on"}]))
+                  .mark_tick(color=ui.INK, thickness=3, size=26, opacity=1).encode(
+                      x=alt.X("m:T", scale=xs_t), y=y_rows, tooltip=alt.Tooltip("when:N", title="")))
+for a_, b_, _e in MISS_SPANS:
+    if a_ <= hx <= b_:
+        layers.append(alt.Chart(pd.DataFrame([{"start": (a_ + SHIFT).to_timestamp(),
+                                               "end": (b_ + SHIFT + 1).to_timestamp(), "row": ROW_PRED}]))
+                      .mark_rect(fill=None, stroke=ui.INK, strokeWidth=2).encode(
+                          x=alt.X("start:T", scale=xs_t), x2="end:T", y=y_rows))
 turn_df = pd.DataFrame([{"month": t_.to_timestamp(), "regime": r_, "row": ROW_TURN,
                          "when": f"{t_.strftime('%b %Y')} · into {LABEL[r_].lower()}",
                          "events": "; ".join(e["title"] for _, e in LEADS_INTO.get(t_, [])) or "–"}
