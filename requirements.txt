@@ -1,9 +1,53 @@
-duckdb>=1.0,<2  # the store also runs on 2.0 (tests and every page, 22 Oct 2026); pinned until 2.0 has settled
-pandas>=2.0
-numpy>=1.24
-pyyaml>=6.0
-requests>=2.31
-streamlit>=1.36
-altair>=5.0
-matplotlib>=3.7  # pandas Styler.background_gradient in the Indicators tab
-pytest>=7.4
+# The exact versions the app runs on, every package included: Streamlit Cloud
+# installs this file on each boot, so without pins a reboot could pick up a
+# release CI never saw. Python 3.12, as the hosted app and CI run.
+#
+# The direct dependencies and their ranges are in requirements.in. To upgrade,
+# in a fresh Python 3.12 environment:
+#     pip install -r requirements.in && pip freeze > requirements.txt
+# then remove pytest, iniconfig and pluggy (they live in requirements-dev.txt),
+# put this header back, and push: CI runs on the new pins before the hosted
+# app reboots onto them. CI's "latest" job tries the newest releases weekly.
+altair==6.3.0
+anyio==4.16.0
+attrs==26.1.0
+certifi==2026.10.23
+charset_normalizer==3.5.2
+click==8.5.0
+contourpy==1.4.0
+cycler==0.12.1
+duckdb==1.5.6
+fonttools==4.68.0
+h11==0.16.0
+idna==3.20
+itsdangerous==2.2.0
+jinja2==3.1.6
+jsonschema-specifications==2025.9.1
+jsonschema==4.26.0
+kiwisolver==1.5.1
+MarkupSafe==3.0.4
+matplotlib==3.11.2
+narwhals==2.28.0
+numpy==2.5.4
+packaging==26.3
+pandas==3.1.0
+pillow==13.0.0
+protobuf==7.36.2
+pyarrow==26.0.0
+pydeck==0.9.3
+pygments==2.21.0
+pyparsing==3.3.3
+python-dateutil==4.0.0
+python-multipart==0.0.33
+pyyaml==6.0.3
+referencing==0.37.0
+requests==2.34.2
+rpds-py==2026.9.1
+starlette==1.10.0
+streamlit==1.66.1
+typing-extensions==4.16.0
+tzdata==2026.6
+urllib3==2.8.0
+uvicorn==0.54.0
+watchdog==6.0.0
+websockets==17.4

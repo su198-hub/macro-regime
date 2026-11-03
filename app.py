@@ -51,6 +51,9 @@ st.html(ui.CSS)
 
 st.navigation(
     [st.Page("views/dashboard.py", title="Dashboard", default=True),
+     # Regime shapes, any month since 1968, and the v2 three-year call.
+     # Kept at /outlook so links from when it was the three-year outlook still work.
+     st.Page("views/outlook.py", title="Regime explorer", url_path="outlook"),
      st.Page("views/control.py", title="Control room", url_path="control"),
      st.Page("views/methodology.py", title="Methodology", url_path="methodology"),
      st.Page("views/bench.py", title="Bench", url_path="bench"),
@@ -67,9 +70,6 @@ st.navigation(
      # question from every other page: not what regime this month is, but what
      # is already determined about the next three years.
      st.Page("views/forecast.py", title="Forecast", url_path="forecast",
-             visibility="hidden"),
-     # Regime shapes, any month since 1968, and the v2 three-year call.
-     # Kept at /outlook so links from when it was the three-year outlook still work.
-     st.Page("views/outlook.py", title="Regime explorer", url_path="outlook")],
+             visibility="hidden")],
     position="top",
 ).run()

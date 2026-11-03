@@ -47,3 +47,36 @@ def test_a_snapshot_that_disagrees_with_its_manifest_is_refused(tmp_path):
     with pytest.raises(RuntimeError, match="manifest says"):
         load_snapshot(str(tmp_path / "snap"), tmp_path / "b.duckdb",
                       manifest={**manifest, "rows": manifest["rows"] + 1}, tries=1)
+
+
+def test_a_failed_download_is_not_cached_as_the_snapshot(tmp_path, monkeypatch):
+    """The hosted app must fall back under the name "local", and pick the
+    snapshot up once it can be read, without waiting for the next publish."""
+    import shutil
+
+    import streamlit as st
+
+    from views import common
+
+    store = Store(tmp_path / "src.duckdb")
+    store.upsert_observations(pd.DataFrame(
+        [("x", D(2024, 1, 1), D(2024, 2, 1), 1.0)],
+        columns=["series_id", "observation_date", "vintage_date", "value"]))
+    snap = tmp_path / "snap"
+    manifest = export_snapshot(store, snap)
+    store.close()
+    shutil.move(snap / "observations.parquet", tmp_path / "held.parquet")
+    monkeypatch.setenv("MACRO_REGIME_DATA_URL", str(snap))
+    monkeypatch.setattr(common, "SNAPSHOT_RETRY_SECONDS", 0)
+    st.cache_data.clear()
+    st.cache_resource.clear()
+    monkeypatch.setattr("src.snapshot.time.sleep", lambda s: None)
+
+    assert common.data_version() == "local"
+    assert common._last_good()["failed"][0] == manifest["published_at"]
+
+    shutil.move(tmp_path / "held.parquet", snap / "observations.parquet")
+    assert common.data_version() == manifest["published_at"]
+    assert "failed" not in common._last_good()
+    assert common.get_store().latest(["x"])["x"].iloc[0] == 1.0
+    st.cache_resource.clear()

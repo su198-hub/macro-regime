@@ -114,12 +114,12 @@ query = bar[4].text_input("Search", "", placeholder="name or description")
 
 # Buttons run before any checkbox is drawn: Streamlit will not let a widget's
 # state be rewritten in the same run that renders it.
-if bar[5].button("Reset", use_container_width=True,
+if bar[5].button("Reset", width="stretch",
                  help="Back to how this page opened: the scored set plus the "
                       "candidates put forward for discussion."):
     seed(opening)
     st.rerun()
-if bar[6].button("Clear", use_container_width=True,
+if bar[6].button("Clear", width="stretch",
                  help="Untick everything and build up from nothing."):
     seed(set())
     st.rerun()

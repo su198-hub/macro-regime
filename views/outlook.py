@@ -423,7 +423,7 @@ if MISS_SPANS:
                                                 stroke="#fff", strokeWidth=1.5, opacity=1).encode(
         x=alt.X("m:T", scale=xs_t), y=y_rows,
         tooltip=[alt.Tooltip("what:N", title=""), alt.Tooltip("when:N", title="")]))
-hx_box.altair_chart(ui.style(alt.layer(*layers).properties(height=130)), use_container_width=True)
+hx_box.altair_chart(ui.style(alt.layer(*layers).properties(height=130)), width="stretch")
 
 # The chosen month beside the averages it feeds.
 r_dur = during_lab.get(hx)
@@ -885,7 +885,7 @@ with st.expander("The three-year call: odds, landing point, drivers, what-if and
                                                     color=ui.INK).encode(
         x=alt.X("growth:Q", scale=xs), y=alt.Y("inflation:Q", scale=ys), text=alt.value("Next three years"))
     st.altair_chart(ui.style((bg + rules + arrow + dots + names + land_marks + land_label).properties(height=420)),
-                    use_container_width=True)
+                    width="stretch")
 
     # ---------- 3. what is pushing it ----------
 
@@ -1005,7 +1005,7 @@ with st.expander("The three-year call: odds, landing point, drivers, what-if and
                             labelExpr=" + ".join(f"(datum.label == '{k}' ? '{v}' : '')" for k, v in LABEL.items()))),
             tooltip=[alt.Tooltip("month:T", format="%b %Y"), alt.Tooltip("row:N", title=""),
                      alt.Tooltip("name:N", title="Regime")])
-        st.altair_chart(ui.style(chart.properties(height=110)), use_container_width=True)
+        st.altair_chart(ui.style(chart.properties(height=110)), width="stretch")
 
     # ---------- how it works ----------
 

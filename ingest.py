@@ -435,12 +435,37 @@ DATA_README = """# Data snapshot
 
 Published by `python ingest.py publish` from the machine that holds the
 Macrobond connection. The hosted app reads it via MACRO_REGIME_DATA_URL.
-This branch is replaced on every publish, so it never accumulates history.
+This branch is replaced on every publish, so it never accumulates history,
+except for calls.csv, which each publish carries over and adds a row to.
 
 - observations.parquet: series_id, observation_date, vintage_date, value
 - series_meta.parquet: source, vendor code, title, units, frequency
 - manifest.json: when it was published and what it holds
+- calls.csv: the call published each time, its odds, the driver readings and
+  fingerprints of the config and code (src/call_log.py). Never rewritten.
 """
+
+
+def _remote_call_log(repo_git, remote: str) -> str | None:
+    """calls.csv as it is on the data branch now; None if the branch or the
+    file does not exist yet. Exits if the branch cannot be read, because
+    publishing then would force-push over the log."""
+    import subprocess
+
+    from src.call_log import FILE
+
+    try:
+        heads = repo_git("ls-remote", "--heads", remote, DATA_BRANCH)
+        if not heads:
+            return None
+        repo_git("fetch", "-q", remote, DATA_BRANCH)
+    except subprocess.CalledProcessError as exc:
+        sys.exit(f"Could not read the '{DATA_BRANCH}' branch ({exc.stderr.strip() or exc}). "
+                 f"Publishing now would overwrite the call log, so nothing was pushed.")
+    try:
+        return repo_git("show", f"FETCH_HEAD:{FILE}")
+    except subprocess.CalledProcessError:
+        return None
 
 
 def cmd_truth(args):
@@ -532,9 +557,34 @@ def cmd_publish(args):
     remote = repo_git("remote", "get-url", "origin")
     name, email = repo_git("config", "user.name"), repo_git("config", "user.email")
 
+    # The call this snapshot publishes, scored as the hosted app will score it,
+    # added to the log the branch already holds and to the desk machine's copy.
+    from src import call_log
+    from src.drivers import compute
+    from src.regimes import load_regimes, run as run_regimes
+    cfg, reg = load_config(args.config), load_regimes(args.regimes)
+    res = compute(store, cfg, dt.date.today())
+    res.update(run_regimes(res["drivers"], reg))
+    local_log = os.path.join(os.path.dirname(os.path.abspath(args.db)), call_log.FILE)
+    held = call_log.merge(
+        call_log.read(_remote_call_log(repo_git, remote)),
+        call_log.read(open(local_log, encoding="utf-8").read() if os.path.exists(local_log) else None))
+
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
         manifest = export_snapshot(store, tmp)
         store.close()
+        try:
+            new = call_log.row(res, manifest["published_at"], args.framework,
+                               call_log.config_hash(args.config, args.regimes),
+                               repo_git("rev-parse", "--short=12", "HEAD"))
+        except ValueError as exc:
+            sys.exit(f"Not publishing: {exc}, and a publish without a logged call would "
+                     f"leave a gap in the record.")
+        log = call_log.merge(held, new=new)
+        log.to_csv(os.path.join(tmp, call_log.FILE), index=False)
+        manifest["calls_logged"] = len(log)
+        with open(os.path.join(tmp, "manifest.json"), "w") as f:
+            json.dump(manifest, f, indent=1)
         if restricted:
             # The audit trail. Anyone who finds this snapshot can see which
             # licensed vendors it carries and that it was published knowingly.
@@ -559,6 +609,10 @@ def cmd_publish(args):
               f"series (latest vintage {manifest['latest_vintage']}) to {remote} "
               f"branch '{DATA_BRANCH}'.")
         run("push", "-q", "--force", remote, f"HEAD:{DATA_BRANCH}")
+        # Only once it is published, so the desk copy never holds a call nobody saw.
+        log.to_csv(local_log, index=False)
+        print(f"Logged the call for {new['month']}: {new['called']} "
+              f"({len(log)} calls in {call_log.FILE}).")
 
     slug = remote.removesuffix(".git").split("github.com")[-1].strip("/:")
     print(f"Done. The hosted app reads it from:\n  "
@@ -568,6 +622,7 @@ def cmd_publish(args):
 def cmd_demo(args):
     store = Store(args.db)
     n, series = load_demo(store, load_config(args.config))
+    load_demo_truth(store)
     store.close()
     print(f"Loaded {n} synthetic observations across {series} series.")
     print("Now run: streamlit run app.py")
@@ -620,6 +675,32 @@ def load_demo(store: Store, cfg: dict) -> tuple[int, int]:
                                      "vintage_date", "value"])
     n = store.upsert_observations(df)
     return n, df["series_id"].nunique()
+
+
+def load_demo_truth(store: Store) -> int:
+    """Synthetic inputs for the answer key (src/truth.py), so the regime
+    explorer and history pages render on demo data. Growth and inflation
+    cycle out of step, so every regime turns up. Invented, like the rest."""
+    from src import truth
+
+    idx = pd.period_range("1960-01", "2026-08", freq="M")
+    t = np.arange(len(idx))
+    potential = 3000 * np.exp(t * 0.03 / 12)
+    gdp = potential * np.exp(0.02 * np.sin(t / 15))
+    inflation = 3.0 + 1.6 * np.sin(t / 23 + 1.0)
+    core = 20 * np.exp(np.cumsum(inflation / 1200))
+    quarter = idx.month % 3 == 1
+    m = pd.DataFrame({"gdp": np.where(quarter, gdp, np.nan),
+                      "potential": np.where(quarter, potential, np.nan),
+                      "core_pce": core, "pce": core * 1.01, "cpi": core * 1.05,
+                      "spf_cpi10": np.where(quarter, 2.8, np.nan),
+                      "ptr": np.where(quarter, 2.3, np.nan)}, index=idx)
+    n = store.upsert_observations(truth.to_observations(m, dt.date(2026, 9, 1)))
+    for name, sid in truth.STORE_IDS.items():
+        title, units, freq = truth.TITLES[name]
+        store.record_meta(sid, "demo", title=f"Synthetic {title}", units=units,
+                          frequency=freq, has_vintages=False)
+    return n
 
 
 def main():
@@ -692,6 +773,14 @@ def main():
     # up to date. An explicit --config narrows that to the one file.
     args.configs = [args.config] if args.config else here["all_indicators"]
     args.config = args.config or here["indicators"]
+    # The regimes file and name of the framework the config belongs to, for the call log.
+    from pathlib import Path
+
+    from src.countries import frameworks
+    by_file = {Path(v["indicators"]).as_posix(): (f, v["regimes"])
+               for f, v in frameworks(load_registry(), here["code"]).items()}
+    args.framework, args.regimes = by_file.get(Path(args.config).as_posix(),
+                                               (here["framework"], here["regimes"]))
     args.sources = args.sources or here["sources"]
     args.func(args)
 

@@ -9,6 +9,7 @@ rather than by convention.
 from __future__ import annotations
 
 import datetime as dt
+import threading
 from pathlib import Path
 
 import duckdb
@@ -58,12 +59,26 @@ class Store:
     def __init__(self, path: str | Path = "data/regime.duckdb"):
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
-        self.con = duckdb.connect(str(path))
-        self.con.execute(SCHEMA)
+        self._con = duckdb.connect(str(path))
+        self._threads = threading.local()
+        self._cursors: list = []
+        self._con.execute(SCHEMA)
         # Added after the first stores were created; the vendor's own code
         # for the series, which differs from series_id for anything but FRED.
-        self.con.execute(
+        self._con.execute(
             "ALTER TABLE series_meta ADD COLUMN IF NOT EXISTS source_code VARCHAR")
+
+    @property
+    def con(self) -> duckdb.DuckDBPyConnection:
+        """A cursor of this thread's own. The app caches one store for every
+        session, each running on its own thread, and a DuckDB connection is
+        not safe to share: one thread's query can replace another's pending
+        result. A cursor per thread shares the database but not the result."""
+        cur = getattr(self._threads, "cur", None)
+        if cur is None:
+            cur = self._threads.cur = self._con.cursor()
+            self._cursors.append(cur)
+        return cur
 
     # ---------- writing ----------
 
@@ -207,4 +222,8 @@ class Store:
         ).df()
 
     def close(self):
-        self.con.close()
+        # Every thread's cursor too: each holds the file open, and on Windows
+        # an open file cannot be replaced, as a snapshot rebuild does.
+        for cur in self._cursors:
+            cur.close()
+        self._con.close()

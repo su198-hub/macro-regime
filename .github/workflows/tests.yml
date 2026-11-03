@@ -1,12 +1,17 @@
 # Runs on every push: the unit tests, then the whole dashboard headlessly on
-# demo data, so a missing dependency or a pandas/Streamlit API change fails
-# here instead of on the hosted app.
+# demo data, on the pinned versions the hosted app boots with
+# (requirements.txt), so a broken page fails here instead of on the hosted app.
+# Weekly, the "latest" job tries the newest releases of the direct
+# dependencies (requirements.in), so an upgrade that breaks something shows up
+# before the pins are moved.
 
 name: tests
 on:
   push:
   pull_request:
   workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * 1"
 
 jobs:
   test:
@@ -17,7 +22,7 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      - run: pip install -r requirements.txt
+      - run: pip install -r requirements-dev.txt
       - run: python -m pytest tests/ -q
       - name: Dashboard renders on demo data
         env:
@@ -91,5 +96,45 @@ jobs:
           from src.overrides import count
           assert count((held or {}).get("us") or {}) == 0, "the bench wrote an override"
 
-          print("Rendered the dashboard, control room, methodology and bench")
+          # The regime explorer, on the demo answer key: every jump, the
+          # turning points and false alarms included, must render.
+          at.switch_page("views/outlook.py").run()
+          errors = [e.value for e in at.exception]
+          assert not errors, errors
+          body = "".join(h.proto.body for h in at.get("html"))
+          assert "Go back in time" in body and "gp-card" in body, "explorer incomplete"
+          jump = [s for s in at.selectbox if s.label.startswith("Jump")]
+          assert jump and len(jump[0].options) > 2, "explorer jump list missing"
+          for option in jump[0].options[1:]:
+              at.selectbox(key="hx_turn").select(option).run()
+              errors = [e.value for e in at.exception]
+              assert not errors, (option, errors)
+
+          # A framework chosen on the dashboard survives a visit to a page
+          # that does not draw the menu.
+          at.switch_page("views/dashboard.py").run()
+          menu = [s for s in at.selectbox if s.label == "Framework"]
+          assert menu, "framework menu missing"
+          # options are the menu's labels; the value is the framework's id.
+          from src import countries as ctry
+          ids = list(ctry.resolve(ctry.load_registry(), "us")["frameworks"])
+          other = [f for f in ids if f != menu[0].value][0]
+          menu[0].set_value(other).run()
+          at.switch_page("views/outlook.py").run()
+          at.switch_page("views/dashboard.py").run()
+          assert [s for s in at.selectbox if s.label == "Framework"][0].value == other,               "framework choice lost on switching pages"
+
+          print("Rendered the dashboard, control room, methodology, bench and regime explorer")
           EOF
+
+  latest:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.in pytest
+      - run: python -m pytest tests/ -q

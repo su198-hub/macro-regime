@@ -13,6 +13,7 @@ import datetime as dt
 import hashlib
 import os
 import tempfile
+import time
 from pathlib import Path
 
 import numpy as np
@@ -21,7 +22,7 @@ import streamlit as st
 
 from src import countries as ctry
 from src import overrides as ov
-from src.drivers import compute, expected_release, indicator_inputs, load_config
+from src.drivers import compute, expected_release, indicator_inputs, load_config, required_series
 from src.regimes import fit, load_regimes, probabilities, run
 from src.store import Store
 
@@ -72,46 +73,96 @@ def snapshot_manifest() -> dict | None:
     if not url:
         return None
     from src.snapshot import read_manifest
+    last = _last_good()
     try:
-        return read_manifest(url)
+        last["manifest"] = read_manifest(url)
     except Exception:
-        return None
+        # Unreachable for a moment: keep serving the snapshot already loaded
+        # rather than switching every page to local data until the next check.
+        pass
+    return last.get("manifest")
+
+
+@st.cache_resource(show_spinner=False)
+def _last_good() -> dict:
+    """Shared across sessions: the last manifest read, and when a snapshot
+    download last failed."""
+    return {}
 
 
 def data_version() -> str:
-    """Changes whenever a new snapshot is published, so caches rebuild."""
+    """Changes whenever a new snapshot is published, so caches rebuild.
+
+    "local" while the published snapshot cannot be loaded, so that results
+    computed from the fallback are cached under the fallback's name and not
+    under the snapshot's, where they would stick until the next publish.
+    """
     m = snapshot_manifest()
-    return m["published_at"] if m else "local"
+    if not m:
+        return "local"
+    version = m["published_at"]
+    return version if _snapshot_ready(version) else "local"
+
+
+SNAPSHOT_RETRY_SECONDS = 120
 
 
 @st.cache_resource(show_spinner="Loading the latest published data…", max_entries=1)
-def _store_for(version: str):
-    if version != "local":
-        from src.snapshot import load_snapshot
-        safe = version.replace(":", "").replace("+", "_")
-        path = Path(tempfile.gettempdir()) / "macro-regime" / f"snapshot-{safe}.duckdb"
-        try:
-            return load_snapshot(data_url(), path, manifest=snapshot_manifest())
-        except Exception as exc:
-            st.warning(f"Could not load the published data ({exc}). Showing local data instead.")
+def _snapshot_store(version: str):
+    """The store rebuilt from one publish. Raises if it cannot be loaded, so a
+    failure is never cached."""
+    from src.snapshot import load_snapshot
+    safe = version.replace(":", "").replace("+", "_")
+    path = Path(tempfile.gettempdir()) / "macro-regime" / f"snapshot-{safe}.duckdb"
+    return load_snapshot(data_url(), path, manifest=snapshot_manifest())
 
+
+def _snapshot_ready(version: str) -> bool:
+    """Whether this publish's store is loaded, loading it if need be. After a
+    failure it waits SNAPSHOT_RETRY_SECONDS before trying again, so a dead
+    network does not stall every rerun."""
+    failed = _last_good().get("failed")
+    if failed and failed[0] == version and time.monotonic() - failed[1] < SNAPSHOT_RETRY_SECONDS:
+        return False
+    try:
+        _snapshot_store(version)
+    except Exception as exc:
+        _last_good()["failed"] = (version, time.monotonic(), str(exc))
+        return False
+    _last_good().pop("failed", None)
+    return True
+
+
+def _store_for(version: str):
+    return _snapshot_store(version) if version != "local" else _local_store()
+
+
+@st.cache_resource(show_spinner=False)
+def _local_store():
     # Point MACRO_REGIME_DB outside OneDrive; sync locks the file mid-write.
     store = Store(os.environ.get("MACRO_REGIME_DB", "data/regime.duckdb"))
     # Hosted deploys start from an empty disk. Opt-in only, so synthetic data
     # never lands in a real store by accident.
     if os.environ.get("MACRO_REGIME_SEED_DEMO") == "1" and store.coverage().empty:
-        from ingest import load_demo
+        from ingest import load_demo, load_demo_truth
         # Demo data seeds every live country and every framework, so both
-        # menus work without a vendor.
+        # menus work without a vendor, and the answer key's inputs, so the
+        # regime explorer does too.
         reg = ctry.load_registry()
         for code in ctry.live_codes(reg):
             for path in ctry.resolve(reg, code)["all_indicators"]:
                 load_demo(store, load_config(path))
+        load_demo_truth(store)
     return store
 
 
 def get_store():
-    return _store_for(data_version())
+    version = data_version()
+    failed = _last_good().get("failed")
+    if version == "local" and failed and data_url():
+        st.warning(f"Could not load the published data ({failed[2]}). Showing local data for "
+                   f"now; it is tried again every two minutes.")
+    return _store_for(version)
 
 
 OVERRIDE_KEY = "mr_overrides"
@@ -238,6 +289,48 @@ def get_results(vintage: dt.date, use_overrides: bool = True):
                         config_stamp(here["indicators"], here["regimes"]))
 
 
+@st.cache_data(ttl=6 * 3600, show_spinner=False)
+def _earliest_scoreable(version: str, indicators: str, regimes: str, config_stamp: str):
+    """The first date on which data published by then scores a regime, or
+    None if even today's cannot.
+
+    Whether a date can be scored changes only when one of the model's series
+    gains its first vintage, so the search runs over those dates. The store
+    holds a series from its first recorded revision, which for many series is
+    recent: before it, a rewind has no reading for that series at all.
+    """
+    store = _store_for(version)
+    cfg, reg = load_config(indicators), load_regimes(regimes)
+    rows = store.con.execute(
+        "SELECT MIN(vintage_date) FROM observations WHERE series_id IN (SELECT unnest(?)) "
+        "GROUP BY series_id", [required_series(cfg)]).fetchall()
+    today = dt.date.today()
+    dates = sorted({r[0] for r in rows if r[0] <= today} | {today})
+
+    def scores(day: dt.date) -> bool:
+        d = compute(store, cfg, day)["drivers"]
+        return not d.empty and not probabilities(d, reg).dropna(how="all").empty
+
+    if not scores(today):
+        return None
+    lo, hi = 0, len(dates) - 1
+    while lo < hi:
+        mid = (lo + hi) // 2
+        if scores(dates[mid]):
+            hi = mid
+        else:
+            lo = mid + 1
+    return dates[lo]
+
+
+def earliest_scoreable() -> dt.date | None:
+    """The first date the country and framework in view can be rewound to,
+    under the published defaults."""
+    here = country()
+    return _earliest_scoreable(data_version(), here["indicators"], here["regimes"],
+                               config_stamp(here["indicators"], here["regimes"]))
+
+
 def config_stamp(*paths: str) -> str:
     """A fingerprint of the config files' contents, for cache keys.
 
@@ -285,7 +378,12 @@ def country_picker(container=None, label_visibility: str = "visible") -> dict:
     reg = registry()
     live = ctry.live_codes(reg)
     where = container or st
-    where.selectbox("Country", live, key=COUNTRY_KEY,
+    # The choice lives under a plain key and the menu under its own: Streamlit
+    # drops a widget's state on any page that does not draw it, which reset
+    # the framework to the default whenever a reader visited another page.
+    _seed(COUNTRY_KEY, live)
+    where.selectbox("Country", live, key=_widget(COUNTRY_KEY),
+                    on_change=_keep, args=(COUNTRY_KEY,),
                     format_func=lambda c: ctry.label(reg, c),
                     label_visibility=label_visibility,
                     help="Each country is scored from its own indicator set and centers.")
@@ -294,11 +392,27 @@ def country_picker(container=None, label_visibility: str = "visible") -> dict:
         options = list(here["frameworks"])
         if st.session_state.get(FRAMEWORK_KEY) not in options:
             st.session_state[FRAMEWORK_KEY] = here["framework"]
-        where.selectbox("Framework", options, key=FRAMEWORK_KEY,
+        _seed(FRAMEWORK_KEY, options)
+        where.selectbox("Framework", options, key=_widget(FRAMEWORK_KEY),
+                        on_change=_keep, args=(FRAMEWORK_KEY,),
                         format_func=lambda f: here["frameworks"][f],
                         label_visibility=label_visibility,
                         help="Which signposts the call is scored from, and where each scenario sits on them.")
     return country()
+
+
+def _widget(key: str) -> str:
+    return f"_w_{key}"
+
+
+def _seed(key: str, options: list) -> None:
+    """Show the kept choice in the menu, which may be new on this page."""
+    if st.session_state.get(key) in options:
+        st.session_state[_widget(key)] = st.session_state[key]
+
+
+def _keep(key: str) -> None:
+    st.session_state[key] = st.session_state[_widget(key)]
 
 
 def planned_note() -> str:

@@ -100,7 +100,15 @@ def load_snapshot(base: str, db_path: str | Path, manifest: dict | None = None,
     db_path.parent.mkdir(parents=True, exist_ok=True)
     version = str((manifest or {}).get("published_at", ""))
     for attempt in range(tries):
-        _build(base, db_path, version)
+        # A dropped connection is retried like a stale file: the app falls
+        # back to no data at all if this gives up.
+        try:
+            _build(base, db_path, version)
+        except (requests.RequestException, OSError):
+            if attempt == tries - 1:
+                raise
+            time.sleep(5 * (attempt + 1))
+            continue
         store = Store(db_path)
         rows = store.con.execute("SELECT COUNT(*) FROM observations").fetchone()[0]
         if manifest is None or rows == manifest.get("rows"):

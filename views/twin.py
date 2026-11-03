@@ -207,7 +207,7 @@ chart = (alt.Chart(long).mark_rect(strokeWidth=0)
          # A fixed height per row: a total height was being shrunk to fit, which
          # squeezed both rows into a sliver.
          .properties(height=alt.Step(44)))
-st.altair_chart(ui.style(chart), use_container_width=True)
+st.altair_chart(ui.style(chart), width="stretch")
 
 
 # ---------- where they disagree ----------
@@ -263,7 +263,7 @@ line = (alt.Chart(series.reset_index(names="month").melt("month", var_name="mode
                 tooltip=[alt.Tooltip("month:T", format="%b %Y"), "model:N",
                          alt.Tooltip("score:Q", format="+.2f")])
         .properties(height=240))
-st.altair_chart(ui.style(line), use_container_width=True)
+st.altair_chart(ui.style(line), width="stretch")
 
 
 # ---------- what changed ----------

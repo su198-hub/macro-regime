@@ -17,8 +17,9 @@ from src import ui
 from src.drivers import (DRIVER_SCALE, driver_breakdown, driver_groups, group_scores,
                          load_config, required_series)
 from src.regimes import contributions, load_regimes
-from views.common import (INDICATORS, REGIMES, country_picker, get_results, get_store,
-                          is_demo as store_is_demo, planned_note, published_note,
+from views.common import (INDICATORS, REGIMES, country_picker, earliest_scoreable,
+                          get_results, get_store, is_demo as store_is_demo,
+                          planned_note, published_note,
                           model_vendors, refresh_button, settings_banner, source_sentence)
 
 # Diverging blue to red through a neutral gray, for signed indicator scores.
@@ -41,10 +42,18 @@ head_left.html(
     f'<p class="mr-sub">{ui.esc(here["label"])} · {ui.count_word(_cfg_counts[0])} drivers '
     f'scored monthly from point-in-time data and mapped to '
     f'{ui.count_word(_cfg_counts[1])} regimes</p></div>')
+# Only as far back as the stored vintages can score the call: before a
+# series' first recorded vintage the store has no reading for it at all.
+earliest = earliest_scoreable()
 vintage = head_right.date_input(
     "Data as known on", value=dt.date.today(), format="MM/DD/YYYY",
+    min_value=earliest, max_value=dt.date.today(),
     help="Rewind to see the call you would have made at the time, using only "
-         "data published by that date.")
+         "data published by that date."
+         + (f" The earliest is {earliest:%B} {earliest.day}, {earliest.year}: before then, "
+            "at least one series the model needs has no stored vintage, so the call "
+            "cannot be scored from data published at the time. The Regime explorer "
+            "goes back to 1968 on today's data." if earliest else ""))
 st.html('<hr class="mr-rule">')
 st.session_state["_mr_page"] = "dashboard"
 settings_banner()
@@ -78,8 +87,17 @@ source_line = (f'<p class="mr-source">Source: '
                f'Macro Regime Monitor calculations.</p>')
 
 if probs.empty:
-    st.warning("Not enough overlapping coverage to score a regime at this "
-               "vintage. Check the coverage table below.")
+    # Reached with custom settings, or data that has thinned out: say what is
+    # missing here, since the page stops before its own coverage tab.
+    scored = [c for c in driver_cols if drivers[c].notna().any()]
+    missing = [spec.get("label", d) for d, spec in cfg["drivers"].items() if d not in scored]
+    st.warning("Not enough data published by this date to score a regime"
+               + (f": no reading for {', '.join(missing).lower()}" if missing else "")
+               + ". When each series the model needs was first stored:")
+    need = set(required_series(cfg))
+    cov = store.coverage()
+    st.dataframe(cov[cov["series_id"].isin(need)].sort_values("first_vintage", ascending=False),
+                 width="stretch", hide_index=True)
     st.stop()
 
 latest = probs.index[-1]

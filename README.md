@@ -1,29 +1,34 @@
 # Macro Regime Monitor
 
-Six drivers — growth, inflation, supply constraint, monetary policy, fiscal
-policy, reforms and industrial policy — scored monthly from U.S. data and mapped to four regimes:
-goldilocks, high growth with high inflation, stagflation, hard landing.
+Scores six drivers of the US economy monthly and calls which of four regimes
+the next three years look like: goldilocks, high growth with high inflation,
+stagflation, or a hard landing.
 
-That is v1. The default since October 2026 is v2 (`config/indicators_v2.yml`,
-`config/regimes_v2.yml`): six drivers (growth, inflation, monetary
-stance, monetary credibility, fiscal policy, reforms) and the same four
-regimes, read for the next three years. The Framework menu switches between them; the first framework
-listed in `config/countries.yml` is the default.
+The default framework is v2 (`config/indicators_v2.yml`,
+`config/regimes_v2.yml`). Its drivers are growth, inflation, monetary stance,
+monetary credibility, fiscal policy and reforms. Each regime sits where the
+drivers stood in the run-ups to it, learned from 1968 onward and shrunk toward
+a judgment prior (`scripts/realign_positions.py`). v1 (`config/indicators.yml`,
+`config/regimes.yml`) describes the month itself rather than the years ahead,
+and stays available from the Framework menu. The first framework listed in
+`config/countries.yml` is the default.
 
 Everything reads through a point-in-time store, so the dashboard can be rewound
-to any date and will show the call you would have made then.
+to see the call as it would have been made, from data published by then. How
+far back that goes depends on the stored vintages: for v2, to April 2020 (see
+Known limitations). The Regime explorer goes back to 1968 on today's data.
 
 ## Running it
 
 ```bash
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
 
 python ingest.py demo          # synthetic data, no credentials needed
 streamlit run app.py
 ```
 
 That gets you a working dashboard in about a minute. The numbers are invented;
-it exists so you can see the shape before committing to data work.
+the demo exists so you can see every page work before any data work.
 
 On Windows (PowerShell), keeping the database out of OneDrive:
 
@@ -37,11 +42,21 @@ streamlit run app.py           # opens http://localhost:8501
 Stop the dashboard (Ctrl+C) before running `ingest.py` again. DuckDB lets
 only one process write to the file.
 
+## Dependencies
+
+`requirements.txt` pins every package to an exact version, which is what the
+hosted app installs on each boot and what CI tests. The direct dependencies and
+their allowed ranges are in `requirements.in`; `requirements-dev.txt` adds
+pytest. To upgrade, follow the steps at the top of `requirements.txt`. CI's
+weekly "latest" job runs the tests on the newest releases, so a breaking
+upgrade shows up before the pins move.
+
 ## Hosted on Streamlit Community Cloud
 
-GitHub stores the code and runs `.github/workflows/tests.yml` on every push.
-The dashboard itself is hosted by Streamlit Community Cloud, which deploys
-from the repo and redeploys on each push.
+GitHub stores the code and runs `.github/workflows/tests.yml` on every push:
+the unit tests, then every main page rendered headlessly on demo data. The
+dashboard itself is hosted by Streamlit Community Cloud, which deploys from the
+repo and redeploys on each push.
 
 1. Sign in at <https://share.streamlit.io> with GitHub.
 2. Create app → this repo, branch `main`, main file `app.py`.
@@ -64,74 +79,85 @@ python ingest.py publish    # push the snapshot to the repo's data branch
 `publish` force-pushes observations (with every vintage) and series metadata
 to the `data` branch, replacing the previous snapshot. It never includes the
 judgement log. The app checks for a new snapshot every ten minutes and shows
-when the data was published. Without `MACRO_REGIME_DATA_URL`, or if the
-snapshot cannot be fetched, it falls back to demo data.
+when the data was published. If a snapshot cannot be downloaded, the app shows
+local data with a warning and tries again every two minutes; without
+`MACRO_REGIME_DATA_URL` it uses local data, seeded with demo data if
+`MACRO_REGIME_SEED_DEMO` is set.
+
+The store holds Bloomberg series, which can be published only with
+`--allow-licensed`, on the vendor's approval. Adding a Bloomberg or Capital IQ
+series to a published config is a new redistribution decision.
 
 The hosted disk is temporary: anything saved in the Judgement tab there is
 lost when the app restarts or new data is published.
 
-For real data, get a free key at
-<https://fredaccount.stlouisfed.org/apikeys>:
+## The live call log
 
-```bash
-export FRED_API_KEY=your_key
-python ingest.py backfill      # full ALFRED vintage history, slow, run once
-python ingest.py coverage      # check what you actually got
-python ingest.py sync          # current values, put this on a schedule
-```
+Each `publish` also appends the call it publishes to `calls.csv` on the data
+branch: the month scored, the regime called and its odds, each driver's
+reading, the newest provisional month, and fingerprints of the config and the
+code (`src/call_log.py`). The log is carried across the force-push and never
+rewritten, and a copy is kept next to the store on the desk machine. If the
+data branch cannot be read, `publish` stops rather than overwrite the log.
 
-Backfill takes roughly ten to twenty minutes for the current indicator set.
+Every other grade of the model is on history it was tuned against. This log is
+the record that is not: each row's outcome is known about three years and four
+months after its month.
 
-## Before you trust anything
+## How the call is graded
 
-Run `python ingest.py coverage` and read the vintages column. Any series
-showing one vintage has no revision history, which means a backtest including
-it is as-revised rather than point-in-time. Breakevens and the funds rate are
-legitimately single-vintage because they are never revised. GDP-adjacent series
-showing one vintage are a problem.
+The answer key (`src/truth.py`) labels each month by what the next three years
+turned out to be: real GDP growth against CBO potential, and core PCE inflation
+against long-run expectations, on today's revised data. The call is graded
+against it from 1976 to 2023 by `python scripts/realign_positions.py`:
 
-## What to do first
+- **Held out:** each episode called from positions learned without it or any
+  month sharing its three years. 71% of regimes right on average.
+- **Outcomes known at the time:** each month called from positions learned
+  only from outcomes known then. 64%. The driver readings are still today's
+  revised data, so this is not a fully real-time test.
+- **Benchmarks:** the current regime continuing scores 34%, and so does the mix
+  of regimes seen so far. Chance is 25%.
 
-Not code. Two things:
-
-1. **Curate `config/indicators.yml`.** The set shipped here is a plausible
-   starting point, not a recommendation. Every indicator carries a `why` field.
-   Delete the ones whose reason you don't believe, add the ones you actually
-   watch, and argue about the weights. This file is the project.
-
-2. **Hand-label a regime history back to 1970.** Do it before you look at any
-   model output, from what was knowable at the time, and store it alongside
-   this repo. It is the only thing that will tell you whether the archetypes in
-   `config/regimes.yml` are any good, and it is the asset that survives when
-   you rewrite the code.
+Read the 71% as a range. It rests on 12 episodes; resampling whole episodes
+puts it between about 58% and 86% (5th to 95th percentile, checked
+3 November 2026). The temperature, persistence rule, driver weights and
+indicator set were all chosen while looking at the same grade, so it flatters
+the model somewhat.
 
 ## Layout
 
 ```
-config/countries.yml    which countries exist and where their config lives
-config/indicators.yml   indicator set, weights, normalisation, reasons
-config/regimes.yml      regime archetypes in driver space, persistence settings
-src/countries.py        the country registry: live, planned, and file paths
-src/store.py            DuckDB vintage store, grain is (series, obs, vintage)
-src/sources/fred.py     ALFRED adapter, pulls full revision history
-src/sources/macrobond.py  Macrobond adapter, needs Data+ (see below)
-src/transform.py        transforms and normalisation, pure functions
-src/drivers.py          config to driver scores, confirmed and provisional
-src/regimes.py          archetype distance, softmax, persistence
-src/ui.py               signpost geometry, HTML fragments, chart styling
-src/overrides.py        session-local changes to weights, centers and settings
-app.py                  Streamlit entry point: page setup and navigation
-views/dashboard.py      the dashboard page
-views/control.py        control room: change the assumptions, per session
-views/methodology.py    methodology page, generated from the live config
-views/energy.py         energy page ("Energy (WIP)", /energy): is energy demand outrunning supply?
-config/energy.yml       its indicators, weights and reasons; not part of the regime model
-src/energy.py           scores it: blocks, power and fuels tightness, ASR's two markers
-src/sources/eia.py      EIA outlook archive and Form 860M inventories, summarised per release
-src/sources/public.py   FRED prices without a key, and Epoch AI's data-centre timelines
-.streamlit/config.toml  theme: Sabon Next LT headings, Arial body
-ingest.py               backfill / sync / coverage / demo
-tests/                  transforms, persistence logic, signpost geometry
+config/countries.yml       which countries exist, their frameworks and config files
+config/indicators_v2.yml   v2 indicators, weights, normalization and reasons
+config/regimes_v2.yml      v2 regime positions (written by realign_positions.py), settings
+config/indicators.yml      v1 indicators
+config/regimes.yml         v1 archetypes
+config/bench.yml           candidate indicators and the evidence for and against each
+config/history_events.yml  events and false alarms pinned on the Regime explorer
+config/sources.yml         each series' vendor and code
+src/store.py               DuckDB vintage store, grain is (series, obs, vintage)
+src/snapshot.py            export and rebuild of the published snapshot
+src/call_log.py            the live call log
+src/sources/               vendor adapters: Macrobond, FRED/ALFRED, Bloomberg, Capital IQ, EIA, ...
+src/transform.py           transforms and normalization, pure functions
+src/drivers.py             config to driver scores, confirmed and provisional
+src/regimes.py             distance to each regime, softmax, persistence
+src/truth.py               the answer key: what each month's next three years turned out to be
+src/outlook.py             learning the run-up positions, held-out and real-time grading
+src/ui.py                  HTML fragments, charts and styling
+src/overrides.py           session-local changes to weights, centers and settings
+app.py                     Streamlit entry point: page setup and navigation
+views/dashboard.py         the dashboard: today's call and what is behind it
+views/outlook.py           Regime explorer (/outlook): regime shapes, any month since 1968
+views/control.py           control room: change the assumptions, per session
+views/methodology.py       methodology, generated from the live config
+views/bench.py             the indicator bench
+views/history.py           the answer key month by month
+views/energy.py            energy page ("Energy (WIP)"), not part of the regime model
+scripts/realign_positions.py  learns v2's positions and grades the call
+ingest.py                  backfill / sync / coverage / demo / publish / truth
+tests/                     unit tests; CI also renders every main page on demo data
 ```
 
 ## Adding a country
@@ -141,16 +167,16 @@ States is live; Japan, Germany and the United Kingdom are listed as planned, so
 they appear in the footer but not in the menu. A country becomes live when its
 three config files exist:
 
-1. an indicator file with the same six drivers and that country's series,
+1. an indicator file with the same drivers and that country's series,
 2. a sources file mapping each series name to its vendor code,
-3. a regimes file, or the shared one if the archetypes really do carry over.
+3. a regimes file, or the shared one if the regimes really do carry over.
 
 Then point its entry at those files and set `status: live`. No code changes.
 
-Two things that do not travel. **Centers**: trend consumption growth, the
-inflation target, the noncyclical unemployment rate and average capacity
-utilisation are national numbers, and a center copied from the US will score
-another economy wrong in a way that looks plausible. **Archetypes**: "inflation
+Two things that do not travel. **Centers**: trend growth, the inflation
+target, the noncyclical unemployment rate and average capacity utilization are
+national numbers, and a center copied from the US will score another economy
+wrong in a way that looks plausible. **Regime positions**: "inflation
 expectations above target" means something different where the target was
 undershot for twenty years. Re-derive both rather than assuming.
 
@@ -169,42 +195,49 @@ python ingest.py --country us backfill
 Macrobond is the default source (`config/sources.yml`). It needs a Data+,
 Professional or Enterprise licence and, for the COM client used here, Windows
 with Macrobond Analysis installed and signed in on the same machine. The
-package is not in `requirements.txt` because the hosted app and CI run on
-Linux without it.
+package is not in the requirements because the hosted app and CI run on Linux
+without it.
 
 ```powershell
 .venv\Scripts\activate
 pip install macrobond-data-api
 $env:MACRO_REGIME_DB = "$env:LOCALAPPDATA\macro-regime\macrobond.duckdb"
-python ingest.py backfill      # all 22 series with full vintages, under a minute
+python ingest.py backfill      # every series with its stored vintages
+python ingest.py truth         # the answer key's inputs
 python ingest.py coverage
 streamlit run app.py
 ```
 
 Keep real data in its own database file. `backfill` refuses to write into a
 store that holds demo data. Re-run `python ingest.py sync` to refresh; for
-Macrobond it refetches each series' full history, which takes about as long as
-the backfill.
+Macrobond it refetches each series' full history.
 
-`config/sources.yml` maps each series name used in `indicators.yml` to its
+`config/sources.yml` maps each series name used in the indicator files to its
 Macrobond code, with notes where the match is not like-for-like with FRED. Set
-`use: fred` on a series to take it from FRED instead (needs `FRED_API_KEY`).
+`use: fred` on a series to take it from FRED instead (needs `FRED_API_KEY`,
+free at <https://fredaccount.stlouisfed.org/apikeys>).
 
 The COM client rules out hosted schedulers: a scheduled refresh has to run on
-this machine (Windows Task Scheduler). The Web API client runs anywhere but is
-a separate entitlement. Check your Macrobond licence before showing its data
-anywhere other than your own machine. `ingest.py publish` makes the data
-public if the repository is public.
+this machine (Windows Task Scheduler). Check your Macrobond licence before
+showing its data anywhere other than your own machine. `ingest.py publish`
+makes the data public if the repository is public.
 
 ## Known limitations
 
-- Quarterly and annual series are forward-filled to monthly, so those drivers
-  move in steps. The deficit series is annual and contributes very little
-  timely information.
-- SLOOS lending standards and CBO's NAIRU are quarterly and annual
-  respectively, and both lag.
-- The regime archetypes have not been validated against a labelled history.
-  Until you do that, treat the probabilities as a structured way to read the
-  drivers, not as a forecast.
-- Calibrating thresholds on 2021 to 2023 will overfit. That episode is vivid
-  and atypical.
+- **Rewinding stops in 2020 for v2.** Macrobond stores a series from its first
+  recorded revision, which for many series is recent: the fed funds rate from
+  April 2020, M2 from August 2020. Before a series' first stored vintage a
+  rewind has no reading for it, so the date picker starts at the earliest date
+  the framework can be scored. Loading ALFRED's revision history for the
+  FRED-sourced series would take it back decades.
+- **No fully real-time grade.** For the same reason, the grades use today's
+  revised driver readings, and each indicator's center and scale are set from
+  its full history.
+- **Fiscal policy and reforms barely move the three-year grade.** Dropping
+  either leaves it within a point (checked 3 November 2026). They are kept for
+  what they measure, not for their record.
+- **Very confident calls have done worse.** When the held-out odds on the top
+  regime exceeded 80%, it was right in 48% of those 66 months, nearly all from
+  1983 and 1995–97. Between 50% and 80%, the odds match the record.
+- Quarterly and annual series are forward-filled to monthly, so those
+  indicators move in steps.
