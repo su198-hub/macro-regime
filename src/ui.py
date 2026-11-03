@@ -287,6 +287,10 @@ CSS = f"""
 .gp-points {{ font-size: 0.88rem; color: {INK_2}; line-height: 1.45; margin: 0.65rem 0 0;
   padding-left: 1.1rem; }}
 .gp-points li {{ margin: 0 0 0.35rem; }}
+.gp-more {{ margin-top: 0.55rem; }}
+.gp-more summary {{ font-size: 0.86rem; color: {INK_2}; cursor: pointer; }}
+.gp-more summary:hover {{ color: {INK}; }}
+.gp-more .gp-points {{ margin-top: 0.4rem; }}
 .gp-row {{ display: grid; grid-template-columns: 7.5rem 1fr 7rem; align-items: center;
   gap: 0.6rem; margin: 0.3rem 0; font-size: 0.86rem; }}
 .gp-label {{ color: {INK}; }}
@@ -850,8 +854,10 @@ def gap_cards(cards: list[dict], a_name: str, b_name: str) -> str:
             for label, a, b in c["rows"])
         # A true minus, as in the rows; year ranges such as 1975-79 keep their hyphen.
         points = [re.sub(r"(?<!\d)-(?=\d)", "−", p) for p in c.get("points", ())]
+        # The reasons fold away so the cards stay short; the note and gaps show.
         points = "".join(f"<li>{esc(p)}</li>" for p in points)
-        points = f'<ul class="gp-points">{points}</ul>' if points else ""
+        points = (f'<details class="gp-more"><summary>What changes and why</summary>'
+                  f'<ul class="gp-points">{points}</ul></details>') if points else ""
         out.append(f'<div class="gp-card"><div class="gp-title" style="color:{c["color"]}">'
                    f'{esc(c["title"])}</div><p class="gp-note">{esc(c["note"])}</p>{rows}{points}</div>')
     return (f'<div class="gp"><div class="gp-head">{esc(a_name)} (dot) against {esc(b_name.lower())} '
