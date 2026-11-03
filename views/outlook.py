@@ -306,11 +306,12 @@ NOW_M = HX_MONTHS[-1]
 NOW_CALL = PRED["called"].get(NOW_M)
 TURN_OPTS = {f'Today · {HX_LABEL[NOW_M]}'
              + (f' · calling {HEAD[NOW_CALL]}' if NOW_CALL in HEAD else ""): HX_LABEL[NOW_M]}
-# False alarms next, so they are not lost at the bottom of a long list.
-TURN_OPTS.update({f'{HX_LABEL[a_]} · {e["title"]}': HX_LABEL[a_] for a_, _, e in MISS_SPANS if a_ in HX_LABEL})
-TURN_OPTS.update({f'{HX_LABEL[t_]} · into {HEAD[r_]}'
-                  + (f' · {LEADS_INTO[t_][-1][1]["title"]}' if t_ in LEADS_INTO else ""): HX_LABEL[t_]
-                  for t_, r_ in zip(TURNS["start"], TURNS["label"]) if t_ in HX_LABEL})
+# False alarms slot in among the turning points by month.
+_jumps = [(t_, f'{HX_LABEL[t_]} · into {HEAD[r_]}'
+           + (f' · {LEADS_INTO[t_][-1][1]["title"]}' if t_ in LEADS_INTO else ""))
+          for t_, r_ in zip(TURNS["start"], TURNS["label"]) if t_ in HX_LABEL]
+_jumps += [(a_, f'{HX_LABEL[a_]} · {e["title"]}') for a_, _, e in MISS_SPANS if a_ in HX_LABEL]
+TURN_OPTS.update({lab: HX_LABEL[m_] for m_, lab in sorted(_jumps, key=lambda j: j[0])})
 if st.session_state.get("hx_month") not in HX_BY_LABEL:
     st.session_state["hx_month"] = HX_LABEL.get(pd.Period("2008-03", "M"), HX_LABEL[HX_MONTHS[-1]])
 
