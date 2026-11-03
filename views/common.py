@@ -360,8 +360,9 @@ def source_sentence(vendors: set[str]) -> str:
         parts.append("Macrobond, carrying each series from its original publisher: BEA, "
                      "BLS, Census, the Treasury, the Federal Reserve Board, the New York, "
                      "Philadelphia and Cleveland Feds, CBO, S&amp;P with Robert Shiller, "
-                     "the University of Michigan, the BIS, the World Bank, the Fraser "
-                     "Institute, and Baker, Bloom and Davis for the policy uncertainty indexes")
+                     "the University of Michigan, the BIS, the World Bank, the World Justice "
+                     "Project, the Fraser Institute, and Baker, Bloom and Davis for the policy "
+                     "uncertainty indexes")
     if "fred" in vendors:
         parts.append("FRED and ALFRED, Federal Reserve Bank of St. Louis")
     if "bloomberg" in vendors:

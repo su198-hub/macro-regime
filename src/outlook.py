@@ -61,7 +61,10 @@ def monthly_drivers(drivers: pd.DataFrame, names: list[str]) -> pd.DataFrame:
     for n in names:
         cov = f"{n}__coverage"
         if cov in d:
-            ok &= d[cov] >= MIN_COVERAGE
+            # A hair of tolerance: before 1976 reforms sits exactly at the
+            # threshold, and weights like a third of a fifth do not sum to
+            # one in floating point, which once dropped 1968-75.
+            ok &= d[cov] >= MIN_COVERAGE - 1e-9
     return d.loc[ok, names].astype(float)
 
 

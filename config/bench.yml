@@ -1798,6 +1798,25 @@ drivers:
           starting a business, licensing and tax compliance, partly from executive surveys.
           Read from 2001, when the method changed, and published about two years late.
 
+      - id: regulatory_enforcement
+        name: World Justice Project regulatory enforcement, three-year change
+        status: in_set
+        horizon: long
+        nature: structural
+        kind: survey
+        enters: change
+        where: macrobond
+        code: wjp_rol_us_0032
+        refers: >-
+          Whether rules are applied fairly and predictably, which RegData's count and
+          Fraser's burden score cannot see: firms plan around how rules are enforced, not
+          only how many there are. It overlaps the regulation block little (+0.33) and the
+          World Bank score more (+0.71). Added November 2026, a third of the
+          regulation block's fifth: the call stayed at 71% and 64%, and no live call changed.
+        measured: >-
+          World Justice Project household and expert surveys, annual since 2013, with 2026
+          already out, which makes it the most current governance reading on the bench.
+
       - id: policy_uncertainty
         name: Economic policy uncertainty, 12-month average
         status: in_set
@@ -1844,26 +1863,6 @@ drivers:
         measured: BEA federal non-defense gross investment in R&D, quarterly.
 
       # --- Candidates.
-
-      - id: cand_wjp_reg_enforcement
-        name: World Justice Project regulatory enforcement, three-year change
-        status: candidate
-        horizon: long
-        nature: structural
-        kind: survey
-        enters: change
-        where: macrobond
-        code: wjp_rol_us_0032
-        refers: >-
-          Whether rules are applied fairly and predictably, which RegData's count and
-          Fraser's burden score cannot see: firms plan around how rules are enforced, not
-          only how many there are. It overlaps the regulation block little (+0.33) and the
-          World Bank score more (+0.71). Graded November 2026 inside the regulation block,
-          block share held fixed: the call stayed at 71% and 64% and today's odds did not
-          change.
-        measured: >-
-          World Justice Project household and expert surveys, annual since 2013, with 2026
-          already out, which makes it the most current governance reading on the bench.
 
       - id: cand_gta_nontariff
         name: Share of US imports hit by new non-tariff barriers

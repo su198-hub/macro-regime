@@ -459,6 +459,11 @@ series:
   WGI_CC:
     macrobond: us_wbwgi_cc_est
     note: World Bank Worldwide Governance Indicators, control of corruption, estimate.
+  WJP_REG:
+    macrobond: wjp_rol_us_0032
+    note: >-
+      World Justice Project Rule of Law Index, factor 6, regulatory
+      enforcement, 0 to 1. Annual from 2013, with no 2017 edition.
   FRASER_BUSREG:
     macrobond: fraser_reg_busr_tot_us
     note: >-

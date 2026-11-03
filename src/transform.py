@@ -154,12 +154,12 @@ def mean_12m(s: pd.Series) -> pd.Series:
     return s.rolling(n, min_periods=n).mean()
 
 
-def diff_5y(s: pd.Series) -> pd.Series:
-    """Change over five years, matched by date rather than by position, so a
-    gap in the series never stretches the window. An annual or irregular
-    series (one published every five years and then yearly) is first put on a
-    yearly footing, interpolating only between points both published, so five
-    steps are always five years."""
+def _diff_years(s: pd.Series, years: int) -> pd.Series:
+    """Change over a number of years, matched by date rather than by position,
+    so a gap in the series never stretches the window. An annual or irregular
+    series (one published every five years and then yearly, or one that skips
+    a year) is first put on a yearly footing, interpolating only between
+    points both published, so n steps are always n years."""
     s = s.dropna()
     if s.empty:
         return s
@@ -168,10 +168,22 @@ def diff_5y(s: pd.Series) -> pd.Series:
         s = s.groupby(s.index.year).last()
         s = s.reindex(range(s.index.min(), s.index.max() + 1)).interpolate(limit_area="inside")
         s.index = pd.to_datetime([f"{y}-12-31" for y in s.index])
-        return s - s.shift(5)
+        return s - s.shift(years)
     months = pd.Series(s.to_numpy(), index=pd.DatetimeIndex(s.index).to_period("M"))
-    back = months.reindex(months.index - 60)
+    back = months.reindex(months.index - 12 * years)
     return s - back.to_numpy()
+
+
+def diff_5y(s: pd.Series) -> pd.Series:
+    """Change over five years, matched by date (see _diff_years)."""
+    return _diff_years(s, 5)
+
+
+def diff_3y(s: pd.Series) -> pd.Series:
+    """Change over three years, matched by date (see _diff_years). For annual
+    surveys that skip a year, where a positional three-step change would
+    stretch to four."""
+    return _diff_years(s, 3)
 
 
 def target_distance_change_12m(s: pd.Series) -> pd.Series:
@@ -194,6 +206,7 @@ TRANSFORMS = {
     "target_distance_change_12m": target_distance_change_12m,
     "mean_12m": mean_12m,
     "diff_5y": diff_5y,
+    "diff_3y": diff_3y,
     "yoy_pct": yoy_pct,
     "pct_change_3m_ann": pct_change_3m_ann,
     "diff_12m": diff_12m,

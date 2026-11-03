@@ -42,6 +42,17 @@ def test_diff_5y_matches_by_date_across_a_gap():
     assert pd.Timestamp("2007-01-31") not in out.index      # 2002-01 is in the hole
 
 
+def test_diff_3y_bridges_a_skipped_year():
+    """WJP-style: an annual survey with no 2017 edition. 2020 against 2017 uses
+    the 2017 value interpolated between 2016 and 2018, not 2016."""
+    years = [2014, 2015, 2016, 2018, 2019, 2020]
+    s = pd.Series([1.0, 2.0, 3.0, 5.0, 6.0, 7.0], index=pd.to_datetime([f"{y}-01-01" for y in years]))
+    out = TRANSFORMS["diff_3y"](s).dropna()
+    assert out.index[0] == pd.Timestamp("2017-12-31")
+    assert out.loc["2020-12-31"] == pytest.approx(7.0 - 4.0)
+    assert out.loc["2019-12-31"] == pytest.approx(6.0 - 3.0)
+
+
 def test_diff_5y_finds_feb_28_five_years_after_feb_29():
     idx = pd.date_range("2016-01-31", "2021-03-31", freq="ME")
     s = pd.Series(np.arange(len(idx), dtype=float), index=idx)

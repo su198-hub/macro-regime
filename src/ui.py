@@ -1328,6 +1328,7 @@ TRANSFORM_TEXT = {
     "target_distance_change_12m": "Change over a year in inflation's distance from 2%",
     "mean_12m": "Average over the last 12 months",
     "diff_5y": "Change over 5 years",
+    "diff_3y": "Change over 3 years",
 }
 UP, DOWN = "#e34948", "#2a78d6"   # diverging poles: pushes the driver up / down
 

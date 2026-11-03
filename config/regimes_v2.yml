@@ -294,5 +294,5 @@ regimes:
       monetary: 0.19
       credibility: 0.01
       fiscal: -0.01
-      reforms: 0.03
+      reforms: 0.04
     tell: Expectations falling below target while growth prospects weaken.

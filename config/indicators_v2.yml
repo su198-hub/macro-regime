@@ -122,7 +122,7 @@ meta:
     - title: Reforms is at its floor
       text: >-
         Policy uncertainty and the change in the effective tariff rate both
-        sit at the -3 cap in 2026, and the reforms driver at -0.98. It was last that low in 1971, the year of price
+        sit at the -3 cap in 2026, and the reforms driver at -1. It was last that low in 1971, the year of price
         controls and a 10% import surcharge, and in 1975 and 1983. Run-ups to
         high growth, high inflation since 1968 came with low reforms, so today
         it tilts the outlook toward higher inflation, at half weight. Reforms
@@ -197,10 +197,10 @@ meta:
         about two quarters after the quarter ends. Growth leans on the AI
         capex surge. RegData counts restrictions once a year, and the Fraser
         score arrives about two years late and is read only from 2001, when
-        its method changed. The World Bank governance score reads from 2001,
-        rests on surveys of perception and has only about 14 years of
-        following-decade outcomes, so it is there for what it measures rather
-        than for its record. B-Ready and Global Trade Alert are not included.
+        its method changed. The World Bank governance score reads from 2001
+        and the World Justice Project's regulatory enforcement from 2016; both
+        rest on surveys of perception and have little or no following-decade
+        record, so they are there for what they measure. B-Ready and Global Trade Alert are not included.
   history_start: "1970-01-01"
   carry_forward_periods: 2
   min_reported_share: 0.6
@@ -243,6 +243,7 @@ meta:
       - governance_change
       - regulation_growth
       - regulation_score
+      - regulatory_enforcement
       - policy_uncertainty
       - public_rnd_change
 
@@ -1049,9 +1050,10 @@ drivers:
       low: {label: Reactive / limited, tone: risk, phrase: the policy environment is turning against long-run growth}
       high: {label: Proactive / extensive, tone: good, phrase: the policy environment is turning toward long-run growth}
       mid: {phrase: the policy environment is roughly unchanged}
-    # Four blocks, each indicator a fifth or a tenth: institutions, regulation
-    # and policy uncertainty a fifth each, industrial policy two fifths
-    # (tariffs and public research, a fifth each).
+    # Four blocks: institutions, regulation and policy uncertainty a fifth
+    # each, industrial policy two fifths (tariffs and public research, a fifth
+    # each). Regulation splits its fifth three ways: RegData, Fraser and the
+    # World Justice Project.
     # The long-run part of the model, kept by design: together they go with
     # faster productivity over the following decade, and run the wrong way for
     # the three-year call, so the driver takes half weight there
@@ -1065,7 +1067,7 @@ drivers:
         description: Whether the rule of law and the quality of government are improving or slipping.
       regulation:
         label: Regulation
-        description: Whether federal rules are accumulating faster or slower than usual.
+        description: Whether federal rules are accumulating faster or slower than usual, how burdensome they feel, and how fairly they are enforced.
       uncertainty:
         label: Policy uncertainty
         description: How unpredictable economic policy is.
@@ -1116,7 +1118,7 @@ drivers:
         unit: "%"
         normalize: {method: gap, center: 1.39, scale: 0.76}
         direction: -1
-        weight: 0.10
+        weight: 0.0666667
         carry_forward_periods: 2
         release: QuantGov RegData
         why: >-
@@ -1138,7 +1140,7 @@ drivers:
         unit: "pts"
         normalize: {method: gap, center: 0.0, scale: 0.378}
         direction: 1
-        weight: 0.10
+        weight: 0.0666667
         carry_forward_periods: 3
         release: Fraser Institute
         why: >-
@@ -1149,6 +1151,34 @@ drivers:
           stand-in for ease of doing business. It scores how burdensome rules
           feel, where RegData counts them, so the two are averaged. Read from
           2001, when the method changed, and published about two years late.
+
+      - id: regulatory_enforcement
+        reads:
+          high: "Rules had come to be enforced more fairly and predictably."
+          low: "Rules had come to be enforced less fairly and predictably, which makes them harder to plan around."
+        group: regulation
+        label: World Justice Project regulatory enforcement, three-year change
+        source: {series: WJP_REG}
+        transform: diff_3y
+        unit: "pts"
+        normalize: {method: gap, center: 0.0, scale: 0.023}
+        direction: 1
+        weight: 0.0666666
+        carry_forward_periods: 2
+        release: World Justice Project
+        why: >-
+          **How fairly rules are enforced.** Firms plan around how a rule will
+          be applied, not only around how many rules there are: enforcement
+          that is predictable and free of improper influence lets them commit
+          to long-lived projects, while arbitrary or captured enforcement
+          raises the return they ask and favors incumbents. RegData counts
+          rules and Fraser scores their burden; this reads their enforcement,
+          from household and expert surveys, so it repeats neither (+0.33 with
+          the regulation block, +0.71 with the World Bank score). Read as the
+          three-year change. Annual from 2013 with no 2017 edition, so it
+          reads from 2016; each edition is out within the year. It fell 0.037
+          points in the three years to 2026, the largest three-year fall since
+          the index began.
 
       - id: policy_uncertainty
         reads:
