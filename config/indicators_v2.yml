@@ -83,123 +83,61 @@ meta:
     The scenario positions are learned from fifteen run-ups since 1968, three
     or four per regime, so they are estimates with wide error.
   limitations:
-    - title: Few episodes behind the positions
+    - title: Few episodes
       text: >-
-        The positions are learned from fifteen run-ups since 1968: four
-        goldilocks, four high growth, high inflation, four stagflation and
-        three hard landings. Before 1979 the inflation anchor is the Fed's
-        FRB/US estimate of long-run expectations, not a survey. Graded on the
-        three years that followed, 1976-2023, the call got 71% of each
-        regime's months right on average held out, against 34% for assuming
-        the current regime continues; in 40 runs with the readings slid out of
-        line with what followed, none matched it (median 33%; the best reached
-        62%). It caught all three hard-landing run-ups. With twelve episodes
-        graded, the 71% is a range: resampling whole episodes puts it between
-        about 58% and 86% (5th to 95th percentile, checked 3 November 2026).
-        These scores are not
-        fully out of sample: the indicators were chosen, and several changed
-        (core PCE, two dropped, monetary policy split into stance and
-        credibility), with this grade in view; centers and scales
-        come from 1985-2019 or 1990-2019, inside it; and the settings were
-        chosen on 1993-2023.
+        The positions are learned from fifteen run-ups since 1968, three or
+        four per regime, and the call is graded on twelve, so its record is a
+        wide range rather than a number (see How well the call has done). The
+        grade is not fully out of sample: indicators and settings were chosen
+        with it in view, and centers and scales come from inside the graded
+        years.
+    - title: Graded and rewound on revised data
+      text: >-
+        Many series are stored only from their first recorded revision, the
+        fed funds rate from April 2020, so the dashboard rewinds only to then,
+        and the history is graded on today's revised readings.
     - title: The scenarios sit close together
       text: >-
-        Run-ups average many months, so the learned positions sit near the
-        middle and near each other, and the probabilities are modest: since
-        1968 the leading scenario has had a median of 72%, and more than 80%
-        in about one month in four. The judgment positions are scaled
-        to the same spread before the data are weighed against them; unscaled,
-        they pulled every position outward and the call fell below 40% held
-        out.
-    - title: No Baseline scenario
+        Run-ups average many months, so the positions sit near the middle and
+        the odds are modest: the leading scenario's median since 1968 is 72%.
+    - title: Four regimes only
       text: >-
-        The call covers the four growth-inflation regimes the answer key can
-        grade. A Baseline scenario, the average month, was dropped in October
-        2026: it could not be graded, sat in the middle of every driver and
-        took about a quarter of the odds. A month near the middle now shows
-        as close odds between regimes rather than as a fifth call.
+        The call covers the four regimes the answer key can grade. A month
+        near the middle shows as close odds, not as a fifth call.
+    - title: Some inputs are there by design, not for the forecast
+      text: >-
+        The answer key reads growth against potential and inflation against
+        expectations, so revisions to potential and the inflation
+        expectations raise the bar rather than predict clearing it: on their
+        own they run the wrong way for the next three years. They hold the
+        long-run view at a quarter of each driver; the cycle and pressure
+        blocks do the forecasting (+0.55 and +0.65 with the next three years'
+        gaps). Reforms likewise goes with the next decade's productivity
+        (+0.44) but against three-year growth (-0.37), so it counts at half
+        weight.
     - title: Reforms is at its floor
       text: >-
-        Policy uncertainty and the change in the effective tariff rate both
-        sit at the -3 cap in 2026, and the reforms driver at -1. It was last that low in 1971, the year of price
-        controls and a 10% import surcharge, and in 1975 and 1983. Run-ups to
-        high growth, high inflation since 1968 came with low reforms, so today
-        it tilts the outlook toward higher inflation, at half weight. Reforms
-        is there for the long run: it goes with faster productivity over the
-        following decade (+0.44, trend removed), but runs the wrong way for
-        the next three years' growth (-0.37 with the growth gap), because
-        policy uncertainty spikes in recessions and recoveries follow.
-    - title: Potential growth is there by design, not for the forecast
-      text: >-
-        The labeled regime reads growth against potential, so revisions to
-        potential raise the bar rather than predict clearing it: on their own
-        they correlate -0.35 to +0.03 with the next three years' growth gap.
-        They are kept, at 25% of growth, to hold the long-run view in the
-        driver; at that weight they cost the three-year call about three
-        points. The cycle block does the forecasting: +0.55 with the next
-        three years' gap, 1985-2023, and the right sign in both halves.
-    - title: Inflation expectations are there by design, not for the forecast
-      text: >-
-        The labeled regime reads inflation against expected inflation, so the
-        anchoring measures are the bar itself: on their own they correlate
-        -0.49 to -0.20 with the next three years' inflation gap, the wrong
-        sign, since a higher anchor raises the bar. They are kept, at
-        25% of inflation, to hold the long-run view. The pressure block does
-        the forecasting: +0.65 with the next three years' gap, 1971-2023, and
-        the right sign in both halves. Before 1978 it is money, wages and core
-        inflation against the Fed's FRB/US long-run expectations; house prices
-        join in 1978 and the survey in 1979.
+        Policy uncertainty and the tariff rate's change sit at the -3 cap in
+        2026, and the driver at -1, last that low in 1971, 1975 and 1983.
     - title: A 2% anchor before there was a target
       text: >-
-        Inflation is read against 2%. Before the late 1990s expectations ran at
-        4 to 5%, so those years all read as de-anchored higher.
-    - title: Tight is not the same as credible
-      text: >-
-        Stance and credibility were one driver until 30 October 2026. They
-        move independently (+0.06 across months since 1968), and they pull apart in
-        exactly the episodes that matter: tight policy without credibility in
-        1969-70, 1973-74, 1978-82, 1988-90 and 2022-25, where their average sat
-        near zero and hid both. Run-ups to stagflation and to a hard landing
-        both came with policy on the tight side; credibility is what tells
-        them apart (about -0.8 before stagflation, about zero before a hard
-        landing). Split, the call scored 71% held out, against 66%, within
-        the noise of so few episodes, so the
-        split rests on what the two measure rather than on the grade.
+        Before the late 1990s expectations ran at 4 to 5%, so those years all
+        read as de-anchored higher. Before 1979 the anchor is the Fed's FRB/US
+        estimate, not a survey.
     - title: Credibility is a track record only
       text: >-
-        The miss rate and volatility look back. Since 2021 they
-        read as losing credibility while long-run breakevens held near 2.3%; a
-        market anchor is not in the driver.
-    - title: Fiscal policy reads change, not the size of the deficit
+        The miss rate and volatility look back. Since 2021 they read as lost
+        credibility while long-run breakevens held near 2.3%.
+    - title: Fiscal policy reads change, not size
       text: >-
-        The impulse block reads whether the deficit is widening or narrowing,
-        not how large it is: a 3% primary deficit that is shrinking reads as
-        restrictive. The level of the deficit and of the debt were tested and
-        left out; on their own their signs flip between periods. What the
-        multiplier depends on in the data is debt: below 60% of GDP, fiscal
-        loosening went with stronger growth; above it, mostly with higher
-        inflation. That rests largely on 2020-21. Weighting spending and taxes
-        by CBO's multipliers predicted no better than the plain total. The
-        forecasting comes from impulse and debt dynamics: impulse correlates
-        +0.23 with the next three years' growth gap, and the two together
-        +0.24 with the inflation gap (about +0.5 in each half, 1971-95 and
-        1996-2023, though the 2020-21 windows lift the 1996-2023 half).
-        Composition is there for the long run and runs the other
-        way on three-year inflation (-0.30), so the whole driver shows only
-        +0.06.
-    - title: Proposed, thin or contaminated inputs
+        A shrinking 3% deficit reads as restrictive. The deficit and debt
+        levels flipped sign between periods and were left out.
+    - title: Thin and late inputs
       text: >-
-        The potential-growth block starts in 1993: the forecasters'
-        productivity revision is annual from then, the CBO revisions start in
-        1997 and 2003, and the capex consensus in 2009. Before 1993 growth is
-        the cycle block alone. Company and household debt come from the BIS
-        about two quarters after the quarter ends. Growth leans on the AI
-        capex surge. RegData counts restrictions once a year, and the Fraser
-        score arrives about two years late and is read only from 2001, when
-        its method changed. The World Bank governance score reads from 2001
-        and the World Justice Project's regulatory enforcement from 2016; both
-        rest on surveys of perception and have little or no following-decade
-        record, so they are there for what they measure. B-Ready and Global Trade Alert are not included.
+        The potential-growth block starts in 1993, the capex consensus in
+        2009. Company and household debt arrive about two quarters late, the
+        Fraser score about two years. The governance and enforcement scores
+        rest on perception surveys with little record.
   history_start: "1970-01-01"
   carry_forward_periods: 2
   min_reported_share: 0.6

@@ -75,6 +75,7 @@ jobs:
           assert not errors, errors
           body = "".join(h.proto.body for h in at.get("html"))
           assert "m-example" in body and "m-table" in body, "methodology incomplete"
+          assert "Against simple benchmarks" in body, "the call's record did not render"
 
           at.switch_page("views/bench.py").run()
           errors = [e.value for e in at.exception]

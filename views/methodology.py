@@ -125,6 +125,8 @@ SECTIONS = [
     ("m-regimes", "From drivers to a regime call"),
     ("m-provisional", "Confirmed call and provisional reading"),
     ("m-example", "Worked example"),
+    # Only a framework whose call reads a period ahead can be graded against it.
+    *([("m-record", "How well the call has done")] if HORIZON else []),
     ("m-limits", "Limitations"),
     ("m-versions", "Versions and reproducibility"),
     ("m-glossary", "Glossary"),
@@ -182,7 +184,7 @@ prose(
              'The regime archetypes are judgments, and the labeled history shows several placed '
              'further out than the data, with monetary and fiscal reversed for stagflation and '
              'hard landing') .rstrip(".")
-    + f' (section {num("m-limits")}).</p></div>')
+    + f' (section {num("m-record" if HORIZON else "m-limits")}).</p></div>')
 
 # ---------- 2. framework ----------
 
@@ -708,45 +710,187 @@ prose(f'<p>{ui.esc(rlabel[leader])} is closest, at a distance of {dist[leader]:.
       f'further: the driver\'s recent path against that regime, and each indicator\'s '
       f'latest reading, score and contribution to the driver.</p>')
 
-# ---------- 9. limitations ----------
+# ---------- 9. track record ----------
 
-section("m-limits", 9, "Limitations")
+
+@st.cache_data(ttl=6 * 3600, show_spinner="Grading every month since 1976…")
+def record(version: str, config_key: str) -> dict | None:
+    """The call's record, recomputed from the store (src/evaluation.py)."""
+    from src import evaluation
+    from src import outlook as ol
+    from src import truth
+    scores = ol.monthly_drivers(drivers, driver_names)
+    wide = get_store().latest(list(truth.STORE_IDS.values()))
+    if scores.empty or wide.empty or not set(truth.STORE_IDS.values()) <= set(wide.columns):
+        return None
+    m = truth.from_store(wide)
+    train = ol.training_frame(scores, truth.build(m, **truth.METHODS["next3"]))
+    if train["label"].nunique() < 4:
+        return None
+    return evaluation.evaluate(train, truth.build(m, **truth.METHODS["now"])["label"],
+                               reg, driver_names)
+
+
+def pct(x: float) -> str:
+    return "–" if pd.isna(x) else f"{x:.0%}"
+
+
+EV = record(data_version(), chash + str(hash(repr(reg)))) if HORIZON else None
+if HORIZON:
+    section("m-record", 9, "How well the call has done")
+if HORIZON and EV is None:
+    prose('<p>The record needs the history behind the regime labels, which has not loaded.</p>')
+elif EV is not None:
+    a, b = EV["window"]
+    G, BR = EV["methods"], EV["by_regime"]
+    lo, hi = EV["bootstrap"]["balanced"]
+    prose(f'<p>Every month from {a.strftime('%B %Y')} to {b.strftime('%B %Y')}, the last whose next three years are '
+          f'known, is graded against what those three years turned out to be: {EV["months"]} '
+          f'months, {EV["bootstrap"]["episodes"]} episodes. Figures are recomputed from the '
+          f'live data and configuration.</p>')
+    st.html('<h3 class="m-h3">Against simple benchmarks</h3>')
+    rows = [[name, pct(G[k]["balanced"]), pct(G[k]["months"]),
+             f'{G[k]["hard_landing_caught"]} of {G[k]["hard_landing_runups"]}',
+             "–" if pd.isna(G[k]["log_loss"]) else f'{G[k]["log_loss"]:.2f}']
+            for k, name in (("held_out", "Held out"), ("real_time", "Real time"),
+                            ("continues", "Current regime continues"),
+                            ("base_rate", "Mix of regimes seen so far"),
+                            ("signs", "Sign of growth and inflation drivers"))]
+    rows.append(["Chance", "25%", "25%", "–", "1.39"])
+    st.html(ui.table(["", "Regimes right, average", "Months right", "Hard-landing run-ups caught",
+                      "Log loss"], rows, numeric={1, 2, 3, 4}))
+    prose(
+        '<ul><li><b>Held out</b>, the headline: each episode is called from positions learned '
+        'without it or any month sharing its three years.</li>'
+        '<li><b>Real time</b>: each month is called from positions learned only from outcomes '
+        'known then, about three years and four months after the month they describe. It runs '
+        'lower because the early calls learn from few run-ups.</li>'
+        '<li><b>Regimes right, average</b> is the share of each regime\'s months called right, '
+        'averaged over the four, so goldilocks, which followed '
+        f'{BR.at["goldilocks", "base_rate"]:.0%} of months, does not dominate. <b>Months right</b> '
+        'is the plain share. <b>Log loss</b> grades the odds rather than the call: lower is '
+        'better, and an even split scores 1.39.</li>'
+        '<li><b>Both grades use today\'s revised data</b>, with each indicator\'s center and '
+        'scale set on the full history, so neither is the call as it would have been made at '
+        'the time. The live call log, kept from November 2026, is.</li></ul>')
+    st.html('<h3 class="m-h3">How much to trust the headline</h3>')
+    prose(
+        f'<p>Neighboring months share most of their answer, so the {EV["months"]} months are '
+        f'really {EV["bootstrap"]["episodes"]} episodes. Resampling whole episodes puts the '
+        f'held-out average between <b>{lo:.0%} and {hi:.0%}</b> (5th to 95th percentile). With '
+        'the driver readings slid out of line with what followed, none of 40 runs matched it '
+        '(median 33%, best 62%; run 2 November 2026). The grade still flatters the model '
+        'somewhat: the indicators, weights and settings were chosen with it in view.</p>')
+
+    st.html('<h3 class="m-h3">By regime</h3>')
+    st.html(ui.table(
+        ["Held out", "Share of months that followed", "Months called", "Precision", "Recall", "F1"],
+        [[rlabel[r], pct(BR.at[r, "base_rate"]), f'{int(BR.at[r, "called"])}',
+          pct(BR.at[r, "precision"]), pct(BR.at[r, "recall"]), f'{BR.at[r, "f1"]:.2f}']
+         for r in BR.index]
+        + [[n, pct(EV["axes"].at[k, "base_rate"]), f'{int(EV["axes"].at[k, "called"])}',
+            pct(EV["axes"].at[k, "precision"]), pct(EV["axes"].at[k, "recall"]),
+            f'{EV["axes"].at[k, "f1"]:.2f}']
+           for k, n in (("growth_below", "Growth below potential"),
+                        ("inflation_above", "Inflation above expectations"))],
+        numeric={1, 2, 3, 4, 5}))
+    worst = BR["precision"].idxmin()
+    keen = BR["recall"].idxmax()
+    plo, phi = EV["bootstrap"]["precision"][worst]
+    now_call = results["calls"].loc[latest, "called"]
+    prose(
+        '<p><b>Precision</b>: of the months the model called a regime, the share it followed. '
+        '<b>Recall</b>: of the months a regime followed, the share the model called it. '
+        '<b>F1</b> is high only when both are. The bottom two rows score the two halves of '
+        'the call on their own.</p><ul>'
+        f'<li>{ui.esc(rlabel[keen])} is the hardest to miss ({pct(BR.at[keen, "recall"])} '
+        f'recall) but often a false alarm ({pct(BR.at[keen, "precision"])} precision).</li>'
+        f'<li>{ui.esc(rlabel[worst])} is the least reliable when called: '
+        f'{pct(BR.at[worst, "precision"])}, against the {pct(BR.at[worst, "base_rate"])} of '
+        f'months it followed. Resampling episodes puts it anywhere from {plo:.0%} to {phi:.0%}.'
+        + (' It is today\'s call.' if now_call == worst else '') + '</li>'
+        + (f'<li>Today\'s call, {ui.esc(rlabel[now_call])}, has followed '
+           f'{pct(BR.at[now_call, "precision"])} of the months it was called.</li>'
+           if now_call in BR.index and now_call != worst else '')
+        + '</ul>')
+
+    st.html('<h3 class="m-h3">Where the misses go</h3>')
+    conf = EV["confusion"].fillna(0).astype(int)
+    # Called in the same order as followed, so the diagonal is the hits.
+    conf = conf[[r for r in conf.index if r in conf.columns]
+                + [c for c in conf.columns if c not in conf.index]]
+    st.html(ui.table(["What followed ↓ · called →"] + [rlabel.get(c, ui.call_label(c, reg))
+                                                       for c in conf.columns],
+                     [[rlabel[r]] + [f"{v}" for v in conf.loc[r]] for r in conf.index],
+                     numeric=set(range(1, len(conf.columns) + 1))))
+    miss = EV["misses"]
+    prose('<p>The longest unbroken wrong calls, held out:</p><ul>'
+          + "".join(f'<li>{x.start.strftime('%b %Y')} to {x.end.strftime('%b %Y')}, {x.months} months: called '
+                    f'{ui.esc(rlabel.get(x.called, ui.call_label(x.called, reg)).lower())}, '
+                    f'followed by {ui.esc(rlabel[x.followed].lower())}.</li>'
+                    for x in miss.itertuples())
+          + '</ul><p>The Regime explorer pins the largest false alarms on its timeline, with '
+          'what went wrong.</p>')
+
+    st.html('<h3 class="m-h3">Are the odds right?</h3>')
+    cal = EV["calibration"]
+    st.html(ui.table(
+        ["Odds on the leading regime", "Months", "Average odds", "Leader followed"],
+        [[f"{iv.left:.0%} to {iv.right:.0%}", f'{int(r.months)}', pct(r.stated), pct(r.right)]
+         for iv, r in zip(cal.index, cal.itertuples())],
+        numeric={1, 2, 3}))
+    top = cal.iloc[-1]
+    years = ui.join_words([str(y) for y in sorted(EV["confident_years"].index[:3])])
+    prose(f'<p>Up to {cal.index[-1].left:.0%}, the leader followed about as often as its odds '
+          f'said, or more. Above that it followed {pct(top.right)} of the time, against odds of '
+          f'{pct(top.stated)}: {int(top.months)} months, most of them in {years}. Read odds above '
+          f'{cal.index[-1].left:.0%} as no more reliable than lower ones.</p>'
+          if top.right < top.stated - 0.1 else
+          '<p>In every band the leader followed about as often as its odds said.</p>')
+
+    st.html('<h3 class="m-h3">What each driver adds</h3>')
+    full = G["held_out"]["balanced"]
+
+    def change(v: float) -> str:
+        # From the rounded scores, so the column agrees with the one beside it.
+        d = round(v * 100) - round(full * 100)
+        return "no change" if d == 0 else f'{d:+d} point{"s" * (abs(d) != 1)}'.replace("-", "−")
+
+    st.html(ui.table(
+        ["Held out, regimes right on average", "Score", "Change"],
+        [["All drivers", pct(full), ""]]
+        + [[f"Without {dlabel[d].lower()}", pct(v), change(v)]
+           for d, v in sorted(EV["without"].items(), key=lambda kv: kv[1])]
+        + [["Growth and inflation only", pct(EV["growth_inflation_only"]),
+            change(EV["growth_inflation_only"])]],
+        numeric={1, 2}))
+    prose('<p>A driver whose removal costs little is kept for what it measures rather than for '
+          'its record over three years, and the twelve episodes cannot tell a few points '
+          'apart.</p>')
+
+# ---------- 10. limitations ----------
+
+section("m-limits", 10, "Limitations")
 # v1's limitations are written here; v2 lists its own under meta.limitations
 # in its indicator file.
 _own_limits = "".join(f'<li><b>{ui.esc(x["title"])}.</b> {ui.rich(x["text"])}</li>'
                       for x in META.get("limitations") or [])
 prose(
     '<ul>' + (_own_limits or
-    '<li><b>Archetypes do not match the labeled history.</b> Where each regime sits in driver '
-    'space is a judgment, informed but not estimated. Against the labeled history on the Regime '
-    'history page (1968 onward, on revised data), the months in each regime sit closer to '
-    'neutral than the archetypes, and for stagflation and hard landing the monetary and fiscal '
-    'positions point the other way: by the time those regimes arrive the Fed has usually eased '
-    'and the deficit widened, where the archetypes place tight money and a fiscal pullback. '
-    'They have not been re-placed yet.</li>'
-    '<li><b>Stepwise inputs.</b> Quarterly, annual and irregular series, such as unit labor '
-    'costs, the forecasters\' ten-year projections, CBO\'s revisions and the age of the capital '
-    'stock, are carried forward, so their drivers move in steps.</li>'
-    '<li><b>Lagging inputs.</b> CBO\'s estimate of the noncyclical unemployment rate, behind the '
-    'unemployment gap and the Taylor rule, is revised slowly and lags.</li>'
-    '<li><b>Fiscal is federal and not cyclically adjusted.</b> State and local budgets are '
-    'left out, and recessions widen the deficit automatically, which reads as looser '
-    'fiscal even when policy has not changed.</li>'
-    '<li><b>Fixed centers drift.</b> Where a score is measured against an anchor rather than '
-    'against the series\' own past, the anchor can stop describing the economy. Capacity '
-    'utilization has averaged 76.6% since 2016, three points below its 79.6% center: either '
-    'the economy has changed or the center has, and only judgment separates the two.</li>'
-    '<li><b>Four regimes do not cover the space.</b> There is no box for a capex recession '
-    'with a resilient consumer, which is why mid-2016 reports as a hard landing, or for a '
-    'slow recovery under emergency policy, which is why much of 2010 to 2014 reports as no '
-    'clear regime. A fifth regime would close both; it has not been added because it should be '
-    'argued from a labeled history rather than fitted to these two episodes.</li>'
-    '<li><b>Persistence can hold a call through a turn.</b> The rule that stops the call '
-    'flipping on noise also delays it at a genuine turning point. In 2008 the monthly readings '
-    'moved to stagflation in July and to a hard landing from August, but the call only became '
-    'hard landing in October, once the new leader had held three months in a row.</li>')
-    + '<li><b>Calibration risk.</b> Tuning thresholds on 2021 to 2023 would overfit an '
-    'unusual episode.</li>'
+    '<li><b>Archetypes are judgments.</b> Against the labeled history, the months in each '
+    'regime sit nearer neutral, and before stagflation and hard landings the Fed has usually '
+    'eased and the deficit widened, the opposite of where the archetypes put them.</li>'
+    '<li><b>Stepwise and lagging inputs.</b> Quarterly and annual series are carried forward, '
+    'and CBO\'s noncyclical unemployment rate is revised slowly.</li>'
+    '<li><b>Fiscal is federal and not cyclically adjusted</b>, so a recession reads as '
+    'looser policy.</li>'
+    '<li><b>Fixed centers drift.</b> Capacity utilization has averaged 76.6% since 2016, three '
+    'points below its center.</li>'
+    '<li><b>Four regimes do not cover the space.</b> Mid-2016, a capex recession with a '
+    'resilient consumer, reports as a hard landing; much of 2010 to 2014 as no clear '
+    'regime.</li>'
+    '<li><b>Persistence delays turns.</b> In 2008 the call became hard landing in October, '
+    'two months after the readings did.</li>')
     + ('<li><b>Demo data.</b> This deployment runs on synthetic series.</li>' if demo else '')
     + '</ul>')
 
@@ -756,232 +900,48 @@ section("m-versions", 11, "Versions and reproducibility")
 # What changed, dated. This belongs here rather than as "new" flags on the
 # indicator table: a badge decays within weeks, and a reader looking at the
 # table wants to know what the model is, not what it was.
-prose(
-    '<h3 class="m-h3">What changed</h3>'
-    '<p><b>November 2026 — a one-year fiscal impulse, an institutions block and regulatory '
-    'enforcement (v2).</b> The '
-    'twelve-month change in the primary balance joins the fiscal impulse block, a third of it, '
-    'as the fastest of its three readings: demand moves first and prices about a year to '
-    'eighteen months later. The five-year change in the World Bank governance score, the '
-    'average of rule of law, regulatory quality, government effectiveness and control of '
-    'corruption, adds an <b>institutions</b> block to reforms from 2001, a fifth of the driver; '
-    'regulation and policy uncertainty each go from a quarter to a fifth, and tariffs and public '
-    'research likewise. The World Justice Project’s regulatory enforcement score, whether '
-    'rules are applied fairly and predictably, joins regulation from 2016, which splits its '
-    'fifth three ways with RegData and the Fraser score. Reforms now goes with the following '
-    'decade’s productivity at +0.44, against +0.37 on the same test. Also tested and left '
-    'out: the World Justice Project’s '
-    'overall score and Fraser’s legal system score, which repeat the World Bank score; the '
-    'International Property Rights Index, whose intellectual property score jumps between '
-    'editions; Heritage’s property score, too flat to read; OECD government-funded R&amp;D, which '
-    'swings with the defense budget more than with research policy; OECD trade in '
-    'value added, where a higher domestic share has no clear sign for growth; economic '
-    'complexity, built from goods exports alone; and a cost of capital, whose working part, the '
-    'real cost of borrowing, fiscal policy already reads. 35 indicators; graded on the three years that '
-    'followed, 1976 to 2023, 71% held out, as before. 21 of 703 monthly '
-    'calls change. Today’s call is unchanged.</p>'
-    '<p><b>October 2026 — monetary credibility becomes its own driver (v2).</b> Monetary policy '
-    'was one driver of two halves: stance, how tight policy is (the yield curve, the hiking pace, '
-    'the real rate against neutral), and credibility, whether the commitment to 2% is believed '
-    '(the Taylor gap, the share of months off target, inflation volatility, forecaster '
-    'disagreement). The two move independently, +0.06 across months since 1968, and pulled apart '
-    'in the episodes that matter most: tight policy without credibility in 1969-70, 1973-74, '
-    '1978-82, 1988-90 and 2022-25, where their average sat near zero and hid both. They are now two drivers at '
-    'half weight each, so monetary policy keeps the weight it had. Credibility is what tells a '
-    'stagflation run-up (credibility about −0.8) from a hard-landing one (about zero); stance is '
-    'on the tight side before both. The judgment’s monetary axis was credibility, so it moves '
-    'to the credibility driver; stance has no judgment behind it and is learned from the data. '
-    'Graded on the three years that followed, 1976 to 2023: 71% held out, '
-    'against 66%, within the noise of fifteen run-ups. Today’s call is unchanged.</p>'
-    '<p><b>October 2026 — six months to change the call (v2).</b> A new leader now has to lead '
-    'for six months in a row, two quarters, before the call moves, up from three. At three '
-    'months the call flipped through short spells in the late 1980s, when the regimes were '
-    'close. Graded on the three years that followed, 1976 to 2023: 66% held out, '
-    'against 67%. Today’s call is unchanged.</p>'
-    '<p><b>October 2026 — the investment share centered on its own norm (v2).</b> Read against '
-    'its ten-year average, the share still sat below it in 82% of months from 1985 to 2019, '
-    'because it keeps falling; with the norm set at zero it scored about −0.5 on average '
-    'whatever policy did. Its norm is now that gap’s 1985–2019 average, about 0.8 points '
-    'below, as for every other indicator. Fiscal policy reads −0.15 for July 2026 rather than '
-    '−0.22. Graded on the three years that followed, 1976 to 2023, 67% held out, '
-    'against 68%.</p>'
-    '<p><b>October 2026 — one fewer anchoring indicator (v2).</b> The yearly revision to '
-    'forecasters’ ten-year CPI is dropped: the same survey already sets the bar in the core PCE '
-    'gap, it starts only in 1992, and it had the weakest link to what followed. The three left '
-    '(5-year breakeven five years ahead, the Cleveland Fed’s ten-year expectations and the '
-    'inflation risk premium) take a third of the block each. 32 indicators; graded on the three '
-    'years that followed, 1976 to 2023, 68% held out, as before.</p>'
-    '<p><b>October 2026 — reforms in three blocks (v2).</b> <b>Regulation</b> (RegData and the '
-    'Fraser score) and <b>policy uncertainty</b> a quarter each; <b>industrial policy</b> half: '
-    'the change in the effective tariff rate and in federal non-defense R&amp;D, a quarter each. '
-    'Trade policy uncertainty is dropped: policy uncertainty already rose with each trade war, '
-    'and the tariff rate reads what was done. Graded on the three years that followed, 1976 to '
-    '2023, 68% held out, against 69%.</p>'
-    '<p><b>October 2026 — the investment share read against its own recent past (v2).</b> '
-    'Federal investment as a share of non-interest spending has fallen from about 20% in the '
-    '1960s to under 7%, so against a fixed 1985–2019 norm it scored below −1 in every month since '
-    '2010, whatever policy did. It is now read against its own ten-year average, which today is '
-    'about neutral; fiscal policy reads −0.22 rather than −0.38. Graded on the three years that '
-    'followed, 1976 to 2023, 69% held out, against 71%.</p>'
-    '<p><b>October 2026 — wage growth joins inflation pressure (v2).</b> The pressure block is '
-    'now weighted as inflation forecasters weight it: where inflation starts (core PCE against '
-    'expectations) most, then labor costs, then money and housing. Core PCE gap 31.25%, '
-    'average hourly earnings growth over three years 18.75%, M2 and house prices 12.5% each; '
-    'house prices had been 25%, about one and a half times shelter’s share of core PCE. Wage '
-    'growth was chosen over the unemployment gap, whose link to later inflation disappears '
-    'after 1995. Graded on the three years that followed, 1976 to 2023, 71% held out, '
-    'against 68%.</p>'
-    '<p><b>October 2026 — corrections from a code review (v2).</b> The Fed’s FRB/US long-run '
-    'expectations, which carry the inflation anchor back before 1979, ran 0.09 points above the '
-    'survey where they overlap, not below: they are now lowered by 0.09, not raised. They are '
-    'also dated as published a month after each quarter, so rewinding the dashboard no longer '
-    'drops the indicators that use them. Positions relearned: 68% held out, 1976 to 2023. '
-    'The July 2026 call becomes high growth, high inflation: '
-    'May now tips that way, so it has led for the three months the rule needs.</p>'
-    '<p><b>October 2026 — two indicators out (v2).</b> The change in core inflation’s distance '
-    'from 2% leaves credibility: its information overlaps the miss rate and the Taylor gap, and '
-    'the call did slightly better without it. The Treasury’s primary balance leaves the fiscal '
-    'impulse: it overlaps the OECD’s cyclically adjusted balance. Each block keeps its share. '
-    '33 indicators; graded on the three years that followed, 1976 to 2023, 68% held out, '
-    'against 65%.</p>'
-    '<p><b>October 2026 — core PCE replaces the trimmed mean (v2).</b> Underlying inflation in '
-    'the inflation signpost is now core PCE against the forecasters’ ten-year CPI, not the '
-    'Dallas Fed trimmed mean. The trimmed mean drops each month’s largest price moves, which '
-    'strips out a shock such as tariffs; core keeps them in, which matters when the question '
-    'is whether such a shock spreads. On its own the trimmed mean predicted the next three '
-    'years slightly better; the model as a whole did slightly better on core: 65% held out, '
-    '1976 to 2023, against 63%.</p>'
-    '<p><b>October 2026 — four scenarios, and a three-year outlook page (v2).</b> Baseline '
-    'leaves the call: it could not be graded against the record, sat in the middle of every '
-    'signpost and took about a quarter of the odds. Graded on the three years that followed, '
-    '1976 to 2023, the average hit rate across the regimes rose from 59% to 63% held out. '
-    'The new Three-year outlook page shows where growth and '
-    'inflation are heading, what is pushing them, a policy what-if and the track record.</p>'
-    '<p><b>October 2026 — history back to 1968.</b> The labeled history and the signposts now '
-    'start in 1968, not 1980. Before the forecasters’ ten-year survey begins in October 1979, '
-    'the inflation anchor is the Federal Reserve Board’s FRB/US measure of long-run expected '
-    'inflation (PTR, the Kozicki-Tinsley estimate before 1979), joined to the survey on its '
-    'basis. Underlying inflation falls back to core PCE before the trimmed mean starts. The '
-    'record now holds fifteen run-ups to a regime instead of nine, with three or four of each, '
-    'so stagflation can be graded for the first time. The v2 positions were relearned on it. '
-    'Graded on the three years that followed, 1976 to 2023, the average hit rate across the '
-    'regimes is 59% held out.</p>'
-    '<p><b>October 2026 — the regime call reads the next three years (v2).</b> Each '
-    'scenario’s position is now where the signposts sat in the run-up to that regime, '
-    '1983 to 2023, shrunk toward a judgment of where the scenario sits, scaled to the '
-    'run-ups’ spread and counted as half an episode. Baseline has no label in the answer key '
-    'and takes the average month. The positions sit near the middle, so the temperature is '
-    '0.20, the confidence floor 25%, and the fit gate is off. Graded on the three years that '
-    'followed, 1993 to 2023, the average hit rate across the regimes is 57% held out, '
-    'against 37% for assuming the current regime continues and 33% for the mix '
-    'of regimes seen so far. Before, the same positions as judgments scored 8%: they describe '
-    'a regime while it happens, not what comes before it.</p>'
-    '<p><b>October 2026 — reforms in four blocks (v2).</b> Reforms now reads whether the policy '
-    'environment is turning more or less friendly to long-run growth, rather than how private '
-    'investment responds. <b>Regulation</b>: the five-year growth of restrictions in the Code '
-    'of Federal Regulations (QuantGov RegData) and the five-year change in the Fraser '
-    'Institute’s business regulation score. <b>Policy uncertainty</b>: the Baker, Bloom and '
-    'Davis index. <b>Trade policy</b>: the three-year change in the effective tariff rate '
-    '(customs duties over goods imports) and trade policy uncertainty. <b>Public research</b>: '
-    'the five-year change in federal non-defense R&amp;D as a share of GDP. A quarter each. The '
-    'investment measures it replaces mostly tracked the business cycle: an investment share '
-    'above its norm came before hard landings. The new signpost goes with faster productivity '
-    'over the following decade (+0.47, trend removed). For the next three years it runs the '
-    'wrong way, so it takes half weight in the regime call.</p>'
-    '<p><b>October 2026 — fiscal policy in three blocks (v2).</b> Fiscal policy now reads how '
-    'supportive the budget is, rather than the sustainability of the debt path. <b>Impulse</b>, '
-    '37.5%: the three-year change in the OECD’s cyclically adjusted primary balance and in the '
-    'Treasury’s primary balance, and federal outlays growth less receipts growth. <b>Debt '
-    'dynamics</b>, 37.5%: the 10-year yield less expected nominal growth (trend growth plus '
-    'forecasters’ ten-year inflation), and the yearly rise in the interest bill as debt rolls '
-    'over at market rates, given its average maturity; both low reading as supportive. These '
-    'replaced the effective rate on the debt less past nominal growth, which leaned on old '
-    'cheap coupons and on growth lifted by inflation. <b>Composition</b>, 25%: federal investment as a share of non-interest '
-    'spending, the long-run part, kept by design. The old multiplier axis is folded into '
-    'composition: its three-year shifts did not predict growth, and weighting spending and '
-    'taxes by CBO’s multipliers did no better than the plain total. Fiscal policy now takes '
-    'half weight in the regime call: its growth signal overlaps the growth signpost’s slack, '
-    'and its own contribution is inflation (+0.65 with the next three years’ inflation gap). '
-    'Graded on the three years that followed, 1993 to 2023, the average hit rate across the '
-    'regimes rose from 42% to 48% held out, with all three hard-landing run-ups caught.</p>'
-    '<p><b>October 2026 — monetary policy in two blocks (v2).</b> Monetary policy now reads '
-    'how hawkish the Fed is, rather than its credibility alone. The <b>stance</b> block, 50%: '
-    'the 10-year yield less fed funds, the change in fed funds over three years, and the real '
-    'fed funds rate less the neutral rate. The <b>credibility</b> block, 50%: the Taylor-rule '
-    'gap, now its current reading rather than a three-year average, the share of months off '
-    'target, inflation volatility, inflation’s trajectory and forecaster disagreement. Tight '
-    'and credible both count as hawkish: hard landings followed tight policy, and followed '
-    'spells of low, steady inflation. Graded on the three years that followed, 1993 to 2023, '
-    'growth, inflation and monetary policy together caught all three hard-landing run-ups held '
-    'out, against none for growth and inflation alone, with the average hit rate across the '
-    'regimes rising from 41% to 51%. With all five signposts the gain is small (41% to 42%), '
-    'because fiscal policy and reforms have not been reworked yet.</p>'
-    '<p><b>October 2026 — inflation in two blocks (v2).</b> Inflation now reads whether '
-    'inflation will run above or below expected inflation over the next three years, and '
-    'whether long-run expectations are drifting from 2%. The <b>pressure</b> block, 75%: M2 '
-    'growth and house-price growth over three years, and trimmed-mean PCE inflation against '
-    'the forecasters’ ten-year CPI forecast. The <b>anchoring</b> block, 25%: the forecasters’ '
-    'CPI revision, the 5y5y breakeven, the Cleveland Fed’s ten-year expectation and the '
-    'inflation risk premium. Out: core inflation over three years against 2%, which looks '
-    'back. Graded on the three years that followed, 1993 to 2023, with each episode held out '
-    'of its own fit, the average hit rate across the four regimes rose from 36% to 41%, with '
-    'all three hard-landing run-ups still caught.</p>'
-    '<p><b>October 2026 — growth in two blocks (v2).</b> Growth now reads whether growth will '
-    'run above or below potential over the next three years, and whether potential growth '
-    'itself is rising. The <b>cycle</b> block, 75% of the driver: unemployment against CBO’s '
-    'long-run rate, capacity utilization against its 10-year average, and real growth in '
-    'company and in household debt over three years. The <b>potential growth</b> block, 25%: '
-    'CBO’s potential-growth revision, the forecasters’ productivity revision, the capex '
-    'consensus revision and CBO’s labor force revision. Out: the forecasters’ ten-year GDP '
-    'revision (a near-copy of the productivity revision), the five-year pace of total factor '
-    'and labor productivity (they look back, and strong runs were followed by slower decades) '
-    'and CBO’s participation revision (from 2019 only). Graded on the three years that '
-    'followed, 1993 to 2023, with each episode held out of its own fit, the average hit rate '
-    'across the four regimes rose from 23% to 36%, and all three hard-landing run-ups were '
-    'caught, against two.</p>'
-    '<p><b>October 2026 — five signposts.</b> The default framework is now v2: growth, read '
-    'as long-run prospects; inflation, read as anchoring; monetary policy, read as credibility; '
-    'fiscal policy, read as the sustainability of the debt path; and reforms and industrial '
-    'policy. Supply is folded into growth, and a Baseline scenario joins the four. The six-driver '
-    'framework below remains available as v1 under the Framework menu.</p>'
-    '<p><b>October 2026 — reworked after review, and renamed.</b> Three drivers '
-    'took new names: demand is now <b>Growth</b>, inflation expectations <b>Inflation</b>, and '
-    'investment spending <b>Reforms and industrial policy</b>, whose indicators still measure the '
-    'investment rather than the policies. Against the September entry below:</p><ul>'
-    '<li><b>Growth:</b> payroll growth and jobless claims out; the forecasters’ revision to '
-    'ten-year GDP growth and retailers against consumer staples in.</li>'
-    '<li><b>Inflation:</b> the 10-year breakeven out; the forecasters’ ten-year CPI forecast, its '
-    'revision and the inflation risk premium in.</li>'
-    '<li><b>Supply:</b> oil inventories, productivity and global supply chain pressure out; the '
-    'revision to the energy sector’s three-year capex and the CBO’s revisions to the potential '
-    'labor force and participation rate in.</li>'
-    '<li><b>Monetary:</b> the Taylor gap on expected inflation, the real rate against neutral and '
-    'financial conditions out; inflation volatility, forecaster disagreement and the share of '
-    'months off target in, as measures of credibility.</li>'
-    '<li><b>Fiscal:</b> the primary balance level, debt growth and r minus g out; the three-year '
-    'change in the primary balance, interest cost already locked in and sovereign CDS in.</li>'
-    '<li><b>Reforms and industrial policy:</b> building permits and bank lending standards out; '
-    'the change in the average age of the capital stock and the change in high-yield spreads in.</li>'
-    '</ul>'
-    '<p><b>September 2026 — longer horizons.</b> The set had been built to read the latest '
-    'month and was mostly reporting it. Six inputs were added, each looking past the current '
-    'quarter, and four short-horizon ones dropped to make room:</p><ul>'
-    '<li><b>Supply:</b> crude oil inventories against their five-year average, and labor '
-    'productivity. Energy is the supply shock that has actually caused stagflation; '
-    'productivity is the other half of whether capacity can expand.</li>'
-    '<li><b>Monetary:</b> the yield curve, and the Fed\'s securities portfolio as a share of '
-    'GDP. The rate against a rule says what policy is; the curve says what the market thinks '
-    'it will do, and the portfolio is the part of the stance a rate cannot show.</li>'
-    '<li><b>Reforms and industrial policy</b> (then Investment): the equity risk premium, the excess bond premium and building '
-    'permits — the cost of equity, the price of credit risk, and the longest-leading sector '
-    'in the economy, none of which the set had.</li>'
-    '<li><b>Fiscal:</b> r minus g, the term that decides whether debt compounds.</li>'
-    '<li><b>Growth</b> (then Demand): wage growth, from the employment cost index.</li>'
-    '<li><b>Dropped:</b> the weekly economic index, NFIB capex plans, the Philadelphia and '
-    'Empire State capex surveys, manufacturing construction and prime-age employment.</li>'
-    '</ul>'
-    '<p>Judgment calls behind these are in each indicator\'s reason above; the effect on the '
-    'history is that 92% of monthly calls were unchanged.</p>')
+st.html('<h3 class="m-h3">What changed</h3>')
+# Grades are held out, on the three years that followed: 1976 to 2023 from the
+# history back to 1968, 1993 to 2023 before it.
+CHANGES = [
+    ("Nov 2026", "Fiscal impulse adds the one-year change in the primary balance; reforms adds "
+     "an institutions block (World Bank governance, from 2001) and regulatory enforcement "
+     "(World Justice Project, from 2016). Eight other candidates tested and left out.",
+     "71%, unchanged"),
+    ("Oct 2026", "Monetary credibility split from stance into its own driver, half the weight "
+     "each. It is what tells a stagflation run-up from a hard-landing one.", "71%, from 66%"),
+    ("Oct 2026", "A new leader must lead for six months, not three, before the call changes.",
+     "66%, from 67%"),
+    ("Oct 2026", "The federal investment share read against its own ten-year average, centered "
+     "on that gap's 1985–2019 norm.", "67%, from 71%"),
+    ("Oct 2026", "The forecasters' ten-year CPI revision leaves the anchoring block.", "68%"),
+    ("Oct 2026", "Reforms in three blocks: regulation, policy uncertainty, and industrial policy "
+     "(tariffs and non-defense R&D). Trade policy uncertainty dropped.", "68%, from 69%"),
+    ("Oct 2026", "Wage growth joins inflation pressure, weighted as forecasters weight it.",
+     "71%, from 68%"),
+    ("Oct 2026", "Code review: the FRB/US expectations offset corrected and its release dates "
+     "fixed. The July 2026 call becomes high growth, high inflation.", "68%"),
+    ("Oct 2026", "Two overlapping indicators out: the change in core inflation's distance from "
+     "2%, and the Treasury primary balance.", "68%, from 65%"),
+    ("Oct 2026", "Core PCE replaces the trimmed mean as underlying inflation, so a shock that "
+     "spreads stays in.", "65%, from 63%"),
+    ("Oct 2026", "The Baseline scenario dropped: it could not be graded.", "63%, from 59%"),
+    ("Oct 2026", "History back to 1968, with the Fed's FRB/US anchor before 1979: fifteen "
+     "run-ups instead of nine, so stagflation can be graded.", "59%"),
+    ("Oct 2026", "The call reads the next three years: each position is where the drivers sat "
+     "in the run-ups to that regime, shrunk toward a judgment.",
+     "57% (1993–2023); the judgment positions alone 8%"),
+    ("Oct 2026", "v2's drivers rebuilt one at a time: growth (cycle, potential growth), "
+     "inflation (pressure, anchoring), monetary policy (stance, credibility), fiscal policy "
+     "(impulse, debt dynamics, composition) and reforms.", "48%, from 23% (1993–2023)"),
+    ("Oct 2026", "v2 becomes the default. v1, reworked after review, stays under the Framework "
+     "menu.", ""),
+    ("Sep 2026", "v1: six longer-horizon inputs in, four short-horizon ones out.",
+     "92% of calls unchanged"),
+]
+st.html(ui.table(["", "What changed", "Held-out grade"], [list(c) for c in CHANGES]))
+prose('<p>The reasoning behind each choice is in the indicator\'s reason above and in the '
+      'project\'s commit history.</p>')
 prose(f'<ul><li><b>Config hash.</b> Every call is stamped with a short fingerprint of the '
       f'indicator configuration. The current one is <code>{chash}</code>. If the hash '
       f'changes, weights or definitions changed.</li>'
