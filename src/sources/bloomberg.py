@@ -56,12 +56,17 @@ class BloombergSource:
         self.timeout_ms = timeout_ms
         self._session = session
         self._refdata = None
+        self._down = None       # why the terminal could not be reached, once known
 
     # ---------- transport: the only part that touches blpapi ----------
 
     def _service(self):
         if self._refdata is not None:
             return self._refdata
+        # A terminal that is down stays down for the rest of the run: fail every
+        # later series at once, for the same reason, rather than retrying each.
+        if self._down:
+            raise RuntimeError(self._down)
         import blpapi
         if self._session is None:
             opts = blpapi.SessionOptions()
@@ -69,9 +74,9 @@ class BloombergSource:
             opts.setServerPort(self.port)
             self._session = blpapi.Session(opts)
             if not self._session.start():
-                raise RuntimeError(
-                    f"No Bloomberg terminal answering on {self.host}:{self.port}. "
-                    f"Log in to the terminal on this machine and try again.")
+                self._down = (f"No Bloomberg terminal answering on {self.host}:{self.port}. "
+                              f"Log in to the terminal on this machine and try again.")
+                raise RuntimeError(self._down)
         if not self._session.openService("//blp/refdata"):
             raise RuntimeError("Bloomberg refdata service would not open.")
         self._refdata = self._session.getService("//blp/refdata")

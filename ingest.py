@@ -185,6 +185,12 @@ def refuse_demo_store(store: Store, db: str) -> None:
                  f"\"%LOCALAPPDATA%\\macro-regime\\macrobond.duckdb\" backfill")
 
 
+def _last_stored(store: Store, sid: str):
+    return store.con.execute(
+        "SELECT max(observation_date) FROM observations WHERE series_id = ?",
+        [sid]).fetchone()[0]
+
+
 def _pull(args, full_history: bool):
     sources = load_sources(args.sources)
     store = Store(args.db)
@@ -234,10 +240,7 @@ def _pull(args, full_history: bool):
             elif vendor == "bloomberg":
                 # Never revised, so ask for everything since the last stored day. A
                 # fixed recent window left a gap whenever syncs were further apart.
-                last = store.con.execute(
-                    "SELECT max(observation_date) FROM observations WHERE series_id = ?",
-                    [sid]).fetchone()[0]
-                df = source.fetch_with_vintages(code, start=last)
+                df = source.fetch_with_vintages(code, start=_last_stored(store, sid))
             else:
                 df = source.fetch_current(code)
             df = df.assign(series_id=sid)
@@ -249,7 +252,10 @@ def _pull(args, full_history: bool):
                   f"{vintages:>5} vintages  {str(meta['title'])[:50]}")
         except Exception as exc:
             failed += 1
-            print(f"  [{i:>2}/{len(series)}] {sid:<12} FAILED: {exc}", file=sys.stderr)
+            # Nothing is deleted on a failure, so the series scores on what it had.
+            last = _last_stored(store, sid)
+            kept = f" Kept what was stored, to {last:%Y-%m-%d}." if last else " Nothing stored."
+            print(f"  [{i:>2}/{len(series)}] {sid:<12} FAILED: {exc}{kept}", file=sys.stderr)
     for source in vendors.values():
         if hasattr(source, "close"):
             source.close()

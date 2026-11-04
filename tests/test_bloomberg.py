@@ -85,6 +85,46 @@ def test_sync_asks_bloomberg_for_everything_since_the_last_stored_day(tmp_path, 
     assert len(got) == 4
 
 
+def test_a_terminal_that_is_down_fails_every_series_at_once(monkeypatch):
+    started = []
+
+    class Session:
+        def __init__(self, opts):
+            started.append(1)
+
+        def start(self):
+            return False
+
+    fake = types.SimpleNamespace(Session=Session, SessionOptions=lambda: types.SimpleNamespace(
+        setServerHost=lambda h: None, setServerPort=lambda p: None))
+    monkeypatch.setitem(__import__("sys").modules, "blpapi", fake)
+    s = BloombergSource()
+    for code in ("LF98OAS Index", "S5CONS Index"):
+        with pytest.raises(RuntimeError, match="No Bloomberg terminal answering"):
+            s.fetch_with_vintages(code)
+    assert len(started) == 1
+
+
+def test_a_failed_sync_keeps_what_was_stored(tmp_path, monkeypatch, capsys):
+    db = tmp_path / "s.duckdb"
+    store = Store(db)
+    store.upsert_observations(pd.DataFrame({
+        "series_id": ["HYOAS"], "observation_date": [dt.date(2026, 9, 24)],
+        "vintage_date": [dt.date(2026, 9, 24)], "value": [280.0]}))
+    store.close()
+    s = source()
+    s._history = lambda *a, **k: (_ for _ in ()).throw(RuntimeError("No Bloomberg terminal"))
+    monkeypatch.setattr(ingest, "open_vendor", lambda vendor: s)
+    with pytest.raises(SystemExit):
+        ingest.cmd_sync(argparse.Namespace(
+            db=str(db), sources="config/sources.yml", configs=["config/indicators.yml"],
+            only="HYOAS", source=None))
+    assert "Kept what was stored, to 2026-09-24." in capsys.readouterr().err
+    store = Store(db)
+    assert len(store.latest(["HYOAS"])) == 1
+    store.close()
+
+
 def test_no_data_returns_the_right_empty_shape():
     df = source(rows=[]).fetch_with_vintages("X Corp")
     assert df.empty
