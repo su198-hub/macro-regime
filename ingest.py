@@ -231,6 +231,13 @@ def _pull(args, full_history: bool):
             # Macrobond's full history is one fast call, so it always refetches.
             if full_history or vendor == "macrobond":
                 df = source.fetch_with_vintages(code)
+            elif vendor == "bloomberg":
+                # Never revised, so ask for everything since the last stored day. A
+                # fixed recent window left a gap whenever syncs were further apart.
+                last = store.con.execute(
+                    "SELECT max(observation_date) FROM observations WHERE series_id = ?",
+                    [sid]).fetchone()[0]
+                df = source.fetch_with_vintages(code, start=last)
             else:
                 df = source.fetch_current(code)
             df = df.assign(series_id=sid)

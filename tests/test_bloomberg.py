@@ -65,6 +65,26 @@ def test_fetch_current_stamps_today_and_asks_only_for_recent_days():
     assert s.calls[0][2] >= dt.date.today() - dt.timedelta(days=14)
 
 
+def test_sync_asks_bloomberg_for_everything_since_the_last_stored_day(tmp_path, monkeypatch):
+    """A sync weeks after the last one must not leave a gap before the recent days."""
+    db = tmp_path / "s.duckdb"
+    store = Store(db)
+    store.upsert_observations(pd.DataFrame({
+        "series_id": ["CDS5Y_US"], "observation_date": [dt.date(2025, 12, 1)],
+        "vintage_date": [dt.date(2025, 12, 1)], "value": [30.0]}))
+    store.close()
+    s = source()
+    monkeypatch.setattr(ingest, "open_vendor", lambda vendor: s)
+    ingest.cmd_sync(argparse.Namespace(
+        db=str(db), sources="config/sources.yml", configs=["config/indicators.yml"],
+        only="CDS5Y_US", source=None))
+    assert s.calls[0][2] == dt.date(2025, 12, 1)
+    store = Store(db)
+    got = store.as_of(["CDS5Y_US"], dt.date(2026, 1, 6))
+    store.close()
+    assert len(got) == 4
+
+
 def test_no_data_returns_the_right_empty_shape():
     df = source(rows=[]).fetch_with_vintages("X Corp")
     assert df.empty
