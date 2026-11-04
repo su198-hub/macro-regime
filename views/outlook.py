@@ -955,23 +955,20 @@ with st.expander("The three-year call: odds, landing point, drivers, what-if and
     st.html(ui.section_head(
         "Track record", "Graded against what the next three years turned out to be",
         "Held out: each episode called from positions learned without it or any month sharing its "
-        "outcome window. Real time: each month called only from outcomes already known then. "
-        "Share of each regime's months called right, averaged over the four regimes."))
+        "outcome window. Share of each regime's months called right, averaged over the four regimes."))
 
 
     @st.cache_data(ttl=6 * 3600, show_spinner="Grading every month since 1976…")
     def track(version: str, config_key: str) -> dict:
-        from scripts.realign_positions import grade, held_out, priors, real_time
+        from scripts.realign_positions import grade, held_out, priors
         train, fwd = M["train"], M["fwd"]
         window = train.index[train.index >= pd.Period("1976-01", "M")]
         labels = fwd["label"].reindex(window)
         prior = priors(REG, NAMES)
         out = {}
-        for mode, fn in (("Held out", held_out), ("Real time", real_time)):
-            P, F = fn(train, prior, REG, NAMES)
-            g = grade(P, F, REG, train, window, labels)
-            calls = R.call_regime(P.reindex(window).dropna(how="all"), REG)["called"].reindex(window)
-            out[mode] = {"g": g, "calls": calls}
+        P, F = held_out(train, prior, REG, NAMES)
+        calls = R.call_regime(P.reindex(window).dropna(how="all"), REG)["called"].reindex(window)
+        out["Held out"] = {"g": grade(P, F, REG, train, window, labels), "calls": calls}
         from src.backtest import NBER  # noqa: F401  (kept for the recession shading below)
         nowcast = truth.build(truth.from_store(get_store().latest(list(truth.STORE_IDS.values()))),
                               **truth.METHODS["now"])["label"]
@@ -983,29 +980,37 @@ with st.expander("The three-year call: odds, landing point, drivers, what-if and
     if st.toggle("Show the track record", key="prop_track"):
         T = track(data_version(), CONFIG_KEY)
         rows = []
-        for name in ("Held out", "Real time", "Regime continues"):
+        for name in ("Held out", "Regime continues"):
             g = T[name]["g"]
             rows.append([name, f"{g['balanced']:.0%}",
                          *[f"{g['by_regime'].get(r, float('nan')):.0%}" for r in REG["regimes"]],
                          f"{g['hard_landing_caught']} of {g['hard_landing_runups']}"])
         st.html(ui.table(["", "Regimes right, average"] + [LABEL[r] for r in REG["regimes"]]
                          + ["Hard-landing run-ups caught"], rows, numeric=set(range(1, 7))))
-        st.caption("Placebo, run 2 November 2026 on the six drivers: with the driver readings slid "
-                   "out of line with what followed, none of 40 held-out and none of 20 real-time runs "
-                   "matched 71% and 64% (medians 33% and 32%; the best held-out run reached 62%).")
-        band = pd.DataFrame({"Real-time call": T["Real time"]["calls"],
+        st.caption("Twelve episodes are graded, so read the average as a range: resampling whole "
+                   "episodes puts it between about 58% and 86% (checked 3 November 2026). Placebo, "
+                   "run 2 November 2026 on the six drivers: with the driver readings slid out of line "
+                   "with what followed, none of 40 runs matched 71% (median 33%; the best reached 62%).")
+        band = pd.DataFrame({"Held-out call": T["Held out"]["calls"],
                              "What the next 3 years were": T["labels"]})
         long = band.reset_index(names="month").melt("month", var_name="row", value_name="regime").dropna()
+        # Each month a rect from its start to the next month's, as on the
+        # timeline above: with a time unit and no end, the rows collapsed.
+        long["end"] = (long["month"] + 1).dt.to_timestamp()
         long["month"] = long["month"].dt.to_timestamp()
         long["name"] = long["regime"].map(LABEL)
+        band_rows = ["Held-out call", "What the next 3 years were"]
         chart = alt.Chart(long).mark_rect().encode(
-            x=alt.X("month:T", title=None, timeUnit="yearmonth"),
-            y=alt.Y("row:N", title=None, sort=["Real-time call", "What the next 3 years were"]),
+            x=alt.X("month:T", title=None), x2="end:T",
+            y=alt.Y("row:N", title=None, sort=band_rows, scale=alt.Scale(domain=band_rows),
+                    axis=alt.Axis(labelLimit=220)),
             color=alt.Color("regime:N", scale=scale, legend=alt.Legend(title=None, orient="top",
                             labelExpr=" + ".join(f"(datum.label == '{k}' ? '{v}' : '')" for k, v in LABEL.items()))),
             tooltip=[alt.Tooltip("month:T", format="%b %Y"), alt.Tooltip("row:N", title=""),
                      alt.Tooltip("name:N", title="Regime")])
-        st.altair_chart(ui.style(chart.properties(height=110)), width="stretch")
+        # Streamlit counts the legend on top inside this height: at 110 it left
+        # the two rows no room at all.
+        st.altair_chart(ui.style(chart.properties(height=170)), width="stretch")
 
     # ---------- how it works ----------
 

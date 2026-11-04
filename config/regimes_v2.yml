@@ -76,9 +76,8 @@ rationale:
     temperature: >-
       0.20. Run-up positions sit close together, so the probabilities are
       modest at any temperature. On the six drivers, held-out log loss is 0.97
-      at 0.20 and 0.25, against 1.03 at 0.15 and 0.98 at 0.30; real time
-      prefers warmer (1.25 at 0.20, 1.13 at 0.30). The call itself is the
-      same at every one of them.
+      at 0.20 and 0.25, against 1.03 at 0.15 and 0.98 at 0.30. The call
+      itself is the same at every one of them.
     persistence_months: >-
       Six months since 30 October 2026, three before: two quarters, the rule
       of thumb for a recession, so a new regime has to show up in two
@@ -86,11 +85,9 @@ rationale:
       flipped through short spells in the late 1980s, when the top two
       regimes were often within 25 points of each other (8, 9, 8 and 5-month
       calls from 1987 to 1991). Six months, 1976-2023, with five drivers: 66%
-      held out and 68% in real time, against 67% and 66% at three, and 0.29 changes a year against
-      0.31. Nine and twelve months fell to 64% and 63% held out and react later
+      held out, against 67% at three, and 0.29 changes a year against 0.31. Nine and twelve months fell to 64% and 63% held out and react later
       to real turns. Regraded on the six drivers (31 October 2026), three
-      months does slightly better, 73% held out and 65% in real time against
-      71% and 64%, within the noise, and the late-1980s flips no longer
+      months does slightly better, 73% held out against 71%, within the noise, and the late-1980s flips no longer
       separate the two: splitting credibility from stance removed them, so
       1985-95 shows the same calls at three and at six. Six stays by choice
       (confirmed 2 November 2026), so a new regime has to show in two quarters

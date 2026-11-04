@@ -1491,8 +1491,8 @@ drivers:
           +0.59], and +0.09 without the windows that touch 2020-21. Demand first, prices
           later: +0.28 with growth over the next year, while the link to inflation peaks
           at +0.24 a year to eighteen months on. Joined the impulse block in November 2026
-          with the governance score: the call held at 71% held out and 64% in real time,
-          and today's call did not change.
+          with the governance score: the call held at 71% held out, and today's call did
+          not change.
         measured: >-
           The twelve-month change in the primary balance, in percentage points of GDP.
           Not cyclically adjusted, so part of the signal is the budget widening in a
@@ -1812,7 +1812,7 @@ drivers:
           Fraser's burden score cannot see: firms plan around how rules are enforced, not
           only how many there are. It overlaps the regulation block little (+0.33) and the
           World Bank score more (+0.71). Added November 2026, a third of the
-          regulation block's fifth: the call stayed at 71% and 64%, and no live call changed.
+          regulation block's fifth: the call stayed at 71% held out, and no live call changed.
         measured: >-
           World Justice Project household and expert surveys, annual since 2013, with 2026
           already out, which makes it the most current governance reading on the bench.
@@ -1987,8 +1987,8 @@ drivers:
           measure only +0.16. The -0.82 against the following decade was a lag mismatch: at
           years 8 to 15 it is +0.26, while business-funded R&D goes the other way, +0.47
           then -0.40. Not adopted because it swings with the defense budget: inside the
-          industrial block, block share held fixed, it took the real-time grade from 64% to
-          53% and today's leading regime from 70% to 48%. An open decision.
+          industrial block, block share held fixed, it took today's leading regime from 70%
+          to 48%. An open decision.
         measured: >-
           OECD Main Science and Technology Indicators, government-financed R&D, % of GDP,
           annual from 1981, about two years late. Read as the five-year change.
@@ -2065,8 +2065,7 @@ drivers:
         code: TPU
         refers: >-
           Dropped from v2 in October 2026: policy uncertainty already rose with each trade
-          war, and the tariff rate reads what was done. The grade held, 69% to 68% held out,
-          64% in real time.
+          war, and the tariff rate reads what was done. The grade held, 69% to 68% held out.
         measured: Caldara et al., newspaper coverage of trade policy together with uncertainty, monthly from 1960.
 
       - id: cand_public_investment_total

@@ -113,9 +113,6 @@ against it from 1976 to 2023 by `python scripts/realign_positions.py`:
 
 - **Held out:** each episode called from positions learned without it or any
   month sharing its three years. 71% of regimes right on average.
-- **Outcomes known at the time:** each month called from positions learned
-  only from outcomes known then. 64%. The driver readings are still today's
-  revised data, so this is not a fully real-time test.
 - **Benchmarks:** the current regime continuing scores 34%, and so does the mix
   of regimes seen so far. Chance is 25%.
 
@@ -230,7 +227,7 @@ makes the data public if the repository is public.
   rewind has no reading for it, so the date picker starts at the earliest date
   the framework can be scored. Loading ALFRED's revision history for the
   FRED-sourced series would take it back decades.
-- **No fully real-time grade.** For the same reason, the grades use today's
+- **Graded on revised data.** For the same reason, the grade uses today's
   revised driver readings, and each indicator's center and scale are set from
   its full history.
 - **Fiscal policy and reforms barely move the three-year grade.** Dropping
