@@ -38,7 +38,7 @@ here = country_picker(head_country)
 _cfg_counts = (len(load_config(INDICATORS())["drivers"]),
                len(load_regimes(REGIMES())["regimes"]))
 head_left.html(
-    '<div class="mr-mast bare"><h1 class="mr-title">Macro Regime Monitor</h1>'
+    '<div class="mr-mast bare"><h1 class="mr-title">Long-Term Regime Monitor</h1>'
     f'<p class="mr-sub">{ui.esc(here["label"])} · {ui.count_word(_cfg_counts[0])} drivers '
     f'scored monthly from point-in-time data and mapped to '
     f'{ui.count_word(_cfg_counts[1])} regimes</p></div>')
@@ -84,7 +84,7 @@ regime_label = {n: s["label"] for n, s in reg["regimes"].items()}
 vendors = model_vendors(store, required_series(cfg))
 source_line = (f'<p class="mr-source">Source: '
                f'{", ".join(VENDOR_NAME.get(v, v) for v in sorted(vendors))}; '
-               f'Macro Regime Monitor calculations.</p>')
+               f'Long-Term Regime Monitor calculations.</p>')
 
 if probs.empty:
     # Reached with custom settings, or data that has thinned out: say what is
@@ -255,7 +255,7 @@ st.html(ui.signpost_html(drivers, cfg, reg, latest, then, prov, blocks=blocks)
 
 # ---------- history ----------
 
-span = st.session_state.get("history_span") or "15 years"
+span = st.session_state.get("history_span") or "All"
 months = {"5 years": 60, "15 years": 180}.get(span)
 window = probs if months is None else probs.tail(months)
 st.html(ui.section_head(
@@ -264,7 +264,7 @@ st.html(ui.section_head(
     "Probability of each regime, % of total, confirmed months. The band on top is the regime "
     f"called after the {settings['persistence_months']}-month persistence rule"
     + ("; a paler shade means a weak fit, and light gray no clear regime." if gate_on else ".")))
-st.segmented_control("Range", ["5 years", "15 years", "All"], default="15 years",
+st.segmented_control("Range", ["5 years", "15 years", "All"], default="All",
                      label_visibility="collapsed", key="history_span")
 st.altair_chart(ui.history_chart(window, calls, reg), width="stretch")
 st.html(source_line)

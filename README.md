@@ -1,4 +1,4 @@
-# Macro Regime Monitor
+# Long-Term Regime Monitor
 
 Scores six drivers of the US economy monthly and calls which of four regimes
 the next three years look like: goldilocks, high growth with high inflation,

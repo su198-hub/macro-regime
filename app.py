@@ -45,7 +45,7 @@ sys._macro_regime_code = _stamp
 
 from src import ui  # noqa: E402  (after the purge, so it is the new code)
 
-st.set_page_config(page_title="Macro Regime Monitor", layout="wide",
+st.set_page_config(page_title="Long-Term Regime Monitor", layout="wide",
                    initial_sidebar_state="collapsed")
 st.html(ui.CSS)
 

@@ -132,7 +132,7 @@ SECTIONS = [
 
 st.html('<hr class="mr-mast-rule">')
 head_left, head_country = st.columns([3, 1], vertical_alignment="bottom")
-head_left.html('<div class="mr-mast bare"><p class="mr-eyebrow">Macro Regime Monitor</p>'
+head_left.html('<div class="mr-mast bare"><p class="mr-eyebrow">Long-Term Regime Monitor</p>'
                '<h1 class="mr-title">Methodology</h1></div>')
 country_picker(head_country)
 st.html(
