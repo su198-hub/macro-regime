@@ -14,14 +14,16 @@ picked elsewhere.
      radar shows what the model saw when it called a turn, against the
      typical run-ups to what came and to its other pick, and the text says
      which drivers and indicators decided it.
+  0c. How well the call has done: held out against simple benchmarks, by
+     regime, where the misses go, whether the odds hold, what each driver adds.
 
+  Folded below them:
   1. The call: the most likely regime for the next three years, and the odds.
   2. Where growth and inflation are heading: each regime's typical outcome on
      a growth x inflation map, and the probability-weighted landing point.
   3. What is pushing it: each driver's pull on that landing point.
   4. The drivers, as on the dashboard.
   5. A policy what-if: move monetary stance or fiscal policy, watch the call move.
-  6. The track record, graded as the call would have been made at the time.
 """
 
 from __future__ import annotations
@@ -812,8 +814,172 @@ with hx_box.expander("The indicators behind each driver"):
         ["Indicator", "Weight"] + [ui.Raw(f"{k},<br>{HX_LABEL[m_]}") for m_ in _cols for k in ("Reading", "Score")],
         rows_ind, numeric=set(range(1, 2 + 2 * len(_cols)))))
 
-# The call and how it is made, folded under the two sections above.
-with st.expander("The three-year call: odds, landing point, drivers, what-if and track record",
+# ---------- 0c. how well the call has done ----------
+
+
+@st.cache_data(ttl=6 * 3600, show_spinner="Grading every month since 1976…")
+def record(version: str, config_key: str) -> dict | None:
+    """The call's record, recomputed from the store (src/evaluation.py)."""
+    from src import evaluation
+    if M["train"]["label"].nunique() < 4:
+        return None
+    return evaluation.evaluate(M["train"], M["nowcast"]["label"], REG, NAMES)
+
+
+def pct(x: float) -> str:
+    return "–" if pd.isna(x) else f"{x:.0%}"
+
+
+def regime_name(c: str) -> str:
+    return LABEL.get(c) or ui.call_label(c, REG)
+
+
+EV = record(data_version(), CONFIG_KEY)
+if EV is not None:
+    a, b = EV["window"]
+    G, BR = EV["methods"], EV["by_regime"]
+    lo, hi = EV["bootstrap"]["balanced"]
+    st.html(ui.section_head(
+        "How well the call has done", f'Held out · {a.strftime("%b %Y")} to {b.strftime("%b %Y")}',
+        f'Every month from {a.strftime("%B %Y")} to {b.strftime("%B %Y")}, the last whose next three '
+        f'years are known, graded against what those three years turned out to be: '
+        f'{EV["months"]} months, {EV["bootstrap"]["episodes"]} episodes. Each episode is called '
+        f'from positions learned without it or any month sharing its three years. Recomputed '
+        f'from the live data.'))
+
+    st.html('<h3 class="m-h3">Against simple benchmarks</h3>')
+
+    def bench_row(name: str, g: dict) -> list[str]:
+        return [name, pct(g["balanced"]), pct(g["months"]),
+                f'{g["hard_landing_caught"]} of {g["hard_landing_runups"]}',
+                "–" if pd.isna(g["log_loss"]) else f'{g["log_loss"]:.2f}']
+
+    rows = [[ui.Raw(f"<b>{ui.esc(c)}</b>") for c in bench_row("Held out", G["held_out"])]]
+    rows += [bench_row("Current regime continues", G["continues"]),
+             bench_row("Sign of the growth and inflation drivers", G["signs"]),
+             ["Chance", "25%", "25%", "–", "1.39"]]
+    st.html(ui.table(["", "Regimes right, average", "Months right", "Hard-landing run-ups caught",
+                      "Log loss"], rows, numeric={1, 2, 3, 4}))
+    st.html(
+        '<div class="m-body"><ul>'
+        '<li><b>Current regime continues</b> calls, for the next three years, the regime the '
+        'economy was last confirmed to be in: the call of someone who expects no change.</li>'
+        '<li><b>Sign of the growth and inflation drivers</b> reads those two scores by sign '
+        'alone: both above zero is high growth with high inflation, growth above and inflation '
+        'below is goldilocks, and so on. It is the model\'s two main inputs without the learned '
+        f'positions or the other {ui.NUMBER_WORDS[len(NAMES) - 2]} drivers, so the gap to the '
+        'held-out grade is what those add.</li>'
+        '<li><b>Chance</b> picks one regime in four.</li>'
+        '<li><b>Regimes right, average</b> is the share of each regime\'s months called right, '
+        'averaged over the four, so goldilocks, which followed '
+        f'{BR.at["goldilocks", "base_rate"]:.0%} of months, does not dominate. <b>Months right</b> '
+        'is the plain share. A hard-landing run-up counts as caught when at least half its '
+        'months were called hard landing. <b>Log loss</b> grades the odds rather than the call: '
+        'lower is better, and an even split scores 1.39.</li>'
+        '<li><b>The grade uses today\'s revised data</b>, with each indicator\'s center and scale '
+        'set on the full history, so it is not the call as it would have been made at the time. '
+        'The live call log, kept from November 2026, is.</li></ul></div>')
+
+    st.html('<h3 class="m-h3">How much to trust the headline</h3>')
+    st.html(
+        f'<div class="m-body"><p>Neighboring months share most of their answer, so the '
+        f'{EV["months"]} months are really {EV["bootstrap"]["episodes"]} episodes. Resampling '
+        f'whole episodes puts the held-out average between <b>{lo:.0%} and {hi:.0%}</b> (5th to '
+        '95th percentile). With the driver readings slid out of line with what followed, none of '
+        '40 runs matched it (median 33%, best 62%; run 2 November 2026). The grade still '
+        'flatters the model somewhat: the indicators, weights and settings were chosen with it '
+        'in view.</p></div>')
+
+    st.html('<h3 class="m-h3">By regime</h3>')
+    AX = EV["axes"]
+    st.html(ui.table(
+        ["Held out", "Share of months that followed", "Months called", "Precision", "Recall", "F1"],
+        [[LABEL[r], pct(BR.at[r, "base_rate"]), f'{int(BR.at[r, "called"])}',
+          pct(BR.at[r, "precision"]), pct(BR.at[r, "recall"]), f'{BR.at[r, "f1"]:.2f}']
+         for r in BR.index]
+        + [[n, pct(AX.at[k, "base_rate"]), f'{int(AX.at[k, "called"])}',
+            pct(AX.at[k, "precision"]), pct(AX.at[k, "recall"]), f'{AX.at[k, "f1"]:.2f}']
+           for k, n in (("growth_below", "Growth below potential"),
+                        ("inflation_above", "Inflation above expectations"))],
+        numeric={1, 2, 3, 4, 5}))
+    worst = BR["precision"].idxmin()
+    keen = BR["recall"].idxmax()
+    plo, phi = EV["bootstrap"]["precision"][worst]
+    st.html(
+        '<div class="m-body"><p><b>Precision</b>: of the months the model called a regime, the '
+        'share it followed. <b>Recall</b>: of the months a regime followed, the share the model '
+        'called it. <b>F1</b> is high only when both are. The bottom two rows score the two '
+        'halves of the call on their own.</p><ul>'
+        f'<li>{ui.esc(LABEL[keen])} is the hardest to miss ({pct(BR.at[keen, "recall"])} '
+        f'recall) but often a false alarm ({pct(BR.at[keen, "precision"])} precision).</li>'
+        f'<li>{ui.esc(LABEL[worst])} is the least reliable when called: '
+        f'{pct(BR.at[worst, "precision"])}, against the {pct(BR.at[worst, "base_rate"])} of '
+        f'months it followed. Resampling episodes puts it anywhere from {plo:.0%} to {phi:.0%}.'
+        + (' It is today\'s call.' if called == worst else '') + '</li>'
+        + (f'<li>Today\'s call, {ui.esc(LABEL[called])}, has followed '
+           f'{pct(BR.at[called, "precision"])} of the months it was called.</li>'
+           if called in BR.index and called != worst else '')
+        + '</ul></div>')
+
+    st.html('<h3 class="m-h3">Where the misses go</h3>')
+    conf = EV["confusion"].fillna(0).astype(int)
+    # Called in the same order as followed, so the diagonal is the hits.
+    conf = conf[[r for r in conf.index if r in conf.columns]
+                + [c for c in conf.columns if c not in conf.index]]
+    st.html(ui.table(["What followed ↓ · called →"] + [regime_name(c) for c in conf.columns],
+                     [[LABEL[r]] + [f"{v}" for v in conf.loc[r]] for r in conf.index],
+                     numeric=set(range(1, len(conf.columns) + 1))))
+    st.html('<div class="m-body"><p>The longest unbroken wrong calls:</p><ul>'
+            + "".join(f'<li>{x.start.strftime("%b %Y")} to {x.end.strftime("%b %Y")}, {x.months} '
+                      f'months: called {ui.esc(regime_name(x.called).lower())}, followed by '
+                      f'{ui.esc(LABEL[x.followed].lower())}.</li>'
+                      for x in EV["misses"].itertuples())
+            + '</ul><p>The timeline above pins the largest false alarms, with what went '
+            'wrong.</p></div>')
+
+    st.html('<h3 class="m-h3">Are the odds right?</h3>')
+    cal = EV["calibration"]
+    st.html(ui.table(
+        ["Odds on the leading regime", "Months", "Average odds", "Leader followed"],
+        [[f"{iv.left:.0%} to {iv.right:.0%}", f'{int(r.months)}', pct(r.stated), pct(r.right)]
+         for iv, r in zip(cal.index, cal.itertuples())],
+        numeric={1, 2, 3}))
+    top_band = cal.iloc[-1]
+    years = ui.join_words([str(y) for y in sorted(EV["confident_years"].index[:3])])
+    st.html('<div class="m-body">'
+            + (f'<p>Up to {cal.index[-1].left:.0%}, the leader followed about as often as its odds '
+               f'said, or more. Above that it followed {pct(top_band.right)} of the time, against '
+               f'odds of {pct(top_band.stated)}: {int(top_band.months)} months, most of them in '
+               f'{years}. Read odds above {cal.index[-1].left:.0%} as no more reliable than lower '
+               'ones.</p>'
+               if top_band.right < top_band.stated - 0.1 else
+               '<p>In every band the leader followed about as often as its odds said.</p>')
+            + '</div>')
+
+    st.html('<h3 class="m-h3">What each driver adds</h3>')
+    full = G["held_out"]["balanced"]
+
+    def change(v: float) -> str:
+        # From the rounded scores, so the column agrees with the one beside it.
+        d = round(v * 100) - round(full * 100)
+        return "no change" if d == 0 else f'{d:+d} point{"s" * (abs(d) != 1)}'.replace("-", "−")
+
+    st.html(ui.table(
+        ["Held out, regimes right on average", "Score", "Change"],
+        [["All drivers", pct(full), ""]]
+        + [[f"Without {DLABEL[d].lower()}", pct(v), change(v)]
+           for d, v in sorted(EV["without"].items(), key=lambda kv: kv[1])]
+        + [["Growth and inflation only", pct(EV["growth_inflation_only"]),
+            change(EV["growth_inflation_only"])]],
+        numeric={1, 2}))
+    st.html('<div class="m-body"><p>Each row takes drivers out, learns the positions again '
+            'without them, and grades the call held out, as in the first table. A driver whose '
+            'removal costs little is kept for what it measures rather than for its record over '
+            f'three years, and {EV["bootstrap"]["episodes"]} episodes cannot tell a few points '
+            'apart.</p></div>')
+
+# The call and how it is made, folded under the sections above.
+with st.expander("The three-year call: odds, landing point, drivers and what-if",
                  expanded=False):
     # ---------- 1. the call ----------
 
@@ -949,68 +1115,6 @@ with st.expander("The three-year call: odds, landing point, drivers, what-if and
         + [["Growth gap, landing", ui.signed(land_now["growth"]), ui.signed(land_w["growth"])],
            ["Inflation gap, landing", ui.signed(land_now["inflation"]), ui.signed(land_w["inflation"])]],
         numeric={1, 2}))
-
-    # ---------- 6. track record ----------
-
-    st.html(ui.section_head(
-        "Track record", "Graded against what the next three years turned out to be",
-        "Held out: each episode called from positions learned without it or any month sharing its "
-        "outcome window. Share of each regime's months called right, averaged over the four regimes."))
-
-
-    @st.cache_data(ttl=6 * 3600, show_spinner="Grading every month since 1976…")
-    def track(version: str, config_key: str) -> dict:
-        from scripts.realign_positions import grade, held_out, priors
-        train, fwd = M["train"], M["fwd"]
-        window = train.index[train.index >= pd.Period("1976-01", "M")]
-        labels = fwd["label"].reindex(window)
-        prior = priors(REG, NAMES)
-        out = {}
-        P, F = held_out(train, prior, REG, NAMES)
-        calls = R.call_regime(P.reindex(window).dropna(how="all"), REG)["called"].reindex(window)
-        out["Held out"] = {"g": grade(P, F, REG, train, window, labels), "calls": calls}
-        from src.backtest import NBER  # noqa: F401  (kept for the recession shading below)
-        nowcast = truth.build(truth.from_store(get_store().latest(list(truth.STORE_IDS.values()))),
-                              **truth.METHODS["now"])["label"]
-        out["Regime continues"] = {"g": ol.grade(ol.persistence(nowcast, window), labels, train.loc[window])}
-        out["labels"] = labels
-        return out
-
-
-    if st.toggle("Show the track record", key="prop_track"):
-        T = track(data_version(), CONFIG_KEY)
-        rows = []
-        for name in ("Held out", "Regime continues"):
-            g = T[name]["g"]
-            rows.append([name, f"{g['balanced']:.0%}",
-                         *[f"{g['by_regime'].get(r, float('nan')):.0%}" for r in REG["regimes"]],
-                         f"{g['hard_landing_caught']} of {g['hard_landing_runups']}"])
-        st.html(ui.table(["", "Regimes right, average"] + [LABEL[r] for r in REG["regimes"]]
-                         + ["Hard-landing run-ups caught"], rows, numeric=set(range(1, 7))))
-        st.caption("Twelve episodes are graded, so read the average as a range: resampling whole "
-                   "episodes puts it between about 58% and 86% (checked 3 November 2026). Placebo, "
-                   "run 2 November 2026 on the six drivers: with the driver readings slid out of line "
-                   "with what followed, none of 40 runs matched 71% (median 33%; the best reached 62%).")
-        band = pd.DataFrame({"Held-out call": T["Held out"]["calls"],
-                             "What the next 3 years were": T["labels"]})
-        long = band.reset_index(names="month").melt("month", var_name="row", value_name="regime").dropna()
-        # Each month a rect from its start to the next month's, as on the
-        # timeline above: with a time unit and no end, the rows collapsed.
-        long["end"] = (long["month"] + 1).dt.to_timestamp()
-        long["month"] = long["month"].dt.to_timestamp()
-        long["name"] = long["regime"].map(LABEL)
-        band_rows = ["Held-out call", "What the next 3 years were"]
-        chart = alt.Chart(long).mark_rect().encode(
-            x=alt.X("month:T", title=None), x2="end:T",
-            y=alt.Y("row:N", title=None, sort=band_rows, scale=alt.Scale(domain=band_rows),
-                    axis=alt.Axis(labelLimit=220)),
-            color=alt.Color("regime:N", scale=scale, legend=alt.Legend(title=None, orient="top",
-                            labelExpr=" + ".join(f"(datum.label == '{k}' ? '{v}' : '')" for k, v in LABEL.items()))),
-            tooltip=[alt.Tooltip("month:T", format="%b %Y"), alt.Tooltip("row:N", title=""),
-                     alt.Tooltip("name:N", title="Regime")])
-        # Streamlit counts the legend on top inside this height: at 110 it left
-        # the two rows no room at all.
-        st.altair_chart(ui.style(chart.properties(height=170)), width="stretch")
 
     # ---------- how it works ----------
 

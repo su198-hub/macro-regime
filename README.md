@@ -122,6 +122,10 @@ puts it between about 58% and 86% (5th to 95th percentile, checked
 indicator set were all chosen while looking at the same grade, so it flatters
 the model somewhat.
 
+The Regime explorer shows the full record, recomputed from the live data by
+`src/evaluation.py`: the benchmarks, precision and recall by regime, where the
+misses go, whether the odds hold, and what each driver adds.
+
 ## Layout
 
 ```

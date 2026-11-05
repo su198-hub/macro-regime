@@ -75,7 +75,6 @@ jobs:
           assert not errors, errors
           body = "".join(h.proto.body for h in at.get("html"))
           assert "m-example" in body and "m-table" in body, "methodology incomplete"
-          assert "Against simple benchmarks" in body, "the call's record did not render"
 
           at.switch_page("views/bench.py").run()
           errors = [e.value for e in at.exception]
@@ -104,6 +103,7 @@ jobs:
           assert not errors, errors
           body = "".join(h.proto.body for h in at.get("html"))
           assert "Go back in time" in body and "gp-card" in body, "explorer incomplete"
+          assert "Against simple benchmarks" in body, "the call's record did not render"
           jump = [s for s in at.selectbox if s.label.startswith("Jump")]
           assert jump and len(jump[0].options) > 2, "explorer jump list missing"
           for option in jump[0].options[1:]:
