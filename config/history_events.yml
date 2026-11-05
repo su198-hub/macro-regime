@@ -199,26 +199,40 @@ events:
 # Calls the record got wrong, pinned on the timeline where they are drawn and
 # explained when a month inside them is picked. from and to are the months the
 # call was made; called is the regime. A pin shows only while the model still
-# makes the call in most of those months. Figures are from the held-out calls
-# and today's data (checked 3 Nov 2026).
+# makes the call in most of those months.
+#
+# The page writes the call's odds, when it first led and peaked, and why it
+# held, from the held-out calls. The rest is written here, one bullet a line:
+#   saw       what the drivers read, and why that pointed to the call
+#   happened  what followed instead
+#   wrong     why the reading misled
+# Figures in them are from today's data (checked 5 Nov 2026).
 misses:
   - from: "1987-05"
     to: "1988-05"
     called: hard_landing
     title: "False alarm: hard landing"
-    note: >-
-      From May 1987 to May 1988 the model called a hard landing for the next
-      three years. Growth read weak: households and companies had raised their
-      debt 8 to 10% in real terms over three years, borrowing that usually
-      pulls spending forward and is paid back later. Inflation read barely
-      hot: after the 1986 oil collapse, core PCE inflation ran about a point
-      below what forecasters still expected over ten years. Weak growth with
-      no inflation problem looks like a hard landing. Instead growth ran near
-      4% a year into 1989, Black Monday barely dented spending, and inflation
-      came back, so the Fed raised rates from about 6.5% to near 9.75%. The
-      recession came in July 1990, at the far end of the calls' three years
-      and with inflation still high, so the answer key reads those years as
-      Goldilocks for the 1987 calls and stagflation for the 1988 ones. Hard
-      landing led the odds from December 1986 to July 1987, peaking at 57% in
-      January, and only twice after; the call stood because a new leader must
-      hold for six months.
+    saw:
+      - >-
+        Growth read weak. Households and companies had raised their debt 8 to
+        10% above inflation over three years, borrowing that usually pulls
+        spending forward and is paid back later in slower growth.
+      - >-
+        Inflation read only slightly hot. After the 1986 oil collapse, core
+        PCE inflation ran about a point below what forecasters still expected
+        over ten years.
+      - Weak growth with no inflation problem is the shape of a hard-landing run-up.
+    happened:
+      - Growth ran near 4% a year into 1989. Black Monday, in October 1987, barely dented spending.
+      - Inflation climbed back toward 5%, and the Fed raised rates from about 6.5% to near 9.75%.
+      - >-
+        The recession came only in July 1990, with inflation still high. So
+        the three years after the 1987 calls were goldilocks, and after the
+        1988 calls stagflation.
+    wrong:
+      - >-
+        The debt build-up was a real warning, but it took until 1990 to bite,
+        at or past the end of the three years the 1987 calls covered.
+      - >-
+        Inflation looked tame only against expectations still set by the early
+        1980s. With growth strong, it soon picked up.

@@ -525,14 +525,13 @@ def _per(df: pd.DataFrame) -> pd.DataFrame:
 ind_p, raw_p = _per(M["indicators"]), _per(M["inputs"])
 
 
-def _gaps(row: pd.Series, horizon: str) -> str:
+def _gaps(row: pd.Series) -> str:
     """Growth and core inflation in plain numbers, against potential and expectations."""
     g, i_ = row["growth"], row["inflation"]
     pct = lambda v: f"{v:.1f}%".replace("-", "−")
-    return (f"growth {horizon} {pct(row['gdp_growth'])} a year, {abs(g):.1f} points "
-            f"{'above' if g >= 0 else 'below'} potential, and core PCE inflation "
-            f"{pct(row['core_pce'])}, {abs(i_):.1f} points {'above' if i_ >= 0 else 'below'} "
-            f"expectations")
+    return (f"growth {pct(row['gdp_growth'])} a year, {abs(g):.1f} {'above' if g >= 0 else 'below'} "
+            f"potential; core PCE inflation {pct(row['core_pce'])}, {abs(i_):.1f} "
+            f"{'above' if i_ >= 0 else 'below'} expectations")
 
 
 def _held(row, label: str) -> str:
@@ -541,8 +540,8 @@ def _held(row, label: str) -> str:
     if row is None:
         return ""
     if row.get("raw") in INTEXT and row.get("raw") != label:
-        return (f" On these numbers alone it would be {ui.esc(INTEXT[row['raw']])}; the label holds "
-                f"until a change is clear and has lasted a year.")
+        return (f" On these numbers alone it would be {ui.esc(INTEXT[row['raw']])}, but a label "
+                f"changes only once a shift has lasted a year.")
     # A gap on the other side of zero but inside the margin a label needs
     # before it switches sides.
     side = {r_: k_ for k_, r_ in truth.QUADRANT.items()}.get(label)
@@ -551,9 +550,7 @@ def _held(row, label: str) -> str:
     notes = []
     for name, v, up in (("Growth", row["growth"], side[0]), ("Inflation", row["inflation"], side[1])):
         if (v >= 0) != up:
-            notes.append(f"{name} is only {abs(v):.1f} points {'above' if v >= 0 else 'below'} "
-                         f"{'potential' if name == 'Growth' else 'expectations'}, too small a margin "
-                         f"to count as a change of side.")
+            notes.append(f"{name}'s {abs(v):.1f}-point gap is too small to change side.")
     return (" " + " ".join(notes)) if notes else ""
 
 
@@ -635,22 +632,23 @@ def _explain(d: str, month: pd.Period, sign: float, most: int = 2) -> list[str]:
             for i_, _, z, v in keep]
 
 
-def _call_why(made: pd.Period, call: str, rival: str, drivers: int = 3, per: int = 2) -> list[str]:
+def _call_why(made: pd.Period, call: str, rival: str, drivers: int = 3, per: int = 1) -> list[str]:
     """The drivers that most favored `call` over `rival` in `made`, against
-    each regime's typical run-up as the call had it, each with the indicators
-    behind it nested under it. Up to `drivers`, with up to `per` indicators."""
+    each regime's typical run-up as the call had it, each one bullet with the
+    indicator behind it. Up to `drivers`, each pulling at least a third as hard
+    as the strongest, with up to `per` indicators."""
     pos = _positions_at(made)
     x = M["scores"].loc[made, NAMES]
     pull = SALIENCE * ((x - pos.loc[rival]) ** 2 - (x - pos.loc[call]) ** 2)
-    top = [d for d in pull.sort_values(ascending=False).index if pull[d] > 0][:drivers]
+    ranked = [d for d in pull.sort_values(ascending=False).index if pull[d] > 0]
+    top = [d for d in ranked if pull[d] >= pull[ranked[0]] / 3][:drivers] if ranked else []
     out = []
     for d in top:
         # Which way the driver had to lean to favor the call over the rival.
         sub = _explain(d, made, np.sign(pos.at[call, d] - pos.at[rival, d]), per)
-        out.append(f"<b>{ui.esc(SHORT[d][0])} read {_reads(d, x[d])}</b> ({ui.signed(x[d])}), nearer a typical "
-                   f"{ui.esc(INTEXT[call])} run-up ({ui.signed(pos.at[call, d])}) than a typical "
-                   f"{ui.esc(INTEXT[rival])} one ({ui.signed(pos.at[rival, d])})."
-                   + (f'<ul>{"".join(f"<li>{t}</li>" for t in sub)}</ul>' if sub else ""))
+        out.append(f"<b>{ui.esc(SHORT[d][0])} read {_reads(d, x[d])}</b> ({ui.signed(x[d])}; typical "
+                   f"{ui.esc(INTEXT[call])} run-up {ui.signed(pos.at[call, d])}, "
+                   f"{ui.esc(INTEXT[rival])} {ui.signed(pos.at[rival, d])}). " + " ".join(sub))
     return out
 
 
@@ -677,7 +675,52 @@ def _item(head: str, body: str = "", sub=()) -> str:
 
 
 def _event(m_: pd.Period, e: dict) -> str:
-    return f'<b>{ui.esc(e["title"])}</b>, {m_.strftime("%b %Y")}. {ui.esc(e["note"])}'
+    """An event by name and month; what happened shows on hover."""
+    return (f'<span title="{ui.esc(e["note"])}" style="border-bottom:1px dotted currentColor">'
+            f'{ui.esc(e["title"])}</span> ({m_.strftime("%b %Y")})')
+
+
+def _odds(m_: pd.Period, top: int = 4) -> str:
+    """The held-out odds in a month, highest first: 'hard landing 46%, HGHI 25%, ...'."""
+    o = PRED["probs"].loc[m_].sort_values(ascending=False).head(top)
+    return ", ".join(f"{ui.esc(INTEXT[r_])} {v:.0%}" for r_, v in o.items())
+
+
+def _miss_items(e: dict) -> list[str]:
+    """A false alarm as bullets: the call and its odds, then what the drivers
+    read, what followed and why the reading misled (from history_events.yml),
+    then why the call stood. Odds and months come from the held-out calls."""
+    a, b, r = pd.Period(e["from"], "M"), pd.Period(e["to"], "M"), e["called"]
+    P = PRED["probs"]
+    lead = P.idxmax(axis=1)
+    # When it first led: the start of the run of leads the call came from.
+    first = a
+    while first - 1 in lead.index and lead[first - 1] == r:
+        first -= 1
+    peak = P.loc[first:b, r].idxmax()
+    call = f' {_tag(r)} for the next three years. Odds in {a.strftime("%b %Y")}: {_odds(a)}.'
+    if peak != a:
+        call += (f' It had led since {first.strftime("%b %Y")}, peaking in '
+                 f'{peak.strftime("%b %Y")}: {_odds(peak, 3)}.')
+    out = [_item("The call:", call)]
+    for key, head in (("saw", f"Why it looked like {_tag(r)}:"), ("happened", "What happened instead:"),
+                      ("wrong", "Why it was wrong:")):
+        if e.get(key):
+            out.append(_item(head, "", [ui.esc(s) for s in e[key]]))
+    # Why the call stood after the odds moved on.
+    lost = next((m_ for m_ in P.loc[a + 1:b].index if lead[m_] != r), None)
+    nxt = PRED["called"].get(b + 1)
+    if lost is not None:
+        held = (f' {_tag(r)} lost the lead in {lost.strftime("%b %Y")} ({_odds(lost, 2)}), but a new '
+                f'leader must hold for {ui.count_word(_need)} months in a row before the call changes')
+        if nxt in COLOR and nxt != r:
+            took = b + 1
+            while took - 1 in lead.index and lead[took - 1] == nxt:
+                took -= 1
+            held += (f'; {_tag(nxt)} led from {took.strftime("%b %Y")} and took the call in '
+                     f'{(b + 1).strftime("%b %Y")}')
+        out.append(_item("Why the call stood:", held + "."))
+    return out
 
 
 # Two sections, each a few bullets: the turning point that began this spell
@@ -696,23 +739,23 @@ if t_turn is not None:
                    f' Growth went from {_side(before["growth"], "potential")} to '
                    f'{_side(after["growth"])}; core PCE inflation from '
                    f'{_side(before["inflation"], "expectations")} to {_side(after["inflation"])} '
-                   f'(averages over each spell).'
-                   + (" What led in:" if turn_events else ""),
-                   [_event(m_, e) for m_, e in turn_events])]
+                   f'(spell averages).'
+                   + (" What led in: " + "; ".join(_event(m_, e) for m_, e in turn_events) + "."
+                      if turn_events else ""))]
     made = seen_at
     call = PRED["called"].get(made)
     if turn_run is not None:
         sw, last = turn_run["start"], turn_run["end"]
         odds = PRED["probs"].loc[sw]
         rival = odds.drop(new).idxmax()
-        moved = (f' The model moved to {_tag(new)} in {sw.strftime("%b %Y")} ({odds[new]:.0%}, against '
-                 f'{ui.esc(INTEXT[rival])} {odds[rival]:.0%})')
+        moved = (f' From {sw.strftime("%b %Y")} ({odds[new]:.0%}; {ui.esc(INTEXT[rival])} '
+                 f'{odds[rival]:.0%})')
         if last >= t0 - 1:
-            moved += ' and held it to the turn. What it saw when it called it:'
+            moved += ', held to the turn. Why:'
         else:
             off = last + 1
-            moved += (f', then dropped it for {_tag(PRED["called"][off])} in {off.strftime("%b %Y")}, '
-                      f'{_months((t0 - off).n)} before the turn. What it saw when it called it:')
+            moved += (f', dropped for {_tag(PRED["called"][off])} in {off.strftime("%b %Y")}, '
+                      f'{_months((t0 - off).n)} before the turn. Why:')
         items.append(_item(f'Called it {_months((t0 - sw).n)} in advance.', moved, _call_why(sw, new, rival)))
         # Early: the call ran back well before the run-up the answer key gives,
         # through months whose next three years went otherwise.
@@ -721,47 +764,46 @@ if t_turn is not None:
             k0 = k_sp["start"]
             was = going_lab.loc[sw:k0 - 1].value_counts().idxmax()
             items.append(_item('Too early at first.',
-                               f' Calls made from {sw.strftime("%b %Y")} to {(k0 - 1).strftime("%b %Y")} were '
-                               f'wrong: the three years after them turned out {_tag(was)}. The drivers caught '
-                               f'the build-up, not its timing: the same signs can sit for years before a turn.'))
+                               f' Calls from {sw.strftime("%b %Y")} to {(k0 - 1).strftime("%b %Y")} were '
+                               f'followed by {_tag(was)}: the drivers caught the build-up, not its timing.'))
     elif made in PRED["probs"].index and call in COLOR:
         odds = PRED["probs"].loc[made]
         x0, x1 = M["scores"].loc[made, NAMES], M["scores"].loc[t0, NAMES]
         d = (x1 - x0).abs().idxmax()
         items.append(_item('Not called in advance.',
-                           f' {_months((t0 - made).n)} before, in {made.strftime("%b %Y")}, the model called '
-                           f'{_tag(call)} ({odds[call]:.0%}; {ui.esc(INTEXT[new])} {odds[new]:.0%}), because:',
+                           f' In {made.strftime("%b %Y")}, {_months((t0 - made).n)} before, it called '
+                           f'{_tag(call)} ({odds[call]:.0%}; {ui.esc(INTEXT[new])} {odds[new]:.0%}). Why:',
                            _call_why(made, call, new)
-                           + [f"<b>What changed after:</b> {ui.esc(SHORT[d][0].lower())} moved most "
-                              f"by the turn, from {ui.signed(x0[d])} to {ui.signed(x1[d])}"
-                              f"{_moved(d, made, t0)}."]))
+                           + [f"<b>What changed:</b> {ui.esc(SHORT[d][0].lower())} moved most, "
+                              f"{ui.signed(x0[d])} to {ui.signed(x1[d])}{_moved(d, made, t0)}."]))
     else:
         items.append(_item('Not called in advance.',
                            ' The data start in 1968.' if HELD else
                            ' The model’s calls start in 1976, once there are past regimes to learn from.'))
     sections.append((f'Turning point, {t0.strftime("%b %Y")}', items))
 # This month: what it was living through, with its own events.
-items = [_item(f'{ui.esc(e["title"])}.', f' {ui.esc(e["note"])}') for e in in_miss]
+for e in in_miss:
+    sections.append((f'{ui.esc(e["title"])}, {pd.Period(e["from"], "M").strftime("%b %Y")} to '
+                     f'{pd.Period(e["to"], "M").strftime("%b %Y")}', _miss_items(e)))
+items = []
 shown = {m_ for m_, _ in turn_events}
 ev = EV_BY_MONTH.get(hx)
-sub = []
+events = []
 if ev and hx not in shown:
-    sub.append(_event(hx, ev))
+    events.append((hx, ev))
     shown.add(hx)
 if sp_dur is not None:
-    also = [(m_, e) for m_, e in EV_BY_MONTH.items()
-            if sp_dur["start"] <= m_ <= sp_dur["end"] and m_ not in shown and _turn_of(m_) is None]
-    if also:
-        sub.append("Also in this spell: " + "; ".join(f'{ui.esc(e["title"])} ({m_.strftime("%b %Y")})'
-                                                     for m_, e in also) + ".")
+    events += [(m_, e) for m_, e in EV_BY_MONTH.items()
+               if sp_dur["start"] <= m_ <= sp_dur["end"] and m_ not in shown and _turn_of(m_) is None]
+ev_text = ("Events: " + "; ".join(_event(m_, e) for m_, e in sorted(events, key=lambda x: x[0])) + "."
+           if events else "")
 if r_dur is not None and sp_dur is not None:
     nc = M["nowcast"].loc[hx] if hx in M["nowcast"].index else None
-    body = f": over the 18 months around it, {_gaps(nc, 'ran')}." if nc is not None else "."
-    sub.insert(0, f'Part of the {sp_dur["start"].strftime("%b %Y")} to {sp_dur["end"].strftime("%b %Y")} '
-                  f'spell.{_held(nc, r_dur)}')
-    items.append(_item(f"Living through {_tag(r_dur)}", body, sub))
-elif sub:
-    items.append(_item("Events", "", sub))
+    body = (f' ({sp_dur["start"].strftime("%b %Y")} to {sp_dur["end"].strftime("%b %Y")})'
+            + (f": over the 18 months around it, {_gaps(nc)}.{_held(nc, r_dur)}" if nc is not None else "."))
+    items.append(_item(f"Living through {_tag(r_dur)}", body, [ev_text] if ev_text else []))
+elif ev_text:
+    items.append(_item("", ev_text))
 if not items and hx > during_lab.index[-1]:
     _last = during_lab.index[-1]
     items.append(_item("Too recent to label",
