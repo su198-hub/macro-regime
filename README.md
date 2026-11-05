@@ -151,7 +151,7 @@ views/control.py           control room: change the assumptions, per session
 views/methodology.py       methodology, generated from the live config
 views/bench.py             the indicator bench
 views/history.py           the answer key month by month
-views/energy.py            energy page ("Energy (WIP)"), not part of the regime model
+views/energy.py            energy page, hidden from the menu (/energy), not part of the regime model
 scripts/realign_positions.py  learns v2's positions and grades the call
 ingest.py                  backfill / sync / coverage / demo / publish / truth
 tests/                     unit tests; CI also renders every main page on demo data

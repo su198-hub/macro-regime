@@ -49,20 +49,23 @@ st.set_page_config(page_title="Long-Term Regime Monitor", layout="wide",
                    initial_sidebar_state="collapsed")
 st.html(ui.CSS)
 
+# In the order a reader needs them: today's call, the past, how it works, then
+# the pages for changing it.
 st.navigation(
     [st.Page("views/dashboard.py", title="Dashboard", default=True),
      # Regime shapes, any month since 1968, and the v2 three-year call.
      # Kept at /outlook so links from when it was the three-year outlook still work.
      st.Page("views/outlook.py", title="Regime explorer", url_path="outlook"),
-     st.Page("views/control.py", title="Control room", url_path="control"),
-     st.Page("views/methodology.py", title="Methodology", url_path="methodology"),
-     st.Page("views/bench.py", title="Bench", url_path="bench"),
      # Draft benchmark: the regime each month turned out to be in, since 1968,
      # laid out so a reader can check every call against the inputs.
      st.Page("views/history.py", title="Regime history", url_path="history"),
-     # In the menu but marked work in progress: is energy demand outrunning
-     # supply? Scored on its own, not yet feeding the regime model.
-     st.Page("views/energy.py", title="Energy (WIP)", url_path="energy"),
+     st.Page("views/methodology.py", title="Methodology", url_path="methodology"),
+     st.Page("views/control.py", title="Control room", url_path="control"),
+     st.Page("views/bench.py", title="Bench", url_path="bench"),
+     # Hidden: work in progress, reachable at /energy. Is energy demand
+     # outrunning supply? Scored on its own, not feeding the regime model.
+     st.Page("views/energy.py", title="Energy (WIP)", url_path="energy",
+             visibility="hidden"),
      # Hidden: reachable at /twin, never in the nav, so the published model is
      # untouched while the proposed indicator set is being weighed.
      st.Page("views/twin.py", title="Twin", url_path="twin", visibility="hidden"),
