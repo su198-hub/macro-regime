@@ -22,7 +22,7 @@ the four regimes the answer key can grade.
      a growth x inflation map, and the probability-weighted landing point.
   3. What is pushing it: each driver's pull on that landing point.
   4. The drivers, as on the dashboard.
-  5. A policy what-if: move monetary stance or fiscal policy, watch the call move.
+  5. A policy what-if: move monetary stance or fiscal spending, watch the call move.
 """
 
 from __future__ import annotations
@@ -240,7 +240,8 @@ HX_MODES = {
 # this hx_box.radio("How the calls were made", list(HX_MODES), horizontal=True).
 hx_mode = "Held out"
 HELD = hx_mode == "Held out"
-hx_box.html(f'<p class="mr-caption"><b>{hx_mode}:</b> {HX_MODES[hx_mode]}</p>')
+hx_box.html(f'<p class="mr-caption"><b>{"Model predictions" if HELD else hx_mode}:</b> '
+            f'{HX_MODES[hx_mode]}</p>')
 
 
 @st.cache_data(ttl=6 * 3600, show_spinner="Calling every month…")
@@ -276,14 +277,18 @@ for _e in MISSES:
 
 # A call covers the next three years on average, so its middle is about a
 # year and a half out; living through covers the 18 months to three months
-# ahead, so its middle is about six months back. Drawn two years after it was
-# made, a call sits over the months it was about: shifted two years, the
-# answer key agrees with living through in 86% of months, against 71% at three
-# years (checked 29 Oct 2026, 1968 to 2023).
+# ahead, so its middle is about six months back. Two years on is where the
+# text reads a turn the model did not call: there the answer key agrees with
+# living through in 86% of months, against 71% three years on (checked 29 Oct
+# 2026, 1968 to 2023).
 SHIFT = 24
+# The chart draws each call three years on, at the end of the years it was
+# about, so a reader counts the call's own horizon along the axis (chosen 5 Nov
+# 2026, over two years' closer match).
+DRAW = 36
 EARLY = 6  # months a call may run ahead of the run-up before the text calls it early
 CALL_SPAN = 36  # a call covers three years, so one dropped before a turn was about it only if made within this
-ROW_TURN, ROW_PRED, ROW_DUR = "Turning points", "Called 2 years earlier", "Living through"
+ROW_TURN, ROW_PRED, ROW_DUR = "Turning points", "Called 3 years earlier", "Living through"
 ROWS = [ROW_TURN, ROW_PRED, ROW_DUR]
 TURNS = ol.spells(during_lab).iloc[1:].reset_index(drop=True)
 
@@ -352,10 +357,10 @@ def _bands(labels: pd.Series, row: str, shift: int = 0) -> pd.DataFrame:
 
 # The timeline: each call drawn over the months it was about, above what those
 # months turned out to be, so the two rows read against each other. Calls made
-# in the last two years run past today. Markers sit at each turning point.
+# in the last three years run past today. Markers sit at each turning point.
 _pred = PRED["called"][PRED["called"].isin(list(COLOR))]
-bands = pd.concat([_bands(_pred, ROW_PRED, SHIFT), _bands(during_lab, ROW_DUR)], ignore_index=True)
-_last = max(HX_MONTHS[-1], _pred.index[-1] + SHIFT) if len(_pred) else HX_MONTHS[-1]
+bands = pd.concat([_bands(_pred, ROW_PRED, DRAW), _bands(during_lab, ROW_DUR)], ignore_index=True)
+_last = max(HX_MONTHS[-1], _pred.index[-1] + DRAW) if len(_pred) else HX_MONTHS[-1]
 # A few months' room past the last band, so today's second stamp is not cut off.
 xs_t = alt.Scale(domain=[HX_MONTHS[0].to_timestamp(), (_last + 4).to_timestamp()])
 y_rows = alt.Y("row:N", sort=ROWS, title=None, scale=alt.Scale(domain=ROWS),
@@ -366,6 +371,24 @@ layers = [alt.Chart(bands).mark_rect().encode(
                     legend=None),
     tooltip=[alt.Tooltip("row:N", title=""), alt.Tooltip("name:N", title="Regime"),
              alt.Tooltip("span:N", title="Months")])]
+# A line at every January across the bands, so years can be counted; every
+# fifth year, where the axis is labeled, a little stronger.
+_years = pd.DataFrame({"m": pd.date_range(f"{HX_MONTHS[0].year + 1}-01-01",
+                                          (_last + 4).to_timestamp(), freq="YS")})
+_years["major"] = _years["m"].dt.year % 5 == 0
+layers.append(alt.Chart(_years).mark_rule(color="#ffffff").encode(
+    x=alt.X("m:T", scale=xs_t),
+    strokeWidth=alt.condition(alt.datum.major, alt.value(1.4), alt.value(0.6)),
+    opacity=alt.condition(alt.datum.major, alt.value(0.9), alt.value(0.55))))
+# The three years the chosen month's call is about, shaded on the turning
+# points row and closed by a dashed line where the call is drawn.
+_win = pd.DataFrame([{"start": (hx + 1).to_timestamp(), "end": (hx + DRAW + 1).to_timestamp(),
+                      "m": (hx + DRAW).to_timestamp(),
+                      "row": ROW_TURN, "what": f"The three years {HX_LABEL[hx]}'s call is about"}])
+layers.append(alt.Chart(_win).mark_rect(color=ui.INK, opacity=0.1).encode(
+    x=alt.X("start:T", scale=xs_t), x2="end:T", y=y_rows, tooltip=alt.Tooltip("what:N", title="")))
+layers.append(alt.Chart(_win).mark_rule(color=ui.INK, strokeDash=[4, 3], strokeWidth=1.5).encode(
+    x=alt.X("m:T", scale=xs_t)))
 sp_dur = _spell_of(during_lab, hx)
 if sp_dur is not None:
     layers.append(alt.Chart(pd.DataFrame([{"start": sp_dur["start"].to_timestamp(),
@@ -373,13 +396,13 @@ if sp_dur is not None:
                   .mark_rect(fill=None, stroke=ui.INK, strokeWidth=2).encode(
                       x=alt.X("start:T", scale=xs_t), x2="end:T", y=y_rows))
 # Today's stamp: a diamond on the turning points row, and another where
-# today's call is drawn, two years on, on the called row.
+# today's call is drawn, three years on, on the called row.
 _now_odds = PRED["probs"].loc[NOW_M] if NOW_M in PRED["probs"].index else None
 _now_tip = (f"Called {LABEL[NOW_CALL].lower()} for the next three years ({_now_odds[NOW_CALL]:.0%})"
             if NOW_CALL in LABEL and _now_odds is not None else "–")
-_today = pd.DataFrame({"m": [(NOW_M + 1).to_timestamp(), (NOW_M + SHIFT).to_timestamp()],
+_today = pd.DataFrame({"m": [(NOW_M + 1).to_timestamp(), (NOW_M + DRAW).to_timestamp()],
                        "t": ["Today", ""], "row": [ROW_TURN, ROW_PRED],
-                       "when": [f"Today, {HX_LABEL[NOW_M]}", f"Today's call, drawn two years on"],
+                       "when": [f"Today, {HX_LABEL[NOW_M]}", f"Today's call, drawn three years on"],
                        "what": [_now_tip, _now_tip]})
 layers.append(alt.Chart(_today.iloc[:1]).mark_rule(color=ui.MUTED, strokeDash=[3, 3]).encode(
     x=alt.X("m:T", scale=xs_t)))
@@ -392,17 +415,17 @@ layers.append(alt.Chart(_today.iloc[:1]).mark_text(align="left", dx=8, fontSize=
     x=alt.X("m:T", scale=xs_t), y=y_rows, text="t:N"))
 layers.append(alt.Chart(pd.DataFrame({"m": [hx.to_timestamp()]})).mark_rule(
     color=ui.INK, strokeWidth=2).encode(x=alt.X("m:T", scale=xs_t)))
-# The chosen month's call sits two years on, so mark it there too, and inside
+# The chosen month's call sits three years on, so mark it there too, and inside
 # a false alarm outline the alarm's calls, as the spell is outlined below.
 if hx in _pred.index:
-    layers.append(alt.Chart(pd.DataFrame([{"m": (hx + SHIFT).to_timestamp(), "row": ROW_PRED,
-                                           "when": f"{HX_LABEL[hx]}'s call, drawn two years on"}]))
+    layers.append(alt.Chart(pd.DataFrame([{"m": (hx + DRAW).to_timestamp(), "row": ROW_PRED,
+                                           "when": f"{HX_LABEL[hx]}'s call, drawn three years on"}]))
                   .mark_tick(color=ui.INK, thickness=3, size=26, opacity=1).encode(
                       x=alt.X("m:T", scale=xs_t), y=y_rows, tooltip=alt.Tooltip("when:N", title="")))
 for a_, b_, _e in MISS_SPANS:
     if a_ <= hx <= b_:
-        layers.append(alt.Chart(pd.DataFrame([{"start": (a_ + SHIFT).to_timestamp(),
-                                               "end": (b_ + SHIFT + 1).to_timestamp(), "row": ROW_PRED}]))
+        layers.append(alt.Chart(pd.DataFrame([{"start": (a_ + DRAW).to_timestamp(),
+                                               "end": (b_ + DRAW + 1).to_timestamp(), "row": ROW_PRED}]))
                       .mark_rect(fill=None, stroke=ui.INK, strokeWidth=2).encode(
                           x=alt.X("start:T", scale=xs_t), x2="end:T", y=y_rows))
 turn_df = pd.DataFrame([{"month": t_.to_timestamp(), "regime": r_, "row": ROW_TURN,
@@ -416,7 +439,7 @@ layers.append(alt.Chart(turn_df).mark_point(shape="triangle-down", size=70, fill
     tooltip=[alt.Tooltip("when:N", title=""), alt.Tooltip("events:N", title="Led in by")]))
 # A pin in the middle of each miss, where its calls are drawn.
 if MISS_SPANS:
-    miss_df = pd.DataFrame([{"m": (a_ + (b_ - a_).n // 2 + SHIFT).to_timestamp(), "row": ROW_PRED,
+    miss_df = pd.DataFrame([{"m": (a_ + (b_ - a_).n // 2 + DRAW).to_timestamp(), "row": ROW_PRED,
                              "what": e["title"],
                              "when": f'Called {a_.strftime("%b %Y")} to {b_.strftime("%b %Y")}; '
                                      f'pick a month in it for why'} for a_, b_, e in MISS_SPANS])
@@ -568,7 +591,8 @@ def _side(v: float, what: str = "") -> str:
 # A driver reading in a word: toward its +1 end, its -1 end, or about neutral.
 READS = {"growth": ("strong", "weak"), "inflation": ("hot", "cool"), "monetary": ("tight", "loose"),
          "credibility": ("strong", "weak"),
-         "fiscal": ("supportive", "unsupportive"), "reforms": ("proactive", "passive")}
+         "fiscal": ("supportive", "unsupportive"), "debt": ("sustainable", "unsustainable"),
+         "reforms": ("proactive", "passive")}
 
 
 def _reads(d: str, v: float) -> str:
@@ -880,7 +904,7 @@ if EV is not None:
     a, b = EV["window"]
     G, BR = EV["methods"], EV["by_regime"]
     st.html(ui.section_head(
-        "How well the call has done", f'Held out · {a.strftime("%b %Y")} to {b.strftime("%b %Y")}',
+        "How well the call has done", f'Model predictions · {a.strftime("%b %Y")} to {b.strftime("%b %Y")}',
         f'Every month from {a.strftime("%B %Y")} to {b.strftime("%B %Y")}, the last whose next three '
         f'years are known, graded against what those three years turned out to be: '
         f'{EV["months"]} months, {EV["bootstrap"]["episodes"]} episodes. Each episode is called '
@@ -894,12 +918,20 @@ if EV is not None:
                 f'{g["hard_landing_caught"]} of {g["hard_landing_runups"]}',
                 "–" if pd.isna(g["log_loss"]) else f'{g["log_loss"]:.2f}']
 
-    rows = [[ui.Raw(f"<b>{ui.esc(c)}</b>") for c in bench_row("Held out", G["held_out"])]]
+    rows = [[ui.Raw(f"<b>{ui.esc(c)}</b>") for c in bench_row("Model prediction", G["held_out"])]]
     rows += [["Chance", "25%", "25%", "–", "1.39"],
              bench_row("Current regime continues", G["continues"]),
              bench_row("Sign of the growth and inflation drivers", G["signs"])]
-    st.html(ui.table(["", "Regimes right, average", "Months right", "Hard-landing run-ups caught",
-                      "Log loss"], rows, numeric={1, 2, 3, 4}))
+    N = EV["months"]
+
+    def head(name: str, n: str) -> ui.Raw:
+        return ui.Raw(f'{ui.esc(name)}<br><span style="font-weight:400;color:{ui.INK_2}">'
+                      f'{ui.esc(n)}</span>')
+
+    st.html(ui.table(["", head("Regimes right, average", f"4 regimes, n = {N} months"),
+                      head("Months right", f"n = {N}"),
+                      head("Hard-landing run-ups caught", f'n = {G["held_out"]["hard_landing_runups"]}'),
+                      head("Log loss", f"n = {N}")], rows, numeric={1, 2, 3, 4}))
     st.html(
         '<div class="m-body"><ul>'
         '<li><b>Chance</b> picks one regime in four.</li>'
@@ -913,7 +945,7 @@ if EV is not None:
         'alone: both above zero is high growth with high inflation, growth above and inflation '
         'below is goldilocks, and so on. It is the model\'s two main inputs without the learned '
         f'positions or the other {ui.NUMBER_WORDS[len(NAMES) - 2]} drivers, so the gap to the '
-        'held-out grade is what those add.</li>'
+        'model\'s grade is what those add.</li>'
         '<li>Every measure grades the call made in a month against what that month\'s next '
         'three years turned out to be. <b>Regimes right, average</b> is the share of each '
         'regime\'s months called right, averaged over the four, so goldilocks, which followed '
@@ -933,14 +965,15 @@ if EV is not None:
     AX = EV["axes"]
     def regime_row(name: str, t: pd.DataFrame, k: str) -> list[str]:
         return [name, pct(t.at[k, "precision"]), pct(t.at[k, "recall"]), f'{t.at[k, "f1"]:.2f}',
-                pct(t.at[k, "base_rate"]), f'{int(t.at[k, "called"])}']
+                pct(t.at[k, "base_rate"]), f'{int(t.at[k, "called"])}', f'{int(t.at[k, "followed"])}']
 
     st.html(ui.table(
-        ["Held out", "Precision", "Recall", "F1", "How often it followed", "Months called"],
+        ["Model prediction", "Precision", "Recall", "F1", "How often it followed",
+         head("Months called", "n for precision"), head("Months followed", "n for recall")],
         [regime_row(LABEL[r], BR, r) for r in BR.index]
         + [regime_row(n, AX, k) for k, n in (("growth_below", "Growth below potential"),
                                              ("inflation_above", "Inflation above expectations"))],
-        numeric={1, 2, 3, 4, 5}))
+        numeric={1, 2, 3, 4, 5, 6}))
     worst = BR["precision"].idxmin()
     keen = BR["recall"].idxmax()
     plo, phi = EV["bootstrap"]["precision"][worst]
@@ -950,7 +983,8 @@ if EV is not None:
         'three years were a regime, the share the model called it. <b>F1</b> is high only when '
         f'both are. <b>How often it followed</b>: the share of the {EV["months"]} months whose '
         'next three years turned out to be that regime, so calling it blind would be right that '
-        'often, the bar for precision.</p>'
+        'often, the bar for precision. <b>Months called</b> and <b>months followed</b> are '
+        'what precision and recall are shares of.</p>'
         '<p>The bottom two rows score each half of the call on its own. <b>Growth below '
         'potential</b> pools stagflation and hard landing, the two regimes where growth runs '
         'below potential: a call of either counts as right if the next three years were either. '
@@ -1005,7 +1039,7 @@ if EV is not None:
         return "no change" if d == 0 else f'{d:+d} point{"s" * (abs(d) != 1)}'.replace("-", "−")
 
     st.html(ui.table(
-        ["Held out", "Regimes right, average", "Change"],
+        ["Drivers used", head("Regimes right, average", f"n = {N} months"), "Change"],
         [["All drivers", pct(full), ""]]
         + [[f"Without {DLABEL[d].lower()}", pct(v), change(v)]
            for d, v in sorted(EV["without"].items(), key=lambda kv: kv[1])]
@@ -1013,7 +1047,7 @@ if EV is not None:
             change(EV["growth_inflation_only"])]],
         numeric={1, 2}))
     st.html('<div class="m-body"><p>Each row takes drivers out, learns the positions again '
-            'without them, and grades the call held out, as in the first table. A driver whose '
+            'without them, and grades the model\'s predictions as in the first table. A driver whose '
             'removal costs little is kept for what it measures rather than for its record over '
             f'three years, and {EV["bootstrap"]["episodes"]} episodes cannot tell a few points '
             'apart.</p></div>')
@@ -1135,12 +1169,13 @@ with st.expander("The three-year call: odds, landing point, drivers and what-if"
 
     st.html(ui.section_head(
         "What if policy moves", "",
-        "Set monetary stance and fiscal policy where you think they are heading; the odds and the "
-        "landing point update. Everything else, credibility included, stays as it reads today."))
+        "Set monetary stance and fiscal spending where you think they are heading; the odds and the "
+        "landing point update. Everything else, credibility and debt sustainability included, stays "
+        "as it reads today."))
     c1, c2 = st.columns(2)
     mon = c1.slider("Monetary stance (dovish − / hawkish +)", -1.0, 1.0,
                     float(round(now["monetary"].iloc[0], 2)), 0.05, key="prop_mon")
-    fis = c2.slider("Fiscal policy (restrictive − / supportive +)", -1.0, 1.0,
+    fis = c2.slider("Fiscal spending (restrictive − / supportive +)", -1.0, 1.0,
                     float(round(now["fiscal"].iloc[0], 2)), 0.05, key="prop_fis")
     wx = now.copy()
     # A slider shows today's reading rounded; left there, it means today's reading.

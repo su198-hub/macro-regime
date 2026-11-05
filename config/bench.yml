@@ -1,6 +1,6 @@
 # Indicator bench — the candidate pool for the US set.
 #
-# One row per indicator, live or proposed, under v2's six drivers. This file
+# One row per indicator, live or proposed, under v2's seven drivers. This file
 # feeds the Bench tab only: nothing here is scored, and ticking a row changes no
 # result anywhere.
 #
@@ -1436,7 +1436,7 @@ drivers:
 
 
   fiscal:
-    label: Fiscal policy
+    label: Fiscal spending
     items:
       # --- Scored in v2.
 
@@ -1499,52 +1499,6 @@ drivers:
           downturn: it correlates +0.51 with the capacity reading in the same month.
 
 
-      - id: forward_r_minus_g
-        name: 10-year yield less expected nominal growth
-        status: in_set
-        horizon: long
-        nature: structural
-        kind: model
-        enters: spread
-        where: macrobond
-        code: DGS10, HLW_TREND_G, SPFCPI10_LONG
-        refers: >-
-          r minus g looking forward. Below zero the debt ratio can fall without being
-          repaid; above it, it rises unless the budget is in primary surplus. Forward-looking
-          on both sides, so neither old cheap debt nor a burst of inflation flatters it.
-        measured: >-
-          The 10-year yield less the New York Fed's trend growth plus forecasters' ten-year
-          CPI, less 0.3 for CPI running above the GDP price index.
-
-      - id: repricing_drift
-        name: Rise in the interest bill as the debt rolls over
-        status: in_set
-        horizon: medium
-        nature: structural
-        kind: official
-        enters: level
-        where: macrobond
-        code: AVGMAT_PRIV, DGS5, MTSNETINT, DEBTPUB, GDPNOM
-        refers: >-
-          What the debt already outstanding will cost as it rolls over at today's
-          yields, in points of GDP a year. Arithmetic, not a forecast: a sixth of the
-          stock reprices annually at 71 months' average maturity, currently 1.5 points
-          dearer than the 3.2% being paid, on a stock of 97% of GDP. Nothing is
-          estimated, so there is no coefficient to break when the regime changes —
-          which is the point. It reads the 2010s correctly as a fiscal tailwind
-          (−0.18 to −0.05, debt rolling into cheaper rates) and turns positive in 2022.
-        measured: >-
-          (12 / average maturity) × (5-year yield − interest paid over the last 12
-          months as a share of debt) × (debt / GDP). Scored in v1 too, under the name
-          interest cost already locked in. Centred on zero, not on its own average: zero means the debt
-          rolls at the rate it already pays, while the 2000–19 mean of −0.04 is an
-          artefact of a twenty-year bond bull market.
-          PREFERRED OVER the two obvious alternatives, both of which are spurious. The
-          interest-burden level scores −0.61 against the debt path in full but −0.18
-          from 2000 and −0.16 from 2012 — a forty-year trend of a falling interest bill
-          against rising debt. Average maturity scores −0.44 and FLIPS to +0.80 after
-          2012, when the Treasury termed out while deficits grew.
-
       - id: federal_investment_share
         name: Federal investment share of non-interest spending
         status: in_set
@@ -1593,19 +1547,6 @@ drivers:
           therefore procyclical — it withdraws demand exactly when federal policy adds it.
         measured: BEA government receipts and expenditures, quarterly.
 
-      - id: cand_net_issuance
-        name: Treasury net issuance and bill share
-        status: candidate
-        horizon: medium
-        nature: cyclical
-        kind: official
-        enters: change
-        where: macrobond_check
-        refers: How the deficit is funded across the maturity spectrum.
-        measured: >-
-          Treasury quarterly refunding and auction results. Bill-heavy funding is very
-          different for markets than duration-heavy.
-
       # --- Parked: tested or dropped, kept so they can be put back.
 
       - id: cand_primary_balance_gdp
@@ -1645,6 +1586,110 @@ drivers:
           its three-year change; the level was tested and left out, as for the raw balance.
         measured: CBO or OECD estimate of the balance at potential output. Annual, with quarterly interpolations.
 
+      # --- Scored in v1 and not in v2.
+
+      - id: primary_balance_3y
+        name: Primary balance, 3-year change
+        status: v1
+        horizon: medium
+        nature: structural
+        kind: official
+        enters: change
+        where: macrobond
+        code: MTSBAL, MTSNETINT
+        refers: >-
+          How far the government's stance has moved over a full policy cycle rather
+          than over one tax year. Three years spans a budget and its follow-through,
+          so it reads as sustained posture instead of a run of one-off cheques and
+          filing-season noise.
+        measured: >-
+          The Monthly Treasury Statement primary balance, differenced over 36 months
+          rather than 12. Left v2's impulse block in October 2026 because it overlaps
+          what stayed: since 1983 it correlates 0.98 with outlays less receipts and 0.84
+          with the cyclically adjusted change.
+
+  debt:
+    label: Debt sustainability
+    items:
+      # --- Scored in v2.
+
+      - id: forward_r_minus_g
+        name: 10-year yield less expected nominal growth
+        status: in_set
+        horizon: long
+        nature: structural
+        kind: model
+        enters: spread
+        where: macrobond
+        code: DGS10, HLW_TREND_G, SPFCPI10_LONG
+        refers: >-
+          r minus g looking forward. Below zero the debt ratio can fall without being
+          repaid; above it, it rises unless the budget is in primary surplus. Forward-looking
+          on both sides, so neither old cheap debt nor a burst of inflation flatters it.
+        measured: >-
+          The 10-year yield less the New York Fed's trend growth plus forecasters' ten-year
+          CPI, less 0.3 for CPI running above the GDP price index.
+
+      - id: repricing_drift
+        name: Rise in the interest bill as the debt rolls over
+        status: in_set
+        horizon: medium
+        nature: structural
+        kind: official
+        enters: level
+        where: macrobond
+        code: AVGMAT_PRIV, DGS5, MTSNETINT, DEBTPUB, GDPNOM
+        refers: >-
+          What the debt already outstanding will cost as it rolls over at today's
+          yields, in points of GDP a year. Arithmetic, not a forecast: a sixth of the
+          stock reprices annually at 71 months' average maturity, currently 1.5 points
+          dearer than the 3.2% being paid, on a stock of 97% of GDP. Nothing is
+          estimated, so there is no coefficient to break when the regime changes —
+          which is the point. It reads the 2010s correctly as a fiscal tailwind
+          (−0.18 to −0.05, debt rolling into cheaper rates) and turns positive in 2022.
+        measured: >-
+          (12 / average maturity) × (5-year yield − interest paid over the last 12
+          months as a share of debt) × (debt / GDP). Scored in v1 too, under the name
+          interest cost already locked in. Centred on zero, not on its own average: zero means the debt
+          rolls at the rate it already pays, while the 2000–19 mean of −0.04 is an
+          artefact of a twenty-year bond bull market.
+          PREFERRED OVER the two obvious alternatives, both of which are spurious. The
+          interest-burden level scores −0.61 against the debt path in full but −0.18
+          from 2000 and −0.16 from 2012 — a forty-year trend of a falling interest bill
+          against rising debt. Average maturity scores −0.44 and FLIPS to +0.80 after
+          2012, when the Treasury termed out while deficits grew.
+
+      # --- Candidates.
+
+      - id: cand_net_issuance
+        name: Treasury net issuance and bill share
+        status: candidate
+        horizon: medium
+        nature: cyclical
+        kind: official
+        enters: change
+        where: macrobond_check
+        refers: How the deficit is funded across the maturity spectrum.
+        measured: >-
+          Treasury quarterly refunding and auction results. Bill-heavy funding is very
+          different for markets than duration-heavy.
+
+      - id: cand_cbo_debt_path
+        name: CBO projected debt held by the public, ten years out, vintage-tracked
+        status: candidate
+        horizon: long
+        nature: structural
+        kind: model
+        enters: revision
+        where: macrobond_check
+        refers: >-
+          Where the debt ratio is expected to go under current law. A rising
+          projection says the debt is getting harder to carry before the
+          interest bill shows it.
+        measured: CBO Budget and Economic Outlook, twice a year, stored by vintage.
+
+      # --- Parked: tested or dropped, kept so they can be put back.
+
       # Opens unticked. v2 reads r minus g looking forward, which neither old
       # cheap debt nor a burst of inflation flatters.
       - id: cand_debt_sustainability_gap
@@ -1681,26 +1726,6 @@ drivers:
 
       # --- Scored in v1 and not in v2.
 
-      - id: primary_balance_3y
-        name: Primary balance, 3-year change
-        status: v1
-        horizon: medium
-        nature: structural
-        kind: official
-        enters: change
-        where: macrobond
-        code: MTSBAL, MTSNETINT
-        refers: >-
-          How far the government's stance has moved over a full policy cycle rather
-          than over one tax year. Three years spans a budget and its follow-through,
-          so it reads as sustained posture instead of a run of one-off cheques and
-          filing-season noise.
-        measured: >-
-          The Monthly Treasury Statement primary balance, differenced over 36 months
-          rather than 12. Left v2's impulse block in October 2026 because it overlaps
-          what stayed: since 1983 it correlates 0.98 with outlays less receipts and 0.84
-          with the cyclically adjusted change.
-
       - id: interest_burden_gdp
         name: Net interest outlays
         status: v1
@@ -1733,7 +1758,6 @@ drivers:
           from 2009 but is missing 2017 and 2019–23, so it cannot be spliced on.
           Germany (GERMAN CDS USD SR 5Y D14) and Japan (JGB CDS USD SR 5Y D14) run
           from 2003, ready for those countries.
-
 
   reforms:
     label: Reforms and industrial policy

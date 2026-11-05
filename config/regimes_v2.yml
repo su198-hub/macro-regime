@@ -2,7 +2,8 @@
 #
 # Scores run from the left pole to the right: weak to strong growth,
 # inflation de-anchored lower to higher, monetary stance dovish to hawkish,
-# credibility losing to credible, fiscal restrictive to supportive, reforms
+# credibility losing to credible, fiscal spending restrictive to supportive,
+# debt unsustainable to sustainable, reforms
 # reactive to proactive.
 #
 # The regime call describes the next three years. Each scenario's position
@@ -33,7 +34,8 @@ driver_salience:
   inflation: 1.0
   monetary: 0.5
   credibility: 0.5
-  fiscal: 0.5
+  fiscal: 0.25
+  debt: 0.25
   reforms: 0.5
 
 rationale:
@@ -58,24 +60,31 @@ rationale:
       driver the two cancelled when tight policy lacked credibility, as in
       1969-70, 1973-74, 1978-82, 1988-90 and 2022-25.
     fiscal: >-
-      Half weight. Its growth signal overlaps the growth driver's slack:
-      deficits widen in downturns and recoveries follow. Impulse and debt
-      dynamics together correlate +0.24 with the next three years' inflation
-      gap, about +0.5 in each half of 1971-2023. Graded on the next three years, 1993-2023, at full weight
-      it lowered the call on top of growth, inflation and monetary policy
-      (51% to 43% of regimes right on average, held out); at half weight it
-      kept 51% and improved the probabilities.
+      A quarter weight, as is debt sustainability: together they keep the
+      half weight fiscal policy had as one driver until 5 November 2026. Its
+      growth signal overlaps the growth driver's slack: deficits widen in
+      downturns and recoveries follow. Against the next three years, +0.25
+      with the growth gap and -0.12 with the inflation gap, 1971-2023.
+    debt: >-
+      A quarter weight, with spending. Split from it on 5 November 2026,
+      as credibility was from stance: the two move apart (-0.06), so
+      averaged they cancelled whenever a budget added to demand while its
+      debt grew harder to carry. Graded 1976-2023 on the next three years,
+      the call kept 71% of regimes right on average and rose from 64% to 65%
+      in real time, log loss 1.25 to 1.21; at half weight each it fell to
+      69%. The debt reads lower before stagflation (-0.13) than before a
+      hard landing (+0.08).
     reforms: >-
       Half weight. Reforms is there for the long run: the signpost goes with
       faster productivity over the following decade (+0.44, trend removed),
       but with the next three years' growth gap it runs the wrong way (-0.37:
       policy uncertainty spikes in recessions, and recoveries follow). Graded
-      on the next three years, 1993-2023, held out, the call is about the same
+      on the next three years, 1993-2023, the call is about the same
       at a quarter or half weight and loses about eight points at full weight.
   settings:
     temperature: >-
       0.20. Run-up positions sit close together, so the probabilities are
-      modest at any temperature. On the six drivers, held-out log loss is 0.97
+      modest at any temperature. On the six drivers, before fiscal policy was split, log loss is 0.97
       at 0.20 and 0.25, against 1.03 at 0.15 and 0.98 at 0.30. The call
       itself is the same at every one of them.
     persistence_months: >-
@@ -85,9 +94,9 @@ rationale:
       flipped through short spells in the late 1980s, when the top two
       regimes were often within 25 points of each other (8, 9, 8 and 5-month
       calls from 1987 to 1991). Six months, 1976-2023, with five drivers: 66%
-      held out, against 67% at three, and 0.29 changes a year against 0.31. Nine and twelve months fell to 64% and 63% held out and react later
+      against 67% at three, and 0.29 changes a year against 0.31. Nine and twelve months fell to 64% and 63% and react later
       to real turns. Regraded on the six drivers (31 October 2026), three
-      months does slightly better, 73% held out against 71%, within the noise, and the late-1980s flips no longer
+      months does slightly better, 73% against 71%, within the noise, and the late-1980s flips no longer
       separate the two: splitting credibility from stance removed them, so
       1985-95 shows the same calls at three and at six. Six stays by choice
       (confirmed 2 November 2026), so a new regime has to show in two quarters
@@ -97,7 +106,7 @@ rationale:
       0.25. With four scenarios the leader always has at least 25%, so the
       floor never binds; it is kept so a reader can raise it in the control
       room. Set when there were five scenarios: at 0.35 a third of months came
-      out transitional and the call lost 14 points held out.
+      out transitional and the call lost 14 points.
     fit_gate: >-
       Off. The gate asks whether a month is closer to its scenario than a
       neutral economy would be. Run-up positions sit near neutral, so it
@@ -109,13 +118,14 @@ rationale:
     inflation and reforms keep their direction, and credibility the
     judgment's monetary axis. Monetary stance has no judgment behind it, so
     its prior is neutral for every scenario and its positions come from the
-    data. Fiscal policy now reads supportive rather than
+    data. Debt sustainability takes the judgment's fiscal axis, which reads
+    sustainability. Fiscal spending reads supportive rather than
     sustainable, so it is placed from each scenario's story: public
     investment crowding in private investment (high growth, high inflation)
     is the most supportive, then goldilocks and stagflation, where deficits
     persist; hard landing sits at neutral. The prior counts as
     half an episode; at one episode or more it pulled the positions outward
-    and the call fell from 57% to 40% or less, held out.
+    and the call fell from 57% to 40% or less.
 
 regimes:
 
@@ -130,6 +140,7 @@ regimes:
       monetary: 0.00
       credibility: 0.67
       fiscal: 0.33
+      debt: 0.67
       reforms: 0.67
     notes:
       during: >-
@@ -153,8 +164,9 @@ regimes:
       inflation: 0.09
       monetary: -0.31
       credibility: -0.19
-      fiscal: 0.05
-      reforms: -0.08
+      fiscal: 0.07
+      debt: 0.05
+      reforms: -0.09
     tell: Productivity and capex plans rising together with expectations at target.
 
   high_growth_high_inflation:
@@ -168,6 +180,7 @@ regimes:
       monetary: 0.00
       credibility: 0.33
       fiscal: 0.67
+      debt: 0.33
       reforms: 0.33
     notes:
       during: >-
@@ -195,7 +208,8 @@ regimes:
       monetary: -0.06
       credibility: -0.48
       fiscal: -0.01
-      reforms: -0.31
+      debt: -0.01
+      reforms: -0.32
     tell: Investment strong and inflation above target, with credibility stretched.
 
   stagflation:
@@ -209,6 +223,7 @@ regimes:
       monetary: 0.00
       credibility: -0.67
       fiscal: 0.33
+      debt: -0.67
       reforms: -0.67
     notes:
       during: >-
@@ -237,14 +252,15 @@ regimes:
           less far behind what inflation called for (-2.03 to -1.46) and
           forecasters disagree less (-1.79 to -1.10).
         - >-
-          Fiscal weakens as debt rolls over at higher rates: the interest bill
+          Debt sustainability weakens as debt rolls over at higher rates: the interest bill
           reading goes from -0.83 to -1.46.
     archetype:
-      growth: -0.27
+      growth: -0.26
       inflation: 0.82
       monetary: 0.23
       credibility: -0.82
-      fiscal: -0.11
+      fiscal: -0.14
+      debt: -0.13
       reforms: -0.06
     tell: Expectations rising while credibility and the debt trajectory both weaken.
 
@@ -259,6 +275,7 @@ regimes:
       monetary: 0.00
       credibility: -0.33
       fiscal: 0.00
+      debt: -0.33
       reforms: -0.67
     notes:
       during: >-
@@ -272,7 +289,7 @@ regimes:
           normal (-0.19): -0.39 in 2000-03, -0.58 in 2008-10, -0.06 in the
           short 2019-21 spell.
         - >-
-          Fiscal turns supportive in all three, as spending outruns revenue
+          Fiscal spending turns supportive in all three, as spending outruns revenue
           and the budget loosens: +0.24 in 2000-03, +0.48 in 2008-10, +0.75 in
           2019-21.
         - >-
@@ -287,9 +304,10 @@ regimes:
           the anchor (-0.13); 2000-03 held at +0.29.
     archetype:
       growth: -0.15
-      inflation: 0.15
+      inflation: 0.16
       monetary: 0.19
       credibility: 0.01
-      fiscal: -0.01
-      reforms: 0.04
+      fiscal: -0.08
+      debt: 0.08
+      reforms: 0.05
     tell: Expectations falling below target while growth prospects weaken.

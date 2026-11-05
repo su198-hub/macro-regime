@@ -1,6 +1,6 @@
 # The v2 drivers, October 2026.
 #
-# Six drivers, with supply folded into growth:
+# Seven drivers, with supply folded into growth:
 #
 #   growth                 whether growth will beat potential over the next
 #                          three years (the cycle block: slack and borrowing,
@@ -20,10 +20,14 @@
 #                          Taylor gap); half weight in the call. One driver
 #                          with stance until 30 October 2026: the two move
 #                          independently (+0.06), so averaged they cancelled
-#   fiscal                 how supportive fiscal policy is: impulse (37.5%),
-#                          debt dynamics (forward r - g and repricing,
-#                          37.5%), and the investment
-#                          share of spending (25%); half weight in the call
+#   fiscal                 fiscal spending: whether the budget is adding to
+#                          demand (impulse, 60%) and the investment share of
+#                          spending (40%); a quarter weight in the call
+#   debt                   debt sustainability: forward r - g and repricing
+#                          (half each); a quarter weight in the call. One
+#                          driver with fiscal spending until 5 November 2026:
+#                          the two move apart (-0.06), as stance and
+#                          credibility do
 #   reforms                whether the policy environment is turning
 #                          friendlier to long-run growth: institutions,
 #                          regulation, policy uncertainty, trade policy and
@@ -31,8 +35,8 @@
 #
 # Every score runs from its left pole (-1) to its right pole (+1):
 # weak to strong, de-anchored lower to higher, dovish to hawkish,
-# losing credibility to credible, restrictive to supportive, reactive to
-# proactive.
+# losing credibility to credible, restrictive to supportive, unsustainable
+# to sustainable, reactive to proactive.
 # That differs from v1, where +1 meant hot, tight or restrictive.
 #
 # Indicators follow the agreed list, except B-Ready and Global Trade Alert,
@@ -52,19 +56,21 @@ meta:
   sign: >-
     positive means stronger growth, inflation de-anchored higher, tighter
     monetary policy, a more credible central bank, more supportive fiscal
-    policy and more proactive reform
+    spending, debt that is easier to carry and more proactive reform
   framework_note: >-
-    Six drivers. Growth and inflation each have two blocks: one reads the
+    Seven drivers. Growth and inflation each have two blocks: one reads the
     next three years (growth against potential, inflation against expected
     inflation), the other the long run (potential growth itself, and whether
     inflation expectations are drifting from 2%). Monetary policy is read
     twice: its stance, how tight it is, and its credibility, whether the
     commitment to 2% is believed. Stance carries the timing of a slowdown;
     credibility decides whether the slowdown brings inflation down or leaves
-    it high. Fiscal policy reads how supportive the budget is, mainly a
-    signal for inflation. Reforms reads whether the policy environment is
-    turning friendlier to long-run growth. Stance, credibility, fiscal policy
-    and reforms take half weight in the regime call.
+    it high. Fiscal policy is read twice too: spending, whether the budget
+    is adding to demand, and debt sustainability, whether the debt can be
+    carried without squeezing the budget. Reforms reads whether the policy
+    environment is turning friendlier to long-run growth. Stance,
+    credibility and reforms take half weight in the regime call, spending
+    and debt a quarter each.
   call_horizon: the next three years
   call_note: >-
     The regime call is a reading of the next three years from where the
@@ -73,8 +79,9 @@ meta:
   positions_note: >-
     Each regime's position is learned from the run-ups to past regimes,
     1968-2023; graded on the three years that followed, 1976-2023, the call
-    got 71% of each regime's months right on average held out (about 58% to
-    86% across its twelve episodes).
+    got 71% of each regime's months right on average (about 58% to 86%
+    across its twelve episodes), each episode predicted by a model that had
+    not seen it.
   positions_method: >-
     where the drivers sat in the run-up to that regime, 1968 to 2023, shrunk
     toward a judgment of where the regime sits, so the call reads the next
@@ -776,27 +783,26 @@ drivers:
           in June 2019.
 
   fiscal:
-    label: Fiscal policy
+    label: Fiscal spending
     description: >-
-      How supportive fiscal policy is: whether it is adding to demand, whether
-      the debt is being eroded by growth and inflation, and how much of the
-      budget goes to investment.
+      Whether the budget is adding to demand, and how much of it goes to
+      investment. A widening deficit puts spending in people's hands now, so
+      growth picks up first and inflation follows a year or so later; spending
+      tilted toward investment adds to capacity, which lifts growth for longer
+      without as much inflation. In the year to December 2020 the primary
+      deficit widened by 10.7 points of GDP, and inflation ran above
+      expectations over the next three years.
     signpost:
-      low: {label: Restrictive, tone: neutral, phrase: fiscal policy is restrictive}
-      high: {label: Supportive, tone: neutral, phrase: fiscal policy is supportive}
-      mid: {phrase: fiscal policy is roughly neutral}
-    # Three blocks. Fiscal policy's distinct signal is inflation: its growth
-    # signal overlaps the growth signpost's slack, so it takes half weight in
-    # the regime call (config/regimes_v2.yml).
+      low: {label: Restrictive, tone: neutral, phrase: fiscal spending is restrictive}
+      high: {label: Supportive, tone: neutral, phrase: fiscal spending is supportive}
+      mid: {phrase: fiscal spending is roughly neutral}
+    # Two blocks. One driver with debt sustainability until 5 November 2026.
+    # Its growth signal overlaps the growth driver's slack, so it takes a
+    # quarter weight in the regime call (config/regimes_v2.yml).
     groups:
       impulse:
         label: Impulse
         description: Whether fiscal policy is adding to demand, read three ways.
-      debt:
-        label: Debt dynamics
-        description: >-
-          Whether the cost of borrowing runs below the growth the economy can
-          be expected to deliver, and how fast old cheap debt is repricing.
       composition:
         label: Composition
         description: How much of federal spending goes to investment rather than consumption and transfers.
@@ -812,7 +818,7 @@ drivers:
         unit: "pp"
         normalize: {method: gap, center: 0.0, scale: 0.80}
         direction: -1
-        weight: 0.125
+        weight: 0.20
         carry_forward_periods: 2
         why: >-
           **Fiscal impulse, adjusted for the cycle.** The primary balance is
@@ -840,7 +846,7 @@ drivers:
         unit: "pp"
         normalize: {method: gap, center: 0.0, scale: 4.98}
         direction: 1
-        weight: 0.125
+        weight: 0.20
         release: Monthly Treasury Statement
         why: >-
           **Revenue against expenditure trajectory.** Annualized growth of
@@ -865,7 +871,7 @@ drivers:
         unit: "pp"
         normalize: {method: gap, center: 0.0, scale: 1.59}
         direction: -1
-        weight: 0.125
+        weight: 0.20
         release: Monthly Treasury Statement
         why: >-
           **Fiscal impulse, over one year.** Demand responds to the change in
@@ -881,69 +887,6 @@ drivers:
           slump itself. The balance fell 10.7 points of GDP in the year to
           December 2020 and rose 7.3 in the year to June 2022, as the aid ran
           out.
-
-      - id: forward_r_minus_g
-        reads:
-          high: "Borrowing cost less than expected growth, so the debt ratio could fall on its own."
-          low: "Borrowing cost more than expected growth, so the debt ratio rises unless the budget is in surplus."
-        group: debt
-        label: 10-year yield less expected nominal growth (low +)
-        source:
-          expr: "DGS10 - expected_growth"
-          series: [DGS10, HLW_TREND_G, SPFCPI10_LONG, FRBUS_PTR]
-          optional: [FRBUS_PTR]
-          derived:
-            ptr_survey: {expr: "FRBUS_PTR - 0.09"}
-            expected_inflation: {first_of: [SPFCPI10_LONG, ptr_survey]}
-            expected_growth: {expr: "HLW_TREND_G + expected_inflation - 0.3"}
-        transform: level
-        unit: "pp"
-        normalize: {method: gap, center: 0.0, scale: 1.59}
-        direction: -1
-        absolute_level: true
-        weight: 0.1875
-        carry_forward_periods: 2
-        why: >-
-          **Trajectory of the debt stock (r − g), looking forward.** What new
-          borrowing costs (the 10-year yield) against the nominal growth the
-          economy can be expected to deliver: the New York Fed's trend growth
-          plus forecasters' ten-year CPI, less 0.3 for CPI running above the
-          GDP price index. Below zero the debt ratio can fall without being
-          repaid; above it, it rises unless the budget is in primary surplus.
-          Forward-looking on both sides, so neither old cheap debt nor a burst
-          of inflation flatters it.
-
-      - id: repricing_drift
-        reads:
-          high: "The interest bill was barely rising as the debt rolled over."
-          low: "The interest bill was rising as the debt rolled over at higher rates, squeezing the budget."
-        group: debt
-        label: Rise in the interest bill as the debt rolls over, % of GDP a year (low +)
-        source:
-          expr: "rolls_per_year * repricing_gap * debt_share"
-          series: [AVGMAT_PRIV, DGS5, MTSNETINT, DEBTPUB, GDPNOM]
-          derived:
-            # Average maturity arrives about three months late and moves
-            # slowly, so it is carried rather than leaving the latest months blank.
-            maturity: {series: AVGMAT_PRIV, fill: 4}
-            interest_12m: {series: MTSNETINT, transform: sum_12m}
-            eff_rate: {expr: "interest_12m / DEBTPUB * 100"}
-            rolls_per_year: {expr: "12 / maturity"}
-            repricing_gap: {expr: "DGS5 - eff_rate"}
-            debt_share: {expr: "DEBTPUB / GDPNOM"}
-        transform: level
-        unit: "pp"
-        normalize: {method: gap, center: 0.0, scale: 0.12}
-        direction: -1
-        weight: 0.1875
-        release: Treasury Bulletin
-        why: >-
-          **Debt repricing.** The government pays an average of past coupons
-          on its debt, not today's yields. Each year about 12 / (average
-          maturity in months) of it rolls over at market rates, so the interest
-          bill drifts toward the 5-year yield. This is how much that drift adds
-          to interest a year, as a share of GDP. A bill set to rise squeezes the
-          budget and has come before weaker growth.
 
       - id: federal_investment_share
         reads:
@@ -962,7 +905,7 @@ drivers:
         # it about -0.5 on average whatever policy did.
         normalize: {method: gap, center: -0.76, scale: 1.35}
         direction: 1
-        weight: 0.25
+        weight: 0.40
         carry_forward_periods: 2
         why: >-
           **What the money is spent on.** Investment (infrastructure, R&D,
@@ -976,6 +919,90 @@ drivers:
           average, the following
           decade's productivity growth has tended to run above trend too
           (+0.17), a modest link.
+
+  debt:
+    label: Debt sustainability
+    description: >-
+      Whether the public debt can be carried without squeezing the budget:
+      whether borrowing costs run below the growth the economy can be expected
+      to deliver, and how fast old cheap debt is repricing at today's rates.
+      When borrowing costs more than growth, the debt ratio rises unless the
+      budget runs a surplus, and a rising interest bill leaves less room for
+      everything else. A government in that position either tightens, which
+      slows growth, or leans on the central bank to keep rates low, which
+      lets inflation run. It read +0.99 in December 2020, with the 10-year
+      yield below 1%, and -0.62 by September 2026 as the debt rolled over at
+      higher rates. One driver with fiscal spending until 5 November 2026:
+      the two move apart (-0.06 across months since 1968), and averaged, a
+      budget adding to demand (+0.13 in September 2026) read as mildly
+      restrictive.
+    signpost:
+      low: {label: Unsustainable, tone: risk, phrase: the debt is getting harder to carry}
+      high: {label: Sustainable, tone: good, phrase: the debt is easy to carry}
+      mid: {phrase: the debt is about as easy to carry as usual}
+    # A quarter weight in the regime call, as is fiscal spending, so fiscal
+    # policy keeps the half weight it had as one driver (config/regimes_v2.yml).
+    indicators:
+      - id: forward_r_minus_g
+        reads:
+          high: "Borrowing cost less than expected growth, so the debt ratio could fall on its own."
+          low: "Borrowing cost more than expected growth, so the debt ratio rises unless the budget is in surplus."
+        label: 10-year yield less expected nominal growth (low +)
+        source:
+          expr: "DGS10 - expected_growth"
+          series: [DGS10, HLW_TREND_G, SPFCPI10_LONG, FRBUS_PTR]
+          optional: [FRBUS_PTR]
+          derived:
+            ptr_survey: {expr: "FRBUS_PTR - 0.09"}
+            expected_inflation: {first_of: [SPFCPI10_LONG, ptr_survey]}
+            expected_growth: {expr: "HLW_TREND_G + expected_inflation - 0.3"}
+        transform: level
+        unit: "pp"
+        normalize: {method: gap, center: 0.0, scale: 1.59}
+        direction: -1
+        absolute_level: true
+        weight: 0.50
+        carry_forward_periods: 2
+        why: >-
+          **Trajectory of the debt stock (r − g), looking forward.** What new
+          borrowing costs (the 10-year yield) against the nominal growth the
+          economy can be expected to deliver: the New York Fed's trend growth
+          plus forecasters' ten-year CPI, less 0.3 for CPI running above the
+          GDP price index. Below zero the debt ratio can fall without being
+          repaid; above it, it rises unless the budget is in primary surplus.
+          Forward-looking on both sides, so neither old cheap debt nor a burst
+          of inflation flatters it.
+
+      - id: repricing_drift
+        reads:
+          high: "The interest bill was barely rising as the debt rolled over."
+          low: "The interest bill was rising as the debt rolled over at higher rates, squeezing the budget."
+        label: Rise in the interest bill as the debt rolls over, % of GDP a year (low +)
+        source:
+          expr: "rolls_per_year * repricing_gap * debt_share"
+          series: [AVGMAT_PRIV, DGS5, MTSNETINT, DEBTPUB, GDPNOM]
+          derived:
+            # Average maturity arrives about three months late and moves
+            # slowly, so it is carried rather than leaving the latest months blank.
+            maturity: {series: AVGMAT_PRIV, fill: 4}
+            interest_12m: {series: MTSNETINT, transform: sum_12m}
+            eff_rate: {expr: "interest_12m / DEBTPUB * 100"}
+            rolls_per_year: {expr: "12 / maturity"}
+            repricing_gap: {expr: "DGS5 - eff_rate"}
+            debt_share: {expr: "DEBTPUB / GDPNOM"}
+        transform: level
+        unit: "pp"
+        normalize: {method: gap, center: 0.0, scale: 0.12}
+        direction: -1
+        weight: 0.50
+        release: Treasury Bulletin
+        why: >-
+          **Debt repricing.** The government pays an average of past coupons
+          on its debt, not today's yields. Each year about 12 / (average
+          maturity in months) of it rolls over at market rates, so the interest
+          bill drifts toward the 5-year yield. This is how much that drift adds
+          to interest a year, as a share of GDP. A bill set to rise squeezes the
+          budget and has come before weaker growth.
 
   reforms:
     label: Reforms and industrial policy

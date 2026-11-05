@@ -543,8 +543,8 @@ prose(f'<p>where <i>A<sub>t</sub></i> is the set of indicators available in mont
       'a block for the next three years (growth\'s cycle, inflation\'s pressure) and a '
       'long-run block (potential growth; anchoring of expectations). Monetary policy is two '
       'drivers rather than two blocks, stance and credibility, because the two move '
-      'independently; fiscal policy splits into impulse, debt dynamics '
-      'and composition; reforms into institutions, regulation and policy uncertainty, a fifth each, and '
+      'independently, and so is fiscal policy: spending (impulse and composition blocks) and '
+      'debt sustainability; reforms into institutions, regulation and policy uncertainty, a fifth each, and '
       'industrial policy (the tariff rate and public research), two fifths. Within a '
       'block, weights are rescaled over the indicators present, as above. Across blocks, each '
       'block with any reading keeps its full share, so a block whose indicators start late does '
@@ -719,6 +719,9 @@ st.html('<h3 class="m-h3">What changed</h3>')
 # Grades are held out, on the three years that followed: 1976 to 2023 from the
 # history back to 1968, 1993 to 2023 before it.
 CHANGES = [
+    ("Nov 2026", "Fiscal policy split into two drivers, a quarter of the weight each: fiscal "
+     "spending (impulse and composition) and debt sustainability (forward r − g and repricing). "
+     "The two move apart, as stance and credibility do.", "71%, unchanged"),
     ("Nov 2026", "The three-year call is the only framework. The earlier one, v1, which read "
      "current conditions, is no longer offered.", ""),
     ("Nov 2026", "Fiscal impulse adds the one-year change in the primary balance; reforms adds "
@@ -756,7 +759,7 @@ CHANGES = [
     ("Sep 2026", "v1: six longer-horizon inputs in, four short-horizon ones out.",
      "92% of calls unchanged"),
 ]
-st.html(ui.table(["", "What changed", "Held-out grade"], [list(c) for c in CHANGES]))
+st.html(ui.table(["", "What changed", "Regimes right, average"], [list(c) for c in CHANGES]))
 prose('<p>The reasoning behind each choice is in the indicator\'s reason above and in the '
       'project\'s commit history.</p>')
 prose(f'<ul><li><b>Config hash.</b> Every call is stamped with a short fingerprint of the '

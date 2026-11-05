@@ -1,12 +1,12 @@
 # Long-Term Regime Monitor
 
-Scores six drivers of the US economy monthly and calls which of four regimes
+Scores seven drivers of the US economy monthly and calls which of four regimes
 the next three years look like: goldilocks, high growth with high inflation,
 stagflation, or a hard landing.
 
 The pages show one framework, v2 (`config/indicators_v2.yml`,
 `config/regimes_v2.yml`). Its drivers are growth, inflation, monetary stance,
-monetary credibility, fiscal policy and reforms. Each regime sits where the
+monetary credibility, fiscal spending, debt sustainability and reforms. Each regime sits where the
 drivers stood in the run-ups to it, learned from 1968 onward and shrunk toward
 a judgment prior (`scripts/realign_positions.py`). v1 (`config/indicators.yml`,
 `config/regimes.yml`) describes the month itself rather than the years ahead.
@@ -235,10 +235,14 @@ makes the data public if the repository is public.
   revised driver readings, and each indicator's center and scale are set from
   its full history.
 - **Fiscal policy and reforms barely move the three-year grade.** Dropping
-  either leaves it within a point (checked 3 November 2026). They are kept for
+  fiscal spending, debt sustainability or reforms leaves it within a point or
+  two (checked 5 November 2026). They are kept for
   what they measure, not for their record.
 - **Very confident calls have done worse.** When the held-out odds on the top
-  regime exceeded 80%, it was right in 48% of those 66 months, nearly all from
-  1983 and 1995–97. Between 50% and 80%, the odds match the record.
+  regime exceeded 80%, it was right in 49% of those 53 months, nearly all from
+  1983 and 1995–97. Between 50% and 80% it was right 70% to 77% of the time,
+  within five points of its odds or better (checked 5 November 2026). Raising the
+  temperature or blending in the base rate did not fix it: chosen on the
+  other episodes, neither improved the log loss.
 - Quarterly and annual series are forward-filled to monthly, so those
   indicators move in steps.

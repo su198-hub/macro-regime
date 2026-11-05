@@ -213,8 +213,8 @@ for b in blocks:
            f'font-weight:600">↻ {b["revisions"]} revision'
            f'{"" if b["revisions"] == 1 else "s"}</div>' if b["revisions"] else "")
         + f'{new}</div>')
-# One row of six on a laptop, wrapping only when the window is genuinely narrow:
-# the six cards are meant to be compared at a glance, and a driver that falls to
+# One row of cards on a laptop, wrapping only when the window is genuinely narrow:
+# the cards are meant to be compared at a glance, and a driver that falls to
 # a second row stops being part of the comparison.
 st.html('<div style="display:grid;gap:0.9rem;'
         'grid-template-columns:repeat(auto-fit,minmax(7.5rem,1fr))">'
