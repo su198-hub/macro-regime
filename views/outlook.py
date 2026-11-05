@@ -855,21 +855,25 @@ if EV is not None:
                 "–" if pd.isna(g["log_loss"]) else f'{g["log_loss"]:.2f}']
 
     rows = [[ui.Raw(f"<b>{ui.esc(c)}</b>") for c in bench_row("Held out", G["held_out"])]]
-    rows += [bench_row("Current regime continues", G["continues"]),
-             bench_row("Sign of the growth and inflation drivers", G["signs"]),
-             ["Chance", "25%", "25%", "–", "1.39"]]
+    rows += [["Chance", "25%", "25%", "–", "1.39"],
+             bench_row("Current regime continues", G["continues"]),
+             bench_row("Sign of the growth and inflation drivers", G["signs"])]
     st.html(ui.table(["", "Regimes right, average", "Months right", "Hard-landing run-ups caught",
                       "Log loss"], rows, numeric={1, 2, 3, 4}))
     st.html(
         '<div class="m-body"><ul>'
-        '<li><b>Current regime continues</b> calls, for the next three years, the regime the '
-        'economy was last confirmed to be in: the call of someone who expects no change.</li>'
+        '<li><b>Chance</b> picks one regime in four.</li>'
+        '<li><b>Current regime continues</b> calls, each month, the regime the economy was in '
+        'three months before as the regime for the next three years. The answer key reads the '
+        'present from growth and inflation over the 18 months around a month, three of them '
+        'after it, so three months back is the latest it can label. The call changes whenever '
+        'the economy does, three months late: the forecast of someone who expects no '
+        'change.</li>'
         '<li><b>Sign of the growth and inflation drivers</b> reads those two scores by sign '
         'alone: both above zero is high growth with high inflation, growth above and inflation '
         'below is goldilocks, and so on. It is the model\'s two main inputs without the learned '
         f'positions or the other {ui.NUMBER_WORDS[len(NAMES) - 2]} drivers, so the gap to the '
         'held-out grade is what those add.</li>'
-        '<li><b>Chance</b> picks one regime in four.</li>'
         '<li><b>Regimes right, average</b> is the share of each regime\'s months called right, '
         'averaged over the four, so goldilocks, which followed '
         f'{BR.at["goldilocks", "base_rate"]:.0%} of months, does not dominate. <b>Months right</b> '
