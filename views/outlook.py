@@ -838,7 +838,6 @@ EV = record(data_version(), CONFIG_KEY)
 if EV is not None:
     a, b = EV["window"]
     G, BR = EV["methods"], EV["by_regime"]
-    lo, hi = EV["bootstrap"]["balanced"]
     st.html(ui.section_head(
         "How well the call has done", f'Held out · {a.strftime("%b %Y")} to {b.strftime("%b %Y")}',
         f'Every month from {a.strftime("%B %Y")} to {b.strftime("%B %Y")}, the last whose next three '
@@ -874,30 +873,25 @@ if EV is not None:
         'below is goldilocks, and so on. It is the model\'s two main inputs without the learned '
         f'positions or the other {ui.NUMBER_WORDS[len(NAMES) - 2]} drivers, so the gap to the '
         'held-out grade is what those add.</li>'
-        '<li><b>Regimes right, average</b> is the share of each regime\'s months called right, '
-        'averaged over the four, so goldilocks, which followed '
+        '<li>Every measure grades the call made in a month against what that month\'s next '
+        'three years turned out to be. <b>Regimes right, average</b> is the share of each '
+        'regime\'s months called right, averaged over the four, so goldilocks, which followed '
         f'{BR.at["goldilocks", "base_rate"]:.0%} of months, does not dominate. <b>Months right</b> '
-        'is the plain share. A hard-landing run-up counts as caught when at least half its '
-        'months were called hard landing. <b>Log loss</b> grades the odds rather than the call: '
-        'lower is better, and an even split scores 1.39.</li>'
+        'is the plain share.</li>'
+        '<li>A <b>hard-landing run-up</b> is an unbroken stretch of months whose next three years '
+        'turned out to be a hard landing. It counts as caught when at least half its months were '
+        'called hard landing.</li>'
+        '<li><b>Log loss</b> grades the odds rather than the call: each month, minus the log of '
+        'the odds given to the regime that followed, averaged. Lower is better; an even split '
+        'scores 1.39, and confident misses cost the most.</li>'
         '<li><b>The grade uses today\'s revised data</b>, with each indicator\'s center and scale '
         'set on the full history, so it is not the call as it would have been made at the time. '
         'The live call log, kept from November 2026, is.</li></ul></div>')
 
-    st.html('<h3 class="m-h3">How much to trust the headline</h3>')
-    st.html(
-        f'<div class="m-body"><p>Neighboring months share most of their answer, so the '
-        f'{EV["months"]} months are really {EV["bootstrap"]["episodes"]} episodes. Resampling '
-        f'whole episodes puts the held-out average between <b>{lo:.0%} and {hi:.0%}</b> (5th to '
-        '95th percentile). With the driver readings slid out of line with what followed, none of '
-        '40 runs matched it (median 33%, best 62%; run 2 November 2026). The grade still '
-        'flatters the model somewhat: the indicators, weights and settings were chosen with it '
-        'in view.</p></div>')
-
     st.html('<h3 class="m-h3">By regime</h3>')
     AX = EV["axes"]
     st.html(ui.table(
-        ["Held out", "Share of months that followed", "Months called", "Precision", "Recall", "F1"],
+        ["Held out", "How often it followed", "Months called", "Precision", "Recall", "F1"],
         [[LABEL[r], pct(BR.at[r, "base_rate"]), f'{int(BR.at[r, "called"])}',
           pct(BR.at[r, "precision"]), pct(BR.at[r, "recall"]), f'{BR.at[r, "f1"]:.2f}']
          for r in BR.index]
@@ -910,15 +904,22 @@ if EV is not None:
     keen = BR["recall"].idxmax()
     plo, phi = EV["bootstrap"]["precision"][worst]
     st.html(
-        '<div class="m-body"><p><b>Precision</b>: of the months the model called a regime, the '
-        'share it followed. <b>Recall</b>: of the months a regime followed, the share the model '
-        'called it. <b>F1</b> is high only when both are. The bottom two rows score the two '
-        'halves of the call on their own.</p><ul>'
+        f'<div class="m-body"><p><b>How often it followed</b>: the share of the {EV["months"]} '
+        'months whose next three years turned out to be that regime, so calling it blind would '
+        'be right that often. <b>Precision</b>: of the months the model called a regime, the share whose '
+        'next three years were that regime. <b>Recall</b>: of the months whose next three years '
+        'were a regime, the share the model called it. <b>F1</b> is high only when both are.</p>'
+        '<p>The bottom two rows score each half of the call on its own. <b>Growth below '
+        'potential</b> pools stagflation and hard landing, the two regimes where growth runs '
+        'below potential: a call of either counts as right if the next three years were either. '
+        '<b>Inflation above expectations</b> pools stagflation and high growth with high '
+        'inflation in the same way.</p><ul>'
         f'<li>{ui.esc(LABEL[keen])} is the hardest to miss ({pct(BR.at[keen, "recall"])} '
         f'recall) but often a false alarm ({pct(BR.at[keen, "precision"])} precision).</li>'
         f'<li>{ui.esc(LABEL[worst])} is the least reliable when called: '
         f'{pct(BR.at[worst, "precision"])}, against the {pct(BR.at[worst, "base_rate"])} of '
-        f'months it followed. Resampling episodes puts it anywhere from {plo:.0%} to {phi:.0%}.'
+        f'months it followed. With {EV["bootstrap"]["episodes"]} episodes, resampling them puts '
+        f'it anywhere from {plo:.0%} to {phi:.0%}.'
         + (' It is today\'s call.' if called == worst else '') + '</li>'
         + (f'<li>Today\'s call, {ui.esc(LABEL[called])}, has followed '
            f'{pct(BR.at[called, "precision"])} of the months it was called.</li>'
@@ -969,7 +970,7 @@ if EV is not None:
         return "no change" if d == 0 else f'{d:+d} point{"s" * (abs(d) != 1)}'.replace("-", "−")
 
     st.html(ui.table(
-        ["Held out, regimes right on average", "Score", "Change"],
+        ["Held out", "Regimes right, average", "Change"],
         [["All drivers", pct(full), ""]]
         + [[f"Without {DLABEL[d].lower()}", pct(v), change(v)]
            for d, v in sorted(EV["without"].items(), key=lambda kv: kv[1])]
