@@ -23,8 +23,10 @@
 #   fiscal                 fiscal spending: whether the budget is adding to
 #                          demand (impulse, 60%) and the investment share of
 #                          spending (40%); a quarter weight in the call
-#   debt                   debt sustainability: forward r - g and repricing
-#                          (half each); a quarter weight in the call. One
+#   debt                   debt sustainability: forward r - g, repricing,
+#                          the primary balance against the debt-stabilizing
+#                          level, and interest against revenue (40%, then
+#                          20% each); a quarter weight in the call. One
 #                          driver with fiscal spending until 5 November 2026:
 #                          the two move apart (-0.06), as stance and
 #                          credibility do
@@ -183,6 +185,8 @@ meta:
       - target_miss_rate
       - inflation_volatility
       - forward_r_minus_g
+      - primary_balance_gap
+      - interest_to_revenue
       - federal_investment_share
       - governance_change
       - regulation_growth
@@ -925,13 +929,15 @@ drivers:
     description: >-
       Whether the public debt can be carried without squeezing the budget:
       whether borrowing costs run below the growth the economy can be expected
-      to deliver, and how fast old cheap debt is repricing at today's rates.
+      to deliver, whether the budget does enough to hold the debt ratio
+      steady, how heavy the interest bill is against revenue, and how fast old
+      cheap debt is repricing at today's rates.
       When borrowing costs more than growth, the debt ratio rises unless the
       budget runs a surplus, and a rising interest bill leaves less room for
       everything else. A government in that position either tightens, which
       slows growth, or leans on the central bank to keep rates low, which
       lets inflation run. It read +0.99 in December 2020, with the 10-year
-      yield below 1%, and -0.62 by September 2026 as the debt rolled over at
+      yield below 1%, and -0.60 by September 2026 as the debt rolled over at
       higher rates. One driver with fiscal spending until 5 November 2026:
       the two move apart (-0.06 across months since 1968), and averaged, a
       budget adding to demand (+0.13 in September 2026) read as mildly
@@ -942,6 +948,10 @@ drivers:
       mid: {phrase: the debt is about as easy to carry as usual}
     # A quarter weight in the regime call, as is fiscal spending, so fiscal
     # policy keeps the half weight it had as one driver (config/regimes_v2.yml).
+    # r - g takes 40%, the others 20% each: it is the one reading back to 1968
+    # (the others start in December 1980), and a driver needs 40% of its
+    # weight present to be scored (src/outlook.py, MIN_COVERAGE), so less
+    # would drop 1968-80 from the run-ups the positions are learned from.
     indicators:
       - id: forward_r_minus_g
         reads:
@@ -961,7 +971,7 @@ drivers:
         normalize: {method: gap, center: 0.0, scale: 1.59}
         direction: -1
         absolute_level: true
-        weight: 0.50
+        weight: 0.40
         carry_forward_periods: 2
         why: >-
           **Trajectory of the debt stock (r − g), looking forward.** What new
@@ -994,7 +1004,7 @@ drivers:
         unit: "pp"
         normalize: {method: gap, center: 0.0, scale: 0.12}
         direction: -1
-        weight: 0.50
+        weight: 0.20
         release: Treasury Bulletin
         why: >-
           **Debt repricing.** The government pays an average of past coupons
@@ -1003,6 +1013,80 @@ drivers:
           bill drifts toward the 5-year yield. This is how much that drift adds
           to interest a year, as a share of GDP. A bill set to rise squeezes the
           budget and has come before weaker growth.
+
+      - id: primary_balance_gap
+        reads:
+          high: "The budget was running ahead of what holds the debt ratio steady, so the ratio was set to fall."
+          low: "The budget was short of what holds the debt ratio steady, so the ratio was set to rise."
+        label: Primary balance less the debt-stabilizing balance, % of GDP
+        source:
+          expr: "primary_balance - r_minus_g * debt_share"
+          series: [MTSBAL, MTSNETINT, GDPNOM, DEBTPUB, DGS10, HLW_TREND_G, SPFCPI10_LONG, FRBUS_PTR]
+          optional: [FRBUS_PTR]
+          derived:
+            balance_12m: {series: MTSBAL, transform: sum_12m}
+            interest_12m: {series: MTSNETINT, transform: sum_12m}
+            primary_balance: {expr: "(balance_12m + interest_12m) / GDPNOM * 100"}
+            ptr_survey: {expr: "FRBUS_PTR - 0.09"}
+            expected_inflation: {first_of: [SPFCPI10_LONG, ptr_survey]}
+            expected_growth: {expr: "HLW_TREND_G + expected_inflation - 0.3"}
+            r_minus_g: {expr: "DGS10 - expected_growth"}
+            debt_share: {expr: "DEBTPUB / GDPNOM"}
+        transform: level
+        unit: "pp"
+        normalize: {method: gap, center: 0.0, scale: 2.58}
+        direction: 1
+        absolute_level: true
+        weight: 0.20
+        carry_forward_periods: 2
+        release: Monthly Treasury Statement
+        why: >-
+          **Whether the budget holds the debt ratio steady.** Each year
+          interest against growth pushes the debt ratio by about (r − g) ×
+          debt/GDP, and the primary balance (the budget before interest) pushes
+          against it. So the ratio holds steady when the primary balance equals
+          (r − g) × debt/GDP; this is the actual balance less that level. r − g
+          alone says whether growth can erode the debt; this adds whether the
+          budget lets it, at the size the debt has reached. Below zero, the
+          debt ratio is set to rise, and a government in that position either
+          tightens later, slowing growth, or leans on low rates, letting
+          inflation run. Read as a level against zero, a steady debt ratio,
+          which is an anchor rather than a norm. In December 2009 it read −8.8
+          points of GDP, and the debt ratio rose 8.0 points over the next
+          year; +4.8 in December 2000; −3.4 in September 2026, when holding the
+          ratio steady took a primary surplus of 0.6% of GDP and the budget ran
+          a deficit of 2.9%.
+
+      - id: interest_to_revenue
+        reads:
+          high: "Interest took a small share of federal revenue, leaving room in the budget."
+          low: "Interest took a large share of federal revenue, squeezing the rest of the budget."
+        label: Net interest, % of federal revenue (low +)
+        source:
+          expr: "interest_12m / receipts_12m * 100"
+          series: [MTSNETINT, MTSRECEIPTS]
+          derived:
+            interest_12m: {series: MTSNETINT, transform: sum_12m}
+            receipts_12m: {series: MTSRECEIPTS, transform: sum_12m}
+        transform: level
+        unit: "%"
+        normalize: {method: gap, center: 12.49, scale: 3.85}
+        direction: -1
+        absolute_level: true
+        weight: 0.20
+        release: Monthly Treasury Statement
+        why: >-
+          **How heavy the interest bill already is.** The share of each
+          dollar of federal revenue that goes to interest, the affordability
+          measure rating agencies watch. The higher it runs, the less room the
+          budget has for anything else and the harder it is to absorb a
+          recession or a rise in rates, so the pressure to tighten, or to lean
+          on low rates, builds. Debt repricing reads how fast the bill is
+          rising; this reads how heavy it is. Read as a level against its
+          1980-2019 average, 12.5%: it is the weight of the bill that matters,
+          not whether it rose this year. 18.1% in December 1992, 8.5% in
+          December 2021 with rates near zero, and 19.5% in September 2026, just
+          below July's 19.8%, the highest since the series starts in 1980.
 
   reforms:
     label: Reforms and industrial policy

@@ -72,8 +72,10 @@ rationale:
       debt grew harder to carry. Graded 1976-2023 on the next three years,
       the call kept 71% of regimes right on average and rose from 64% to 65%
       in real time, log loss 1.25 to 1.21; at half weight each it fell to
-      69%. The debt reads lower before stagflation (-0.13) than before a
-      hard landing (+0.08).
+      69%. Adding the primary balance against the debt-stabilizing level
+      and interest against revenue (5 November 2026) left it at 71%, and 65%
+      in real time, log loss 0.97 and 1.21. The debt reads lower before
+      stagflation (-0.12) than before a hard landing (+0.13).
     reforms: >-
       Half weight. Reforms is there for the long run: the signpost goes with
       faster productivity over the following decade (+0.44, trend removed),
@@ -165,7 +167,7 @@ regimes:
       monetary: -0.31
       credibility: -0.19
       fiscal: 0.07
-      debt: 0.05
+      debt: -0.04
       reforms: -0.09
     tell: Productivity and capex plans rising together with expectations at target.
 
@@ -208,7 +210,7 @@ regimes:
       monetary: -0.06
       credibility: -0.48
       fiscal: -0.01
-      debt: -0.01
+      debt: -0.05
       reforms: -0.32
     tell: Investment strong and inflation above target, with credibility stretched.
 
@@ -260,7 +262,7 @@ regimes:
       monetary: 0.23
       credibility: -0.82
       fiscal: -0.14
-      debt: -0.13
+      debt: -0.12
       reforms: -0.06
     tell: Expectations rising while credibility and the debt trajectory both weaken.
 
@@ -304,10 +306,10 @@ regimes:
           the anchor (-0.13); 2000-03 held at +0.29.
     archetype:
       growth: -0.15
-      inflation: 0.16
+      inflation: 0.15
       monetary: 0.19
       credibility: 0.01
       fiscal: -0.08
-      debt: 0.08
-      reforms: 0.05
+      debt: 0.13
+      reforms: 0.04
     tell: Expectations falling below target while growth prospects weaken.

@@ -1659,6 +1659,45 @@ drivers:
           against rising debt. Average maturity scores −0.44 and FLIPS to +0.80 after
           2012, when the Treasury termed out while deficits grew.
 
+      - id: primary_balance_gap
+        name: Primary balance less the debt-stabilizing balance
+        status: in_set
+        horizon: long
+        nature: structural
+        kind: official
+        enters: spread
+        where: macrobond
+        code: MTSBAL, MTSNETINT, GDPNOM, DEBTPUB, DGS10, HLW_TREND_G, SPFCPI10_LONG
+        refers: >-
+          Whether the budget does enough to hold the debt ratio steady, at the size
+          the debt has reached. r minus g says whether growth can erode the debt;
+          this says whether the budget lets it. Below zero the debt ratio is set to
+          rise: -3.4 points of GDP in September 2026, -8.8 in December 2009.
+        measured: >-
+          The primary balance over 12 months, % of GDP, less (forward r minus g) ×
+          debt held by the public / GDP. Centred on zero, a steady debt ratio. Added
+          5 November 2026.
+
+      - id: interest_to_revenue
+        name: Net interest, % of federal revenue
+        status: in_set
+        horizon: long
+        nature: structural
+        kind: official
+        enters: level
+        where: macrobond
+        code: MTSNETINT, MTSRECEIPTS
+        refers: >-
+          How much of each revenue dollar goes to interest, the affordability measure
+          rating agencies watch: the weight of the bill, where repricing reads how
+          fast it is rising. 19.8% in July 2026, the highest since 1980.
+        measured: >-
+          Net interest over 12 months / receipts over 12 months, against the 1980-2019
+          average of 12.5%. A level on purpose: the interest-burden level as a share of
+          GDP was set aside below as a predictor of the debt path, but here it reads
+          the budget room the interest bill leaves, not where the debt is heading.
+          Added 5 November 2026.
+
       # --- Candidates.
 
       - id: cand_net_issuance

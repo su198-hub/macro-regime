@@ -719,6 +719,8 @@ st.html('<h3 class="m-h3">What changed</h3>')
 # Grades are held out, on the three years that followed: 1976 to 2023 from the
 # history back to 1968, 1993 to 2023 before it.
 CHANGES = [
+    ("Nov 2026", "Debt sustainability adds the primary balance against the level that holds the "
+     "debt ratio steady, and net interest as a share of revenue.", "71%, unchanged"),
     ("Nov 2026", "Fiscal policy split into two drivers, a quarter of the weight each: fiscal "
      "spending (impulse and composition) and debt sustainability (forward r − g and repricing). "
      "The two move apart, as stance and credibility do.", "71%, unchanged"),
