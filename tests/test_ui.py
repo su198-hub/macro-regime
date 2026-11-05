@@ -249,4 +249,11 @@ def test_the_probability_panel_names_its_month_with_or_without_a_provisional_one
     alone = ui.probability_panel(p, reg, "a", "Sep")
     assert 'mr-prob-colhead">Sep<' in alone
     both = ui.probability_panel(p, reg, "a", "Sep", p, "Oct")
-    assert 'mr-prob-colhead">Sep<' in both and 'mr-prob-colhead">Oct*<' in both
+    assert 'mr-prob-colhead">Sep<' in both and 'mr-prob-colhead mr-prob-prov">Oct*<' in both
+    # Oldest on the left: the confirmed month before the provisional one...
+    assert both.index(">Sep<") < both.index(">Oct*<")
+    # ...and, with no provisional month, the month before ahead of the confirmed one.
+    trend = ui.probability_panel(p, reg, "a", "Sep", previous=p, previous_label="Aug")
+    assert trend.index(">Aug<") < trend.index(">Sep<") and "the month before" in trend
+    # A provisional month takes the second column over the month before.
+    assert ">Aug<" not in ui.probability_panel(p, reg, "a", "Sep", p, "Oct", p, "Aug")

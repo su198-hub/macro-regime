@@ -213,6 +213,7 @@ CSS = f"""
 .mr-prob-prov {{ color: {INK_2}; }}
 .mr-key-tick {{ display: inline-block; width: 2px; height: 11px; background: {INK};
   margin: 0 0.2rem 0 0.1rem; vertical-align: -1px; }}
+.mr-prob-tick.prev, .mr-key-tick.prev {{ background: {MUTED}; }}
 .mr-prob-note {{ font-size: 0.76rem; line-height: 1.5; color: {MUTED}; margin: 0.45rem 0 0; }}
 
 .mr-prov {{ display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 2.5rem;
@@ -434,51 +435,67 @@ class Raw:
 
 def probability_panel(probs_row: pd.Series, reg_cfg: dict, called: str,
                       confirmed_label: str = "", provisional: pd.Series | None = None,
-                      provisional_label: str = "") -> str:
+                      provisional_label: str = "", previous: pd.Series | None = None,
+                      previous_label: str = "") -> str:
     """One thin bar per regime in config order, so a regime never changes place.
 
-    Bars are the confirmed month. A provisional month, if any, shows as a thin
-    outlined tick on the same track and its own column of numbers, so the two
-    can be compared without the provisional one looking settled.
+    Bars are the confirmed month. Beside it, a second reading shows as a thin
+    tick on the same track and its own column of numbers, oldest on the left:
+    the provisional month when there is one, so the two can be compared
+    without the provisional one looking settled; otherwise the month before,
+    so a reader can see which way the odds are moving.
     """
-    has_prov = provisional is not None
+    if provisional is not None:
+        other, other_label, later = provisional, f"{provisional_label}*", True
+    elif previous is not None:
+        other, other_label, later = previous, previous_label, False
+    else:
+        other, other_label, later = None, "", False
+    two = other is not None
     rows = []
     for name, spec in reg_cfg["regimes"].items():
         p = float(probs_row.get(name, float("nan")))
         width = 0 if pd.isna(p) else max(0.0, min(1.0, p)) * 100
         label = f"<b>{esc(spec['label'])}</b>" if name == called else esc(spec["label"])
-        tick = prov_val = ""
+        tick = ""
+        vals = [f'<div class="mr-prob-val">{p:.0%}</div>']
         title = f"{esc(spec['label'])}: {p:.0%} in {esc(confirmed_label)}"
-        if has_prov:
-            q = float(provisional.get(name, float("nan")))
-            tick = (f'<div class="mr-prob-tick" style="left:calc({max(0.0, min(1.0, q)) * 100:.1f}% - 1px)"></div>'
+        if two:
+            q = float(other.get(name, float("nan")))
+            tick = (f'<div class="mr-prob-tick{"" if later else " prev"}" '
+                    f'style="left:calc({max(0.0, min(1.0, q)) * 100:.1f}% - 1px)"></div>'
                     if not pd.isna(q) else "")
-            prov_val = f'<div class="mr-prob-val mr-prob-prov">{q:.0%}</div>'
-            title += f", {q:.0%} provisional in {esc(provisional_label)}"
+            val = f'<div class="mr-prob-val mr-prob-prov">{q:.0%}</div>'
+            vals = vals + [val] if later else [val] + vals
+            title += (f", {q:.0%} provisional in {esc(provisional_label)}" if later else
+                      f", {q:.0%} in {esc(previous_label)}")
         rows.append(
-            f'<div class="mr-prob{" two" if has_prov else ""}" title="{title}">'
+            f'<div class="mr-prob{" two" if two else ""}" title="{title}">'
             f'<div class="mr-prob-label">{label}'
             f'<span class="mr-prob-code">{esc(spec.get("short", ""))}</span></div>'
             f'<div class="mr-prob-track"><div class="mr-prob-bar" '
             f'style="width:{width:.1f}%;background:{spec["color"]}"></div>{tick}</div>'
-            f'<div class="mr-prob-val">{p:.0%}</div>{prov_val}</div>'
+            + "".join(vals) + '</div>'
         )
-    # The month heads its column whether or not a provisional month sits beside
+    # The month heads its column whether or not a second reading sits beside
     # it: without one, the panel once lost its month altogether.
-    head = (f'<div class="mr-prob mr-prob-cols"><div class="mr-probs-head" style="margin:0">'
-            f'Probability</div><div></div>'
-            f'<div class="mr-prob-colhead">{esc(confirmed_label)}</div></div>'
+    heads = [f'<div class="mr-prob-colhead">{esc(confirmed_label)}</div>']
+    if two:
+        extra = f'<div class="mr-prob-colhead mr-prob-prov">{esc(other_label)}</div>'
+        heads = heads + [extra] if later else [extra] + heads
+    head = (f'<div class="mr-prob{" two" if two else ""} mr-prob-cols"><div class="mr-probs-head" '
+            f'style="margin:0">Probability</div><div></div>' + "".join(heads) + '</div>'
             if confirmed_label else '<div class="mr-probs-head">Probability</div>')
     note = ""
-    if has_prov:
-        head = (f'<div class="mr-prob two mr-prob-cols"><div class="mr-probs-head" style="margin:0">'
-                f'Probability</div><div></div>'
-                f'<div class="mr-prob-colhead">{esc(confirmed_label)}</div>'
-                f'<div class="mr-prob-colhead">{esc(provisional_label)}*</div></div>')
+    if two and later:
         note = (f'<p class="mr-prob-note">Bars are {esc(confirmed_label)}, confirmed. '
                 f'<span class="mr-key-tick"></span> Ticks are {esc(provisional_label)}, '
                 f'provisional.<br>* {esc(provisional_label)} can still change as data '
                 f'arrives.</p>')
+    elif two:
+        note = (f'<p class="mr-prob-note">Bars are {esc(confirmed_label)}. '
+                f'<span class="mr-key-tick prev"></span> Ticks are {esc(previous_label)}, '
+                f'the month before.</p>')
     return '<div class="mr-probs">' + head + "".join(rows) + note + "</div>"
 
 

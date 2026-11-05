@@ -215,15 +215,22 @@ call_col.html(
     + f'<div class="mr-call"><span class="mr-call-swatch" '
     f'style="background:{swatch}"></span>{ui.esc(call_name)}</div>'
     f'<p class="mr-lede">{ui.esc(lede)}</p>'
-    + (f'<p class="mr-lede-muted">{ui.esc(standing)}</p>' if standing else "")
-    + f'<p class="mr-lede-muted">Data as known on {ui.long_date(vintage)}. {latest:%B %Y} is the '
-    f'latest month with its core data released. {ui.esc(published_note())}</p>'
     + ('<p class="mr-demo"><b>Demo data.</b> These series are synthetic, so the call '
        'and the numbers mean nothing yet.</p>' if is_demo else ""))
+# With no provisional month, the panel sets the month before beside the
+# confirmed one, so the direction of the odds shows at a glance.
+_before = latest - pd.offsets.MonthEnd(1)
+# The standing and the data note sit under the panel: under the lede they
+# left the panel's column half empty.
 prob_col.html(ui.probability_panel(
     probs.loc[latest], reg, called, f"{latest:%b}",
     prov["probabilities"] if prov is not None else None,
-    f"{prov['month']:%b}" if prov is not None else ""))
+    f"{prov['month']:%b}" if prov is not None else "",
+    probs.loc[_before] if _before in probs.index else None, f"{_before:%b}")
+    + (f'<p class="mr-lede-muted" style="margin-top:0.9rem">{ui.esc(standing)}</p>'
+       if standing else "")
+    + f'<p class="mr-lede-muted">Data as known on {ui.long_date(vintage)}. {latest:%B %Y} is the '
+    f'latest month with its core data released. {ui.esc(published_note())}</p>')
 if prov_box:
     st.html(prov_box)
 
