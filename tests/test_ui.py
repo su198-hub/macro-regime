@@ -241,3 +241,12 @@ def test_radar_skips_a_series_with_a_missing_driver():
     # st.html strips inline SVG, so the drawing must go in as an image.
     assert "<svg" not in panel and "<img" in panel
     assert "Full: a +0.10, b −0.20, c +0.30" in html.unescape(panel)
+
+
+def test_the_probability_panel_names_its_month_with_or_without_a_provisional_one():
+    reg = {"regimes": {"a": {"label": "A", "color": "#000"}, "b": {"label": "B", "color": "#111"}}}
+    p = pd.Series({"a": 0.7, "b": 0.3})
+    alone = ui.probability_panel(p, reg, "a", "Sep")
+    assert 'mr-prob-colhead">Sep<' in alone
+    both = ui.probability_panel(p, reg, "a", "Sep", p, "Oct")
+    assert 'mr-prob-colhead">Sep<' in both and 'mr-prob-colhead">Oct*<' in both

@@ -463,7 +463,12 @@ def probability_panel(probs_row: pd.Series, reg_cfg: dict, called: str,
             f'style="width:{width:.1f}%;background:{spec["color"]}"></div>{tick}</div>'
             f'<div class="mr-prob-val">{p:.0%}</div>{prov_val}</div>'
         )
-    head = '<div class="mr-probs-head">Probability</div>'
+    # The month heads its column whether or not a provisional month sits beside
+    # it: without one, the panel once lost its month altogether.
+    head = (f'<div class="mr-prob mr-prob-cols"><div class="mr-probs-head" style="margin:0">'
+            f'Probability</div><div></div>'
+            f'<div class="mr-prob-colhead">{esc(confirmed_label)}</div></div>'
+            if confirmed_label else '<div class="mr-probs-head">Probability</div>')
     note = ""
     if has_prov:
         head = (f'<div class="mr-prob two mr-prob-cols"><div class="mr-probs-head" style="margin:0">'
