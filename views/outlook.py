@@ -890,25 +890,26 @@ if EV is not None:
 
     st.html('<h3 class="m-h3">By regime</h3>')
     AX = EV["axes"]
+    def regime_row(name: str, t: pd.DataFrame, k: str) -> list[str]:
+        return [name, pct(t.at[k, "precision"]), pct(t.at[k, "recall"]), f'{t.at[k, "f1"]:.2f}',
+                pct(t.at[k, "base_rate"]), f'{int(t.at[k, "called"])}']
+
     st.html(ui.table(
-        ["Held out", "How often it followed", "Months called", "Precision", "Recall", "F1"],
-        [[LABEL[r], pct(BR.at[r, "base_rate"]), f'{int(BR.at[r, "called"])}',
-          pct(BR.at[r, "precision"]), pct(BR.at[r, "recall"]), f'{BR.at[r, "f1"]:.2f}']
-         for r in BR.index]
-        + [[n, pct(AX.at[k, "base_rate"]), f'{int(AX.at[k, "called"])}',
-            pct(AX.at[k, "precision"]), pct(AX.at[k, "recall"]), f'{AX.at[k, "f1"]:.2f}']
-           for k, n in (("growth_below", "Growth below potential"),
-                        ("inflation_above", "Inflation above expectations"))],
+        ["Held out", "Precision", "Recall", "F1", "How often it followed", "Months called"],
+        [regime_row(LABEL[r], BR, r) for r in BR.index]
+        + [regime_row(n, AX, k) for k, n in (("growth_below", "Growth below potential"),
+                                             ("inflation_above", "Inflation above expectations"))],
         numeric={1, 2, 3, 4, 5}))
     worst = BR["precision"].idxmin()
     keen = BR["recall"].idxmax()
     plo, phi = EV["bootstrap"]["precision"][worst]
     st.html(
-        f'<div class="m-body"><p><b>How often it followed</b>: the share of the {EV["months"]} '
-        'months whose next three years turned out to be that regime, so calling it blind would '
-        'be right that often. <b>Precision</b>: of the months the model called a regime, the share whose '
-        'next three years were that regime. <b>Recall</b>: of the months whose next three years '
-        'were a regime, the share the model called it. <b>F1</b> is high only when both are.</p>'
+        '<div class="m-body"><p><b>Precision</b>: of the months the model called a regime, the '
+        'share whose next three years were that regime. <b>Recall</b>: of the months whose next '
+        'three years were a regime, the share the model called it. <b>F1</b> is high only when '
+        f'both are. <b>How often it followed</b>: the share of the {EV["months"]} months whose '
+        'next three years turned out to be that regime, so calling it blind would be right that '
+        'often, the bar for precision.</p>'
         '<p>The bottom two rows score each half of the call on its own. <b>Growth below '
         'potential</b> pools stagflation and hard landing, the two regimes where growth runs '
         'below potential: a call of either counts as right if the next three years were either. '
@@ -934,13 +935,6 @@ if EV is not None:
     st.html(ui.table(["What followed ↓ · called →"] + [regime_name(c) for c in conf.columns],
                      [[LABEL[r]] + [f"{v}" for v in conf.loc[r]] for r in conf.index],
                      numeric=set(range(1, len(conf.columns) + 1))))
-    st.html('<div class="m-body"><p>The longest unbroken wrong calls:</p><ul>'
-            + "".join(f'<li>{x.start.strftime("%b %Y")} to {x.end.strftime("%b %Y")}, {x.months} '
-                      f'months: called {ui.esc(regime_name(x.called).lower())}, followed by '
-                      f'{ui.esc(LABEL[x.followed].lower())}.</li>'
-                      for x in EV["misses"].itertuples())
-            + '</ul><p>The timeline above pins the largest false alarms, with what went '
-            'wrong.</p></div>')
 
     st.html('<h3 class="m-h3">Are the odds right?</h3>')
     cal = EV["calibration"]
