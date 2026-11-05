@@ -38,8 +38,6 @@ cfg, reg = results["config"], results["regimes"]
 # Words that belong to the framework in view rather than to the page: each
 # indicator file says what its signs mean and what it cannot do.
 META = cfg.get("meta") or {}
-# A few passages quote figures measured on v1 itself, and appear only with it.
-IS_V1 = country()["framework"] == "v1"
 drivers, probs = results["drivers"], results["probabilities"].dropna(how="all")
 settings, salience = reg["settings"], reg["driver_salience"]
 GATE_ON = str(settings.get("fit_gate", "none")) == "closer_than_neutral"
@@ -381,13 +379,11 @@ if taylor:
         'published (2012 on): what policymakers believed at the time, and never revised. Before '
         'that, it uses the New York Fed\'s one-sided Holston-Laubach-Williams estimate, which only '
         'uses data available at each date. Estimates of r* are uncertain by a point or more, '
-        + ('enough to flip the sign of the gap, so a plain real-rate-versus-neutral measure is '
-           'kept alongside at a lower weight.</p>' if IS_V1 else
-           'enough to flip the sign of the gap.</p><p>In v2 the two read different things. The '
-           'real rate against neutral is part of <b>monetary stance</b>, how tight policy is. The '
-           'Taylor gap is part of <b>monetary credibility</b>: a Fed holding the rate well below '
-           'what inflation and slack call for is behind the curve, and its commitment to 2% is in '
-           'doubt.</p>'))
+        'enough to flip the sign of the gap.</p><p>The real rate against neutral and the '
+        'Taylor gap read different things. The real rate against neutral is part of '
+        '<b>monetary stance</b>, how tight policy is. The Taylor gap is part of <b>monetary '
+        'credibility</b>: a Fed holding the rate well below what inflation and slack call for '
+        'is behind the curve, and its commitment to 2% is in doubt.</p>')
 
 prose('<h3 class="m-h3">Indicator set</h3>'
       '<p>One table per driver, its indicators grouped by block, heaviest first. Weight is a '
@@ -543,8 +539,8 @@ prose(f'<p>where <i>A<sub>t</sub></i> is the set of indicators available in mont
       'coverage is tracked: the share of the driver\'s intended weight that was actually '
       'present. The dashboard warns when a driver runs below 75% coverage.</p>'
       '<p><b>Blocks.</b> A driver can split its indicators into blocks, each scored on its own '
-      'and then combined at the block\'s share of the weight. Growth and inflation do this in '
-      'v2: a block for the next three years (growth\'s cycle, inflation\'s pressure) and a '
+      'and then combined at the block\'s share of the weight. Growth and inflation do this: '
+      'a block for the next three years (growth\'s cycle, inflation\'s pressure) and a '
       'long-run block (potential growth; anchoring of expectations). Monetary policy is two '
       'drivers rather than two blocks, stance and credibility, because the two move '
       'independently; fiscal policy splits into impulse, debt dynamics '
@@ -606,9 +602,7 @@ if str(settings.get("fit_gate", "none")) == "closer_than_neutral":
         '<h3 class="m-h3">Fit gate: no clear regime</h3>'
         '<p>Probabilities are relative. They always add up to 100%, whether or not any regime '
         'describes the month, so on their own they turn every middling month into whichever '
-        'regime sits nearest the center.'
-        + (' Without a check, the slow, disinflationary recovery of 2011 to 2014 came out as '
-           'goldilocks.' if IS_V1 else '') + '</p>'
+        'regime sits nearest the center.</p>'
         '<p>So each month is also measured against its nearest regime on an absolute yardstick: '
         'how far <b>a neutral economy</b>, with every driver at zero, would sit from that '
         f'regime\'s archetype. Those distances are {ui.esc(thresholds)}. A regime far from '
@@ -621,15 +615,8 @@ if str(settings.get("fit_gate", "none")) == "closer_than_neutral":
         'on the history chart.</li>'
         f'<li><b>No fit.</b> Beyond {tolerance:.2f} times the distance. The month is <b>no clear '
         'regime</b>.</li></ul>'
-        + ('<p>The tolerance is a judgment. With no tolerance at all, 53% of months since 1990 '
-           f'fitted no regime, most of them only just, and a monitor that says "no clear regime" '
-           f'half the time says little. At {tolerance:.2f}, {unclassified_share:.0%} of months '
-           f'since 1990 are unclassified: the shocks are all still called, while the slower '
-           f'stretches in between, 2010 to 2014 above all, report no clear regime rather than a '
-           f'quiet goldilocks.</p>' if IS_V1 else
-           f'<p>The tolerance is a judgment, carried over from v1 and not yet re-tuned. At '
-           f'{tolerance:.2f}, {unclassified_share:.0%} of months since 1990 are '
-           f'unclassified.</p>')
+        + f'<p>The tolerance is a judgment, not yet tuned on the three-year call. At '
+        f'{tolerance:.2f}, {unclassified_share:.0%} of months since 1990 are unclassified.</p>'
         + '<p>No clear regime goes through the same persistence rule as any regime, so the call '
         'moves to and from it deliberately. It is different from transitional: transitional '
         'means regimes are close to one another; no clear regime means none of them fits.</p>')
@@ -715,26 +702,10 @@ prose(f'<p>{ui.esc(rlabel[leader])} is closest, at a distance of {dist[leader]:.
 # ---------- 10. limitations ----------
 
 section("m-limits", 10, "Limitations")
-# v1's limitations are written here; v2 lists its own under meta.limitations
-# in its indicator file.
-_own_limits = "".join(f'<li><b>{ui.esc(x["title"])}.</b> {ui.rich(x["text"])}</li>'
-                      for x in META.get("limitations") or [])
+# Listed under meta.limitations in the indicator file, beside what they describe.
 prose(
-    '<ul>' + (_own_limits or
-    '<li><b>Archetypes are judgments.</b> Against the labeled history, the months in each '
-    'regime sit nearer neutral, and before stagflation and hard landings the Fed has usually '
-    'eased and the deficit widened, the opposite of where the archetypes put them.</li>'
-    '<li><b>Stepwise and lagging inputs.</b> Quarterly and annual series are carried forward, '
-    'and CBO\'s noncyclical unemployment rate is revised slowly.</li>'
-    '<li><b>Fiscal is federal and not cyclically adjusted</b>, so a recession reads as '
-    'looser policy.</li>'
-    '<li><b>Fixed centers drift.</b> Capacity utilization has averaged 76.6% since 2016, three '
-    'points below its center.</li>'
-    '<li><b>Four regimes do not cover the space.</b> Mid-2016, a capex recession with a '
-    'resilient consumer, reports as a hard landing; much of 2010 to 2014 as no clear '
-    'regime.</li>'
-    '<li><b>Persistence delays turns.</b> In 2008 the call became hard landing in October, '
-    'two months after the readings did.</li>')
+    '<ul>' + "".join(f'<li><b>{ui.esc(x["title"])}.</b> {ui.rich(x["text"])}</li>'
+                     for x in META.get("limitations") or [])
     + ('<li><b>Demo data.</b> This deployment runs on synthetic series.</li>' if demo else '')
     + '</ul>')
 
@@ -748,6 +719,8 @@ st.html('<h3 class="m-h3">What changed</h3>')
 # Grades are held out, on the three years that followed: 1976 to 2023 from the
 # history back to 1968, 1993 to 2023 before it.
 CHANGES = [
+    ("Nov 2026", "The three-year call is the only framework. The earlier one, v1, which read "
+     "current conditions, is no longer offered.", ""),
     ("Nov 2026", "Fiscal impulse adds the one-year change in the primary balance; reforms adds "
      "an institutions block (World Bank governance, from 2001) and regulatory enforcement "
      "(World Justice Project, from 2016). Eight other candidates tested and left out.",
@@ -775,11 +748,11 @@ CHANGES = [
     ("Oct 2026", "The call reads the next three years: each position is where the drivers sat "
      "in the run-ups to that regime, shrunk toward a judgment.",
      "57% (1993–2023); the judgment positions alone 8%"),
-    ("Oct 2026", "v2's drivers rebuilt one at a time: growth (cycle, potential growth), "
-     "inflation (pressure, anchoring), monetary policy (stance, credibility), fiscal policy "
-     "(impulse, debt dynamics, composition) and reforms.", "48%, from 23% (1993–2023)"),
-    ("Oct 2026", "v2 becomes the default. v1, reworked after review, stays under the Framework "
-     "menu.", ""),
+    ("Oct 2026", "The drivers rebuilt one at a time for the three-year call: growth (cycle, "
+     "potential growth), inflation (pressure, anchoring), monetary policy (stance, "
+     "credibility), fiscal policy (impulse, debt dynamics, composition) and reforms.",
+     "48%, from 23% (1993–2023)"),
+    ("Oct 2026", "The three-year call (v2) becomes the default; v1 stays under a menu.", ""),
     ("Sep 2026", "v1: six longer-horizon inputs in, four short-horizon ones out.",
      "92% of calls unchanged"),
 ]

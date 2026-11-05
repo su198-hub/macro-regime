@@ -103,7 +103,7 @@ rationale:
       neutral economy would be. Run-up positions sit near neutral, so it
       left half of all months unclassified.
     fit_tolerance: >-
-      1.25, as in v1; unused while the gate is off.
+      1.25; unused while the gate is off.
   prior: >-
     The judgment of where each scenario sits, before the data. Growth,
     inflation and reforms keep their direction, and credibility the

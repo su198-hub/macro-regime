@@ -36,8 +36,10 @@ countries:
     regimes: config/regimes_v2.yml
     sources: config/sources.yml
     # A country can carry more than one framework: a set of signposts and the
-    # scenarios placed on them. The pages offer a switch; the first one listed
-    # is the default, and its files are the indicators and regimes above.
+    # scenarios placed on them. The first one listed is the default, and its
+    # files are the indicators and regimes above. Since 5 November 2026 the
+    # pages show only the default; v1 stays here for the twin, which compares
+    # against it, and for the bench's v1 rows.
     frameworks:
       v2:
         label: "v2: three-year call"

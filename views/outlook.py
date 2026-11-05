@@ -3,8 +3,7 @@ outlook): what each regime looked like, any month since 1968, and v2's call
 for where growth and inflation are heading.
 
 It reads the same v2 drivers and scenario positions as the dashboard, over
-the four regimes the answer key can grade, whichever framework the reader has
-picked elsewhere.
+the four regimes the answer key can grade.
 
   0. Regime shapes, first: where the drivers sat going into each regime and
      during it, one radar per regime beside today's, and what changed.
@@ -49,7 +48,7 @@ from views.common import data_version, get_store, registry
 
 st.html('<h1 class="mr-title">Regime explorer</h1>'
         '<p class="mr-sub">What each regime looked like going in and during, any month since 1968, '
-        'and the call for the next three years. Read from the v2 drivers.</p>')
+        'and the call for the next three years.</p>')
 
 base = ctry.resolve(registry(), "US", framework="v2")
 CFG = load_config(base["indicators"])

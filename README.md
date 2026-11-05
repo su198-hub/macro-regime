@@ -4,14 +4,14 @@ Scores six drivers of the US economy monthly and calls which of four regimes
 the next three years look like: goldilocks, high growth with high inflation,
 stagflation, or a hard landing.
 
-The default framework is v2 (`config/indicators_v2.yml`,
+The pages show one framework, v2 (`config/indicators_v2.yml`,
 `config/regimes_v2.yml`). Its drivers are growth, inflation, monetary stance,
 monetary credibility, fiscal policy and reforms. Each regime sits where the
 drivers stood in the run-ups to it, learned from 1968 onward and shrunk toward
 a judgment prior (`scripts/realign_positions.py`). v1 (`config/indicators.yml`,
-`config/regimes.yml`) describes the month itself rather than the years ahead,
-and stays available from the Framework menu. The first framework listed in
-`config/countries.yml` is the default.
+`config/regimes.yml`) describes the month itself rather than the years ahead.
+It is no longer offered on the pages, and stays in `config/countries.yml` for
+the hidden twin, which compares against it, and the bench's v1 rows.
 
 Everything reads through a point-in-time store, so the dashboard can be rewound
 to see the call as it would have been made, from data published by then. How

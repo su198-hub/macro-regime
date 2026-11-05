@@ -111,19 +111,9 @@ jobs:
               errors = [e.value for e in at.exception]
               assert not errors, (option, errors)
 
-          # A framework chosen on the dashboard survives a visit to a page
-          # that does not draw the menu.
+          # One framework on the pages: no menu to switch it.
           at.switch_page("views/dashboard.py").run()
-          menu = [s for s in at.selectbox if s.label == "Framework"]
-          assert menu, "framework menu missing"
-          # options are the menu's labels; the value is the framework's id.
-          from src import countries as ctry
-          ids = list(ctry.resolve(ctry.load_registry(), "us")["frameworks"])
-          other = [f for f in ids if f != menu[0].value][0]
-          menu[0].set_value(other).run()
-          at.switch_page("views/outlook.py").run()
-          at.switch_page("views/dashboard.py").run()
-          assert [s for s in at.selectbox if s.label == "Framework"][0].value == other,               "framework choice lost on switching pages"
+          assert not [s for s in at.selectbox if s.label == "Framework"], "framework menu is back"
 
           print("Rendered the dashboard, control room, methodology, bench and regime explorer")
           EOF

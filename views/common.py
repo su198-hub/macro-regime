@@ -29,7 +29,6 @@ from src.store import Store
 REPO_URL = "https://github.com/su198-hub/macro-regime"
 SNAPSHOT_CHECK_SECONDS = 600
 COUNTRY_KEY = "mr_country"
-FRAMEWORK_KEY = "mr_framework"
 
 
 @st.cache_data(ttl=300, show_spinner=False)
@@ -38,9 +37,12 @@ def registry() -> dict:
 
 
 def country() -> dict:
-    """The country being viewed: code, label, framework and its config paths."""
-    return ctry.resolve(registry(), st.session_state.get(COUNTRY_KEY),
-                        framework=st.session_state.get(FRAMEWORK_KEY))
+    """The country being viewed: code, label, framework and its config paths.
+
+    Always the country's default framework: the pages no longer offer a
+    switch. Other frameworks in the registry stay for the pages that compare
+    against them by name (the twin reads v1)."""
+    return ctry.resolve(registry(), st.session_state.get(COUNTRY_KEY))
 
 
 def settings_key() -> str:
@@ -368,9 +370,8 @@ def published_note() -> str:
 
 
 def country_picker(container=None, label_visibility: str = "visible") -> dict:
-    """The country menu, and the framework menu under it when the country has
-    more than one. One live country still gets a menu, so the shape of the page
-    does not change when the second one lands.
+    """The country menu. One live country still gets a menu, so the shape of
+    the page does not change when the second one lands.
 
     Planned countries are named underneath rather than listed as options: an
     option that leads to an empty dashboard is worse than a sentence.
@@ -380,24 +381,13 @@ def country_picker(container=None, label_visibility: str = "visible") -> dict:
     where = container or st
     # The choice lives under a plain key and the menu under its own: Streamlit
     # drops a widget's state on any page that does not draw it, which reset
-    # the framework to the default whenever a reader visited another page.
+    # the choice whenever a reader visited another page.
     _seed(COUNTRY_KEY, live)
     where.selectbox("Country", live, key=_widget(COUNTRY_KEY),
                     on_change=_keep, args=(COUNTRY_KEY,),
                     format_func=lambda c: ctry.label(reg, c),
                     label_visibility=label_visibility,
                     help="Each country is scored from its own indicator set and centers.")
-    here = country()
-    if len(here["frameworks"]) > 1:
-        options = list(here["frameworks"])
-        if st.session_state.get(FRAMEWORK_KEY) not in options:
-            st.session_state[FRAMEWORK_KEY] = here["framework"]
-        _seed(FRAMEWORK_KEY, options)
-        where.selectbox("Framework", options, key=_widget(FRAMEWORK_KEY),
-                        on_change=_keep, args=(FRAMEWORK_KEY,),
-                        format_func=lambda f: here["frameworks"][f],
-                        label_visibility=label_visibility,
-                        help="Which signposts the call is scored from, and where each scenario sits on them.")
     return country()
 
 
