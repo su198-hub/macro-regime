@@ -206,7 +206,8 @@ events:
 #   saw       what the drivers read, and why that pointed to the call
 #   happened  what followed instead
 #   wrong     why the reading misled
-# Figures in them are from today's data (checked 5 Nov 2026).
+# Figures in them are from today's data (checked 5 Nov 2026; the 2020s
+# entries 10 Nov 2026).
 misses:
   - from: "1987-05"
     to: "1988-05"
@@ -236,3 +237,65 @@ misses:
       - >-
         Inflation looked tame only against expectations still set by the early
         1980s. With growth strong, it soon picked up.
+
+  - from: "2020-08"
+    to: "2021-08"
+    called: goldilocks
+    title: "False alarm: goldilocks"
+    saw:
+      - >-
+        Growth read strong: with unemployment just past its 14.8% peak, there
+        was a great deal of room to recover.
+      - >-
+        Inflation read about neutral. Core PCE inflation was 1.0% in June 2020
+        and 1.5% by December, and expectations held near 2%. The Fed had a
+        good record of keeping inflation down.
+      - >-
+        Policy was loose and the budget very supportive. A recovery with
+        inflation in check and easy policy is the shape of a goldilocks run-up.
+    happened:
+      - >-
+        Core PCE inflation rose from 2.1% in March 2021 to 3.8% in June and
+        peaked at 5.6% in September 2022.
+      - >-
+        Growth ran above potential and inflation 2.0 to 2.9 points above
+        expectations over the three years after these calls: high growth with
+        high inflation.
+    wrong:
+      - >-
+        The inflation came from the reopening, supply bottlenecks and stimulus
+        on a scale with no precedent in the history the model learns from.
+        Nothing in the drivers could flag it in advance.
+      - >-
+        Forecasters missed it too: the Fed's own projections in December 2020
+        had 2021 inflation under 2%.
+  - from: "2023-03"
+    to: "2024-05"
+    called: stagflation
+    title: "Near miss: stagflation"
+    saw:
+      - >-
+        Monetary stance read very tight: the Fed had raised its rate from near
+        zero in early 2022 to 4.65% by March 2023, on its way to 5.33%.
+      - >-
+        Credibility read at its floor after two years of inflation far above
+        target, and inflation still read hot: core PCE inflation was 4.9% in
+        March 2023.
+      - >-
+        Growth read about neutral. Tight policy against high inflation, with
+        credibility damaged, is the shape of the run-ups to the 1970s and
+        1988-90 stagflations.
+    happened:
+      - >-
+        A soft landing. Core PCE inflation fell to 2.8% by May 2024 while
+        unemployment stayed between 3.4% and 4.5%.
+      - >-
+        For the calls made to June 2023, the three years after were high growth
+        with high inflation, but only just: growth ran 0.1 points above
+        potential, with inflation a point above expectations. Later calls'
+        three years are not over; so far they read the same.
+    wrong:
+      - >-
+        A reasonable call that landed just on the other side of the line.
+        Inflation stayed above expectations, as called; growth held up
+        instead of slipping below potential.
