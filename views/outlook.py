@@ -7,8 +7,8 @@ the four regimes the answer key can grade.
 
   0. Regime shapes, first: where the drivers sat going into each regime and
      during it, one radar per regime beside today's, and what changed.
-  0b. Go back in time: each call, held out, drawn when it was made and again
-     three years on, above what happened, and what led into
+  0b. Go back in time: what happened, with each call, held out, drawn below it
+     when it was made and again three years on, and what led into
      each turning point. A
      radar shows what the model saw when it called a turn, against the
      typical run-ups to what came and to its other pick, and the text says
@@ -291,7 +291,7 @@ EARLY = 6  # months a call may run ahead of the run-up before the text calls it 
 CALL_SPAN = 36  # a call covers three years, so one dropped before a turn was about it only if made within this
 ROW_TURN, ROW_PRED, ROW_SHIFT, ROW_DUR = ("Turning points", "Predicted", "Predicted, shifted 3 years",
                                          "Actual")
-ROWS = [ROW_TURN, ROW_PRED, ROW_SHIFT, ROW_DUR]
+ROWS = [ROW_TURN, ROW_DUR, ROW_PRED, ROW_SHIFT]
 TURNS = ol.spells(during_lab).iloc[1:].reset_index(drop=True)
 
 
@@ -359,10 +359,11 @@ def _bands(labels: pd.Series, row: str, shift: int = 0) -> pd.DataFrame:
                          "row": row, "span": [span(s_, e_) for s_, e_ in zip(sp["start"], sp["end"])]})
 
 
-# The timeline: each call in the month it was made, then again three years on,
-# above what happened, so the shifted row reads against the actual one. Calls
-# made in the last three years run past today on the shifted row. Markers sit
-# at each turning point.
+# The timeline, top to bottom: the turning points, what happened, each call in
+# the month it was made, and the same calls three years on. Actual and
+# predicted sit together and both end at today, so a call changing color before
+# a turn reads as its lead; the shifted row below shows the same pattern moved
+# along. Calls made in the last three years run past today on the shifted row.
 _pred = PRED["called"][PRED["called"].isin(list(COLOR))]
 bands = pd.concat([_bands(_pred, ROW_PRED), _bands(_pred, ROW_SHIFT, DRAW), _bands(during_lab, ROW_DUR)],
                   ignore_index=True)
