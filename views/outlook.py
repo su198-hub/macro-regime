@@ -7,8 +7,8 @@ the four regimes the answer key can grade.
 
   0. Regime shapes, first: where the drivers sat going into each regime and
      during it, one radar per regime beside today's, and what changed.
-  0b. Go back in time: each call, held out, drawn over the
-     months it was about, above what they turned out to be, and what led into
+  0b. Go back in time: each call, held out, drawn when it was made and again
+     three years on, above what happened, and what led into
      each turning point. A
      radar shows what the model saw when it called a turn, against the
      typical run-ups to what came and to its other pick, and the text says
@@ -282,14 +282,16 @@ for _e in MISSES:
 # living through in 86% of months, against 71% three years on (checked 29 Oct
 # 2026, 1968 to 2023).
 SHIFT = 24
-# The chart draws each call three years on, at the end of the years it was
-# about, so a reader counts the call's own horizon along the axis (chosen 5 Nov
-# 2026, over two years' closer match).
+# The chart draws each call twice: in the month it was made, so today's call
+# sits at today, and again three years on, at the end of the years it was
+# about, so it can be read against what happened (10 Nov 2026; three years on
+# alone from 5 Nov).
 DRAW = 36
 EARLY = 6  # months a call may run ahead of the run-up before the text calls it early
 CALL_SPAN = 36  # a call covers three years, so one dropped before a turn was about it only if made within this
-ROW_TURN, ROW_PRED, ROW_DUR = "Turning points", "Called 3 years earlier", "Living through"
-ROWS = [ROW_TURN, ROW_PRED, ROW_DUR]
+ROW_TURN, ROW_PRED, ROW_SHIFT, ROW_DUR = ("Turning points", "Predicted", "Predicted, shifted 3 years",
+                                         "Actual")
+ROWS = [ROW_TURN, ROW_PRED, ROW_SHIFT, ROW_DUR]
 TURNS = ol.spells(during_lab).iloc[1:].reset_index(drop=True)
 
 
@@ -347,7 +349,9 @@ def _bands(labels: pd.Series, row: str, shift: int = 0) -> pd.DataFrame:
 
     def span(s_, e_):
         months = f"{s_.strftime('%b %Y')} to {e_.strftime('%b %Y')}"
-        return f"Called {months}, for the 3 years after" if shift else months
+        if row == ROW_SHIFT:
+            return f"Called {months}, drawn 3 years on"
+        return f"Called {months}, for the 3 years after" if row == ROW_PRED else months
 
     return pd.DataFrame({"start": [(s_ + shift).to_timestamp() for s_ in sp["start"]],
                          "end": [(e_ + shift + 1).to_timestamp() for e_ in sp["end"]],
@@ -355,11 +359,13 @@ def _bands(labels: pd.Series, row: str, shift: int = 0) -> pd.DataFrame:
                          "row": row, "span": [span(s_, e_) for s_, e_ in zip(sp["start"], sp["end"])]})
 
 
-# The timeline: each call drawn over the months it was about, above what those
-# months turned out to be, so the two rows read against each other. Calls made
-# in the last three years run past today. Markers sit at each turning point.
+# The timeline: each call in the month it was made, then again three years on,
+# above what happened, so the shifted row reads against the actual one. Calls
+# made in the last three years run past today on the shifted row. Markers sit
+# at each turning point.
 _pred = PRED["called"][PRED["called"].isin(list(COLOR))]
-bands = pd.concat([_bands(_pred, ROW_PRED, DRAW), _bands(during_lab, ROW_DUR)], ignore_index=True)
+bands = pd.concat([_bands(_pred, ROW_PRED), _bands(_pred, ROW_SHIFT, DRAW), _bands(during_lab, ROW_DUR)],
+                  ignore_index=True)
 _last = max(HX_MONTHS[-1], _pred.index[-1] + DRAW) if len(_pred) else HX_MONTHS[-1]
 # A few months' room past the last band, so today's second stamp is not cut off.
 xs_t = alt.Scale(domain=[HX_MONTHS[0].to_timestamp(), (_last + 4).to_timestamp()])
@@ -395,15 +401,17 @@ if sp_dur is not None:
                                            "end": (sp_dur["end"] + 1).to_timestamp(), "row": ROW_DUR}]))
                   .mark_rect(fill=None, stroke=ui.INK, strokeWidth=2).encode(
                       x=alt.X("start:T", scale=xs_t), x2="end:T", y=y_rows))
-# Today's stamp: a diamond on the turning points row, and another where
-# today's call is drawn, three years on, on the called row.
+# Today's stamp: a diamond on the turning points and predicted rows, and
+# another where today's call is drawn three years on.
 _now_odds = PRED["probs"].loc[NOW_M] if NOW_M in PRED["probs"].index else None
 _now_tip = (f"Called {LABEL[NOW_CALL].lower()} for the next three years ({_now_odds[NOW_CALL]:.0%})"
             if NOW_CALL in LABEL and _now_odds is not None else "–")
-_today = pd.DataFrame({"m": [(NOW_M + 1).to_timestamp(), (NOW_M + DRAW).to_timestamp()],
-                       "t": ["Today", ""], "row": [ROW_TURN, ROW_PRED],
-                       "when": [f"Today, {HX_LABEL[NOW_M]}", f"Today's call, drawn three years on"],
-                       "what": [_now_tip, _now_tip]})
+_today = pd.DataFrame({"m": [(NOW_M + 1).to_timestamp(), (NOW_M + 1).to_timestamp(),
+                             (NOW_M + DRAW).to_timestamp()],
+                       "t": ["Today", "", ""], "row": [ROW_TURN, ROW_PRED, ROW_SHIFT],
+                       "when": [f"Today, {HX_LABEL[NOW_M]}", f"Today's call, {HX_LABEL[NOW_M]}",
+                                "Today's call, shifted 3 years"],
+                       "what": [_now_tip, _now_tip, _now_tip]})
 layers.append(alt.Chart(_today.iloc[:1]).mark_rule(color=ui.MUTED, strokeDash=[3, 3]).encode(
     x=alt.X("m:T", scale=xs_t)))
 layers.append(alt.Chart(_today).mark_point(shape="diamond", size=110, filled=True, color=ui.INK,
@@ -415,19 +423,21 @@ layers.append(alt.Chart(_today.iloc[:1]).mark_text(align="left", dx=8, fontSize=
     x=alt.X("m:T", scale=xs_t), y=y_rows, text="t:N"))
 layers.append(alt.Chart(pd.DataFrame({"m": [hx.to_timestamp()]})).mark_rule(
     color=ui.INK, strokeWidth=2).encode(x=alt.X("m:T", scale=xs_t)))
-# The chosen month's call sits three years on, so mark it there too, and inside
-# a false alarm outline the alarm's calls, as the spell is outlined below.
+# The chosen month's call also sits three years on, so mark it there too, and
+# inside a false alarm outline the alarm's calls on both predicted rows, as the
+# spell is outlined below.
 if hx in _pred.index:
-    layers.append(alt.Chart(pd.DataFrame([{"m": (hx + DRAW).to_timestamp(), "row": ROW_PRED,
-                                           "when": f"{HX_LABEL[hx]}'s call, drawn three years on"}]))
+    layers.append(alt.Chart(pd.DataFrame([{"m": (hx + DRAW).to_timestamp(), "row": ROW_SHIFT,
+                                           "when": f"{HX_LABEL[hx]}'s call, shifted 3 years"}]))
                   .mark_tick(color=ui.INK, thickness=3, size=26, opacity=1).encode(
                       x=alt.X("m:T", scale=xs_t), y=y_rows, tooltip=alt.Tooltip("when:N", title="")))
 for a_, b_, _e in MISS_SPANS:
     if a_ <= hx <= b_:
-        layers.append(alt.Chart(pd.DataFrame([{"start": (a_ + DRAW).to_timestamp(),
-                                               "end": (b_ + DRAW + 1).to_timestamp(), "row": ROW_PRED}]))
-                      .mark_rect(fill=None, stroke=ui.INK, strokeWidth=2).encode(
-                          x=alt.X("start:T", scale=xs_t), x2="end:T", y=y_rows))
+        for k_, row_ in ((0, ROW_PRED), (DRAW, ROW_SHIFT)):
+            layers.append(alt.Chart(pd.DataFrame([{"start": (a_ + k_).to_timestamp(),
+                                                   "end": (b_ + k_ + 1).to_timestamp(), "row": row_}]))
+                          .mark_rect(fill=None, stroke=ui.INK, strokeWidth=2).encode(
+                              x=alt.X("start:T", scale=xs_t), x2="end:T", y=y_rows))
 turn_df = pd.DataFrame([{"month": t_.to_timestamp(), "regime": r_, "row": ROW_TURN,
                          "when": f"{t_.strftime('%b %Y')} · into {LABEL[r_].lower()}",
                          "events": "; ".join(e["title"] for _, e in LEADS_INTO.get(t_, [])) or "–"}
@@ -437,9 +447,9 @@ layers.append(alt.Chart(turn_df).mark_point(shape="triangle-down", size=70, fill
     color=alt.Color("regime:N", scale=alt.Scale(domain=list(COLOR), range=list(COLOR.values())),
                     legend=None),
     tooltip=[alt.Tooltip("when:N", title=""), alt.Tooltip("events:N", title="Led in by")]))
-# A pin in the middle of each miss, where its calls are drawn.
+# A pin in the middle of each miss, in the months its calls were made.
 if MISS_SPANS:
-    miss_df = pd.DataFrame([{"m": (a_ + (b_ - a_).n // 2 + DRAW).to_timestamp(), "row": ROW_PRED,
+    miss_df = pd.DataFrame([{"m": (a_ + (b_ - a_).n // 2).to_timestamp(), "row": ROW_PRED,
                              "what": e["title"],
                              "when": f'Called {a_.strftime("%b %Y")} to {b_.strftime("%b %Y")}; '
                                      f'pick a month in it for why'} for a_, b_, e in MISS_SPANS])
@@ -447,7 +457,7 @@ if MISS_SPANS:
                                                 stroke="#fff", strokeWidth=1.5, opacity=1).encode(
         x=alt.X("m:T", scale=xs_t), y=y_rows,
         tooltip=[alt.Tooltip("what:N", title=""), alt.Tooltip("when:N", title="")]))
-hx_box.altair_chart(ui.style(alt.layer(*layers).properties(height=130)), width="stretch")
+hx_box.altair_chart(ui.style(alt.layer(*layers).properties(height=170)), width="stretch")
 
 # The chosen month beside the averages it feeds.
 r_dur = during_lab.get(hx)
@@ -831,7 +841,7 @@ elif ev_text:
 if not items and hx > during_lab.index[-1]:
     _last = during_lab.index[-1]
     items.append(_item("Too recent to label",
-                       f": living through reads the three months after a month, so the latest is "
+                       f": the actual regime needs the three months after a month, so the latest is "
                        f'{_last.strftime("%b %Y")}, {_tag(during_lab.iloc[-1])}.'))
 if items:
     sections.append((f"This month, {HX_LABEL[hx]}", items))
