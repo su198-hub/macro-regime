@@ -430,7 +430,20 @@ series:
     note: >-
       Baker-Bloom-Davis economic policy uncertainty index, US, monthly from
       1985: newspaper coverage of policy uncertainty, expiring tax provisions
-      and forecaster disagreement; 100 = the 1985-2009 average.
+      and forecaster disagreement; 100 = the 1985-2009 average. Read by v2
+      until November 2026; kept for the bench.
+  EPU_TAX:
+    macrobond: usepuindext
+    note: >-
+      Baker-Bloom-Davis categorical policy uncertainty index for taxes, US,
+      monthly from 1985: newspaper articles on policy uncertainty that also
+      mention taxes.
+  EPU_REG:
+    macrobond: usepuindexr
+    note: >-
+      Baker-Bloom-Davis categorical policy uncertainty index for regulation,
+      US, monthly from 1985: newspaper articles on policy uncertainty that
+      also mention regulation.
   TPU:
     macrobond: useputpu
     note: >-

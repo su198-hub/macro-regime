@@ -1881,20 +1881,22 @@ drivers:
           already out, which makes it the most current governance reading on the bench.
 
       - id: policy_uncertainty
-        name: Economic policy uncertainty, 12-month average
+        name: Tax and regulation policy uncertainty, 12-month average
         status: in_set
         horizon: long
         nature: cyclical
         kind: model
         enters: level
         where: macrobond
-        code: EPU
+        code: EPU_TAX, EPU_REG
         refers: >-
-          When policy is unpredictable, firms delay investment and hiring until it clears.
-          It also spikes in recessions and crises, whatever the policy.
+          When tax and regulatory policy is unpredictable, firms delay investment and hiring
+          until it clears. These are the policies most tied to long-run investment. It still
+          rises in recessions and crises.
         measured: >-
-          Baker, Bloom and Davis, from newspaper coverage, expiring tax provisions and
-          forecaster disagreement, monthly from 1985. A level against its 1985-2019 average.
+          Baker, Bloom and Davis tax and regulation indexes, averaged: newspaper articles on
+          policy uncertainty that also mention taxes or regulation, monthly from 1985. A level
+          against its 1985-2019 average. Replaced the headline index in November 2026.
 
       - id: tariff_rate_change
         name: Effective tariff rate, change over three years
@@ -2188,6 +2190,62 @@ drivers:
           Tested 2 November 2026 for reforms and not adopted: a wrong or sign-flipping link
           to the following decade's productivity, and the call stayed within the noise.
         measured: Baker, Bloom and Davis category index, from newspaper coverage.
+
+      - id: cand_epu_headline
+        name: Economic policy uncertainty, headline index
+        status: candidate
+        preselect: false
+        horizon: long
+        nature: cyclical
+        kind: model
+        enters: level
+        where: macrobond
+        code: EPU
+        refers: >-
+          In the set until November 2026. Besides policy it counts the Fed, wars and health
+          care, and a third of it is forecasters' disagreement about inflation and government
+          spending, uncertainty about outcomes rather than policy. The call was the same with
+          either (71% held out).
+        measured: >-
+          Baker, Bloom and Davis: newspaper coverage, expiring tax provisions and forecaster
+          disagreement, monthly from 1985.
+
+      - id: cand_epu_cycle_removed
+        name: Policy uncertainty with the business cycle removed
+        status: candidate
+        preselect: false
+        horizon: long
+        nature: cyclical
+        kind: model
+        enters: level
+        where: macrobond
+        code: EPU, UNRATE, NROU
+        refers: >-
+          Tested 10 November 2026 and not adopted. Removing what the unemployment gap
+          explains halves the wrong-way link with the next three years' growth (-0.47 to
+          -0.22) but strengthens the one with inflation (-0.57 to -0.73), because the 2020
+          spike outran the rise in unemployment. The same on the tax and regulation indexes.
+        measured: >-
+          The headline index less its fit on the unemployment gap and its 12-month change,
+          fitted 1985-2019.
+
+      - id: cand_firm_political_risk
+        name: Firm-level political risk, from earnings calls
+        status: candidate
+        preselect: false
+        horizon: long
+        nature: cyclical
+        kind: model
+        enters: level
+        where: external
+        vendor: NL Analytics
+        refers: >-
+          The closest to the channel: what investing firms say about political risk, which
+          predicts their own investment and hiring (Hassan, Hollander, van Lent and Tahoun,
+          2019). Tested 10 November 2026: links much like the indexes (-0.41 with the next
+          three years' growth, -0.35 with inflation, 2002 on). Not adopted: the authors' free
+          data ends in March 2022, and current data is sold by NL Analytics.
+        measured: Share of earnings-call text on political risk, about 2,900 US firms a quarter, from 2002.
 
       - id: cand_business_formation
         name: Business formation

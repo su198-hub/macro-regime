@@ -122,7 +122,7 @@ meta:
         long-run view at a quarter of each driver; the cycle and pressure
         blocks do the forecasting (+0.55 and +0.65 with the next three years'
         gaps). Reforms likewise goes with the next decade's productivity
-        (+0.44) but against three-year growth (-0.37), so it counts at half
+        (+0.41) but against three-year growth (-0.38), so it counts at half
         weight.
     - title: Reforms is at its floor
       text: >-
@@ -1108,7 +1108,8 @@ drivers:
     # (config/regimes_v2.yml). Trade policy uncertainty was dropped in October
     # 2026: policy uncertainty already rose with each trade war (2018-19,
     # 2025), and the tariff rate reads what was done; the grade held (69% to 68% held out,
-    # 64% in real time).
+    # 64% in real time). Policy uncertainty reads the tax and regulation indexes
+    # since November 2026: 71% held out with either, 65% in real time.
     groups:
       institutions:
         label: Institutions
@@ -1233,23 +1234,38 @@ drivers:
           high: "Policy uncertainty was low, so firms had less reason to hold back investment."
           low: "Policy uncertainty was high, so firms tend to delay investment and hiring."
         group: uncertainty
-        label: Economic policy uncertainty, 12-month average (low +)
-        source: {series: EPU}
+        label: Tax and regulation policy uncertainty, 12-month average (low +)
+        # The average of Baker, Bloom and Davis's tax and regulation indexes,
+        # since November 2026; the headline index before. The headline also
+        # counts the Fed, wars and health care, and forecasters' disagreement
+        # about inflation and government spending, which is uncertainty about
+        # outcomes rather than policy. Removing the business cycle was tried
+        # and not adopted: it halves the wrong-way link with the next three
+        # years' growth but strengthens the one with inflation, because the
+        # 2020 spike outran the rise in unemployment.
+        source:
+          expr: "(EPU_TAX + EPU_REG) / 2"
+          series: [EPU_TAX, EPU_REG]
         transform: mean_12m
         unit: "index"
-        normalize: {method: gap, center: 108.68, scale: 25.89}
+        normalize: {method: gap, center: 104.78, scale: 38.18}
         direction: -1
         weight: 0.20
         absolute_level: true
         release: Baker, Bloom and Davis
         why: >-
-          **Policy uncertainty.** When policy is unpredictable, firms delay
-          investment and hiring until it clears (Baker, Bloom and Davis). Read
-          from newspaper coverage of policy uncertainty, expiring tax
-          provisions and forecaster disagreement. It also spikes in recessions
-          and crises, whatever the policy. Read as a level against its
-          1985-2019 average: it is how much uncertainty there is that holds
-          investment back, not whether it is rising.
+          **Policy uncertainty.** When tax and regulatory policy is
+          unpredictable, firms delay investment and hiring until it clears,
+          because a plant or a hire is costly to reverse (Baker, Bloom and
+          Davis). Less investment now means less capital and slower
+          productivity later. Read from newspaper articles on policy
+          uncertainty that also mention taxes or regulation, the policies most
+          tied to long-run investment. It still rises in recessions and
+          crises. Read as a level against its 1985-2019 average: it is how
+          much uncertainty there is that holds investment back, not whether
+          it is rising. The 12-month average was 184 at the end of 2012, with
+          the fiscal cliff and the expiring tax cuts, against a norm of 105;
+          in October 2026 it is 388, almost twice anything before 2020.
 
       - id: tariff_rate_change
         reads:

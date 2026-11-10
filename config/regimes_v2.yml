@@ -77,12 +77,15 @@ rationale:
       in real time, log loss 0.97 and 1.21. The debt reads lower before
       stagflation (-0.12) than before a hard landing (+0.13).
     reforms: >-
-      Half weight. Reforms is there for the long run: the signpost goes with
-      faster productivity over the following decade (+0.44, trend removed),
-      but with the next three years' growth gap it runs the wrong way (-0.37:
+      Half weight. Reforms is there for the long run: the driver goes with
+      faster productivity over the following decade (+0.41, trend removed),
+      but with the next three years' growth gap it runs the wrong way (-0.38:
       policy uncertainty spikes in recessions, and recoveries follow). Graded
       on the next three years, 1993-2023, the call is about the same
       at a quarter or half weight and loses about eight points at full weight.
+      Reading policy uncertainty from the tax and regulation indexes rather
+      than the headline (10 November 2026) left the call at 71%, and 65% in
+      real time, log loss 0.97 and 1.22.
   settings:
     temperature: >-
       0.20. Run-up positions sit close together, so the probabilities are
@@ -168,7 +171,7 @@ regimes:
       credibility: -0.19
       fiscal: 0.07
       debt: -0.04
-      reforms: -0.09
+      reforms: -0.10
     tell: Productivity and capex plans rising together with expectations at target.
 
   high_growth_high_inflation:
@@ -211,7 +214,7 @@ regimes:
       credibility: -0.48
       fiscal: -0.01
       debt: -0.05
-      reforms: -0.32
+      reforms: -0.29
     tell: Investment strong and inflation above target, with credibility stretched.
 
   stagflation:
@@ -263,7 +266,7 @@ regimes:
       credibility: -0.82
       fiscal: -0.14
       debt: -0.12
-      reforms: -0.06
+      reforms: -0.05
     tell: Expectations rising while credibility and the debt trajectory both weaken.
 
   hard_landing:
@@ -299,8 +302,8 @@ regimes:
           looks ahead: idle plants (+1.70) and jobless workers (+0.98) are room
           to recover, even while companies cut investment plans.
         - >-
-          Policy uncertainty is low going in (+0.82, where higher means calmer)
-          and high during (-0.75), so this measure gave little warning.
+          Policy uncertainty is low going in (+0.87, where higher means calmer)
+          and high during (-0.73), so this measure gave little warning.
         - >-
           Inflation falls less than the name suggests. Only 2008-10 went below
           the anchor (-0.13); 2000-03 held at +0.29.
@@ -311,5 +314,5 @@ regimes:
       credibility: 0.01
       fiscal: -0.08
       debt: 0.13
-      reforms: 0.04
+      reforms: 0.05
     tell: Expectations falling below target while growth prospects weaken.
