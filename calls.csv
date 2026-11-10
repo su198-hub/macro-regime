@@ -1,0 +1,4 @@
+published_at,month,framework,config_hash,code_commit,called,leading,p_goldilocks,p_high_growth_high_inflation,p_stagflation,p_hard_landing,d_growth,d_inflation,d_monetary,d_credibility,d_fiscal,d_reforms,provisional_month,d_debt
+2026-11-03T11:20:23+00:00,2026-07,v2,50e2f27d713b,510858c0e8de,high_growth_high_inflation,high_growth_high_inflation,0.1679,0.6975,0.0656,0.069,0.3387,0.5625,-0.0925,-0.2993,-0.1432,-1.0,2026-08,
+2026-11-05T03:14:32+00:00,2026-09,v2,7f1e2ddac8c4,83c2a9a5d74a,high_growth_high_inflation,high_growth_high_inflation,0.116,0.7564,0.0709,0.0566,0.3247,0.7245,-0.1172,-0.1742,-0.1486,-1.0,,
+2026-11-10T03:59:21+00:00,2026-09,v2,ed50ae45a3cb,9dda8e5661c2,high_growth_high_inflation,high_growth_high_inflation,0.1416,0.7218,0.0811,0.0556,0.3247,0.7245,-0.1172,-0.1742,0.1338,-1.0,,-0.5976
