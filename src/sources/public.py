@@ -190,3 +190,51 @@ def pjm_capacity_prices() -> pd.Series:
             doc = pymupdf.open(stream=r.content, filetype="pdf")
             return parse_rpm_prices("\n".join(p.get_text() for p in doc))
     raise RuntimeError("no State of the Market capacity section found for the last four years")
+
+
+# ---------- turning points page ----------
+
+BTOS_NATIONAL = "https://www.census.gov/hfp/btos/downloads/National.xlsx"
+BTOS_QUESTIONS = {"7": "use_now", "28": "use_in_6m"}   # question id -> what a "Yes" share means
+
+
+def parse_btos(responses: pd.DataFrame, dates: pd.DataFrame) -> dict[str, pd.Series]:
+    """Share of firms answering Yes to the AI-use questions, by end of reference period.
+
+    `responses` is the workbook's "Response Estimates" sheet read without a
+    header: question id, question, answer id, answer, then one column per
+    two-week cycle named like 202622, with shares written "24.2%" and "." where
+    a question was not asked. `dates` is its "Collection and Reference Dates"
+    sheet, which maps each cycle to the two weeks it asks about.
+    """
+    head = [str(v).strip().split(".")[0] for v in responses.iloc[0]]
+    d = dates.iloc[1:, [3, 7]].dropna()
+    end = {str(int(float(k))): pd.Timestamp(v) for k, v in zip(d.iloc[:, 0], d.iloc[:, 1])}
+    out = {}
+    for qid, name in BTOS_QUESTIONS.items():
+        rows = responses[(responses[0].astype(str).str.split(".").str[0] == qid)
+                         & (responses[3].astype(str).str.strip() == "Yes")]
+        if rows.empty:
+            continue
+        vals = {}
+        for col, cycle in enumerate(head):
+            if cycle in end:
+                v = pd.to_numeric(str(rows.iloc[0, col]).replace("%", ""), errors="coerce")
+                if pd.notna(v):
+                    vals[end[cycle]] = float(v)
+        out[name] = pd.Series(vals, dtype=float).sort_index()
+    return out
+
+
+def btos_ai_use() -> dict[str, pd.Series]:
+    """Census Business Trends and Outlook Survey: share of firms using AI, every two weeks.
+
+    About 1.2 million firms are asked whether they used AI in any business
+    function in the last two weeks, and whether they expect to in six months.
+    Asked since September 2023.
+    """
+    r = requests.get(BTOS_NATIONAL, headers={"User-Agent": "Mozilla/5.0"}, timeout=90)
+    r.raise_for_status()
+    book = pd.ExcelFile(io.BytesIO(r.content))
+    return parse_btos(book.parse("Response Estimates", header=None),
+                      book.parse("Collection and Reference Dates", header=None))

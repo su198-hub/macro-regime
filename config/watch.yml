@@ -1,0 +1,280 @@
+# The turning points page: what would end the current regime, and is it happening?
+#
+# First cut, built 19 November 2026 after the team asked how the monitor would
+# catch the next turn. An add-on beside the three-year call: nothing here feeds
+# the regime model, and the model's design is unchanged.
+#
+# The frame is the three ways a high-growth, high-inflation spell can end, and
+# the three forces the team named (AI, fiscal, the world order) as what decides
+# between them.
+#
+# WHERE THE CHOICES CAME FROM
+# - Gauges and components: chosen on 19 November 2026 from an event study of
+#   25 candidate signals around the six finished high-growth, high-inflation
+#   spells since 1968. Inflation momentum, the yield curve and rate-sensitive
+#   demand separated the four stagflation exits from the two goldilocks exits;
+#   labor-market signals did not. They were picked after looking at those six
+#   exits, so the track record on the page flatters them.
+# - Productivity and fiscal pressure are here for their rationale. Productivity
+#   added nothing to the hit rate, and fiscal pressure read lower before
+#   stagflation exits than before goldilocks ones.
+# - `warn` (+0.3) is a judgement, set where the alarm sat in the months before
+#   stagflation exits and above almost every quiet month. It was not fitted.
+# - Scores use each series' own full history, as on the energy page. The page
+#   also reports the track record with scores that use only earlier data.
+# - `tolerance` in the productivity check (0.25 pp) is a judgement: a move
+#   smaller than that over a year reads as steady.
+#
+# `sign` is +1 when a higher reading leans toward the stagflation exit.
+# `why` is shown under each component: what the number is, then why it matters.
+
+meta:
+  regime: high_growth_high_inflation
+  warn: 0.3            # alarm line, in average z-score units
+  window_months: 6     # "before an exit" means the six months before it
+  carry_months: 6      # a score holds its last reading this long while its next release is due
+  smooth_months: 3     # the alarm is a three-month average, so one release cannot trip it
+  lookback_months: 24
+  horizon_months: 12
+
+gauges:
+
+  inflation_momentum:
+    label: Inflation momentum
+    short: Inflation
+    role: alarm
+    question: Is inflation picking up again?
+    exit: stagflation
+    components:
+      - id: ppi
+        label: Producer prices, all commodities
+        series: [PPIACO]
+        transform: yoy
+        sign: 1
+        units: "% a year"
+        source: BLS
+        why: Prices at the factory gate and for raw materials. They turn before consumer prices, and oil and commodity shocks show up here first.
+      - id: ulc
+        label: Unit labor costs
+        series: [ULCNFB]
+        transform: yoy
+        sign: 1
+        units: "% a year"
+        source: BLS
+        why: Pay per unit of output, which is wage growth less productivity growth. It is the cost firms pass into prices, and the link between productivity and inflation.
+      - id: core3
+        label: Core PCE prices, three-month pace
+        series: [PCEPILFE]
+        transform: ann_3m
+        sign: 1
+        units: "% a year"
+        source: BEA
+        why: The Fed's preferred measure over the last three months, at an annual rate. It shows a turn sooner than the twelve-month rate.
+      - id: trimmed
+        label: Trimmed-mean PCE inflation, change over a year
+        series: [PCETRIM12M159SFRBDAL]
+        transform: chg_12m
+        sign: 1
+        units: pp
+        source: Dallas Fed
+        why: Inflation with the largest price moves in both directions removed. A rise means the pick-up is broad, beyond a few items.
+      - id: expectations
+        label: Households' expected inflation, a year ahead, change over a year
+        series: [MICH]
+        transform: chg_12m
+        sign: 1
+        units: pp
+        source: University of Michigan
+        why: What households expect prices to do. Rising expectations feed wage demands and make inflation harder to bring down.
+
+  policy_squeeze:
+    label: Policy squeeze
+    short: Policy
+    role: alarm
+    question: Is policy tightening against it?
+    exit: stagflation
+    components:
+      - id: curve
+        label: Yield curve, 10-year less 1-year
+        series: [DGS10, DGS1]
+        transform: spread
+        sign: -1
+        units: pp
+        source: Federal Reserve
+        why: Long rates less short rates. A flat or inverted curve means policy is tight against what markets expect for growth, and an inverted curve has come before most recessions since the 1960s.
+      - id: fedfunds
+        label: Fed funds rate, change over a year
+        series: [FEDFUNDS]
+        transform: chg_12m
+        sign: 1
+        units: pp
+        source: Federal Reserve
+        why: How far the Fed has moved in a year. Rate rises reach spending with a lag of a year or more.
+
+  demand:
+    label: Rate-sensitive demand
+    short: Demand
+    role: alarm
+    question: Is growth cracking where rates bite first?
+    exit: stagflation
+    components:
+      - id: permits
+        label: Building permits
+        series: [PERMIT]
+        transform: yoy
+        sign: -1
+        units: "% a year"
+        source: Census Bureau
+        why: Homes approved for construction. Housing is the most rate-sensitive part of the economy and turns first.
+      - id: spending
+        label: Real consumer spending, six-month pace
+        series: [PCEC96]
+        transform: ann_6m
+        sign: -1
+        units: "% a year"
+        source: BEA
+        why: Household spending after inflation, at an annual rate. It is two-thirds of the economy, and a slowdown here means higher prices are biting.
+      - id: capex_plans
+        label: Firms' capital spending plans
+        series: [PHILCAPEX]
+        transform: level
+        sign: -1
+        units: index
+        source: Philadelphia Fed
+        why: The share of manufacturers planning to raise capital spending less the share planning cuts. Plans are dropped before spending is.
+
+  productivity:
+    label: Productivity
+    short: Productivity
+    role: watch
+    question: Can inflation fall without growth slowing?
+    exit: goldilocks
+    components:
+      - id: output_per_hour
+        label: Output per hour, two-year pace
+        series: [OPHNFB]
+        transform: ann_24m
+        sign: -1
+        units: "% a year"
+        source: BLS
+        why: Real output of the business sector divided by hours worked. Faster growth lets pay rise while costs per unit stay flat, which is how a spell ends in goldilocks. Two years, since single quarters are noisy and revised.
+
+  fiscal:
+    label: Fiscal pressure
+    short: Fiscal
+    role: watch
+    question: Is the public debt starting to bind?
+    exit: bust
+    components:
+      - id: interest
+        label: Federal net interest, share of receipts
+        series: [MTSNETINT, MTSRECEIPTS]
+        transform: sum12_share
+        sign: 1
+        units: "% of receipts"
+        source: US Treasury
+        why: Interest on the federal debt against tax revenue, over twelve months. A rising share leaves less room for anything else and is what markets watch for strain.
+      - id: deficit
+        label: Federal deficit
+        series: [MTSBAL, GDPNOM]
+        transform: sum12_over_level
+        factor: -1
+        sign: 1
+        units: "% of GDP"
+        source: US Treasury, BEA
+        why: The twelve-month deficit against the size of the economy. A large deficit in an expansion adds to demand and to the supply of bonds.
+      - id: long_vs_fed
+        label: 10-year yield change less the Fed's, over a year
+        series: [DGS10, FEDFUNDS]
+        transform: chg_12m_gap
+        sign: 1
+        units: pp
+        source: Federal Reserve
+        why: How much more long yields rose than the policy rate. Long yields rising while the Fed cuts means investors want more to hold government debt.
+
+# Series the page shows beside the gauges without scoring them.
+panels:
+  greenspan:
+    tolerance: 0.25
+    series:
+      wages: AHE_PROD
+      core: PCEPILFE
+      unit_profit: A463RD3Q052SBEA
+      unit_price: A455RD3Q052SBEA
+  ai:
+    series:
+      use_now: BTOS_AI_USE
+      use_in_6m: BTOS_AI_USE_6M
+      data_centers: EN_CENSUS_DC
+      computers: B935RC1Q027SBEA
+      capex_expected: SPX_CAPEX_3FY
+      gdp: GDPNOM
+  context:
+    series:
+      productivity: OPHNFB
+      geopolitical_risk: EN_GPR
+      supply_chains: GSCPI
+
+# The frame: three ways out, and what decides between them. Shown as written.
+exits:
+  stagflation:
+    label: Stagflation
+    how: Inflation picks up again, policy tightens, and growth cracks first where rates bite.
+    seen: Four of six past exits (1973, 1979, 1990, 2022).
+    evidence: Tested against past exits
+  goldilocks:
+    label: Goldilocks
+    how: Productivity lets pay keep rising while inflation falls, so growth holds.
+    seen: Two of six past exits (1984, 1993).
+    evidence: Sound rationale, two cases
+  bust:
+    label: Bust
+    how: An investment boom or a build-up of debt unwinds, and demand falls with it.
+    seen: No past exit of this kind in the sample. The closest cases are 2000 to 2001 in the US, Japan after 1990 and Korea in 1997.
+    evidence: No precedent, case studies only
+
+themes:
+  - id: ai
+    label: AI
+    stagflation: Power and chip shortages add to costs while the build-out runs.
+    goldilocks: Adoption spreads beyond the tech sector and output per hour rises across the economy, as with IT from 1996.
+    bust: Returns on the new capital disappoint, investment stops, and the productivity lift fades.
+    watch: AI use by firms, data-center construction, expected capital spending, the productivity check
+  - id: fiscal
+    label: Fiscal
+    stagflation: Deficits keep demand running hot, and long yields rise as investors ask for more to hold the debt.
+    goldilocks: No direct path. A productivity boom would ease the debt arithmetic.
+    bust: Interest costs force a squeeze, or leverage built up in the boom unwinds, as in Japan and Korea.
+    watch: Net interest share of receipts, the deficit, long yields against the Fed
+  - id: world_order
+    label: World order
+    stagflation: Conflict and trade barriers act as supply shocks. The exits of 1973 and 2022 were driven by oil and war.
+    goldilocks: No direct path.
+    bust: A break in trade or capital flows. Too few cases to score.
+    watch: Shown as context only, geopolitical risk and supply-chain pressure
+
+scenarios:
+  - id: ai_delivers
+    label: AI delivers
+    exit: goldilocks
+    story: Output per hour keeps rising as firms outside tech adopt AI. Pay grows, unit costs stay flat, and inflation eases without a slowdown.
+    first_signs: The productivity check holds for several quarters. AI use keeps spreading. Unit labor costs slow while wages do not.
+    precedent: 1996 to 2000
+  - id: inflation_returns
+    label: Inflation returns
+    exit: stagflation
+    story: A supply shock or an overheating economy lifts inflation again. The Fed tightens, and housing and consumer spending give way first.
+    first_signs: The alarm crosses +0.3. Producer prices and unit labor costs turn up, then the curve flattens.
+    precedent: 1973, 1979, 1990, 2022
+  - id: capex_bust
+    label: AI capex bust
+    exit: bust
+    story: Spending on data centers outruns the returns. Investment and equity prices fall together and firms cut back.
+    first_signs: Expected capital spending and data-center construction roll over while AI use stalls. Capex plans and demand weaken with inflation still high.
+    precedent: 2000 to 2001
+  - id: fiscal_squeeze
+    label: Fiscal squeeze
+    exit: bust
+    story: Investors ask for more to hold government debt. Long yields rise whatever the Fed does and tighten conditions for everyone.
+    first_signs: Long yields rise while the Fed cuts. The interest share of receipts keeps climbing.
+    precedent: None in the US since 1968

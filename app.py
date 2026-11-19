@@ -56,6 +56,9 @@ st.navigation(
      # Regime shapes, any month since 1968, and the v2 three-year call.
      # Kept at /outlook so links from when it was the three-year outlook still work.
      st.Page("views/outlook.py", title="Regime explorer", url_path="outlook"),
+     # An add-on beside the call: what would end the current regime, and is it
+     # happening? Scored on its own; nothing on it feeds the regime model.
+     st.Page("views/watch.py", title="Turning points", url_path="turning-points"),
      # Draft benchmark: the regime each month turned out to be in, since 1968,
      # laid out so a reader can check every call against the inputs.
      st.Page("views/history.py", title="Regime history", url_path="history"),

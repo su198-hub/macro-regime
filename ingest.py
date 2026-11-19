@@ -443,6 +443,41 @@ def cmd_energy(args):
     store.close()
 
 
+def cmd_watch(args):
+    """Pull the public series only the turning points page reads.
+
+    Everything else on that page is already in the store for the model or the
+    energy page. Sources are tagged watch-*, so the dashboard's source line,
+    which names the vendors behind the presented model, is unchanged.
+    """
+    from src.sources.public import as_observations, btos_ai_use, fred_series
+
+    store = Store(args.db)
+    refuse_demo_store(store, args.db)
+    n = 0
+    for sid, title, units in [
+        ("A463RD3Q052SBEA", "Nonfinancial corporations: profits before tax per unit of real "
+                            "gross value added", "USD per unit"),
+        ("A455RD3Q052SBEA", "Nonfinancial corporations: price per unit of real gross value added",
+         "USD per unit"),
+    ]:
+        s = fred_series(sid)
+        n += store.upsert_observations(as_observations(sid, s, lag_days=90))
+        store.record_meta(sid, "watch-fred", title=title, units=units, frequency="Quarterly",
+                          has_vintages=False, source_code=sid)
+        print(f"  {sid}: {len(s)} quarters to {s.index.max():%Y-%m}")
+    for name, s in btos_ai_use().items():
+        sid = {"use_now": "BTOS_AI_USE", "use_in_6m": "BTOS_AI_USE_6M"}[name]
+        title = {"use_now": "Share of firms that used AI in the last two weeks",
+                 "use_in_6m": "Share of firms expecting to use AI in six months"}[name]
+        n += store.upsert_observations(as_observations(sid, s, lag_days=18))
+        store.record_meta(sid, "watch-census", title=title, units="% of firms",
+                          frequency="Biweekly", has_vintages=False, source_code="BTOS National.xlsx")
+        print(f"  {sid}: {len(s)} readings to {s.index.max():%Y-%m-%d}")
+    print(f"Stored {n} observations in {args.db}.")
+    store.close()
+
+
 DATA_BRANCH = "data"
 DATA_README = """# Data snapshot
 
@@ -741,6 +776,11 @@ def main():
         help="Pull the /energy page's public series: EIA outlooks and 860M, FRED prices, "
              "Epoch AI. Slow the first time (it reads every archived release); cached after.",
     ).set_defaults(func=cmd_energy)
+    sub.add_parser(
+        "watch",
+        help="Pull the turning points page's own public series: unit profits and prices of "
+             "nonfinancial corporations (BEA, from FRED) and AI use by firms (Census).",
+    ).set_defaults(func=cmd_watch)
     tr = sub.add_parser(
         "truth",
         help="Label each month since 1968 with its realised growth x inflation regime "

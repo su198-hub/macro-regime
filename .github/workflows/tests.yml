@@ -76,6 +76,13 @@ jobs:
           body = "".join(h.proto.body for h in at.get("html"))
           assert "m-example" in body and "m-table" in body, "methodology incomplete"
 
+          # The turning points page reads series the demo store lacks: it must
+          # say so and stop, never raise.
+          at.switch_page("views/watch.py").run()
+          errors = [e.value for e in at.exception]
+          assert not errors, errors
+          assert any("Turning points" in h.proto.body for h in at.get("html")), "turning points missing"
+
           at.switch_page("views/bench.py").run()
           errors = [e.value for e in at.exception]
           assert not errors, errors
