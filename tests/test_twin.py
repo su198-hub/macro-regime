@@ -16,7 +16,7 @@ import yaml
 from src import twin as tw
 from src import ui
 from src.drivers import load_config, required_series
-from src.transform import TRANSFORMS, diff_36m_ann, off_target_share_36m, vol_36m
+from src.transform import TRANSFORMS, diff_36m_ann, off_target_share_36m, up_vol_36m, vol_36m
 
 LIVE = load_config("config/indicators.yml")
 OVERLAY = tw.load_overlay()
@@ -160,6 +160,19 @@ def test_off_target_share_counts_both_directions():
 def test_inflation_volatility_is_zero_when_inflation_is_steady():
     idx = 100 * 1.02 ** (np.arange(72) / 12)
     assert vol_36m(monthly(idx)).dropna().abs().max() < 1e-9
+
+
+def test_inflation_upswings_ignore_a_disinflation():
+    # 8% inflation for 4 years, then prices rising 2% a year: yearly inflation
+    # only falls, so the measure reads zero where plain volatility does not.
+    fall = np.concatenate([100 * 1.08 ** (np.arange(48) / 12),
+                           100 * 1.08 ** (47 / 12) * 1.02 ** (np.arange(1, 49) / 12)])
+    assert up_vol_36m(monthly(fall)).dropna().iloc[-13] == pytest.approx(0.0, abs=1e-9)
+    assert vol_36m(monthly(fall)).dropna().iloc[-13] > 0.5
+    # The mirror image, 2% then 8%, registers.
+    rise = np.concatenate([100 * 1.02 ** (np.arange(48) / 12),
+                           100 * 1.02 ** (47 / 12) * 1.08 ** (np.arange(1, 49) / 12)])
+    assert up_vol_36m(monthly(rise)).dropna().iloc[-13] > 0.5
 
 
 # ---------- revisions ----------

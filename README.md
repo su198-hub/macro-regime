@@ -112,13 +112,13 @@ against long-run expectations, on today's revised data. The call is graded
 against it from 1976 to 2023 by `python scripts/realign_positions.py`:
 
 - **Held out:** each episode called from positions learned without it or any
-  month sharing its three years. 71% of regimes right on average.
+  month sharing its three years. 70% of regimes right on average.
 - **Benchmarks:** the current regime continuing scores 34%, and so does the mix
   of regimes seen so far. Chance is 25%.
 
-Read the 71% as a range. It rests on 12 episodes; resampling whole episodes
-puts it between about 58% and 86% (5th to 95th percentile, checked
-3 November 2026). The temperature, persistence rule, driver weights and
+Read the 70% as a range. It rests on 12 episodes; resampling whole episodes
+puts it between about 56% and 84% (5th to 95th percentile, checked
+19 November 2026). The temperature, persistence rule, driver weights and
 indicator set were all chosen while looking at the same grade, so it flatters
 the model somewhat.
 

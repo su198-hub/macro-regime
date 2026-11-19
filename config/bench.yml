@@ -1349,7 +1349,7 @@ drivers:
           in 8% of months by June 2006; in every month by December 2024.
 
       - id: inflation_volatility
-        name: Inflation volatility, 36 months
+        name: Inflation upswings, 36 months
         status: in_set
         horizon: long
         nature: structural
@@ -1358,13 +1358,16 @@ drivers:
         where: macrobond
         code: PCEPILFE
         refers: >-
-          How steady inflation has been, not where it sat. Distinct from the miss
-          rate: through the 2010s inflation was persistently below target but very
-          stable, a credible undershoot. In 2021–23 it was both off target and
-          violent, which is a different regime entirely.
+          How hard inflation has lurched upward, apart from where it sat. Distinct
+          from the miss rate: through the 2010s inflation was persistently below
+          target but very stable, a credible undershoot. In 2021–23 it was both off
+          target and breaking upward. Falls count as zero since November 2026: plain
+          volatility scored Volcker's disinflation as instability, so credibility
+          read −0.57 in October 1983 (−0.06 now).
         measured: >-
-          Rolling standard deviation of core PCE year-over-year over 36 months: 1.8
-          points in December 2022, against 0.17 in June 2019.
+          Root mean square of the monthly rises in core PCE year-over-year over 36
+          months, scaled to a year: 0.84 points in June 2022, against 0.24 in June
+          2019.
 
       - id: forecaster_disagreement
         name: Forecaster disagreement on inflation

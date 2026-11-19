@@ -117,6 +117,22 @@ def vol_36m(s: pd.Series) -> pd.Series:
     return infl.rolling(n, min_periods=n).std()
 
 
+def up_vol_36m(s: pd.Series) -> pd.Series:
+    """How hard inflation lurched upward over the last three years, in points.
+
+    The root mean square of the period-to-period rises in yearly inflation,
+    scaled to a year; falls count as zero. vol_36m counts a fast disinflation
+    as instability, so it read 1983-84 as a Fed nobody believed. A central
+    bank bringing inflation down is earning credibility; only inflation
+    breaking upward wears the anchor.
+    """
+    infl = _inflation(s)
+    ppy = _periods_per_year(s)
+    n = 3 * ppy
+    rises = infl.diff().clip(lower=0).where(infl.diff().notna())
+    return np.sqrt((rises ** 2).rolling(n, min_periods=n).mean() * ppy)
+
+
 def pct_change_3y_ann(s: pd.Series) -> pd.Series:
     """Annualized growth over three years: the pace over a policy cycle, as for
     revenue against spending, or nominal GDP in r minus g."""
@@ -216,6 +232,7 @@ TRANSFORMS = {
     "diff_36m_ann": diff_36m_ann,
     "off_target_share_36m": off_target_share_36m,
     "vol_36m": vol_36m,
+    "up_vol_36m": up_vol_36m,
 }
 
 

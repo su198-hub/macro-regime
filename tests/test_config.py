@@ -113,7 +113,7 @@ def test_long_horizon_inputs_are_never_raw_levels_by_accident(any_cfg):
     # detrended and cannot score which decade it is the way a raw level can.
     # So do averages of a growth rate and deviations from a trailing norm.
     changes = {"yoy_pct", "diff_12m", "dev_5y_pct", "pct_change_5y_ann",
-               "pct_change_3m_ann", "diff_36m_ann", "vol_36m", "off_target_share_36m",
+               "pct_change_3m_ann", "diff_36m_ann", "vol_36m", "up_vol_36m", "off_target_share_36m",
                "pct_change_3y_ann", "mean_5y", "dev_10y", "target_distance_change_12m", "diff_5y", "diff_3y"}
     for d in cfg["drivers"].values():
         for i in d["indicators"]:

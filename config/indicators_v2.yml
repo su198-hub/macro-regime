@@ -81,7 +81,7 @@ meta:
   positions_note: >-
     Each regime's position is learned from the run-ups to past regimes,
     1968-2023; graded on the three years that followed, 1976-2023, the call
-    got 71% of each regime's months right on average (about 58% to 86%
+    got 70% of each regime's months right on average (about 56% to 84%
     across its twelve episodes), each episode predicted by a model that had
     not seen it.
   positions_method: >-
@@ -744,24 +744,29 @@ drivers:
 
       - id: inflation_volatility
         reads:
-          high: "Inflation had been steady, which makes the anchor easy to believe."
-          low: "Inflation had swung a lot, which makes the anchor harder to believe."
-        label: Inflation volatility, 36 months
+          high: "Inflation had not lurched upward, which makes the anchor easy to believe."
+          low: "Inflation had lurched upward, which makes the anchor harder to believe."
+        label: Inflation upswings, 36 months
         source: {series: PCEPILFE}
-        transform: vol_36m
+        transform: up_vol_36m
         unit: "pp"
-        normalize: {method: gap, center: 0.29, scale: 0.12}
+        # Centre and scale: the mean and standard deviation of the measure,
+        # 1968-2023 (set 19 November 2026).
+        normalize: {method: gap, center: 0.388, scale: 0.211}
         direction: -1
         weight: 0.25
         why: >-
-          **Inflation volatility**: how much core inflation's yearly rate swung
-          over the last three years, in percentage points. Steady inflation,
-          even off target, is easier to plan around and to believe; violent
-          swings make the anchor look fragile, so wage and price setters lean
-          on recent inflation rather than the target, and when demand weakens
-          inflation stays up. 1.3 points in mid-1974, after which core
-          inflation ran 2.6 points above expectations for three years; 1.8 in
-          December 2022, against 0.17 in June 2019.
+          **Inflation upswings**: how hard core inflation's yearly rate lurched
+          upward over the last three years, in percentage points; falls count
+          as zero. Inflation breaking upward makes the anchor look fragile, so
+          wage and price setters lean on recent inflation, and when demand
+          weakens inflation stays up. A fall is the central bank delivering,
+          so it costs nothing: the measure read 0.16 in October 1983, after
+          Volcker's disinflation, where plain volatility read the same months
+          as the least stable on record. 0.80 in mid-1974, after which core
+          inflation ran 2.6 points above expectations for three years; 0.84 in
+          June 2022, against 0.24 in June 2019. Counted both ways until
+          November 2026; the call's grade held (71% to 70% held out).
 
       - id: forecaster_disagreement
         reads:

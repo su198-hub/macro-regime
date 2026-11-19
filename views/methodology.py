@@ -719,6 +719,8 @@ st.html('<h3 class="m-h3">What changed</h3>')
 # Grades are held out, on the three years that followed: 1976 to 2023 from the
 # history back to 1968, 1993 to 2023 before it.
 CHANGES = [
+    ("Nov 2026", "Credibility's inflation volatility counts only rises in inflation. Counted "
+     "both ways, it scored Volcker's disinflation as instability.", "70%, from 71%"),
     ("Nov 2026", "Policy uncertainty reads the tax and regulation indexes instead of the "
      "headline, which also counts the Fed, wars and forecasters' disagreement about "
      "inflation. Removing the business cycle was tried and left out.", "71%, unchanged"),

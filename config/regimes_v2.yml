@@ -58,7 +58,12 @@ rationale:
       not believed, inflation stays high as growth weakens (stagflation). It
       is what tells those two run-ups apart. At equal weight within one
       driver the two cancelled when tight policy lacked credibility, as in
-      1969-70, 1973-74, 1978-82, 1988-90 and 2022-25.
+      1969-70, 1973-74, 1978-82, 1988-90 and 2022-25. Its volatility input
+      counts only rises in inflation since 19 November 2026, so a
+      disinflation no longer reads as lost credibility: October 1983 moved
+      from -0.57 to -0.06. Graded 1976-2023 on the next three years, the
+      call went from 71% to 70% of regimes right on average and from 65% to
+      64% in real time, within the noise; log loss 0.97 and 1.16.
     fiscal: >-
       A quarter weight, as is debt sustainability: together they keep the
       half weight fiscal policy had as one driver until 5 November 2026. Its
@@ -168,7 +173,7 @@ regimes:
       growth: 0.20
       inflation: 0.09
       monetary: -0.31
-      credibility: -0.19
+      credibility: -0.08
       fiscal: 0.07
       debt: -0.04
       reforms: -0.10
@@ -211,7 +216,7 @@ regimes:
       growth: 0.18
       inflation: 0.72
       monetary: -0.06
-      credibility: -0.48
+      credibility: -0.42
       fiscal: -0.01
       debt: -0.05
       reforms: -0.29
@@ -261,11 +266,11 @@ regimes:
           reading goes from -0.83 to -1.46.
     archetype:
       growth: -0.26
-      inflation: 0.82
+      inflation: 0.81
       monetary: 0.23
-      credibility: -0.82
+      credibility: -0.66
       fiscal: -0.14
-      debt: -0.12
+      debt: -0.11
       reforms: -0.05
     tell: Expectations rising while credibility and the debt trajectory both weaken.
 
@@ -308,10 +313,10 @@ regimes:
           Inflation falls less than the name suggests. Only 2008-10 went below
           the anchor (-0.13); 2000-03 held at +0.29.
     archetype:
-      growth: -0.15
-      inflation: 0.15
+      growth: -0.14
+      inflation: 0.16
       monetary: 0.19
-      credibility: 0.01
+      credibility: 0.04
       fiscal: -0.08
       debt: 0.13
       reforms: 0.05
