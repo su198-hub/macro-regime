@@ -462,17 +462,35 @@ if not ramp_med.empty and not ramp_top.empty:
     yoy_med = (ramp_med.iloc[-1] / ramp_med.get(ramp_med.index[-1] - 12, np.nan) - 1) * 100
     yoy_top = (ramp_top.iloc[-1] / ramp_top.get(ramp_top.index[-1] - 12, np.nan) - 1) * 100
     yoy_top1 = (ramp_top1.iloc[-1] / ramp_top1.get(ramp_top1.index[-1] - 12, np.nan) - 1) * 100         if not ramp_top1.empty else np.nan
+    # Three panels, each on its own linear axis: on one axis the median ($16) would sit flat
+    # against the top 1% ($10,000).
+    colors = {"Median firm": ui.INK, "Median of the top 10%": BLUE, "Median of the top 1%": "#c98700"}
+    for col, (name, color) in zip(st.columns(3), colors.items()):
+        part = rl[rl["series"] == name]
+        if part.empty:
+            continue
+        col.altair_chart(ui.style(alt.Chart(part).mark_line(
+            strokeWidth=1.8, color=color, point=alt.OverlayMarkDef(size=18, color=color)).encode(
+            x=ui.time_x("month", rl["month"].min(), rl["month"].max(), every_years=1),
+            y=alt.Y("usd:Q", title=None, scale=alt.Scale(zero=True), axis=alt.Axis(format="$,.0f")),
+            tooltip=[ui.month_tip("month"), alt.Tooltip("usd:Q", format="$,.2f", title="Per employee")],
+        ).properties(height=200, title=alt.TitleParams(
+            f"{name}: ${part['usd'].iloc[-1]:,.0f}", anchor="start", fontSize=13, color=ui.INK,
+            subtitle="AI spend per employee per month, US$", subtitleColor=ui.MUTED, subtitleFontSize=11))),
+            width="stretch")
+    # The same three lines on one log axis, where equal slopes mean equal growth rates.
     left, right = st.columns([3, 2])
     left.altair_chart(ui.style(alt.Chart(rl).mark_line(strokeWidth=1.8, point=alt.OverlayMarkDef(size=18)).encode(
         x=ui.time_x("month", rl["month"].min(), rl["month"].max(), every_years=1),
-        y=alt.Y("usd:Q", title="AI spend per employee per month, US$ (log scale)",
+        y=alt.Y("usd:Q", title="US$ per employee per month (log scale)",
                 scale=alt.Scale(type="log", domain=[1, 20000]),
                 axis=alt.Axis(format="$,.0f", values=[1, 10, 100, 1000, 10000])),
-        color=alt.Color("series:N", scale=alt.Scale(
-            domain=["Median firm", "Median of the top 10%", "Median of the top 1%"],
-            range=[ui.INK, BLUE, "#c98700"])),
+        color=alt.Color("series:N", scale=alt.Scale(domain=list(colors), range=list(colors.values()))),
         tooltip=[ui.month_tip("month"), "series:N", alt.Tooltip("usd:Q", format="$,.2f", title="Per employee")],
-    ).properties(height=260)), width="stretch")
+    ).properties(height=260, title=alt.TitleParams(
+        "All three on a log scale", anchor="start", fontSize=13, color=ui.INK,
+        subtitle="Equal slopes mean equal growth rates", subtitleColor=ui.MUTED, subtitleFontSize=11))),
+        width="stretch")
     right.html(
         '<div class="m-body">'
         f'<p><b>Spending per head is accelerating.</b> The median firm paying for AI spends '
@@ -483,7 +501,7 @@ if not ramp_med.empty and not ramp_top.empty:
         f'employee at the median, against about {ramp_top.iloc[-1] / ramp_med.iloc[-1]:.0f} times that in the top 10%. A productivity '
         'gain across the economy needs the median to keep closing that gap.</p>'
         f'<p style="color:{ui.MUTED}">Ramp AI Index, from corporate card and bill pay transactions of '
-        'firms on Ramp, matched to their headcount. Log scale, so equal slopes mean equal growth rates. '
+        'firms on Ramp, matched to their headcount. The three small panels each have their own linear scale; the chart beside this text puts all three on one log scale. '
         'History from July 2023 only, so shown as context and not scored.</p></div>')
 
 st.html('<p class="mr-caption" style="margin-top:1rem"><b>Build-out.</b></p>')
