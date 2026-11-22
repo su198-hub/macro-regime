@@ -208,6 +208,7 @@ panels:
       ramp_adoption: RAMP_AI_ADOPTION
       ramp_pepm_median: RAMP_AI_PEPM_MEDIAN
       ramp_pepm_top10: RAMP_AI_PEPM_TOP10
+      ramp_pepm_top1: RAMP_AI_PEPM_TOP1
       data_centers: EN_CENSUS_DC
       computers: B935RC1Q027SBEA
       capex_expected: SPX_CAPEX_3FY

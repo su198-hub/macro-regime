@@ -153,6 +153,7 @@ use_now, use_6m = wt.monthly(wide, ai["use_now"]), wt.monthly(wide, ai["use_in_6
 ramp_adopt = wt.monthly(wide, ai["ramp_adoption"], carry=0).dropna()
 ramp_med = wt.monthly(wide, ai["ramp_pepm_median"], carry=0).dropna()
 ramp_top = wt.monthly(wide, ai["ramp_pepm_top10"], carry=0).dropna()
+ramp_top1 = wt.monthly(wide, ai["ramp_pepm_top1"], carry=0).dropna()
 dc_share = wt.share(wt.monthly(wide, ai["data_centers"]), gdp, 1e8)      # $ millions over $
 comp_share = wt.share(wt.monthly(wide, ai["computers"]), gdp, 1e11)      # $ billions over $
 capex = wt.monthly(wide, ai["capex_expected"]).abs()
@@ -454,18 +455,22 @@ if not ramp_med.empty and not ramp_top.empty:
         pd.DataFrame({"month": ui.month_mid(ramp_med.index.to_timestamp()), "usd": ramp_med.to_numpy(),
                       "series": "Median firm"}),
         pd.DataFrame({"month": ui.month_mid(ramp_top.index.to_timestamp()), "usd": ramp_top.to_numpy(),
-                      "series": "Median of the top 10%"})])
+                      "series": "Median of the top 10%"}),
+        pd.DataFrame({"month": ui.month_mid(ramp_top1.index.to_timestamp()), "usd": ramp_top1.to_numpy(),
+                      "series": "Median of the top 1%"})])
     first = ramp_med.index[0]
     yoy_med = (ramp_med.iloc[-1] / ramp_med.get(ramp_med.index[-1] - 12, np.nan) - 1) * 100
     yoy_top = (ramp_top.iloc[-1] / ramp_top.get(ramp_top.index[-1] - 12, np.nan) - 1) * 100
+    yoy_top1 = (ramp_top1.iloc[-1] / ramp_top1.get(ramp_top1.index[-1] - 12, np.nan) - 1) * 100         if not ramp_top1.empty else np.nan
     left, right = st.columns([3, 2])
     left.altair_chart(ui.style(alt.Chart(rl).mark_line(strokeWidth=1.8, point=alt.OverlayMarkDef(size=18)).encode(
         x=ui.time_x("month", rl["month"].min(), rl["month"].max(), every_years=1),
         y=alt.Y("usd:Q", title="AI spend per employee per month, US$ (log scale)",
-                scale=alt.Scale(type="log", domain=[1, 2000]),
-                axis=alt.Axis(format="$,.0f", values=[1, 3, 10, 30, 100, 300, 1000])),
-        color=alt.Color("series:N", scale=alt.Scale(domain=["Median firm", "Median of the top 10%"],
-                                                    range=[ui.INK, BLUE])),
+                scale=alt.Scale(type="log", domain=[1, 20000]),
+                axis=alt.Axis(format="$,.0f", values=[1, 10, 100, 1000, 10000])),
+        color=alt.Color("series:N", scale=alt.Scale(
+            domain=["Median firm", "Median of the top 10%", "Median of the top 1%"],
+            range=[ui.INK, BLUE, "#c98700"])),
         tooltip=[ui.month_tip("month"), "series:N", alt.Tooltip("usd:Q", format="$,.2f", title="Per employee")],
     ).properties(height=260)), width="stretch")
     right.html(
@@ -473,9 +478,9 @@ if not ramp_med.empty and not ramp_top.empty:
         f'<p><b>Spending per head is accelerating.</b> The median firm paying for AI spends '
         f'${ramp_med.iloc[-1]:.2f} per employee a month, up {yoy_med:.0f}% on a year earlier and from '
         f'${ramp_med.iloc[0]:.2f} in {when(first)}. The top 10% spend ${ramp_top.iloc[-1]:,.0f}, up '
-        f'{yoy_top:.0f}%.</p>'
+        f'{yoy_top:.0f}%, and the top 1% ${ramp_top1.iloc[-1]:,.0f}, up {yoy_top1:.0f}%.</p>'
         f'<p>Use is broad but still shallow for most firms: about ${12 * ramp_med.iloc[-1]:.0f} a year per '
-        f'employee at the median, against about {ramp_top.iloc[-1] / ramp_med.iloc[-1]:.0f} times that among the heaviest users. A productivity '
+        f'employee at the median, against about {ramp_top.iloc[-1] / ramp_med.iloc[-1]:.0f} times that in the top 10%. A productivity '
         'gain across the economy needs the median to keep closing that gap.</p>'
         f'<p style="color:{ui.MUTED}">Ramp AI Index, from corporate card and bill pay transactions of '
         'firms on Ramp, matched to their headcount. Log scale, so equal slopes mean equal growth rates. '
