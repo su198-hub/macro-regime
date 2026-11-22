@@ -169,3 +169,20 @@ def test_btos_shares_are_read_by_reference_period_and_gaps_skipped():
     assert list(out["use_now"]) == [17.7, 18.2]              # the "." cycle is skipped
     assert out["use_now"].index[-1] == pd.Timestamp("2026-01-25")
     assert len(out["use_in_6m"]) == 3
+
+
+def test_ramp_chart_data_is_read_from_the_escaped_page_payload():
+    from src.sources.public import parse_ramp_ai_index
+    payload = ('{"adoptionOverall":[{"date_month":"2026-09-01","adoption_rate_pct":55.8},'
+               '{"date_month":"2026-10-01","adoption_rate_pct":56.8}],'
+               '"spendPerEmployee":[{"date_month":"2026-09-01","median_pepm":15.38,'
+               '"top_10_percent_median_pepm":793.25,"top_1_percent_median_pepm":"$undefined"},'
+               '{"date_month":"2026-10-01","median_pepm":16.32,"top_10_percent_median_pepm":800.84,'
+               '"top_1_percent_median_pepm":10199.2}],"dataVersion":"x"}')
+    page = '<script>self.__next_f.push([1,"' + payload.replace('"', '\\"') + '"])</script>'
+    out = parse_ramp_ai_index(page)
+    assert list(out["RAMP_AI_ADOPTION"]) == [55.8, 56.8]
+    assert out["RAMP_AI_PEPM_MEDIAN"].index[-1] == pd.Timestamp("2026-10-01")
+    assert len(out["RAMP_AI_PEPM_TOP1"]) == 1            # the withheld month is skipped
+    with pytest.raises(ValueError):
+        parse_ramp_ai_index("<html>no data</html>")

@@ -17,6 +17,7 @@ accumulates from now on.
 from __future__ import annotations
 
 import io
+import json
 import re
 import time
 
@@ -238,3 +239,46 @@ def btos_ai_use() -> dict[str, pd.Series]:
     book = pd.ExcelFile(io.BytesIO(r.content))
     return parse_btos(book.parse("Response Estimates", header=None),
                       book.parse("Collection and Reference Dates", header=None))
+
+
+RAMP_AI_INDEX = "https://ramp.com/data/ai-index"
+RAMP_SERIES = {   # store id: (block in the page's chart data, field)
+    "RAMP_AI_ADOPTION": ("adoptionOverall", "adoption_rate_pct"),
+    "RAMP_AI_PEPM_MEDIAN": ("spendPerEmployee", "median_pepm"),
+    "RAMP_AI_PEPM_TOP10": ("spendPerEmployee", "top_10_percent_median_pepm"),
+    "RAMP_AI_PEPM_TOP1": ("spendPerEmployee", "top_1_percent_median_pepm"),
+}
+
+
+def parse_ramp_ai_index(page: str) -> dict[str, pd.Series]:
+    """Monthly series from the chart data embedded in Ramp's AI Index page.
+
+    The page carries the data behind its charts as one JSON object, starting
+    at {"adoptionOverall": ...}, inside the framework's escaped payload. Each
+    block is a list of rows keyed by date_month (the first of the month).
+    Values Ramp withholds appear as "$undefined" and are skipped.
+    """
+    text = page.replace('\\"', '"')
+    start = text.find('{"adoptionOverall"')
+    if start < 0:
+        raise ValueError("Ramp AI Index: chart data not found on the page")
+    data, _ = json.JSONDecoder().raw_decode(text[start:])
+    out = {}
+    for sid, (block, field) in RAMP_SERIES.items():
+        vals = {pd.Timestamp(r["date_month"]): float(r[field])
+                for r in data.get(block, []) if isinstance(r.get(field), (int, float))}
+        out[sid] = pd.Series(vals, dtype=float).sort_index()
+    return out
+
+
+def ramp_ai_index() -> dict[str, pd.Series]:
+    """Ramp AI Index: AI adoption and spend per employee across 85,000+ US firms on Ramp, monthly.
+
+    Built from corporate card and bill pay transactions. A firm adopts in a
+    month when it pays for an AI product or service. Spend per employee
+    covers only firms paying for AI; for the top 10% and top 1% it is the
+    median within each group. Monthly since July 2023, published mid-month.
+    """
+    r = requests.get(RAMP_AI_INDEX, headers={"User-Agent": "Mozilla/5.0"}, timeout=90)
+    r.raise_for_status()
+    return parse_ramp_ai_index(r.text)

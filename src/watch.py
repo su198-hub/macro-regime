@@ -74,7 +74,8 @@ def monthly(wide: pd.DataFrame, sid: str, carry: int = 5) -> pd.Series:
     else:
         s = s.groupby(s.index.to_period("M")).mean()
     full = pd.period_range(s.index.min(), s.index.max(), freq="M")
-    return s.reindex(full).ffill(limit=carry)
+    s = s.reindex(full)
+    return s.ffill(limit=carry) if carry > 0 else s
 
 
 def _ann(s: pd.Series, k: int) -> pd.Series:

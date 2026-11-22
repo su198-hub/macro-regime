@@ -205,6 +205,9 @@ panels:
     series:
       use_now: BTOS_AI_USE
       use_in_6m: BTOS_AI_USE_6M
+      ramp_adoption: RAMP_AI_ADOPTION
+      ramp_pepm_median: RAMP_AI_PEPM_MEDIAN
+      ramp_pepm_top10: RAMP_AI_PEPM_TOP10
       data_centers: EN_CENSUS_DC
       computers: B935RC1Q027SBEA
       capex_expected: SPX_CAPEX_3FY
@@ -239,7 +242,7 @@ themes:
     stagflation: Power and chip shortages add to costs while the build-out runs.
     goldilocks: Adoption spreads beyond the tech sector and output per hour rises across the economy, as with IT from 1996.
     bust: Returns on the new capital disappoint, investment stops, and the productivity lift fades.
-    watch: AI use by firms, data-center construction, expected capital spending, the productivity check
+    watch: AI use by firms, AI spend per employee, data-center construction, expected capital spending, the productivity check
   - id: fiscal
     label: Fiscal
     stagflation: Deficits keep demand running hot, and long yields rise as investors ask for more to hold the debt.

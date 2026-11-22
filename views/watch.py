@@ -150,6 +150,9 @@ def era(a: str, b: str | None = None) -> float:
 ai = cfg["panels"]["ai"]["series"]
 gdp = wt.monthly(wide, ai["gdp"])
 use_now, use_6m = wt.monthly(wide, ai["use_now"]), wt.monthly(wide, ai["use_in_6m"])
+ramp_adopt = wt.monthly(wide, ai["ramp_adoption"], carry=0).dropna()
+ramp_med = wt.monthly(wide, ai["ramp_pepm_median"], carry=0).dropna()
+ramp_top = wt.monthly(wide, ai["ramp_pepm_top10"], carry=0).dropna()
 dc_share = wt.share(wt.monthly(wide, ai["data_centers"]), gdp, 1e8)      # $ millions over $
 comp_share = wt.share(wt.monthly(wide, ai["computers"]), gdp, 1e11)      # $ billions over $
 capex = wt.monthly(wide, ai["capex_expected"]).abs()
@@ -261,7 +264,7 @@ chart = alt.layer(
     alt.Chart(pd.DataFrame({"v": [0.0]})).mark_rule(color=ui.AXIS).encode(y="v:Q"),
     alt.Chart(pd.DataFrame({"v": [WARN]})).mark_rule(color=RED, strokeDash=[4, 3]).encode(y="v:Q"),
     alt.Chart(pd.DataFrame({"v": [WARN], "t": [f"Warning line {WARN:+.1f}"],
-                            "month": [pd.Timestamp("2003-01-15")]})).mark_text(
+                            "month": [pd.Timestamp("2010-03-15")]})).mark_text(
         align="left", dy=-7, dx=4, color=RED, fontSize=11).encode(x="month:T", y="v:Q", text="t:N"),
     alt.Chart(line).mark_line(color=ui.INK, strokeWidth=1.6).encode(
         x=x, y=alt.Y("alarm:Q", title="Alarm, standard deviations", axis=alt.Axis(format="+.1f")),
@@ -415,6 +418,9 @@ st.html(ui.section_head(
     "AI: is the build-out turning into use?",
     caption="Investment comes first and shows up at once. The lasting gain needs firms across the "
             "economy to use the tools, which for computers took several years after the spending."))
+st.html('<p class="mr-caption"><b>Use.</b> Two sources that measure different things: the Census '
+        'Bureau asks a sample of all US firms whether they used AI; Ramp sees what firms on its '
+        'payment platform actually pay for AI.</p>')
 cols = st.columns(4)
 if not use_now.empty:
     first_m, first_v = use_now.dropna().index[0], float(use_now.dropna().iloc[0])
@@ -429,13 +435,61 @@ if not use_now.empty:
                           "The same survey. A gap that keeps closing upward means adoption is spreading."))
 else:
     cols[0].html(tile("Firms using AI", "–", "Not in the store yet.", "Pulled by ingest.py watch."))
+if not ramp_adopt.empty:
+    year_ago = ramp_adopt.get(ramp_adopt.index[-1] - 12, np.nan)
+    cols[2].html(tile("Firms paying for AI", f"{ramp_adopt.iloc[-1]:.0f}%",
+                      f"Up from {year_ago:.0f}% a year earlier.",
+                      f"Ramp AI Index, {when(ramp_adopt.index[-1])}: share of the 85,000+ US firms on "
+                      "Ramp with any AI transaction that month. Ramp's customers lean to smaller, "
+                      "tech-heavy firms, so it runs above the Census figure."))
+if not ramp_med.empty:
+    jan = ramp_med.get(pd.Period(f"{ramp_med.index[-1].year}-01", "M"), np.nan)
+    cols[3].html(tile("AI spend per employee", f"${ramp_med.iloc[-1]:.0f}",
+                      f"A month, median firm. ${jan:.0f} in January.",
+                      f"Ramp AI Index, {when(ramp_med.index[-1])}, firms paying for AI only. "
+                      "Intensity of use, where the share of firms measures breadth."))
+
+if not ramp_med.empty and not ramp_top.empty:
+    rl = pd.concat([
+        pd.DataFrame({"month": ui.month_mid(ramp_med.index.to_timestamp()), "usd": ramp_med.to_numpy(),
+                      "series": "Median firm"}),
+        pd.DataFrame({"month": ui.month_mid(ramp_top.index.to_timestamp()), "usd": ramp_top.to_numpy(),
+                      "series": "Median of the top 10%"})])
+    first = ramp_med.index[0]
+    yoy_med = (ramp_med.iloc[-1] / ramp_med.get(ramp_med.index[-1] - 12, np.nan) - 1) * 100
+    yoy_top = (ramp_top.iloc[-1] / ramp_top.get(ramp_top.index[-1] - 12, np.nan) - 1) * 100
+    left, right = st.columns([3, 2])
+    left.altair_chart(ui.style(alt.Chart(rl).mark_line(strokeWidth=1.8, point=alt.OverlayMarkDef(size=18)).encode(
+        x=ui.time_x("month", rl["month"].min(), rl["month"].max(), every_years=1),
+        y=alt.Y("usd:Q", title="AI spend per employee per month, US$ (log scale)",
+                scale=alt.Scale(type="log", domain=[1, 2000]),
+                axis=alt.Axis(format="$,.0f", values=[1, 3, 10, 30, 100, 300, 1000])),
+        color=alt.Color("series:N", scale=alt.Scale(domain=["Median firm", "Median of the top 10%"],
+                                                    range=[ui.INK, BLUE])),
+        tooltip=[ui.month_tip("month"), "series:N", alt.Tooltip("usd:Q", format="$,.2f", title="Per employee")],
+    ).properties(height=260)), width="stretch")
+    right.html(
+        '<div class="m-body">'
+        f'<p><b>Spending per head is accelerating.</b> The median firm paying for AI spends '
+        f'${ramp_med.iloc[-1]:.2f} per employee a month, up {yoy_med:.0f}% on a year earlier and from '
+        f'${ramp_med.iloc[0]:.2f} in {when(first)}. The top 10% spend ${ramp_top.iloc[-1]:,.0f}, up '
+        f'{yoy_top:.0f}%.</p>'
+        f'<p>Use is broad but still shallow for most firms: about ${12 * ramp_med.iloc[-1]:.0f} a year per '
+        f'employee at the median, against about {ramp_top.iloc[-1] / ramp_med.iloc[-1]:.0f} times that among the heaviest users. A productivity '
+        'gain across the economy needs the median to keep closing that gap.</p>'
+        f'<p style="color:{ui.MUTED}">Ramp AI Index, from corporate card and bill pay transactions of '
+        'firms on Ramp, matched to their headcount. Log scale, so equal slopes mean equal growth rates. '
+        'History from July 2023 only, so shown as context and not scored.</p></div>')
+
+st.html('<p class="mr-caption" style="margin-top:1rem"><b>Build-out.</b></p>')
+cols = st.columns(4)
 if not dc_share.empty:
-    cols[2].html(tile("Data-center construction", f"{dc_share.iloc[-1]:.2f}% of GDP",
+    cols[0].html(tile("Data-center construction", f"{dc_share.iloc[-1]:.2f}% of GDP",
                       f"{num(float(dc_yoy.iloc[-1]), '+.0f')}% on a year earlier.",
                       f"Census Bureau, {when(dc_share.index[-1])}. It was "
                       f"{dc_share.get(pd.Period('2019-12', 'M'), np.nan):.2f}% at the end of 2019."))
 if not capex_yoy.empty:
-    cols[3].html(tile("Expected capital spending", f"{num(float(capex_yoy.iloc[-1]), '+.0f')}%",
+    cols[1].html(tile("Expected capital spending", f"{num(float(capex_yoy.iloc[-1]), '+.0f')}%",
                       "S&P 500, analysts' forecast three years out, on a year earlier.",
                       f"Bloomberg, {when(capex_yoy.index[-1])}. A turn down here would be the first "
                       "sign of a capex bust."))
@@ -504,6 +558,8 @@ st.html(ui.section_head(
 def scenario_today(sid: str) -> str:
     if sid == "ai_delivers":
         use = "" if use_now.empty else f" AI use is {use_now.dropna().iloc[-1]:.0f}% of firms and rising."
+        if not ramp_med.empty:
+            use += f" Median AI spend is ${ramp_med.iloc[-1]:.0f} per employee a month."
         return ("The productivity check is not available." if met_now is None else
                 f"The check holds on {met_now} of 3. Output per hour is growing "
                 f"{num(prod_now, '.1f')}% a year.") + use

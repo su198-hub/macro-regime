@@ -450,7 +450,7 @@ def cmd_watch(args):
     energy page. Sources are tagged watch-*, so the dashboard's source line,
     which names the vendors behind the presented model, is unchanged.
     """
-    from src.sources.public import as_observations, btos_ai_use, fred_series
+    from src.sources.public import as_observations, btos_ai_use, fred_series, ramp_ai_index
 
     store = Store(args.db)
     refuse_demo_store(store, args.db)
@@ -474,6 +474,19 @@ def cmd_watch(args):
         store.record_meta(sid, "watch-census", title=title, units="% of firms",
                           frequency="Biweekly", has_vintages=False, source_code="BTOS National.xlsx")
         print(f"  {sid}: {len(s)} readings to {s.index.max():%Y-%m-%d}")
+    # Ramp publishes each month's data around the middle of the next month.
+    ramp_titles = {
+        "RAMP_AI_ADOPTION": ("Share of US businesses on Ramp paying for AI", "% of firms"),
+        "RAMP_AI_PEPM_MEDIAN": ("AI spend per employee per month, median firm paying for AI", "USD"),
+        "RAMP_AI_PEPM_TOP10": ("AI spend per employee per month, median of top 10% of firms", "USD"),
+        "RAMP_AI_PEPM_TOP1": ("AI spend per employee per month, median of top 1% of firms", "USD"),
+    }
+    for sid, s in ramp_ai_index().items():
+        title, units = ramp_titles[sid]
+        n += store.upsert_observations(as_observations(sid, s, lag_days=48))
+        store.record_meta(sid, "watch-ramp", title=title, units=units, frequency="Monthly",
+                          has_vintages=False, source_code="ramp.com/data/ai-index")
+        print(f"  {sid}: {len(s)} months to {s.index.max():%Y-%m}")
     print(f"Stored {n} observations in {args.db}.")
     store.close()
 
@@ -779,7 +792,8 @@ def main():
     sub.add_parser(
         "watch",
         help="Pull the turning points page's own public series: unit profits and prices of "
-             "nonfinancial corporations (BEA, from FRED) and AI use by firms (Census).",
+             "nonfinancial corporations (BEA, from FRED), AI use by firms (Census) and AI "
+             "adoption and spend per employee (Ramp AI Index).",
     ).set_defaults(func=cmd_watch)
     tr = sub.add_parser(
         "truth",
