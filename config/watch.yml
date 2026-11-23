@@ -272,35 +272,40 @@ chain:
 # reads as about the same. Neither is tested.
 # `kind`: growth = annual pace of a level over the period; mean = average;
 # start = the period's first month against the latest reading.
-# `source: regime` rows read the regime model's own gaps.
+# `regime_column` rows read the regime model's own gaps. `tailwind` rows feed the
+# tailwinds box on the flow chart; the rest sit on its steps.
+# TFP (San Francisco Fed, Fernald) added 23 November 2026 with Peter's approval:
+# quarterly change at an annual rate, so it is averaged over each period.
 then_now:
   start: 1996-01
   end: 2000-12
   recent_months: 24
   rows:
-    - {group: The engine, label: Output per hour, units: "% a year", series: [OPHNFB], transform: level,
+    - {id: oph, group: The engine, label: Output per hour, units: "% a year", series: [OPHNFB], transform: level,
        kind: growth, helps: 1, similar: 0.25, source: BLS}
-    - {group: The engine, label: Investment in computers and peripherals, units: "% of GDP",
+    - {id: tfp, group: The engine, label: "Total factor productivity, utilization-adjusted", units: "% a year",
+       series: [TFPUA], transform: level, kind: mean, helps: 1, similar: 0.25, source: San Francisco Fed}
+    - {id: computers, group: The engine, label: Investment in computers and peripherals, units: "% of GDP",
        series: [B935RC1Q027SBEA, GDPNOM], transform: ratio, factor: 1.0e+9, kind: mean, helps: 1,
        similar: 0.1, source: BEA}
-    - {group: Workers, label: Jobs added a month, units: thousand, series: [PAYEMS], transform: diff,
+    - {id: jobs, tailwind: true, group: Workers, label: Jobs added a month, units: thousand, series: [PAYEMS], transform: diff,
        factor: 0.001, kind: mean, helps: 1, similar: 25, source: BLS}
-    - {group: Workers, label: "Unemployment less its natural rate, at the start and latest", units: pp,
+    - {id: slack, tailwind: true, group: Workers, label: "Unemployment less its natural rate, at the start and latest", units: pp,
        series: [UNRATE, NROU], transform: spread, kind: start, helps: 1, similar: 0.25, source: "BLS, CBO"}
-    - {group: Costs, label: Unit labor costs, units: "% a year", series: [ULCNFB], transform: level,
+    - {id: ulc, group: Costs, label: Unit labor costs, units: "% a year", series: [ULCNFB], transform: level,
        kind: growth, helps: -1, similar: 0.25, source: BLS}
-    - {group: Costs, label: "Producer prices, all commodities", units: "% a year", series: [PPIACO],
+    - {id: commodities, tailwind: true, group: Costs, label: "Producer prices, all commodities", units: "% a year", series: [PPIACO],
        transform: level, kind: growth, helps: -1, similar: 0.5, source: BLS}
-    - {group: Costs, label: Effective tariff rate, units: "% of goods imports",
+    - {id: tariff, tailwind: true, group: Costs, label: Effective tariff rate, units: "% of goods imports",
        series: [CUSTOMS, GOODS_IMPORTS_SHARE, GDPNOM], transform: share_of_share, kind: mean, helps: -1,
        similar: 0.5, source: BEA}
-    - {group: Policy, label: Federal budget balance, units: "% of GDP", series: [MTSBAL, GDPNOM],
+    - {id: budget, tailwind: true, group: Policy, label: Federal budget balance, units: "% of GDP", series: [MTSBAL, GDPNOM],
        transform: sum12_over_level, kind: mean, helps: 1, similar: 0.5, source: "US Treasury, BEA"}
-    - {group: The result, label: Core PCE inflation, units: "% a year", series: [PCEPILFE], transform: level,
+    - {id: core, group: The result, label: Core PCE inflation, units: "% a year", series: [PCEPILFE], transform: level,
        kind: growth, helps: -1, similar: 0.25, source: BEA}
-    - {group: The result, label: "Inflation gap, core less expected", units: pp, source: Regime model,
+    - {id: inflation_gap, group: The result, label: "Inflation gap, core less expected", units: pp, source: Regime model,
        regime_column: inflation, kind: mean, helps: -1, similar: 0.25}
-    - {group: The result, label: "Growth gap, GDP less potential", units: pp, source: Regime model,
+    - {id: growth_gap, group: The result, label: "Growth gap, GDP less potential", units: pp, source: Regime model,
        regime_column: growth, kind: mean, helps: 1, similar: 0.25}
 
 # The frame: three ways out, and what decides between them. Shown as written.

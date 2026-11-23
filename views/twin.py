@@ -109,7 +109,7 @@ cells = []
 for label, since in windows:
     share, n = agreement(calls, since)
     cells.append(f'<div style="border-top:2px solid {ui.INK};padding:0.5rem 0.2rem">'
-                 f'<div style="font-size:0.78rem;color:{ui.MUTED};text-transform:uppercase;'
+                 f'<div style="font-size:0.78rem;color:{ui.MUTED};'
                  f'letter-spacing:0.04em">{label}</div>'
                  f'<div style="font-size:1.7rem;font-weight:600">{share:.0%}</div>'
                  f'<div style="font-size:0.74rem;color:{ui.MUTED}">{n} months</div></div>')

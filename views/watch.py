@@ -355,22 +355,30 @@ for gid, gauge in G.items():
 st.html(ui.table(["Component", "Today", "Average", "Score", "Why it is here"], rows, numeric={1, 2, 3}))
 
 
-# ---------- from AI to a goldilocks exit ----------
+# ---------- the goldilocks exit: the IT boom and today ----------
+#
+# One flow chart: the four steps from AI to a goldilocks exit, each with today's
+# reading, the 1996-2000 reading and whether the step has moved, and a box for
+# the tailwinds the IT boom had besides productivity. The text sits in one short
+# read underneath; the rules for each step and every reading are in two
+# expanders, so the section stays one screen.
 
 chain = cfg["chain"]
 TOL = float(gcfg["tolerance"])
 STATUS = {wt.SEEN: ("Seen", GREEN), wt.PARTLY: ("Partly", "#a86f00"), wt.NOT_YET: ("Not yet", ui.INK_2),
           wt.NOT_SCORED: ("Not scored", ui.MUTED)}
+VERDICT = {wt.BETTER: ("better", GREEN), wt.WORSE: ("worse", RED), wt.SIMILAR: ("similar", ui.INK_2),
+           wt.NOT_SCORED: ("not scored", ui.MUTED)}
 
-# Link 1: firms paying for AI.
+# Step 1: firms paying for AI.
 adopt_change = wt.year_change(ramp_adopt)
 s_adopt = wt.link_adoption(adopt_change, float(chain["adoption_rise"]))
 
-# Link 2: output per hour against the IT payoff and the years after it.
+# Step 2: output per hour against the IT payoff and the years after it.
 fast, normal = era("1995-12", "2004-12"), era("2004-12", "2019-12")
 s_output = wt.link_output(prod_now, fast, normal)
 
-# Link 3: unit labor costs against pay, in the same month.
+# Step 3: unit labor costs against pay, in the same month.
 ulc = wt._ann(wt.monthly(wide, chain["series"]["unit_labor_costs"]), 12).dropna()
 ulc_month, ulc_now = last(ulc)
 d_ulc = wt.year_change(ulc)
@@ -378,9 +386,8 @@ pay_rows = gs.loc[:ulc_month] if len(gs) and ulc_month is not None else gs
 d_pay = float(pay_rows["d_wages"].iloc[-1]) if len(pay_rows) else np.nan
 s_costs = wt.link_costs(d_ulc, d_pay, TOL)
 
-# Link 4: the regime's own inflation and growth gaps, as used for the labels on this page.
+# Step 4: the regime's own inflation and growth gaps, as used for the labels on this page.
 gaps = tframe[["inflation", "growth", "core_pce", "expected"]].dropna()
-g_month = gaps.index[-1] if len(gaps) else None
 gap = float(gaps["inflation"].iloc[-1]) if len(gaps) else np.nan
 growth_gap = float(gaps["growth"].iloc[-1]) if len(gaps) else np.nan
 d_gap = wt.year_change(gaps["inflation"])
@@ -388,119 +395,12 @@ core_now = float(gaps["core_pce"].iloc[-1]) if len(gaps) else np.nan
 expected_now = float(gaps["expected"].iloc[-1]) if len(gaps) else np.nan
 _m = truth.METHODS["now"]
 LINE = truth.band(truth.window_months(_m["years"], _m["align"], _m["measure"]) / 12, truth.INFLATION_BAND)
-provisional = bool(tframe.loc[g_month, "provisional"]) if g_month is not None else False
 s_infl = wt.link_inflation(gap, d_gap, growth_gap, LINE, TOL)
 
-
-def link_card(n: int, link: dict, value: str, compare: str, status: str) -> str:
-    word, color = STATUS[status]
-    if link["id"] == "adoption" and status == wt.SEEN:
-        word = "Under way"
-    return (f'<div style="border-top:3px solid {color};padding-top:.5rem">'
-            f'<div style="font-size:.74rem;font-weight:600;letter-spacing:.06em;color:{ui.MUTED}">'
-            f'LINK {n} OF 4</div>'
-            f'<div style="min-height:3.4rem">'
-            f'<div style="font-weight:700;font-size:1rem;color:{ui.INK};margin-top:.15rem">'
-            f'{ui.esc(link["label"])}</div>'
-            f'<div style="font-size:.84rem;color:{ui.INK_2}">{ui.esc(link["question"])}</div></div>'
-            f'<div style="font-family:{ui.HEADING_FONT};font-weight:700;font-size:1.75rem;line-height:1.2;'
-            f'margin-top:.45rem;color:{ui.INK}">{value}</div>'
-            f'<div style="font-size:.86rem;color:{ui.INK};min-height:4.3rem">{compare}</div>'
-            f'<div style="margin:.35rem 0 .45rem">{chip(word, color)}</div>'
-            f'<div style="font-size:.8rem;color:{ui.INK_2};margin-bottom:.3rem"><b>Counts when.</b> '
-            f'{ui.esc(link["counts_when"])}</div>'
-            f'<div style="font-size:.8rem;color:{ui.MUTED}"><b>Breaks if.</b> {ui.esc(link["breaks_if"])}</div>'
-            f'</div>')
-
-
-st.html(ui.section_head(
-    "The goldilocks exit: the IT boom and today",
-    caption="A goldilocks exit runs through four links, in order. Computers started the chain in the 1990s; "
-            "AI is today's candidate. Each card shows today's reading and whether that link has moved. "
-            "The thresholds are judgements: the AI series start in 2023, so none can be tested."))
-st.html(f'<p class="mr-caption" style="font-weight:600;color:{ui.INK_2}">AI use &nbsp;→&nbsp; output per '
-        'hour &nbsp;→&nbsp; labor costs per unit &nbsp;→&nbsp; inflation and the regime</p>')
-
-L = {link["id"]: link for link in chain["links"]}
-cards = [
-    (L["adoption"],
-     "–" if ramp_adopt.empty else f"{ramp_adopt.iloc[-1]:.0f}% of firms",
-     ("Not in the store yet." if ramp_adopt.empty else
-      f"pay for AI (Ramp, {when(ramp_adopt.index[-1])}), {num(adopt_change, '+.0f')} pp on a year."
-      + ("" if use_now.dropna().empty else
-         f" Census: {use_now.dropna().iloc[-1]:.0f}% of all US firms use it.")),
-     s_adopt),
-    (L["output"], f"{num(prod_now, '.1f')}% a year",
-     f"output per hour over two years, to {when(prod_month)}. The 1996–2004 pace was {fast:.1f}%, "
-     f"2005–19 {normal:.1f}%.",
-     s_output),
-    (L["costs"], f"{num(ulc_now, '.1f')}% a year",
-     f"unit labor costs, {when(ulc_month)}: {num(d_ulc, '+.1f')} pp on a year. Pay growth "
-     f"{num(d_pay, '+.1f')} pp.", s_costs),
-    (L["inflation"], f"{num(gap, '+.2f')} pp",
-     f"core PCE {core_now:.1f}% against expected {expected_now:.2f}%, {num(d_gap, '+.2f')} pp on a year. "
-     f"Regime line {LINE:.2f} pp; growth {num(growth_gap, '+.2f')} pp.",
-     s_infl),
-]
-for col, (n, (link, value, compare, status)) in zip(st.columns(4), enumerate(cards, 1)):
-    col.html(link_card(n, link, value, compare, status))
-
-
-def chain_sentences() -> list[str]:
-    out = []
-    if not ramp_adopt.empty:
-        out.append(f"AI use is {'spreading' if s_adopt == wt.SEEN else 'barely moving'}: "
-                   f"{ramp_adopt.iloc[-1]:.0f}% of firms on Ramp pay for it, {num(adopt_change, '+.0f')} pp on a "
-                   f"year.")
-    rel = ("at or above the pace of the IT payoff" if s_output == wt.SEEN else
-           "above the 2005–19 pace and below the IT payoff" if s_output == wt.PARTLY else
-           "no faster than in 2005–19")
-    out.append(f"Output per hour is growing {num(prod_now, '.1f')}% a year, {rel}.")
-    if s_costs == wt.SEEN:
-        out.append(f"Unit labor cost growth has slowed {abs(d_ulc):.1f} pp in a year while pay held.")
-    elif s_costs == wt.PARTLY:
-        out.append(f"Unit labor cost growth has slowed {abs(d_ulc):.1f} pp in a year and pay growth "
-                   f"{abs(d_pay):.1f} pp, so faster output per hour explains only part of it.")
-    elif s_costs == wt.NOT_YET and not _missing_any(d_ulc, d_pay) and d_ulc < 0 and d_pay <= d_ulc + TOL:
-        out.append(f"Unit labor cost growth has slowed {abs(d_ulc):.1f} pp in a year, and pay growth by "
-                   f"{abs(d_pay):.1f} pp, so slower pay accounts for the whole of it.")
-    elif s_costs == wt.NOT_YET:
-        out.append(f"Unit labor cost growth has not slowed ({num(d_ulc, '+.1f')} pp on a year).")
-    if s_infl == wt.SEEN:
-        out.append("Core inflation is inside the regime line with growth above potential.")
-    elif not pd.isna(gap):
-        out.append(f"Core inflation is {num(gap, '+.2f')} pp above expected inflation, "
-                   f"{'wider' if d_gap > 0 else 'narrower'} than a year earlier, against a line of "
-                   f"{LINE:.2f} pp" + (" (the latest months are provisional)." if provisional else "."))
-    return out
-
-
-labor_note = ""
-if not _missing_any(ulc_now, core_now) and ulc_now < core_now - 1:
-    labor_note = (
-        f'<p><b>Labor costs are not what keeps inflation high today.</b> Unit labor costs are growing '
-        f'{ulc_now:.1f}% a year, against core inflation of {core_now:.1f}%'
-        + (', with margins steady. Other costs, such as energy, imported goods and tariffs, account for the '
-           'rest.' if gs_now is not None and bool(gs_now["ok_margin"]) else
-           '. Other costs and wider margins account for the rest.')
-        + ' Faster output per hour '
-        f'cannot close that gap on its own. It helps by keeping labor costs low while those shocks fade, '
-        f'and by giving the Fed room to wait, as in 1996.</p>')
-st.html(
-    '<div class="m-body" style="margin-top:1rem">'
-    f'<p><b>Where the chain stands.</b> {" ".join(chain_sentences())}</p>'
-    + labor_note
-    + f'<p style="color:{ui.MUTED};font-size:.86rem">Unit labor costs are quarterly and often revised.</p>'
-      '</div>')
-
-
-# The IT boom against today: the same engine, and what else it had going for it.
-
+# The IT boom against the last two years, one reading per row.
 tn = cfg["then_now"]
 T_START, T_END, RECENT = str(tn["start"]), str(tn["end"]), int(tn["recent_months"])
 T_LABEL = f"{pd.Period(T_START, 'M').year}–{pd.Period(T_END, 'M').year}"
-VERDICT = {wt.BETTER: ("Better today", GREEN), wt.WORSE: ("Worse today", RED),
-           wt.SIMILAR: ("Similar", ui.INK_2), wt.NOT_SCORED: ("Not scored", ui.MUTED)}
 
 
 def tn_series(row: dict) -> pd.Series:
@@ -516,65 +416,154 @@ def tn_show(x: float, unit: str) -> str:
         return f"{x:,.0f}k"
     if unit == "pp":
         return num(x, "+.2f") + " pp"
-    if unit == "% of GDP" and x < 0:
+    if unit.startswith("%"):
         return num(x, ".1f") + "%"
-    return f"{x:.1f}%" if unit.startswith("%") else num(x, ".1f")
+    return num(x, ".1f")
 
 
-tn_rows, results, group = [], [], None
+TN = {}
 for row in tn["rows"]:
     v = tn_series(row)
     then = wt.period_stat(v, T_START, T_END, row["kind"])
     now = wt.recent_stat(v, RECENT, row["kind"])
-    verdict = wt.compare(then, now, float(row["helps"]), float(row["similar"]))
-    results.append({**row, "then": then, "now": now, "verdict": verdict,
-                    "latest": when(v.index[-1]) if len(v) else ""})
-    if row["group"] != group:
-        group = row["group"]
-        tn_rows.append(ui.Raw(f"<b>{ui.esc(group)}</b>"))
-    word, color = VERDICT[verdict]
-    tn_rows.append([
-        ui.Raw(f'{ui.esc(row["label"])}<br><span style="color:{ui.MUTED};font-size:.8rem">'
-               f'{ui.esc(row["units"])}, {ui.esc(row["source"])}'
-               + (f', latest {when(v.index[-1])}' if len(v) else '') + '</span>'),
-        tn_show(then, row["units"]), tn_show(now, row["units"]),
-        "Higher" if float(row["helps"]) > 0 else "Lower", ui.Raw(chip(word, color))])
+    TN[row["id"]] = {**row, "then": then, "now": now, "latest": when(v.index[-1]) if len(v) else "",
+                     "verdict": wt.compare(then, now, float(row["helps"]), float(row["similar"]))}
 
-st.html(f'<p class="mr-caption" style="margin-top:1.4rem"><b>The IT boom against today.</b> {T_LABEL} '
-        f'is the clearest productivity-led goldilocks since 1968. Today is the last two years: growth rates '
-        f'over those {RECENT} months, other readings averaged over them.</p>')
-st.html(ui.table(["", T_LABEL, "Last two years", "Helps goldilocks when", "Today against then"],
-                 tn_rows, numeric={1, 2}))
 
-R = {r["label"]: r for r in results}
-engine = [r for r in results if r["group"] == "The engine"]
-tail = [r for r in results if r["group"] not in ("The engine", "The result")]
-worse = [r for r in tail if r["verdict"] == wt.WORSE]
-oph = engine[0] if engine else None
-lines = []
-if oph is not None and not _missing_any(oph["then"], oph["now"]):
-    lines.append(f"Output per hour is growing {oph['now']:.1f}% a year, against {oph['then']:.1f}% in "
-                 f"{T_LABEL}" + (", so the engine runs at a similar speed." if oph["verdict"] == wt.SIMILAR
-                                 else "."))
-if worse:
-    lines.append(f"{'The 1990s also had more help' if oph is not None and oph['verdict'] == wt.WORSE else 'What is missing is the help it had'}. "
-                 f"{ui.count_word(len(worse)).capitalize()} of the "
-                 f"{ui.count_word(len(tail))} other conditions are worse today: "
-                 + ui.join_words([r["label"].split(",")[0].lower() for r in worse]) + ".")
-engine_word = {wt.SIMILAR: "The same engine", wt.WORSE: "A slower engine",
-               wt.BETTER: "A faster engine"}.get(oph["verdict"] if oph is not None else wt.NOT_SCORED, "The engine")
-help_word = "fewer tailwinds" if len(worse) * 2 > len(tail) else "similar tailwinds"
-st.html(
-    '<div class="m-body" style="margin-top:.8rem">'
-    f'<p><b>{engine_word}, {help_word}.</b> {" ".join(lines)} In the 1990s more workers, cheap '
-    'commodities, low tariffs and a budget moving into surplus all kept costs and demand in check while '
-    'productivity did its work. Today productivity has to do that work alone, so AI would likely need to lift '
-    'output per hour above the IT-boom pace to end this spell the same way.</p>'
-    f'<p style="color:{ui.MUTED};font-size:.86rem">Two more tailwinds are not in the store and are not shown: '
-    'oil fell to about $11 a barrel in late 1998, and the dollar rose through the late 1990s, which '
-    'cheapened imports. The IT boom also took about a decade from the spending to the payoff: firms '
-    'bought computers through the 1980s and early 1990s, and output per hour picked up from 1996.</p>'
-    '</div>')
+def was(rid: str) -> str:
+    r = TN.get(rid)
+    return "–" if r is None else tn_show(r["then"], r["units"])
+
+
+# ---------- drawing ----------
+
+def step(title: str, value: str, unit: str, lines: list[str], status: str, label: str | None = None) -> str:
+    word, color = STATUS[status]
+    body = "".join(f'<div style="font-size:.8rem;color:{ui.INK_2};margin-top:.2rem">{x}</div>' for x in lines)
+    return (f'<div style="border:1px solid {ui.GRID};border-top:3px solid {color};padding:.55rem .65rem .6rem;'
+            f'background:#fff;height:100%;box-sizing:border-box">'
+            f'<div style="font-weight:700;font-size:.92rem;color:{ui.INK}">{ui.esc(title)}</div>'
+            f'<div style="font-family:{ui.HEADING_FONT};font-weight:700;font-size:1.6rem;line-height:1.15;'
+            f'margin-top:.25rem;color:{ui.INK}">{value}</div>'
+            f'<div style="font-size:.8rem;color:{ui.INK}">{unit}</div>{body}'
+            f'<div style="margin-top:.45rem">{chip(label or word, color)}</div></div>')
+
+
+def arrow(ch: str = "→") -> str:
+    return (f'<div style="display:flex;align-items:center;justify-content:center;color:{ui.MUTED};'
+            f'font-size:1.3rem">{ch}</div>')
+
+
+tfp = TN.get("tfp", {})
+steps = [
+    step("AI use", "–" if ramp_adopt.empty else f"{ramp_adopt.iloc[-1]:.0f}%",
+         "of firms on Ramp pay for AI",
+         [f"{num(adopt_change, '+.0f')} pp on a year",
+          f"Computers {tn_show(TN['computers']['now'], '%')} of GDP; {was('computers')} in {T_LABEL}"],
+         s_adopt, "Under way" if s_adopt == wt.SEEN else None),
+    step("Output per hour", f"{num(prod_now, '.1f')}%", "a year over two years",
+         [f"{was('oph')} in {T_LABEL}",
+          f"TFP {tn_show(tfp.get('now', np.nan), '%')}; {was('tfp')} in {T_LABEL}"],
+         s_output),
+    step("Unit labor costs", f"{num(ulc_now, '.1f')}%", f"a year, to {when(ulc_month)}",
+         [f"{num(d_ulc, '+.1f')} pp on a year; pay {num(d_pay, '+.1f')} pp",
+          f"{was('ulc')} in {T_LABEL}"],
+         s_costs),
+    step("Core inflation", f"{num(gap, '+.2f')} pp", "above expected inflation",
+         [f"Core PCE {core_now:.1f}% against {expected_now:.2f}%", f"Regime line {LINE:.2f} pp",
+          f"{was('inflation_gap')} in {T_LABEL}"],
+         s_infl),
+]
+growth_then = was("growth_gap")
+end = (f'<div style="border:1px dashed {GREEN};padding:.55rem .65rem;height:100%;box-sizing:border-box">'
+       f'<div style="font-weight:700;font-size:.92rem;color:{GREEN}">Goldilocks exit</div>'
+       f'<div style="font-size:.8rem;color:{ui.INK_2};margin-top:.3rem">Needs inflation inside the line '
+       f'while growth stays above potential.</div>'
+       f'<div style="font-size:.8rem;color:{ui.INK_2};margin-top:.3rem">Growth gap {num(growth_gap, "+.2f")} pp; '
+       f'{growth_then} in {T_LABEL}</div></div>')
+
+winds = [r for r in TN.values() if r.get("tailwind")]
+worse_winds = [r for r in winds if r["verdict"] == wt.WORSE]
+items = "".join(
+    f'<div style="font-size:.8rem;color:{ui.INK};min-width:9.5rem">{ui.esc(r["label"].split(",")[0])}<br>'
+    f'<span style="color:{ui.MUTED}">{tn_show(r["then"], r["units"])} then</span> &nbsp;→&nbsp; '
+    f'<b style="color:{VERDICT[r["verdict"]][1]}">{tn_show(r["now"], r["units"])} now</b></div>'
+    for r in winds)
+tail_box = (f'<div style="border:1px solid {ui.GRID};background:#fafafa;padding:.55rem .7rem">'
+            f'<div style="font-weight:700;font-size:.92rem;color:{ui.INK};margin-bottom:.35rem">Tailwinds the '
+            f'IT boom had &nbsp;<span style="font-weight:400;color:{ui.MUTED};font-size:.8rem">'
+            f'{"all" if len(worse_winds) == len(winds) else ui.count_word(len(worse_winds)) + " of " + ui.count_word(len(winds))} '
+            f'worse today, in red</span></div>'
+            f'<div style="display:flex;flex-wrap:wrap;gap:.5rem 1.2rem">{items}</div></div>')
+
+cols = "minmax(0,1fr) 1.4rem minmax(0,1fr) 1.4rem minmax(0,1fr) 1.4rem minmax(0,1fr) 1.4rem minmax(0,.8fr)"
+flow = (f'<div style="overflow-x:auto"><div style="display:grid;grid-template-columns:{cols};'
+        f'row-gap:.2rem;min-width:860px">'
+        + steps[0] + arrow() + steps[1] + arrow() + steps[2] + arrow() + steps[3] + arrow() + end
+        + f'<div style="grid-column:5 / 8;grid-row:2">{arrow("↑")}</div>'
+        + f'<div style="grid-column:5 / 10;grid-row:3">{tail_box}</div>'
+        + f'<div style="grid-column:1 / 4;grid-row:2 / 4;align-self:center;font-size:.8rem;color:{ui.MUTED};'
+          f'padding-right:1rem">Each step shows today, then {T_LABEL}, the IT boom. The colored edge is '
+          f'whether the step has moved: green seen, amber partly, grey not yet.</div>'
+        + '</div></div>')
+
+st.html(ui.section_head(
+    "The goldilocks exit: the IT boom and today",
+    caption="In the late 1990s computers lifted output per hour, which kept costs and prices down while "
+            "growth ran fast: the clearest productivity-led goldilocks since 1968. AI is today's candidate. "
+            "The chart follows the same steps then and now."))
+st.html(flow)
+
+# ---------- the read ----------
+
+read = []
+oph = TN.get("oph", {})
+if not _missing_any(prod_now, oph.get("then")):
+    read.append(f"AI use is {'spreading' if s_adopt == wt.SEEN else 'barely moving'}, but output per hour "
+                f"is growing {prod_now:.1f}% a year against {oph['then']:.1f}% in {T_LABEL}.")
+if not _missing_any(tfp.get("now"), tfp.get("then")) and tfp["verdict"] == wt.WORSE:
+    read.append(f"Most of today's gain is more capital per worker: TFP, where a lasting gain from AI would "
+                f"show, is growing {tfp['now']:.1f}% a year against {tfp['then']:.1f}% then.")
+if not _missing_any(ulc_now, core_now) and ulc_now < core_now - 1:
+    read.append(f"Labor costs are not what keeps inflation high ({ulc_now:.1f}% a year against core "
+                f"inflation of {core_now:.1f}%), so faster productivity cannot close the gap on its own.")
+if worse_winds:
+    share = (f"All {ui.count_word(len(winds))}" if len(worse_winds) == len(winds) else
+             f"{ui.count_word(len(worse_winds)).capitalize()} of the {ui.count_word(len(winds))}")
+    read.append(f"{share} tailwinds the 1990s had are worse today, so AI would likely need to beat the "
+                f"IT-boom pace to end this spell the same way.")
+st.html(f'<div class="m-body" style="margin-top:.9rem"><p><b>The read.</b> {" ".join(read)}</p></div>')
+
+# ---------- detail, folded away ----------
+
+with st.expander("How each step is judged, and what could break it"):
+    L = {link["id"]: link for link in chain["links"]}
+    st.html(ui.table(
+        ["Step", "Counts as moved when", "Could break if"],
+        [[ui.Raw(f"<b>{ui.esc(L[k]['label'])}</b>"), L[k]["counts_when"], L[k]["breaks_if"]]
+         for k in ("adoption", "output", "costs", "inflation")]))
+    st.html(f'<p class="mr-caption">The thresholds are judgements set out in config/watch.yml. The AI series '
+            f'start in 2023, so none is tested. Unit labor costs are quarterly and often revised.</p>')
+
+with st.expander(f"Every reading, {T_LABEL} against the last two years"):
+    rows, group = [], None
+    for r in TN.values():
+        if r["group"] != group:
+            group = r["group"]
+            rows.append(ui.Raw(f"<b>{ui.esc(group)}</b>"))
+        word, color = VERDICT[r["verdict"]]
+        rows.append([
+            ui.Raw(f'{ui.esc(r["label"])}<br><span style="color:{ui.MUTED};font-size:.8rem">'
+                   f'{ui.esc(r["units"])}, {ui.esc(r["source"])}, latest {r["latest"]}</span>'),
+            tn_show(r["then"], r["units"]), tn_show(r["now"], r["units"]),
+            "Higher" if float(r["helps"]) > 0 else "Lower", ui.Raw(chip(word.capitalize(), color))])
+    st.html(ui.table(["", T_LABEL, "Last two years", "Helps goldilocks when", "Today against then"],
+                     rows, numeric={1, 2}))
+    st.html(f'<p class="mr-caption">Growth rates are the pace over each period; other readings are '
+            f'averages, except unemployment, which compares the first month of 1996 with the latest. Two '
+            f'tailwinds are not in the store and are not shown: oil fell to about $11 a barrel in late 1998, '
+            f'and the dollar rose through the late 1990s. The IT payoff came about a decade after firms began '
+            f'buying computers.</p>')
 
 
 # ---------- AI ----------

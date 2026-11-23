@@ -197,7 +197,7 @@ for b in blocks:
         # Two lines of room whether the name needs them or not, so the numbers
         # sit on one baseline and the row can be read across.
         f'<div style="font-size:0.78rem;color:{ui.MUTED};letter-spacing:0.04em;'
-        f'text-transform:uppercase;line-height:1.15;min-height:2.3em">{ui.esc(b["label"])}</div>'
+        f'line-height:1.15;min-height:2.3em">{ui.esc(b["label"])}</div>'
         f'<div style="font-size:1.6rem;font-weight:600;line-height:1.1;color:{tone}">{b["n"]}</div>'
         f'<div style="font-size:0.74rem">{move}</div>'
         f'<div style="margin-top:0.35rem">{horizon_bar(b["horizons"])}</div>'
