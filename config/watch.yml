@@ -219,6 +219,90 @@ panels:
       geopolitical_risk: EN_GPR
       supply_chains: GSCPI
 
+# The chain from AI to a goldilocks exit, added 23 November 2026. Each link is
+# one step: AI spreads, output per hour picks up, labor costs per unit slow
+# while pay holds, and inflation falls to expectations while growth holds.
+# The page shows today's reading on each link and whether it has moved.
+#
+# WHERE THE CHOICES CAME FROM. None of these is fitted or tested; the AI series
+# start in 2023, so no link can be backtested.
+# - `adoption_rise` (2 pp a year): a judgement. A smaller rise in the share of
+#   firms paying for AI reads as stalled.
+# - Output per hour is judged against two eras computed from the index on the
+#   page: 1996 to 2004 (the IT payoff) counts as seen, above 2005 to 2019 as
+#   partly.
+# - Labor costs and the inflation gap reuse the productivity check's tolerance
+#   (0.25 pp) for "slowed" and "narrowed". The inflation line is the regime
+#   model's own band for the current-regime labels.
+chain:
+  adoption_rise: 2
+  series:
+    unit_labor_costs: ULCNFB
+  links:
+    - id: adoption
+      label: AI spreads through firms
+      question: Are firms outside tech using it?
+      counts_when: The share of firms paying for AI keeps rising, and spend at the median firm keeps closing on the top 10%.
+      breaks_if: Use stalls, or stays in a few tech-heavy firms.
+    - id: output
+      label: Output per hour picks up
+      question: Do the same hours produce more?
+      counts_when: The two-year pace reaches the 1996 to 2004 average and holds for several quarters.
+      breaks_if: Firms first spend on retraining and new ways of working, which the statistics do not count as output. With computers the gain came years after the spending.
+    - id: costs
+      label: Unit labor costs slow, pay holds
+      question: Does the gain reach firms' costs?
+      counts_when: Unit labor cost growth falls by more than 0.25 pp over a year while pay growth holds.
+      breaks_if: Pay speeds up as fast as output per hour. Good for real wages, but costs per unit do not fall.
+    - id: inflation
+      label: Inflation falls, growth holds
+      question: Does it end the spell in goldilocks?
+      counts_when: Core inflation comes within the regime line of expected inflation while growth stays above potential.
+      breaks_if: Firms keep lower costs as wider margins, or energy, tariffs and the build-out itself keep other costs rising.
+
+# The IT boom against today, added 23 November 2026: what the late 1990s had
+# besides faster productivity. 1996 to 2000 is the clearest productivity-led
+# goldilocks in the sample (labelled goldilocks from December 1993 to August
+# 2000). Today is the last two years.
+#
+# WHERE THE CHOICES CAME FROM. Rows are the tailwinds usually credited for the
+# late-1990s goldilocks that the store holds. Oil prices and the dollar are not
+# in the store and are named in the text instead. `helps` is the direction
+# that favours a goldilocks exit; `similar` is a judgement of how big a gap
+# reads as about the same. Neither is tested.
+# `kind`: growth = annual pace of a level over the period; mean = average;
+# start = the period's first month against the latest reading.
+# `source: regime` rows read the regime model's own gaps.
+then_now:
+  start: 1996-01
+  end: 2000-12
+  recent_months: 24
+  rows:
+    - {group: The engine, label: Output per hour, units: "% a year", series: [OPHNFB], transform: level,
+       kind: growth, helps: 1, similar: 0.25, source: BLS}
+    - {group: The engine, label: Investment in computers and peripherals, units: "% of GDP",
+       series: [B935RC1Q027SBEA, GDPNOM], transform: ratio, factor: 1.0e+9, kind: mean, helps: 1,
+       similar: 0.1, source: BEA}
+    - {group: Workers, label: Jobs added a month, units: thousand, series: [PAYEMS], transform: diff,
+       factor: 0.001, kind: mean, helps: 1, similar: 25, source: BLS}
+    - {group: Workers, label: "Unemployment less its natural rate, at the start and latest", units: pp,
+       series: [UNRATE, NROU], transform: spread, kind: start, helps: 1, similar: 0.25, source: "BLS, CBO"}
+    - {group: Costs, label: Unit labor costs, units: "% a year", series: [ULCNFB], transform: level,
+       kind: growth, helps: -1, similar: 0.25, source: BLS}
+    - {group: Costs, label: "Producer prices, all commodities", units: "% a year", series: [PPIACO],
+       transform: level, kind: growth, helps: -1, similar: 0.5, source: BLS}
+    - {group: Costs, label: Effective tariff rate, units: "% of goods imports",
+       series: [CUSTOMS, GOODS_IMPORTS_SHARE, GDPNOM], transform: share_of_share, kind: mean, helps: -1,
+       similar: 0.5, source: BEA}
+    - {group: Policy, label: Federal budget balance, units: "% of GDP", series: [MTSBAL, GDPNOM],
+       transform: sum12_over_level, kind: mean, helps: 1, similar: 0.5, source: "US Treasury, BEA"}
+    - {group: The result, label: Core PCE inflation, units: "% a year", series: [PCEPILFE], transform: level,
+       kind: growth, helps: -1, similar: 0.25, source: BEA}
+    - {group: The result, label: "Inflation gap, core less expected", units: pp, source: Regime model,
+       regime_column: inflation, kind: mean, helps: -1, similar: 0.25}
+    - {group: The result, label: "Growth gap, GDP less potential", units: pp, source: Regime model,
+       regime_column: growth, kind: mean, helps: 1, similar: 0.25}
+
 # The frame: three ways out, and what decides between them. Shown as written.
 exits:
   stagflation:

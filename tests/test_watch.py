@@ -186,3 +186,72 @@ def test_ramp_chart_data_is_read_from_the_escaped_page_payload():
     assert len(out["RAMP_AI_PEPM_TOP1"]) == 1            # the withheld month is skipped
     with pytest.raises(ValueError):
         parse_ramp_ai_index("<html>no data</html>")
+
+
+def test_the_chain_links_read_their_own_thresholds():
+    assert wt.link_adoption(3.0, 2) == wt.SEEN and wt.link_adoption(1.0, 2) == wt.NOT_YET
+    assert wt.link_adoption(float("nan"), 2) == wt.NOT_SCORED
+    assert wt.link_output(3.2, 3.1, 1.6) == wt.SEEN
+    assert wt.link_output(2.2, 3.1, 1.6) == wt.PARTLY
+    assert wt.link_output(1.2, 3.1, 1.6) == wt.NOT_YET
+
+
+def test_costs_count_only_when_pay_holds():
+    assert wt.link_costs(-1.0, 0.0, 0.25) == wt.SEEN
+    assert wt.link_costs(-1.6, -0.6, 0.25) == wt.PARTLY       # costs slowed by more than pay did
+    assert wt.link_costs(-0.6, -0.7, 0.25) == wt.NOT_YET      # slower pay explains all of it
+    assert wt.link_costs(0.5, 0.0, 0.25) == wt.NOT_YET
+
+
+def test_inflation_link_needs_the_gap_inside_the_line_and_growth_above_potential():
+    assert wt.link_inflation(0.3, -0.5, 0.2, band=0.41, tol=0.25) == wt.SEEN
+    assert wt.link_inflation(0.3, -0.5, -0.2, band=0.41, tol=0.25) == wt.PARTLY   # growth fell: not goldilocks
+    assert wt.link_inflation(1.21, 0.30, 0.17, band=0.41, tol=0.25) == wt.NOT_YET
+    assert wt.link_inflation(float("nan"), 0, 0.1, band=0.41, tol=0.25) == wt.NOT_SCORED
+
+
+def test_year_change_compares_with_twelve_months_before():
+    s = pd.Series(np.arange(24, dtype=float), index=pd.period_range("2024-01", periods=24, freq="M"))
+    assert wt.year_change(s) == 12.0
+    assert np.isnan(wt.year_change(s.iloc[:6]))
+
+
+def test_period_readings_by_kind():
+    idx = pd.period_range("1995-12", periods=61, freq="M")
+    lv = pd.Series(100 * 1.02 ** (np.arange(61) / 12), index=idx)      # 2% a year
+    assert wt.period_stat(lv, "1996-01", "2000-12", "growth") == pytest.approx(2.0)
+    assert wt.recent_stat(lv, 24, "growth") == pytest.approx(2.0)
+    flat = pd.Series(np.r_[np.ones(31), 3 * np.ones(30)], index=idx)
+    assert wt.period_stat(flat, "1996-01", "2000-12", "start") == 1.0
+    assert wt.recent_stat(flat, 24, "start") == 3.0
+    assert wt.recent_stat(flat, 24, "mean") == 3.0
+
+
+def test_compare_reads_direction_and_tolerance():
+    assert wt.compare(240, 55, helps=1, similar=25) == wt.WORSE          # fewer jobs added
+    assert wt.compare(2.1, 7.1, helps=-1, similar=0.5) == wt.WORSE       # higher tariffs
+    assert wt.compare(2.8, 2.7, helps=1, similar=0.25) == wt.SIMILAR
+    assert wt.compare(1.3, 0.2, helps=-1, similar=0.5) == wt.BETTER
+    assert wt.compare(float("nan"), 1, helps=1, similar=0.5) == wt.NOT_SCORED
+
+
+def test_new_transforms():
+    idx = months("2020-01-01", 3)
+    wide = pd.DataFrame({"J": [100.0, 150.0, 175.0], "D": [10.0] * 3, "S": [10.0] * 3, "G": [1000.0] * 3},
+                        index=idx)
+    jobs = wt.component_value({"series": ["J"], "transform": "diff"}, wide)
+    assert list(jobs) == [50.0, 25.0]
+    rate = wt.component_value({"series": ["D", "S", "G"], "transform": "share_of_share"}, wide)
+    assert rate.iloc[-1] == pytest.approx(10.0)                         # 10 of 100 in imports
+
+
+def test_every_then_and_now_row_computes():
+    cfg = wt.load_config()
+    wide = pd.DataFrame({sid: np.linspace(100, 200, 400) for sid in wt.required_series(cfg)},
+                        index=months("1990-01-01", 400))
+    for row in cfg["then_now"]["rows"]:
+        if "regime_column" in row:
+            continue
+        v = wt.component_value(row, wide)
+        assert not v.empty, row["label"]
+        assert not np.isnan(wt.period_stat(v, str(cfg["then_now"]["start"]), str(cfg["then_now"]["end"]), row["kind"])), row["label"]

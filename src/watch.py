@@ -50,6 +50,8 @@ def components(cfg: dict):
 def required_series(cfg: dict) -> list[str]:
     out = [sid for _, comp in components(cfg) for sid in comp["series"]]
     out += [sid for panel in cfg.get("panels", {}).values() for sid in panel.get("series", {}).values()]
+    out += list(cfg.get("chain", {}).get("series", {}).values())
+    out += [sid for row in cfg.get("then_now", {}).get("rows", []) for sid in row.get("series", [])]
     return sorted(set(out))
 
 
@@ -112,6 +114,10 @@ def component_value(comp: dict, wide: pd.DataFrame) -> pd.Series:
         v = _sum12(a) / b.ffill(limit=6) * 100
     elif t == "chg_12m_gap":            # how much more one rate moved than another over a year
         v = a.diff(12) - b.diff(12)
+    elif t == "diff":                   # change from the month before, such as jobs added
+        v = a.diff()
+    elif t == "share_of_share":         # a against a share of c: duties over goods imports (b, % of GDP c)
+        v = a / (b / 100 * series[2].reindex(a.index)) * 100
     else:
         raise ValueError(f"unknown transform {t!r}")
     v = v * float(comp.get("factor", 1))
@@ -293,3 +299,102 @@ def reading(x: float, warn: float) -> str:
     if x >= warn:
         return "warning"
     return "building" if x >= 0 else "quiet"
+
+
+# ---------- the chain from AI to a goldilocks exit ----------
+#
+# Four links, each judged on its own reading: "seen", "partly", "not yet", or
+# "not scored" when the data is missing. The thresholds are judgements set out
+# in config/watch.yml; none is tested, since the AI series start in 2023.
+
+SEEN, PARTLY, NOT_YET, NOT_SCORED = "seen", "partly", "not yet", "not scored"
+
+
+def _missing(*xs) -> bool:
+    return any(x is None or pd.isna(x) for x in xs)
+
+
+def year_change(s: pd.Series) -> float:
+    """The latest value less the value twelve months before it."""
+    s = s.dropna()
+    if s.empty:
+        return np.nan
+    return float(s.iloc[-1] - s.get(s.index[-1] - 12, np.nan))
+
+
+def link_adoption(change: float, rise: float) -> str:
+    """Firms paying for AI, change in the share over a year (pp)."""
+    if _missing(change):
+        return NOT_SCORED
+    return SEEN if change >= rise else NOT_YET
+
+
+def link_output(pace: float, fast: float, normal: float) -> str:
+    """Output per hour against the IT-payoff pace (`fast`) and the 2005-19 pace (`normal`)."""
+    if _missing(pace, fast, normal):
+        return NOT_SCORED
+    return SEEN if pace >= fast else PARTLY if pace > normal else NOT_YET
+
+
+def link_costs(d_ulc: float, d_wages: float, tol: float) -> str:
+    """Unit labor costs slowing while pay holds is the productivity gain reaching
+    costs. If pay slowed too, only the part of the slowdown beyond pay's counts:
+    partly when costs slowed by more than pay, not yet when pay explains it all."""
+    if _missing(d_ulc, d_wages):
+        return NOT_SCORED
+    if d_ulc <= -tol and d_wages >= -tol:
+        return SEEN
+    return PARTLY if d_ulc <= -tol and d_ulc < d_wages - tol else NOT_YET
+
+
+def link_inflation(gap: float, d_gap: float, growth: float, band: float, tol: float) -> str:
+    """Seen once core inflation is inside the regime line with growth above
+    potential; partly while the gap is narrowing."""
+    if _missing(gap, growth):
+        return NOT_SCORED
+    if gap < band and growth > 0:
+        return SEEN
+    return PARTLY if not _missing(d_gap) and d_gap <= -tol else NOT_YET
+
+
+# ---------- the IT boom against today ----------
+#
+# One reading per row for a past period and for the last few months. "growth"
+# is the annual pace of a level across the period, "mean" the average, "start"
+# the value in the period's first month against the latest.
+
+BETTER, WORSE, SIMILAR = "better", "worse", "similar"
+
+
+def period_stat(v: pd.Series, start: str, end: str, kind: str) -> float:
+    v = v.dropna()
+    a, b = pd.Period(start, "M"), pd.Period(end, "M")
+    if kind == "growth":
+        x0, x1 = v.get(a - 1, np.nan), v.get(b, np.nan)
+        return float(((x1 / x0) ** (12 / ((b - a).n + 1)) - 1) * 100) if not _missing(x0, x1) else np.nan
+    if kind == "start":
+        return float(v.get(a, np.nan))
+    part = v[a:b]
+    return float(part.mean()) if len(part) else np.nan
+
+
+def recent_stat(v: pd.Series, months: int, kind: str) -> float:
+    v = v.dropna()
+    if v.empty:
+        return np.nan
+    if kind == "growth":
+        x0 = v.get(v.index[-1] - months, np.nan)
+        return float(((v.iloc[-1] / x0) ** (12 / months) - 1) * 100) if not _missing(x0) else np.nan
+    if kind == "start":
+        return float(v.iloc[-1])
+    return float(v[v.index > v.index[-1] - months].mean())
+
+
+def compare(then: float, now: float, helps: float, similar: float) -> str:
+    """Whether today's reading is better or worse for a goldilocks exit than the
+    past one. `helps` is +1 when a higher reading helps; a gap under `similar`
+    reads as about the same."""
+    if _missing(then, now):
+        return NOT_SCORED
+    d = (now - then) * helps
+    return BETTER if d > similar else WORSE if d < -similar else SIMILAR
